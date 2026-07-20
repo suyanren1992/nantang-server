@@ -31,7 +31,7 @@ def _user_json(u):
 
 def _set_refresh_cookie(response: Response, user_id: str):
     refresh = create_refresh_token(user_id)
-    response.set_cookie("refresh_token", refresh, httponly=True, samesite="lax",
+    response.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="lax",
                         max_age=7*86400, path="/api/auth")
 
 
