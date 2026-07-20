@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<title>大扫除 · 南塘云村</title>
+<style>
+:root{--gp:#3d6b52;--ga:#c8892e;--rd:#b84c38;--tx:#1d2e24;--t2:#5a6e5c;--t3:#8a8a8a;--bg:#e8ede6;--bd:#d0d9ce;--wh:#fff;--rs:8px;--rm:12px;--rl:16px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:100%;overflow:hidden;background:#1d2e24;font-size:16px;user-select:none;-webkit-user-select:none}
+.app{max-width:430px;margin:0 auto;height:100%;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--bd);flex-shrink:0}
+.topbar-title{font-weight:700;font-size:.85rem;color:var(--tx);flex:1}
+.body-scroll{flex:1;overflow-y:auto;padding:0 14px 100px;-webkit-overflow-scrolling:touch}
+
+/* event card */
+.evt-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--rm);padding:14px;margin-bottom:8px;cursor:pointer;transition:.1s}
+.evt-card:active{transform:scale(.99)}
+.evt-card.active{border-left:4px solid var(--gp)}
+.evt-card.upcoming{border-left:4px solid var(--ga)}
+.evt-card.done{opacity:.7}
+.evt-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.evt-icon{font-size:1.2rem;flex-shrink:0}
+.evt-title{font-weight:700;font-size:.73rem;color:var(--tx);flex:1}
+.evt-date{font-size:.5rem;color:var(--t3);flex-shrink:0}
+.evt-progress{margin:8px 0}
+.evt-progress-bar{height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden}
+.evt-progress-fill{height:100%;background:linear-gradient(90deg,var(--gp),var(--ga));border-radius:3px;transition:width .3s}
+.evt-progress-text{font-size:.5rem;color:var(--t3);margin-top:2px}
+.evt-footer{display:flex;align-items:center;gap:6px;font-size:.52rem;color:var(--t2);flex-wrap:wrap}
+.evt-nt{font-weight:700;color:var(--ga)}
+.tag{font-size:.48rem;padding:2px 6px;border-radius:6px;font-weight:600}
+.tag.g{background:#e8f5e8;color:var(--gp)}.tag.y{background:#fef8e8;color:var(--ga)}.tag.r{background:#fde8e8;color:var(--rd)}
+
+/* detail sheet */
+.sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center}
+.sheet-overlay.open{display:flex}
+.sheet-card{width:100%;max-width:430px;background:var(--wh);border-radius:var(--rl) var(--rl) 0 0;padding:20px 16px 24px;max-height:85vh;overflow-y:auto;animation:slideUp .2s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sheet-title{font-size:.8rem;font-weight:700;color:var(--tx);flex:1}
+.sheet-close{font-size:1.1rem;cursor:pointer;color:var(--t3);background:none;border:none;padding:4px 8px}
+.sheet-section{margin-bottom:12px}
+.sheet-section-title{font-size:.63rem;font-weight:700;color:var(--t2);margin-bottom:6px}
+.sheet-info{background:#f8faf8;border-radius:var(--rs);padding:10px 12px;margin-bottom:10px;font-size:.6rem;color:var(--t2);line-height:1.6}
+.sheet-info strong{color:var(--tx)}
+.sheet-row{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.sheet-row label{font-size:.6rem;font-weight:600;color:var(--t2);flex-shrink:0;min-width:44px}
+.sheet-row input,.sheet-row select{flex:1;padding:8px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.7rem;font-family:inherit;background:var(--wh)}
+.sheet-row input:focus,.sheet-row select:focus{outline:none;border-color:var(--gp)}
+.sheet-actions{display:flex;gap:8px;margin-top:12px}
+.sheet-actions button{flex:1;padding:11px;border-radius:var(--rs);font-size:.72rem;font-weight:700;cursor:pointer;border:none;min-height:44px;transition:.1s}
+.sheet-actions button:active{transform:scale(.97)}
+.sbtn-pri{background:var(--gp);color:#fff}.sbtn-sec{background:#f0f0f0;color:var(--t2)}.sbtn-warn{background:var(--ga);color:#fff}
+
+/* area assignment */
+.area-item{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f5f5f5}
+.area-icon{font-size:1rem;width:24px;text-align:center;flex-shrink:0}
+.area-name{font-size:.65rem;color:var(--tx);flex:1;font-weight:600}
+.area-assign{font-size:.58rem;color:var(--t3);flex-shrink:0;min-width:60px;text-align:right}
+.area-assign.done{color:var(--gp);font-weight:600}
+
+/* verify card */
+.verify-card{background:#fffdf5;border:1px dashed var(--ga);border-radius:var(--rs);padding:10px 12px;margin-bottom:6px}
+.verify-head{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:.62rem}
+.verify-head strong{color:var(--tx)}
+.verify-actions{display:flex;gap:6px;margin-top:6px}
+
+/* tabs */
+.tabbar{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--bg)}
+.tab{flex:1;text-align:center;padding:9px;font-size:.67rem;font-weight:700;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;transition:.12s;position:relative}
+.tab.on{color:var(--gp);border-bottom-color:var(--gp)}
+.tab-dot{position:absolute;top:4px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rd);display:none}
+.tab-dot.show{display:block}
+
+.toast{position:fixed;top:50px;left:50%;transform:translateX(-50%);z-index:999;padding:10px 22px;border-radius:20px;font-size:.72rem;font-weight:600;color:#fff;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:90%}
+.toast.show{opacity:1}.toast.ok{background:var(--gp)}.toast.warn{background:var(--ga)}.toast.error{background:var(--rd)}
+.sec-label{font-size:.63rem;font-weight:700;color:var(--t2);padding:10px 0 6px;display:flex;align-items:center;gap:4px}
+.empty{text-align:center;padding:36px 16px;color:var(--t3);font-size:.63rem}.empty-icon{font-size:2.2rem;margin-bottom:4px;opacity:.4}
+.inline-btn{padding:5px 12px;border-radius:12px;font-size:.56rem;font-weight:600;cursor:pointer;border:none;min-height:32px}
+.inline-btn.pri{background:var(--gp);color:#fff}.inline-btn.sec{background:#f0f0f0;color:var(--t2)}.inline-btn.warn{background:var(--ga);color:#fff}
+.bottombar{display:flex;gap:8px;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--bd);flex-shrink:0}
+.btn{flex:1;padding:12px;border-radius:var(--rs);font-size:.73rem;font-weight:700;cursor:pointer;border:none;text-align:center;min-height:44px;transition:.1s}
+.btn:active{transform:scale(.96)}.btn-pri{background:var(--gp);color:#fff}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"><span style="font-size:1.2rem">🧹</span><span class="topbar-title">大扫除</span><span style="font-size:.52rem;color:var(--t3)">砚仁 · 在地</span></div>
+  <div class="tabbar">
+    <div class="tab on" data-tab="active" onclick="switchTab('active')">🟢 进行中</div>
+    <div class="tab" data-tab="upcoming" onclick="switchTab('upcoming')">📅 即将</div>
+    <div class="tab" data-tab="verify" onclick="switchTab('verify')">⏳ 待校核<span class="tab-dot" id="dotVerify"></span></div>
+    <div class="tab" data-tab="done" onclick="switchTab('done')">📁 往期</div>
+  </div>
+  <div class="body-scroll" id="bodyContent"></div>
+  <div class="bottombar"><button class="btn btn-pri" onclick="openCreate()">＋ 发起大扫除</button></div>
+</div>
+
+<!-- CREATE SHEET -->
+<div class="sheet-overlay" id="createSheet" onclick="if(event.target===this)closeCreate()">
+  <div class="sheet-card">
+    <div class="sheet-head"><span class="sheet-title">发起大扫除</span><button class="sheet-close" onclick="closeCreate()">✕</button></div>
+    <div class="sheet-row"><label>标题</label><input type="text" id="crTitle" placeholder="如：周末例行大扫除"></div>
+    <div class="sheet-row"><label>日期</label><input type="date" id="crDate"></div>
+    <div class="sheet-row"><label>时间</label><select id="crTime"><option>09:00-12:00</option><option>14:00-17:00</option><option>全天</option></select></div>
+    <div class="sheet-section"><div class="sheet-section-title">🏠 打扫区域（对齐南塘实际空间）</div><div id="crAreas"></div></div>
+    <div class="sheet-section"><div class="sheet-section-title">👥 在地人员（居住超1周·必须参加）</div><div id="crPeople"></div></div>
+    <div class="sheet-info" id="crNTInfo"></div>
+    <div class="sheet-actions"><button class="sbtn-sec" onclick="closeCreate()">取消</button><button class="sbtn-pri" onclick="confirmCreate()">✅ 发布</button></div>
+  </div>
+</div>
+
+<!-- DETAIL SHEET -->
+<div class="sheet-overlay" id="detailSheet" onclick="if(event.target===this)closeDetail()">
+  <div class="sheet-card">
+    <div class="sheet-head"><span class="sheet-title" id="dtTitle"></span><button class="sheet-close" onclick="closeDetail()">✕</button></div>
+    <div id="dtBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  DATA — 对齐项目实际空间、公约配置、校核机制
+// ═══════════════════════════════════════════
+var U='砚仁';
+
+// 对齐 map_locations 实际空间
+var PROJECT_SPACES=[
+  {id:'kitchen',name:'厨房',icon:'🍳',bld:'大地书房',rate:10},
+  {id:'toilet_r',name:'卫生间',icon:'🚽',bld:'大地书房',rate:15},
+  {id:'studio',name:'画室',icon:'🎨',bld:'大地书房',rate:8},
+  {id:'study_r',name:'大书房',icon:'📚',bld:'大地书房',rate:5},
+  {id:'reading',name:'阅览室',icon:'📖',bld:'大地书房',rate:5},
+  {id:'office_r',name:'办公室',icon:'💻',bld:'大地书房',rate:5},
+  {id:'storage',name:'储物间',icon:'📦',bld:'大地书房',rate:3},
+  {id:'courtyard',name:'院子',icon:'🌿',bld:'户外',rate:2},
+  {id:'corridor',name:'走廊',icon:'🚶',bld:'大地书房',rate:8},
+  {id:'dorm101',name:'A室',icon:'🛏',bld:'宿舍',rate:5},
+  {id:'dorm102',name:'B室',icon:'🛏',bld:'宿舍',rate:5},
+  {id:'dorm103',name:'C室',icon:'🛏',bld:'宿舍',rate:5},
+  {id:'dorm104',name:'D室',icon:'🛏',bld:'宿舍',rate:5},
+  {id:'dorm105',name:'E室',icon:'🛏',bld:'宿舍',rate:5},
+  {id:'dorm106',name:'F室',icon:'🛏',bld:'宿舍',rate:5},
+  {id:'laundry',name:'洗衣房',icon:'🧺',bld:'大地书房',rate:5}
+];
+
+// 对齐公约配置 cleaning_pricing + nt_rewards
+var CONFIG={cleaning_pricing:{dirty:20,warning:15,clean:5},nt_rewards:{cleaning:10},dirtiness_thresholds:{green:30,yellow:60,red:80}};
+
+// 在地居住超1周的人员
+var ON_SITE_RESIDENTS=['砚仁','淑惠','朝林','大飞','小云'];
+
+// 大扫除事件
+var EVENTS=[
+  {id:'dc1',title:'周末例行大扫除',date:'2026-07-26',time:'09:00-12:00',
+   assignments:[
+     {spaceId:'kitchen',assignee:'砚仁',status:'verified',verifiedBy:'淑惠',verifiedAt:'10:30',ntEarned:20},
+     {spaceId:'courtyard',assignee:'淑惠',status:'verified',verifiedBy:'朝林',verifiedAt:'11:00',ntEarned:10},
+     {spaceId:'toilet_r',assignee:'朝林',status:'verified',verifiedBy:'大飞',verifiedAt:'10:45',ntEarned:20},
+     {spaceId:'studio',assignee:'大飞',status:'done',verifiedBy:'',verifiedAt:'',ntEarned:0},
+     {spaceId:'corridor',assignee:'小云',status:'done',verifiedBy:'',verifiedAt:'',ntEarned:0},
+     {spaceId:'storage',assignee:'砚仁',status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0}
+   ],createdBy:'砚仁',createdAt:'2026-07-20T14:00',status:'active'},
+  {id:'dc2',title:'迎接新营员大扫除',date:'2026-07-28',time:'14:00-17:00',
+   assignments:[
+     {spaceId:'kitchen',assignee:'砚仁',status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0},
+     {spaceId:'toilet_r',assignee:'淑惠',status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0},
+     {spaceId:'studio',assignee:'朝林',status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0},
+     {spaceId:'courtyard',assignee:'大飞',status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0},
+     {spaceId:'corridor',assignee:'小云',status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0}
+   ],createdBy:'砚仁',createdAt:'2026-07-21T09:00',status:'upcoming'},
+  {id:'dc3',title:'节前大扫除',date:'2026-07-14',time:'全天',
+   assignments:[
+     {spaceId:'kitchen',assignee:'砚仁',status:'verified',verifiedBy:'淑惠',verifiedAt:'',ntEarned:20},
+     {spaceId:'toilet_r',assignee:'淑惠',status:'verified',verifiedBy:'砚仁',verifiedAt:'',ntEarned:20},
+     {spaceId:'courtyard',assignee:'朝林',status:'verified',verifiedBy:'大飞',verifiedAt:'',ntEarned:10},
+     {spaceId:'studio',assignee:'大飞',status:'verified',verifiedBy:'小云',verifiedAt:'',ntEarned:15}
+   ],createdBy:'砚仁',createdAt:'2026-07-10T10:00',status:'completed',completedAt:'2026-07-14T17:00'}
+];
+
+var _tab='active',_dtEvt=null;
+var _crSpaces=[],_crAssign={}; // { spaceId: assigneeName }
+
+// ══ HELPERS ══
+function T(){return new Date().toISOString().slice(0,10)}function N(){return new Date().toISOString()}function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+var _tt;function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},1800);}
+function spaceById(id){return PROJECT_SPACES.find(function(s){return s.id===id;});}
+function calcNT(spaceId){var s=spaceById(spaceId);if(!s)return 10;if(s.rate>=15)return CONFIG.cleaning_pricing.dirty;if(s.rate>=8)return CONFIG.cleaning_pricing.warning;return CONFIG.cleaning_pricing.clean;}
+
+// ══ TABS ══
+function switchTab(t){_tab=t;document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.tab===t);});refresh();}
+
+// ══ EVENT LIST ══
+function renderList(){
+  var el=document.getElementById('bodyContent');
+  var list=EVENTS.filter(function(e){return _tab==='active'?e.status==='active':_tab==='upcoming'?e.status==='upcoming':_tab==='verify'?(e.status==='active'&&e.assignments.some(function(a){return a.status==='done';})):e.status==='completed';});
+
+  // Count verify badge
+  var pendingVerify=0;
+  EVENTS.filter(function(e){return e.status==='active';}).forEach(function(e){e.assignments.forEach(function(a){if(a.status==='done')pendingVerify++;});});
+  document.getElementById('dotVerify').classList.toggle('show',pendingVerify>0);
+
+  if(_tab==='verify'){
+    var h='<div class="sec-label">⏳ 待校核 ('+pendingVerify+'项) · 任何在地成员均可校核</div>';
+    EVENTS.filter(function(e){return e.status==='active';}).forEach(function(e){
+      e.assignments.filter(function(a){return a.status==='done';}).forEach(function(a){
+        var s=spaceById(a.spaceId);
+        h+='<div class="verify-card">';
+        h+='<div class="verify-head"><span>'+(s?s.icon:'📍')+'</span><strong>'+(s?s.name:a.spaceId)+'</strong> · '+e.title+'</div>';
+        h+='<div style="font-size:.55rem;color:var(--t3)">打扫人：'+a.assignee+' · 奖励：'+calcNT(a.spaceId)+' NT（按公约）</div>';
+        h+='<div class="verify-actions">';
+        if(a.assignee!==U){
+          h+='<button class="inline-btn pri" onclick="verifyArea(\''+e.id+'\',\''+a.spaceId+'\')">✅ 确认打扫完成</button>';
+        }else{
+          h+='<span style="font-size:.5rem;color:var(--t3)">⚠ 不可校核自己打扫的区域</span>';
+        }
+        h+='</div></div>';
+      });
+    });
+    if(!pendingVerify)h+='<div class="empty"><div class="empty-icon">✅</div>暂无待校核项</div>';
+    el.innerHTML=h;return;
+  }
+
+  if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">'+( _tab==='done'?'📁':'📅')+'</div>'+( _tab==='done'?'暂无往期记录':'暂无大扫除')+'</div>';return;}
+
+  var h='';
+  list.forEach(function(evt){
+    var doneCount=evt.assignments.filter(function(a){return a.status==='verified'||a.status==='done';}).length;
+    var verifiedCount=evt.assignments.filter(function(a){return a.status==='verified';}).length;
+    var pct=evt.assignments.length?Math.round(doneCount/evt.assignments.length*100):0;
+    var totalNT=evt.assignments.reduce(function(s,a){return s+(a.status==='verified'?a.ntEarned||calcNT(a.spaceId):0);},0);
+
+    h+='<div class="evt-card '+evt.status+'" onclick="openDetail(\''+evt.id+'\')">';
+    h+='<div class="evt-head"><span class="evt-icon">🧹</span><span class="evt-title">'+esc(evt.title)+'</span><span class="evt-date">'+evt.date+'</span></div>';
+    h+='<div class="evt-progress"><div class="evt-progress-bar"><div class="evt-progress-fill" style="width:'+pct+'%"></div></div><div class="evt-progress-text">'+doneCount+'/'+evt.assignments.length+' 区域 · '+verifiedCount+'已校核</div></div>';
+    h+='<div class="evt-footer"><span>👤'+ON_SITE_RESIDENTS.length+'人必须参加</span><span class="evt-nt">🪙 已发 '+totalNT+' NT</span></div>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+// ══ DETAIL ══
+function openDetail(eid){
+  var evt=EVENTS.find(function(e){return e.id===eid;});if(!evt)return;_dtEvt=evt;
+  document.getElementById('dtTitle').textContent=evt.title;
+  var h='';
+  h+='<div class="sheet-info"><strong>'+evt.date+'</strong> · '+evt.time+' · 发起人：'+evt.createdBy+'<br>在地居民（≥1周）必须参加：<strong>'+ON_SITE_RESIDENTS.join('、')+'</strong><br>NT奖励按公约：重度区域 '+CONFIG.cleaning_pricing.dirty+'NT · 中度 '+CONFIG.cleaning_pricing.warning+'NT · 轻度 '+CONFIG.cleaning_pricing.clean+'NT</div>';
+
+  h+='<div class="sheet-section"><div class="sheet-section-title">📋 区域分配与进度</div>';
+  evt.assignments.forEach(function(a){
+    var s=spaceById(a.spaceId),nt=calcNT(a.spaceId);
+    var statusLabel=a.status==='verified'?'✅ 已校核 · +'+nt+'NT':a.status==='done'?'🟡 待校核':'⬜ 未完成';
+    var statusCls=a.status==='verified'?'g':a.status==='done'?'y':'';
+    h+='<div class="area-item"><span class="area-icon">'+(s?s.icon:'📍')+'</span><span class="area-name">'+(s?s.name+' ('+s.bld+')':a.spaceId)+'</span><span class="area-assign '+a.status+'"><span class="tag '+statusCls+'">'+statusLabel+'</span> · '+a.assignee+'</span></div>';
+  });
+  h+='</div>';
+
+  // Actions
+  if(evt.status==='active'){
+    h+='<div class="sheet-section"><div class="sheet-section-title">⚡ 操作</div>';
+
+    // Find my assignment
+    var myAssign=evt.assignments.find(function(a){return a.assignee===U;});
+    if(myAssign){
+      if(myAssign.status==='pending'){
+        h+='<button class="inline-btn pri" onclick="markDone(\''+evt.id+'\',\''+myAssign.spaceId+'\')">📸 我打扫完了·提交校核</button>';
+      }else if(myAssign.status==='done'){
+        h+='<div style="font-size:.55rem;color:var(--ga)">⏳ 等待其他人校核你的打扫结果…</div>';
+      }else if(myAssign.status==='verified'){
+        h+='<div style="font-size:.55rem;color:var(--gp)">✅ 已通过校核 · +'+calcNT(myAssign.spaceId)+' NT</div>';
+      }
+    }
+
+    // Can verify others' work
+    var canVerify=evt.assignments.filter(function(a){return a.status==='done'&&a.assignee!==U;});
+    if(canVerify.length){
+      h+='<div style="margin-top:8px;font-size:.55rem;color:var(--t2)">🔍 可以校核其他人的打扫：</div>';
+      canVerify.forEach(function(a){
+        var s=spaceById(a.spaceId);
+        h+='<button class="inline-btn warn" onclick="verifyArea(\''+evt.id+'\',\''+a.spaceId+'\')" style="margin:2px">✓ 校核 '+(s?s.name:a.spaceId)+'（'+a.assignee+'打扫）</button> ';
+      });
+    }
+
+    if(evt.assignments.every(function(a){return a.status==='verified';})){
+      h+='<div style="margin-top:10px"><button class="sbtn-warn" onclick="completeEvent(\''+evt.id+'\')" style="width:100%;padding:12px;border-radius:var(--rs);font-size:.72rem;font-weight:700;cursor:pointer;border:none;min-height:44px;background:var(--ga);color:#fff">✅ 全部校核通过 · 结束大扫除</button></div>';
+    }
+  }
+
+  h+='</div>';
+  document.getElementById('dtBody').innerHTML=h;
+  document.getElementById('detailSheet').classList.add('open');
+}
+function closeDetail(){document.getElementById('detailSheet').classList.remove('open');_dtEvt=null;refresh();}
+
+// ══ ACTIONS ══
+function markDone(eid,sid){
+  var evt=EVENTS.find(function(e){return e.id===eid;});if(!evt)return;
+  var a=evt.assignments.find(function(x){return x.spaceId===sid;});if(!a)return;
+  if(a.assignee!==U){toast('这不是你的区域','warn');return;}
+  a.status='done';
+  toast('打扫完成！等待他人校核 ⏳','ok');openDetail(eid);
+}
+
+function verifyArea(eid,sid){
+  var evt=EVENTS.find(function(e){return e.id===eid;});if(!evt)return;
+  var a=evt.assignments.find(function(x){return x.spaceId===sid;});if(!a)return;
+  if(a.assignee===U){toast('不能校核自己打扫的区域','warn');return;}
+  a.status='verified';a.verifiedBy=U;a.verifiedAt=N();a.ntEarned=calcNT(sid);
+  toast('已校核 ✓ +'+calcNT(sid)+' NT 给 '+a.assignee,'ok');
+  if(_tab==='verify')refresh();else openDetail(eid);
+}
+
+function completeEvent(eid){
+  var evt=EVENTS.find(function(e){return e.id===eid;});if(!evt)return;
+  if(!evt.assignments.every(function(a){return a.status==='verified';})){toast('还有区域未校核','warn');return;}
+  evt.status='completed';evt.completedAt=N();
+  var totalNT=evt.assignments.reduce(function(s,a){return s+a.ntEarned;},0);
+  toast('大扫除完成！共发放 '+totalNT+' NT 🎉','ok');closeDetail();refresh();
+}
+
+// ══ CREATE ══
+function openCreate(){
+  document.getElementById('crTitle').value='';document.getElementById('crDate').value=T();
+  document.getElementById('crTime').value='09:00-12:00';
+  _crSpaces=PROJECT_SPACES.map(function(s){return s.id;});
+  _crAssign={};
+  // Default: round-robin assign
+  _crSpaces.forEach(function(sid,i){_crAssign[sid]=ON_SITE_RESIDENTS[i%ON_SITE_RESIDENTS.length];});
+  renderCreateForm();
+  document.getElementById('createSheet').classList.add('open');
+}
+function closeCreate(){document.getElementById('createSheet').classList.remove('open');}
+
+function renderCreateForm(){
+  // NT info
+  var hnt='<strong>NT奖励（按公约）：</strong>重度区域(卫生间/厨房) '+CONFIG.cleaning_pricing.dirty+'NT · 中度(画室/走廊) '+CONFIG.cleaning_pricing.warning+'NT · 轻度(卧室/储物) '+CONFIG.cleaning_pricing.clean+'NT';
+
+  // Spaces with assignee selector
+  var hs='';
+  _crSpaces.forEach(function(sid){
+    var s=spaceById(sid);
+    var opts=ON_SITE_RESIDENTS.map(function(p){return'<option value="'+p+'"'+( _crAssign[sid]===p?' selected':'')+'>'+p+'</option>';}).join('');
+    hs+='<div class="area-item"><span class="area-icon">'+s.icon+'</span><span class="area-name">'+s.name+' <span style="font-size:.5rem;color:var(--t3)">('+s.bld+'·'+s.rate+'度/天)</span></span><select onchange="_crAssign[\''+sid+'\']=this.value" style="font-size:.6rem;padding:4px 6px;border:1.5px solid var(--bd);border-radius:6px;font-family:inherit">'+opts+'</select></div>';
+  });
+
+  // People list (mandatory)
+  var hp='<div style="font-size:.55rem;color:var(--t3);margin-bottom:4px">⚠ 在地居住≥1周必须参加 · 不可退出</div>';
+  ON_SITE_RESIDENTS.forEach(function(p){
+    var assigned=Object.values(_crAssign).filter(function(v){return v===p;}).length;
+    hp+='<div class="area-item"><span class="area-icon">👤</span><span class="area-name">'+p+'</span><span class="area-assign">'+assigned+'个区域</span></div>';
+  });
+
+  document.getElementById('crAreas').innerHTML=hs;
+  document.getElementById('crPeople').innerHTML=hp;
+  document.getElementById('crNTInfo').innerHTML=hnt;
+}
+
+function confirmCreate(){
+  var title=document.getElementById('crTitle').value.trim();if(!title){toast('请输入标题','warn');return;}
+  var date=document.getElementById('crDate').value,time=document.getElementById('crTime').value;
+  var assignments=_crSpaces.map(function(sid){return{spaceId:sid,assignee:_crAssign[sid],status:'pending',verifiedBy:'',verifiedAt:'',ntEarned:0};});
+  EVENTS.unshift({id:'dc'+uid(),title:title,date:date,time:time,assignments:assignments,createdBy:U,createdAt:N(),status:'upcoming'});
+  _crSpaces=[];_crAssign={};closeCreate();toast('大扫除已发布！'+ON_SITE_RESIDENTS.length+'人必须参加 📢','ok');refresh();
+}
+
+function refresh(){renderList();}
+refresh();
+</script>
+</body>
+</html>

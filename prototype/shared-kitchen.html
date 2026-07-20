@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<title>共享厨房 · 南塘云村</title>
+<style>
+:root{--gp:#3d6b52;--ga:#c8892e;--rd:#b84c38;--tx:#1d2e24;--t2:#5a6e5c;--t3:#8a8a8a;--bg:#e8ede6;--bd:#d0d9ce;--wh:#fff;--rs:8px;--rm:12px;--rl:16px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:100%;overflow:hidden;background:#1d2e24;font-size:16px;user-select:none;-webkit-user-select:none}
+.app{max-width:430px;margin:0 auto;height:100%;background:var(--bg);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--bd);flex-shrink:0}
+.topbar-title{font-weight:700;font-size:.85rem;color:var(--tx)}
+
+/* cook banner */
+.cook-banner{display:none;align-items:center;gap:8px;padding:8px 14px;background:linear-gradient(135deg,#fef6e8,#fdf0d0);border-bottom:2px solid var(--ga);flex-shrink:0}
+.cook-banner.on{display:flex}
+.cook-banner-text{flex:1;font-size:.68rem;font-weight:600;color:#8a6a30}
+.cook-banner-exit{font-size:.7rem;padding:5px 12px;border-radius:14px;border:1.5px solid var(--ga);background:transparent;color:#8a6a30;font-weight:600;cursor:pointer}
+
+.body-scroll{flex:1;overflow-y:auto;padding:0 14px 120px;-webkit-overflow-scrolling:touch}
+
+/* ── Zone card ── */
+.zone-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--rm);margin-bottom:8px;overflow:hidden}
+.zone-card.open .zone-card-arrow{transform:rotate(90deg)}
+.zone-card-head{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;min-height:52px}
+.zone-card-head:active{background:#fafaf8}
+.zone-card-icon{font-size:1.4rem;flex-shrink:0;width:36px;text-align:center}
+.zone-card-info{flex:1;min-width:0}
+.zone-card-title{font-weight:700;font-size:.75rem;color:var(--tx)}
+.zone-card-sub{font-size:.58rem;color:var(--t3);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.zone-card-count{font-size:.6rem;color:var(--t2);flex-shrink:0;text-align:right}
+.zone-card-arrow{font-size:.55rem;color:var(--t3);flex-shrink:0;transition:.2s}
+.zone-expand{display:none;border-top:1px solid var(--bd);animation:fadeIn .15s}
+.zone-card.open .zone-expand{display:block}
+
+/* ── Fridge doors ── */
+.fridge-doors{display:flex;gap:3px;padding:12px 14px;background:linear-gradient(180deg,#e8ece8,#dce0dc)}
+.fridge-door-card{flex:1;background:var(--wh);border-radius:var(--rs);overflow:hidden;border:1.5px solid #d5d9d5;transition:.12s}
+.fridge-door-card.open{border-color:var(--gp);box-shadow:0 0 0 1px var(--gp)}
+.fridge-door-head{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px 8px;cursor:pointer;min-height:74px;position:relative;background:linear-gradient(180deg,#f5f7f5,#eaeeea)}
+.fridge-door-head:active{background:#eef2ee}
+.fridge-door-handle{position:absolute;top:50%;transform:translateY(-50%);width:3px;height:26px;background:#c0c4c0;border-radius:2px}
+.fridge-door-card:first-child .fridge-door-handle{right:5px}
+.fridge-door-card:last-child .fridge-door-handle{left:5px}
+.fridge-door-icon{font-size:1.4rem;margin-bottom:2px}
+.fridge-door-label{font-size:.65rem;font-weight:700;color:var(--tx)}
+.fridge-door-temp{font-size:.48rem;color:var(--t3)}
+.fridge-door-count{font-size:.55rem;color:var(--t2);margin-top:3px}
+.fridge-door-arrow{font-size:.45rem;color:var(--t3);padding:3px 0 6px;text-align:center;transition:.2s}
+.fridge-door-card.open .fridge-door-arrow{color:var(--gp)}
+.fridge-body-panel{display:none;border-top:1px solid #d5d9d5;background:var(--wh);animation:fadeIn .15s}
+.fridge-body-panel.open{display:block}
+
+/* ── Item row ── */
+.item-row{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #f5f5f5;min-height:50px}
+.item-row:last-child{border-bottom:none}
+.item-row.expired{opacity:.75;background:#fff8f8}
+.item-row.warning{background:#fffdf5}
+.item-icon{font-size:1.1rem;width:28px;text-align:center;flex-shrink:0}
+.item-body{flex:1;min-width:0}
+.item-name{font-weight:600;font-size:.7rem;color:var(--tx)}
+.item-meta{font-size:.52rem;color:var(--t3);margin-top:1px;display:flex;gap:5px;align-items:center}
+.item-tag{font-size:.5rem;padding:1px 5px;border-radius:3px;font-weight:600}
+.item-tag.ok{background:#e8f5e8;color:var(--gp)}.item-tag.warn{background:#fef8e8;color:var(--ga)}.item-tag.bad{background:#fde8e8;color:var(--rd)}
+.item-act{display:flex;gap:3px;flex-shrink:0}
+.item-act-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--bd);background:var(--wh);font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.1s;color:var(--t2)}
+.item-act-btn:active{transform:scale(.9);border-color:var(--gp)}
+.item-act-btn.del{color:var(--rd);border-color:transparent}
+.item-cook{display:none;align-items:center;gap:3px;flex-shrink:0}
+.cook-mode .item-cook{display:flex}.cook-mode .item-act{display:none}
+.cook-btn{width:32px;height:32px;border-radius:50%;border:none;font-size:1.1rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.1s;line-height:1}
+.cook-btn:active{transform:scale(.88)}
+.cook-btn.minus{background:#f0f0f0;color:var(--t2)}
+.cook-btn.plus{background:var(--gp);color:#fff}
+.cook-qty{font-size:.7rem;font-weight:700;min-width:18px;text-align:center}
+.cook-qty.used{color:var(--gp)}
+.cook-badge{display:none;background:var(--gp);color:#fff;border-radius:8px;padding:0 5px;font-size:.5rem;font-weight:700;line-height:16px;height:16px;min-width:16px;text-align:center;margin-left:4px;animation:popIn .15s}
+.cook-mode .cook-badge.used{display:inline-block}
+@keyframes popIn{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.item-row.cooking-highlight{background:#fef9ee;animation:popIn .15s}
+
+/* cook summary */
+.cook-summary{display:none;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));background:var(--wh);border-top:2px solid var(--ga);flex-shrink:0}
+.cook-summary.on{display:block}
+.cook-summary-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cook-summary-items{flex:1;font-size:.62rem;color:var(--t2);line-height:1.4;max-height:36px;overflow-y:auto}
+.cook-summary-note{display:flex;gap:6px;margin-bottom:8px}
+.cook-summary-note input{flex:1;padding:8px 10px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:.7rem;font-family:inherit;background:#fafaf8}
+.cook-summary-note input:focus{outline:none;border-color:var(--gp)}
+.cook-summary-actions{display:flex;gap:6px}
+.cook-done-btn{flex:1;padding:12px;border-radius:var(--rs);font-size:.78rem;font-weight:700;cursor:pointer;border:none;background:var(--gp);color:#fff;min-height:44px}
+.cook-done-btn:active{transform:scale(.97)}.cook-done-btn:disabled{background:#ccc;cursor:default}
+.cook-cancel-btn{padding:12px 16px;border-radius:var(--rs);font-size:.72rem;cursor:pointer;border:1.5px solid var(--bd);background:var(--wh);color:var(--t2);min-height:44px}
+
+/* bottom bar */
+.bottombar{display:flex;gap:8px;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--bd);flex-shrink:0}
+.cook-mode .bottombar{display:none}
+.btn{flex:1;padding:12px;border-radius:var(--rs);font-size:.78rem;font-weight:700;cursor:pointer;border:none;text-align:center;min-height:44px;transition:.1s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{transform:scale(.96)}
+.btn-cook{background:linear-gradient(135deg,#f0a830,#d48820);color:#fff;font-size:.85rem;box-shadow:0 2px 8px rgba(200,130,40,.3)}
+.btn-sec{background:var(--wh);color:var(--gp);border:1.5px solid var(--bd)}
+
+/* picker */
+.picker-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center}
+.picker-overlay.open{display:flex}
+.picker-card{width:100%;max-width:430px;background:var(--wh);border-radius:var(--rl) var(--rl) 0 0;padding:16px 14px 20px;max-height:80vh;overflow-y:auto;animation:slideUp .2s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.picker-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.picker-title{font-size:.82rem;font-weight:700;color:var(--tx);flex:1}
+.picker-close{font-size:1.1rem;cursor:pointer;color:var(--t3);padding:4px 8px;background:none;border:none}
+.pcat-row{display:flex;gap:5px;overflow-x:auto;padding-bottom:10px;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--bd);margin-bottom:10px}
+.pcat-row::-webkit-scrollbar{display:none}
+.pcat{flex:none;padding:6px 12px;border-radius:14px;border:1.5px solid var(--bd);font-size:.65rem;font-weight:600;color:var(--t2);cursor:pointer;background:var(--wh);white-space:nowrap;transition:.1s}
+.pcat.on{background:var(--gp);color:#fff;border-color:var(--gp)}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;max-height:170px;overflow-y:auto}
+.pitem{background:var(--wh);border:1.5px solid var(--bd);border-radius:var(--rs);padding:10px 6px;text-align:center;cursor:pointer;transition:.1s;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pitem:active{transform:scale(.95);background:#f8faf8}
+.pitem.sel{border-color:var(--gp);background:#e8f5e8;box-shadow:0 0 0 1px var(--gp)}
+.pitem-icon{font-size:1.3rem;line-height:1}
+.pitem-name{font-size:.6rem;font-weight:600;color:var(--tx);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.pick-custom{display:flex;gap:6px;margin-bottom:10px;align-items:center}
+.pick-custom input{flex:1;padding:8px 10px;border:1.5px dashed var(--bd);border-radius:var(--rs);font-size:.7rem;font-family:inherit;background:#fafaf8;color:var(--t3)}
+.pick-custom input:focus{outline:none;border-color:var(--gp);color:var(--tx)}
+.pick-custom input::placeholder{color:var(--t3)}
+.pick-sel{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f5faf5;border-radius:var(--rs);margin-bottom:10px;font-size:.7rem}
+.pick-sel-icon{font-size:1.3rem}
+.pick-sel-text{flex:1}
+.pick-sel-name{font-weight:700;color:var(--tx);display:block}
+.pick-sel-def{font-size:.58rem;color:var(--t3)}
+.pick-zone-row{display:flex;gap:6px;margin-bottom:8px;overflow-x:auto}
+.pick-zone-row::-webkit-scrollbar{display:none}
+.pzone{flex:none;padding:6px 10px;border-radius:14px;border:1.5px solid var(--bd);font-size:.6rem;font-weight:600;color:var(--t2);cursor:pointer;background:var(--wh);white-space:nowrap;transition:.1s}
+.pzone.on{border-color:var(--gp);background:#e8f5e8;color:var(--gp)}
+.pick-qty-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:.68rem}
+.pick-qty-row .cook-btn{width:34px;height:34px}
+.pick-qty-val{font-size:.8rem;font-weight:700;min-width:24px;text-align:center}
+.pick-confirm{width:100%;padding:12px;border-radius:var(--rs);font-size:.78rem;font-weight:700;cursor:pointer;border:none;background:var(--gp);color:#fff;min-height:44px}
+.pick-confirm:active{transform:scale(.97)}.pick-confirm:disabled{background:#ccc;cursor:default}
+
+/* tabs */
+.tabbar{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--bg)}
+.tab{flex:1;text-align:center;padding:9px;font-size:.7rem;font-weight:700;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;transition:.12s;position:relative}
+.tab.on{color:var(--gp);border-bottom-color:var(--gp)}
+.tab-dot{position:absolute;top:6px;right:calc(50% - 22px);width:7px;height:7px;border-radius:50%;background:var(--rd);display:none}
+.tab-dot.show{display:block}
+
+.toast{position:fixed;top:50px;left:50%;transform:translateX(-50%);z-index:999;padding:10px 22px;border-radius:20px;font-size:.72rem;font-weight:600;color:#fff;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:90%}
+.toast.show{opacity:1}.toast.ok{background:var(--gp)}.toast.warn{background:var(--ga)}.toast.error{background:var(--rd)}
+
+.log-row{display:flex;gap:8px;padding:7px 0;font-size:.6rem;border-bottom:1px dotted #f0f0f0;align-items:flex-start}
+.log-icon{flex-shrink:0;width:20px;text-align:center;font-size:.7rem}
+.log-body{flex:1;color:var(--t2);line-height:1.5}.log-body strong{color:var(--tx)}.log-body em{color:var(--gp);font-style:normal;font-weight:600}
+.log-time{flex-shrink:0;color:var(--t3);font-size:.52rem;white-space:nowrap}
+
+.review-card{background:#fffdf5;border:1px dashed var(--ga);border-radius:var(--rm);padding:12px;margin-bottom:8px}
+.review-actions{display:flex;gap:6px;margin-top:8px}
+.rv-btn{padding:6px 14px;border-radius:14px;font-size:.65rem;font-weight:600;cursor:pointer;border:none;min-height:34px}
+.rv-btn.ok{background:#e8f5e8;color:var(--gp)}.rv-btn.no{background:#fde8e8;color:var(--rd)}
+
+.preset-row{display:flex;gap:5px;overflow-x:auto;padding:4px 0 8px}
+.preset-row::-webkit-scrollbar{display:none}
+.preset-chip{flex:none;padding:6px 14px;border-radius:14px;border:1.5px solid var(--bd);font-size:.62rem;font-weight:600;color:var(--t2);cursor:pointer;background:var(--wh);white-space:nowrap;transition:.1s}
+.preset-chip:active{background:#f0f0f0;border-color:var(--gp)}
+.sec-label{font-size:.65rem;font-weight:700;color:var(--t2);padding:14px 0 6px;display:flex;align-items:center;gap:4px}
+.empty{text-align:center;padding:20px 16px;color:var(--t3);font-size:.65rem}
+.empty-icon{font-size:2rem;margin-bottom:4px;opacity:.4}
+.inline-btn{padding:6px 14px;border-radius:14px;font-size:.62rem;font-weight:600;cursor:pointer;border:none;min-height:34px;background:#e8f5e8;color:var(--gp)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="topbar"><span style="font-size:1.2rem">🍳</span><span class="topbar-title">共享厨房</span><span style="font-size:.55rem;color:var(--t3);margin-left:auto">砚仁</span></div>
+  <div class="cook-banner" id="cookBanner"><span style="font-size:1.3rem">👨‍🍳</span><span class="cook-banner-text">做饭模式 — 点 <b>＋</b> 记录消耗</span><button class="cook-banner-exit" onclick="exitCookMode()">退出</button></div>
+  <div class="tabbar">
+    <div class="tab on" data-tab="kitchen" onclick="switchTab('kitchen')">🍳 厨房</div>
+    <div class="tab" data-tab="review" onclick="switchTab('review')">⏳ 审核<span class="tab-dot" id="dotReview"></span></div>
+    <div class="tab" data-tab="log" onclick="switchTab('log')">📜 日志</div>
+  </div>
+  <div class="body-scroll" id="bodyContent"></div>
+  <div class="cook-summary" id="cookSummary">
+    <div class="cook-summary-top"><span style="font-size:.7rem;font-weight:700;color:var(--ga);flex-shrink:0">🛒 已选</span><div class="cook-summary-items" id="cookSummaryItems">还没有选东西</div></div>
+    <div class="cook-summary-note"><input type="text" id="cookNote" placeholder="做了什么菜？"></div>
+    <div class="cook-summary-actions"><button class="cook-cancel-btn" onclick="exitCookMode()">取消</button><button class="cook-done-btn" id="cookDoneBtn" disabled onclick="confirmCook()">✅ 完成做饭</button></div>
+  </div>
+  <div class="bottombar" id="bottomBar">
+    <button class="btn btn-cook" onclick="enterCookMode()">🍳 做饭</button>
+    <button class="btn btn-sec" onclick="openAddPicker()">＋ 添加物品</button>
+  </div>
+</div>
+
+<!-- PICKER -->
+<div class="picker-overlay" id="addPicker" onclick="if(event.target===this)closeAddPicker()">
+  <div class="picker-card">
+    <div class="picker-head"><span class="picker-title">添加物品</span><button class="picker-close" onclick="closeAddPicker()">✕</button></div>
+    <div class="pcat-row" id="pickerCats"></div>
+    <div class="pgrid" id="pickerGrid"></div>
+    <div class="pick-custom"><span style="font-size:.6rem;color:var(--t3);flex-shrink:0">📝</span><input type="text" id="pickerCustom" placeholder="其他东西…（直接打字）" onfocus="onPickCustom()" oninput="onPickCustom()"></div>
+    <div class="pick-sel" id="pickerSel" style="display:none"><span class="pick-sel-icon" id="psIcon"></span><div class="pick-sel-text"><span class="pick-sel-name" id="psName"></span><span class="pick-sel-def" id="psDefaults"></span></div></div>
+    <div class="pick-zone-row" id="pickerZones"></div>
+    <div class="pick-qty-row" id="pickerQtyRow" style="display:none"><label>数量</label><button class="cook-btn minus" onclick="pickerQty(-1)">−</button><span class="pick-qty-val" id="pickerQtyVal">1</span><button class="cook-btn plus" onclick="pickerQty(1)">+</button><span style="font-size:.6rem;color:var(--t3);margin-left:4px" id="pickerUnit"></span></div>
+    <button class="pick-confirm" id="pickerConfirm" disabled onclick="confirmAdd()">选一个物品开始添加</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════
+var U='砚仁',R='admin',ON_SITE=true,NT=8;
+
+var ZONES=[
+  {id:'vegbasket',name:'菜篮架',icon:'🧺',pos:'冰箱旁 · 常温蔬果'},
+  {id:'cab-spice',name:'调料区',icon:'🧂',pos:'橱柜下层 · 油盐酱醋'},
+  {id:'cab-flour',name:'粉面区',icon:'🍜',pos:'橱柜中层 · 面粉面条'},
+  {id:'cab-equip',name:'设备区',icon:'🔌',pos:'橱柜上层 · 电器工具'},
+  {id:'delivery',name:'快递区',icon:'📦',pos:'入口右侧'},
+  {id:'paperbin',name:'纸篮回收',icon:'♻️',pos:'厨房门口'}
+];
+
+var ITEMS=[
+  {id:'i1',z:'fridge',comp:'upper',n:'鸡蛋',c:'蛋奶',q:10,u:'个',d:'2026-07-18',e:21,note:'本地土鸡蛋',by:'砚仁',at:'2026-07-18T09:00',s:'active'},
+  {id:'i2',z:'fridge',comp:'upper',n:'小白菜',c:'蔬菜',q:2,u:'把',d:'2026-07-15',e:7,note:'',by:'砚仁',at:'2026-07-15T10:00',s:'active'},
+  {id:'i3',z:'fridge',comp:'upper',n:'猪肉',c:'肉类',q:500,u:'g',d:'2026-07-10',e:5,note:'五花肉',by:'砚仁',at:'2026-07-10T11:00',s:'active'},
+  {id:'i4',z:'fridge',comp:'upper',n:'豆腐',c:'其他',q:1,u:'盒',d:'2026-07-01',e:7,note:'已过期',by:'砚仁',at:'2026-07-01T08:00',s:'active'},
+  {id:'ib1',z:'fridge',comp:'upper',n:'牛奶',c:'蛋奶',q:1,u:'瓶',d:'2026-07-17',e:10,note:'',by:'淑惠',at:'2026-07-17T14:00',s:'active'},
+  {id:'i5',z:'fridge',comp:'lower',n:'冻饺子',c:'冷冻',q:2,u:'袋',d:'2026-06-01',e:180,note:'猪肉白菜',by:'砚仁',at:'2026-06-01T08:00',s:'active'},
+  {id:'i6',z:'fridge',comp:'lower',n:'冰淇淋',c:'冷冻',q:3,u:'盒',d:'2026-07-01',e:90,note:'',by:'朝林',at:'2026-07-01T14:00',s:'active'},
+  {id:'i7',z:'vegbasket',n:'土豆',c:'蔬菜',q:5,u:'个',d:'2026-07-19',e:30,note:'',by:'砚仁',at:'2026-07-19T09:00',s:'active'},
+  {id:'i8',z:'vegbasket',n:'洋葱',c:'蔬菜',q:3,u:'个',d:'2026-07-19',e:30,note:'',by:'砚仁',at:'2026-07-19T09:00',s:'active'},
+  {id:'i9',z:'cab-flour',n:'中筋面粉',c:'粉面',q:2,u:'kg',d:'2026-07-01',e:180,note:'',by:'砚仁',at:'2026-07-01T08:00',s:'active'},
+  {id:'i10',z:'cab-flour',n:'挂面',c:'粉面',q:3,u:'把',d:'2026-07-10',e:365,note:'',by:'砚仁',at:'2026-07-10T08:00',s:'active'},
+  {id:'i11',z:'cab-spice',n:'盐',c:'调料',q:1,u:'包',d:'2026-06-01',e:730,note:'',by:'砚仁',at:'2026-06-01T08:00',s:'active'},
+  {id:'i12',z:'cab-spice',n:'生抽',c:'调料',q:1,u:'瓶',d:'2026-07-01',e:365,note:'快用完了',by:'砚仁',at:'2026-07-01T08:00',s:'active'},
+  {id:'i13',z:'cab-spice',n:'食用油',c:'调料',q:1,u:'瓶',d:'2026-07-10',e:365,note:'',by:'砚仁',at:'2026-07-10T08:00',s:'active'},
+  {id:'i14',z:'cab-equip',n:'电饭煲',c:'设备',q:1,u:'个',d:'2026-01-01',e:0,note:'',by:'砚仁',at:'2026-01-01T08:00',s:'active'},
+  {id:'i15',z:'delivery',n:'砚仁快递',c:'快递',q:2,u:'件',d:'2026-07-19',e:14,note:'待取',by:'小云',at:'2026-07-19T14:00',s:'active'},
+  {id:'i16',z:'paperbin',n:'废纸箱',c:'回收',q:3,u:'个',d:'2026-07-18',e:0,note:'待清运',by:'朝林',at:'2026-07-18T16:00',s:'active'}
+];
+
+var REVIEWS=[
+  {id:'r1',type:'add',item:{z:'fridge',comp:'upper',n:'酸奶',c:'蛋奶',q:4,u:'盒',d:'2026-07-20',e:14,note:''},by:'淑惠',at:'2026-07-20T08:30',s:'pending'},
+  {id:'r2',type:'remove',iid:'i4',tn:'豆腐',tz:'冰箱·上层',reason:'发臭需丢弃',by:'朝林',at:'2026-07-19T18:00',s:'pending'}
+];
+
+var LOGS=[
+  {id:'l0',tp:'cook',zn:'—',it:'番茄鸡蛋面',dt:'鸡蛋×2+挂面×1+小白菜×1',usr:'淑惠',tm:'2026-07-19T12:15',ok:1},
+  {id:'l1',tp:'add',zn:'冰箱·上层',it:'鸡蛋',dt:'+10个',usr:'砚仁',tm:'2026-07-18T09:00',ok:1},
+  {id:'l2',tp:'cook',zn:'—',it:'煮饺子',dt:'冻饺子×1袋',usr:'朝林',tm:'2026-07-18T18:30',ok:1},
+  {id:'l3',tp:'add',zn:'冰箱·上层',it:'小白菜',dt:'+2把',usr:'砚仁',tm:'2026-07-15T10:00',ok:1}
+];
+
+// ══ QUICK-ADD DB ══
+var QI={};
+QI['常用']=[
+  {n:'鸡蛋',c:'蛋奶',u:'个',e:21,dq:6,icon:'🥚',dz:'F'},{n:'牛奶',c:'蛋奶',u:'瓶',e:10,dq:1,icon:'🥛',dz:'F'},
+  {n:'小白菜',c:'蔬菜',u:'把',e:7,dq:1,icon:'🥬',dz:'F'},{n:'猪肉',c:'肉类',u:'g',e:5,dq:500,icon:'🥩',dz:'F'},
+  {n:'土豆',c:'蔬菜',u:'个',e:30,dq:3,icon:'🥔',dz:'V'},{n:'洋葱',c:'蔬菜',u:'个',e:30,dq:2,icon:'🧅',dz:'V'},
+  {n:'挂面',c:'粉面',u:'把',e:365,dq:1,icon:'🍜',dz:'N'},{n:'大米',c:'粉面',u:'kg',e:365,dq:2,icon:'🍚',dz:'N'},
+  {n:'盐',c:'调料',u:'包',e:730,dq:1,icon:'🧂',dz:'S'},{n:'生抽',c:'调料',u:'瓶',e:365,dq:1,icon:'🫗',dz:'S'},
+  {n:'食用油',c:'调料',u:'瓶',e:365,dq:1,icon:'🫒',dz:'S'},{n:'豆腐',c:'其他',u:'盒',e:7,dq:1,icon:'🫘',dz:'F'},
+  {n:'冻饺子',c:'冷冻',u:'袋',e:180,dq:1,icon:'🥟',dz:'f'},{n:'番茄',c:'蔬菜',u:'个',e:10,dq:3,icon:'🍅',dz:'F'},
+  {n:'黄瓜',c:'蔬菜',u:'根',e:10,dq:2,icon:'🥒',dz:'F'},{n:'酸奶',c:'蛋奶',u:'盒',e:14,dq:2,icon:'🥛',dz:'F'}
+];
+QI['蔬菜']=[
+  {n:'小白菜',c:'蔬菜',u:'把',e:7,dq:1,icon:'🥬',dz:'F'},{n:'土豆',c:'蔬菜',u:'个',e:30,dq:3,icon:'🥔',dz:'V'},
+  {n:'洋葱',c:'蔬菜',u:'个',e:30,dq:2,icon:'🧅',dz:'V'},{n:'番茄',c:'蔬菜',u:'个',e:10,dq:3,icon:'🍅',dz:'F'},
+  {n:'黄瓜',c:'蔬菜',u:'根',e:10,dq:2,icon:'🥒',dz:'F'},{n:'菠菜',c:'蔬菜',u:'把',e:5,dq:1,icon:'🥬',dz:'F'},
+  {n:'生菜',c:'蔬菜',u:'颗',e:5,dq:1,icon:'🥬',dz:'F'},{n:'青椒',c:'蔬菜',u:'个',e:10,dq:2,icon:'🫑',dz:'F'},
+  {n:'茄子',c:'蔬菜',u:'个',e:7,dq:2,icon:'🍆',dz:'V'},{n:'西兰花',c:'蔬菜',u:'颗',e:7,dq:1,icon:'🥦',dz:'F'},
+  {n:'豆芽',c:'蔬菜',u:'袋',e:3,dq:1,icon:'🌱',dz:'F'},{n:'蘑菇',c:'蔬菜',u:'盒',e:5,dq:1,icon:'🍄',dz:'F'}
+];
+QI['肉类']=[
+  {n:'猪肉',c:'肉类',u:'g',e:5,dq:500,icon:'🥩',dz:'F'},{n:'鸡肉',c:'肉类',u:'g',e:5,dq:500,icon:'🍗',dz:'F'},
+  {n:'牛肉',c:'肉类',u:'g',e:5,dq:300,icon:'🥩',dz:'F'},{n:'排骨',c:'肉类',u:'g',e:5,dq:500,icon:'🍖',dz:'F'},
+  {n:'肉馅',c:'肉类',u:'g',e:3,dq:300,icon:'🥩',dz:'F'},{n:'培根',c:'肉类',u:'片',e:14,dq:6,icon:'🥓',dz:'F'},
+  {n:'香肠',c:'肉类',u:'根',e:30,dq:3,icon:'🌭',dz:'F'},{n:'虾仁',c:'肉类',u:'g',e:3,dq:200,icon:'🍤',dz:'F'}
+];
+QI['蛋奶']=[
+  {n:'鸡蛋',c:'蛋奶',u:'个',e:21,dq:6,icon:'🥚',dz:'F'},{n:'牛奶',c:'蛋奶',u:'瓶',e:10,dq:1,icon:'🥛',dz:'F'},
+  {n:'酸奶',c:'蛋奶',u:'盒',e:14,dq:2,icon:'🥛',dz:'F'},{n:'奶酪',c:'蛋奶',u:'块',e:30,dq:1,icon:'🧀',dz:'F'},
+  {n:'黄油',c:'蛋奶',u:'块',e:60,dq:1,icon:'🧈',dz:'F'},{n:'鸭蛋',c:'蛋奶',u:'个',e:21,dq:4,icon:'🥚',dz:'F'}
+];
+QI['调料']=[
+  {n:'盐',c:'调料',u:'包',e:730,dq:1,icon:'🧂',dz:'S'},{n:'生抽',c:'调料',u:'瓶',e:365,dq:1,icon:'🫗',dz:'S'},
+  {n:'老抽',c:'调料',u:'瓶',e:365,dq:1,icon:'🫗',dz:'S'},{n:'食用油',c:'调料',u:'瓶',e:365,dq:1,icon:'🫒',dz:'S'},
+  {n:'醋',c:'调料',u:'瓶',e:365,dq:1,icon:'🫗',dz:'S'},{n:'料酒',c:'调料',u:'瓶',e:365,dq:1,icon:'🍶',dz:'S'},
+  {n:'糖',c:'调料',u:'袋',e:730,dq:1,icon:'🍬',dz:'S'},{n:'豆瓣酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🫙',dz:'S'},
+  {n:'辣椒酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🌶',dz:'S'},{n:'花椒',c:'调料',u:'袋',e:365,dq:1,icon:'🫚',dz:'S'},
+  {n:'鸡精',c:'调料',u:'袋',e:365,dq:1,icon:'🧂',dz:'S'},{n:'蚝油',c:'调料',u:'瓶',e:180,dq:1,icon:'🫗',dz:'S'}
+];
+QI['酱料']=[
+  {n:'豆瓣酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🫙',dz:'S'},{n:'辣椒酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🌶',dz:'S'},
+  {n:'芝麻酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🫙',dz:'S'},{n:'花生酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🥜',dz:'S'},
+  {n:'番茄酱',c:'调料',u:'瓶',e:180,dq:1,icon:'🍅',dz:'S'},{n:'沙拉酱',c:'调料',u:'瓶',e:90,dq:1,icon:'🥗',dz:'S'}
+];
+QI['粉面']=[
+  {n:'挂面',c:'粉面',u:'把',e:365,dq:1,icon:'🍜',dz:'N'},{n:'大米',c:'粉面',u:'kg',e:365,dq:2,icon:'🍚',dz:'N'},
+  {n:'中筋面粉',c:'粉面',u:'kg',e:180,dq:1,icon:'🌾',dz:'N'},{n:'方便面',c:'粉面',u:'包',e:180,dq:2,icon:'🍜',dz:'N'},
+  {n:'米粉',c:'粉面',u:'袋',e:180,dq:1,icon:'🍜',dz:'N'},{n:'糯米',c:'粉面',u:'kg',e:365,dq:1,icon:'🍚',dz:'N'}
+];
+QI['冷冻']=[
+  {n:'冻饺子',c:'冷冻',u:'袋',e:180,dq:1,icon:'🥟',dz:'f'},{n:'冰淇淋',c:'冷冻',u:'盒',e:90,dq:1,icon:'🍦',dz:'f'},
+  {n:'冻肉',c:'冷冻',u:'块',e:90,dq:1,icon:'🧊',dz:'f'},{n:'速冻包子',c:'冷冻',u:'袋',e:90,dq:1,icon:'🥟',dz:'f'}
+];
+QI['饮品']=[
+  {n:'牛奶',c:'蛋奶',u:'瓶',e:10,dq:1,icon:'🥛',dz:'F'},{n:'豆浆',c:'饮品',u:'杯',e:3,dq:1,icon:'🥤',dz:'F'},
+  {n:'可乐',c:'饮品',u:'罐',e:180,dq:2,icon:'🥤',dz:'F'},{n:'啤酒',c:'饮品',u:'罐',e:180,dq:2,icon:'🍺',dz:'F'},
+  {n:'茶叶',c:'饮品',u:'盒',e:365,dq:1,icon:'🍵',dz:'S'},{n:'咖啡',c:'饮品',u:'袋',e:180,dq:1,icon:'☕',dz:'S'}
+];
+QI['水果']=[
+  {n:'苹果',c:'水果',u:'个',e:14,dq:3,icon:'🍎',dz:'F'},{n:'香蕉',c:'水果',u:'根',e:7,dq:3,icon:'🍌',dz:'V'},
+  {n:'橘子',c:'水果',u:'个',e:14,dq:4,icon:'🍊',dz:'V'},{n:'西瓜',c:'水果',u:'个',e:10,dq:1,icon:'🍉',dz:'F'},
+  {n:'葡萄',c:'水果',u:'串',e:7,dq:1,icon:'🍇',dz:'F'},{n:'草莓',c:'水果',u:'盒',e:5,dq:1,icon:'🍓',dz:'F'}
+];
+QI['快递']=[{n:'快递',c:'快递',u:'件',e:14,dq:1,icon:'📦',dz:'D'}];
+QI['回收']=[{n:'废纸箱',c:'回收',u:'个',e:0,dq:1,icon:'📦',dz:'P'},{n:'空瓶',c:'回收',u:'个',e:0,dq:2,icon:'🫙',dz:'P'}];
+
+var CATS=['常用','蔬菜','肉类','蛋奶','调料','酱料','粉面','冷冻','饮品','水果','快递','回收'];
+var ZQ=[{id:'fridge:upper',l:'冰箱·上层',icon:'❄️'},{id:'fridge:lower',l:'冰箱·下层',icon:'🧊'},{id:'vegbasket',l:'菜篮架',icon:'🧺'},{id:'cab-spice',l:'调料区',icon:'🧂'},{id:'cab-flour',l:'粉面区',icon:'🍜'},{id:'cab-equip',l:'设备区',icon:'🔌'},{id:'delivery',l:'快递区',icon:'📦'},{id:'paperbin',l:'纸篮回收',icon:'♻️'}];
+var DZ={F:'fridge:upper',f:'fridge:lower',V:'vegbasket',S:'cab-spice',N:'cab-flour',E:'cab-equip',D:'delivery',P:'paperbin'};
+
+var COOK=null,_tab='kitchen',_open={},_pick={cat:'常用',item:null,zone:'fridge:upper',qty:1,custom:''};
+
+// ══ HELPERS ══
+function T(){return new Date().toISOString().slice(0,10)}
+function N(){return new Date().toISOString()}
+function DB(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function zn(id){if(id==='fridge')return'冰箱';var z=ZONES.find(function(x){return x.id===id;});return z?z.name:id;}
+function icat(c){var m={蔬菜:'🥬',水果:'🍎',肉类:'🥩',蛋奶:'🥚',粉面:'🍜',调料:'🧂',干货:'🥜',冷冻:'❄️',饮品:'🥤',设备:'🔌',工具:'🔧',快递:'📦',回收:'♻️'};return m[c]||'📦';}
+function ex(item){if(item.s!=='active')return{lv:'gone',dl:0,lb:''};if(!item.e)return{lv:'none',dl:9999,lb:''};var bb=new Date(item.d+'T00:00:00');bb.setDate(bb.getDate()+item.e);var dl=DB(T(),bb.toISOString().slice(0,10));if(dl<0)return{lv:'expired',dl:Math.abs(dl),lb:'过期'+Math.abs(dl)+'天'};if(dl<=3)return{lv:'warning',dl:dl,lb:'⚠临期'+dl+'天'};if(dl<=7)return{lv:'soon',dl:dl,lb:dl+'天'};return{lv:'fresh',dl:dl,lb:''};}
+function canOp(){return ON_SITE&&(R==='admin'||R==='builder'||R==='adventurer');}
+function fmt(iso){if(!iso)return'';var d=new Date(iso);return(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function guessCat(s){if(/菜|瓜|茄|豆|菇|笋|葱|姜|蒜|椒|芹|菠/.test(s))return'蔬菜';if(/肉|鸡|鸭|鱼|虾|猪|牛|羊/.test(s))return'肉类';if(/蛋|奶|酪|酸/.test(s))return'蛋奶';if(/面|粉|米|饼|包/.test(s))return'粉面';if(/油|盐|酱|醋|糖|料|辣|抽/.test(s))return'调料';if(/果|莓|桃|梨|橘|橙|蕉/.test(s))return'水果';if(/饺|丸|冻|冰/.test(s))return'冷冻';return'其他';}
+
+var _tt;
+function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},1800);}
+
+// ══ TAB ══
+function switchTab(t){_tab=t;document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.tab===t);});document.getElementById('bodyContent').scrollTop=0;refresh();}
+
+// ══ COOK MODE ══
+function enterCookMode(){if(!canOp()){toast('只有在地成员可操作','error');return;}COOK={items:{}};document.getElementById('app').classList.add('cook-mode');document.getElementById('cookBanner').classList.add('on');document.getElementById('cookSummary').classList.add('on');document.getElementById('cookNote').value='';document.getElementById('cookDoneBtn').disabled=true;document.getElementById('cookSummaryItems').textContent='点击 ＋ 记录消耗';renderKitchen();}
+function exitCookMode(){COOK=null;document.getElementById('app').classList.remove('cook-mode');document.getElementById('cookBanner').classList.remove('on');document.getElementById('cookSummary').classList.remove('on');renderKitchen();}
+function cookAdd(iid){if(!COOK)return;var item=ITEMS.find(function(i){return i.id===iid;});if(!item||item.s!=='active')return;var cur=COOK.items[iid]||0;if(cur>=item.qty)return;COOK.items[iid]=cur+1;updateCookSummary();var row=document.getElementById('ir-'+iid);if(row){row.classList.add('cooking-highlight');setTimeout(function(){row.classList.remove('cooking-highlight');},250);}}
+function cookRemove(iid){if(!COOK)return;var cur=COOK.items[iid]||0;if(cur<=0)return;COOK.items[iid]=cur-1;if(COOK.items[iid]<=0)delete COOK.items[iid];updateCookSummary();}
+function updateCookSummary(){var entries=Object.entries(COOK.items).filter(function(e){return e[1]>0;});var el=document.getElementById('cookSummaryItems'),btn=document.getElementById('cookDoneBtn');if(!entries.length){el.textContent='点击 ＋ 记录消耗';btn.disabled=true;}else{var parts=entries.map(function(e){var item=ITEMS.find(function(i){return i.id===e[0];});return(item?item.n:'?')+'×'+e[1];});el.innerHTML='<strong>'+entries.length+'样：</strong>'+parts.join(' · ');btn.disabled=false;}document.querySelectorAll('.cook-badge').forEach(function(b){var iid=b.id.replace('cb-','');b.textContent=COOK.items[iid]||'';b.classList.toggle('used',!!COOK.items[iid]);});}
+function confirmCook(){if(!COOK)return;var entries=Object.entries(COOK.items).filter(function(e){return e[1]>0;});if(!entries.length)return;var note=document.getElementById('cookNote').value.trim();var details=entries.map(function(e){var item=ITEMS.find(function(i){return i.id===e[0];});if(!item)return'';item.qty=Math.max(0,item.qty-e[1]);if(item.qty<=0)item.s='consumed';return item.n+'×'+e[1];}).filter(Boolean);var mealName=note||details.slice(0,2).join('+');LOGS.unshift({id:'l'+uid(),tp:'cook',zn:'—',it:mealName,dt:details.join(' + '),usr:U,tm:N(),ok:1});NT+=entries.length;exitCookMode();toast('做饭记录完成！+'+entries.length+' NT','ok');refresh();}
+
+// ══ PRESETS ══
+function cookPreset(type){if(!COOK)enterCookMode();COOK.items={};if(type==='noodle'){var nd=ITEMS.find(function(i){return i.n==='挂面'&&i.s==='active';}),eg=ITEMS.find(function(i){return i.n==='鸡蛋'&&i.s==='active';}),vg=ITEMS.find(function(i){return i.n==='小白菜'&&i.s==='active';});if(nd)COOK.items[nd.id]=1;if(eg)COOK.items[eg.id]=1;if(vg)COOK.items[vg.id]=1;document.getElementById('cookNote').value='煮面';}else if(type==='stirfry'){var vs=ITEMS.filter(function(i){return(i.z==='vegbasket'||i.z==='fridge')&&i.c==='蔬菜'&&i.s==='active';});if(vs.length)COOK.items[vs[0].id]=1;document.getElementById('cookNote').value='炒菜';}else if(type==='egg'){var e=ITEMS.find(function(i){return i.n==='鸡蛋'&&i.s==='active';});if(e)COOK.items[e.id]=Math.min(3,e.qty);document.getElementById('cookNote').value='用鸡蛋';}updateCookSummary();renderKitchen();}
+function cookClear(){if(!COOK)return;COOK.items={};updateCookSummary();renderKitchen();}
+
+// ══ QUICK CONSUME ══
+function quickConsume(iid){if(!canOp()){toast('只有在地成员可操作','error');return;}var item=ITEMS.find(function(i){return i.id===iid;});if(!item||item.s!=='active'||item.qty<=0)return;item.qty-=1;if(item.qty<=0)item.s='consumed';LOGS.unshift({id:'l'+uid(),tp:'consume',zn:zn(item.z),it:item.n,dt:'-1'+item.u,usr:U,tm:N(),ok:1,iid:iid});NT+=1;toast('−1 '+item.n+' · +1 NT','ok');refresh();}
+function requestRemove(iid){var item=ITEMS.find(function(i){return i.id===iid;});if(!item)return;REVIEWS.push({id:'r'+uid(),type:'remove',iid:iid,tn:item.n,tz:zn(item.z)+(item.comp?'·'+(item.comp==='upper'?'上层':'下层'):''),reason:'',by:U,at:N(),s:'pending'});toast('移除申请已提交 ✉️','warn');refresh();}
+
+// ═══════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════
+function refresh(){if(_tab==='kitchen')renderKitchen();else if(_tab==='review')renderReview();else if(_tab==='log')renderLog();}
+
+function renderKitchen(){
+  var el=document.getElementById('bodyContent'),h='';
+
+  if(COOK){
+    h+='<div class="preset-row">';
+    h+='<span class="preset-chip" onclick="cookPreset(\'noodle\')">🍜 煮面</span>';
+    h+='<span class="preset-chip" onclick="cookPreset(\'stirfry\')">🥬 炒菜</span>';
+    h+='<span class="preset-chip" onclick="cookPreset(\'egg\')">🥚 用鸡蛋</span>';
+    h+='<span class="preset-chip" onclick="cookClear()">🔄 清空</span>';
+    h+='</div>';
+  }
+
+  // ══ FRIDGE ══
+  var fridgeItems=ITEMS.filter(function(i){return i.z==='fridge'&&i.s==='active';});
+  var upperItems=fridgeItems.filter(function(i){return i.comp==='upper';});
+  var lowerItems=fridgeItems.filter(function(i){return i.comp==='lower';});
+  var upperWarn=upperItems.filter(function(i){var e=ex(i);return e.lv==='warning'||e.lv==='expired';}).length;
+  var lowerWarn=lowerItems.filter(function(i){var e=ex(i);return e.lv==='warning'||e.lv==='expired';}).length;
+
+  h+='<div class="sec-label">🧊 冰箱</div>';
+
+  // Fridge zone card
+  h+='<div class="zone-card' + (_open['fridge']?' open':'') + '" id="zc-fridge">';
+  h+='<div class="zone-card-head" onclick="toggleZone(\'fridge\')">';
+  h+='<span class="zone-card-icon">🧊</span>';
+  h+='<div class="zone-card-info"><div class="zone-card-title">双开门冰箱</div><div class="zone-card-sub">上层'+upperItems.length+'件 · 下层'+lowerItems.length+'件'+(upperWarn+lowerWarn?' · ⚠'+(upperWarn+lowerWarn):'')+'</div></div>';
+  h+='<span class="zone-card-count">'+(upperItems.length+lowerItems.length)+'件</span>';
+  h+='<span class="zone-card-arrow">▶</span>';
+  h+='</div>';
+
+  // Fridge expand
+  var lowerOpen=_open['comp_lower']||false, upperOpen=_open['comp_upper']||false;
+  h+='<div class="zone-expand">';
+
+  // Doors
+  h+='<div class="fridge-doors">';
+  // Left: 冷冻
+  h+='<div class="fridge-door-card'+(lowerOpen?' open':'')+'" id="fdc-lower">';
+  h+='<div class="fridge-door-head" onclick="event.stopPropagation();toggleComp(\'lower\')">';
+  h+='<div class="fridge-door-handle"></div><div class="fridge-door-icon">🧊</div><div class="fridge-door-label">冷冻室</div><div class="fridge-door-temp">-18°C</div><div class="fridge-door-count">'+lowerItems.length+'件'+(lowerWarn?' <span style="color:var(--ga);font-weight:600">⚠'+lowerWarn+'</span>':'')+'</div>';
+  h+='</div><div class="fridge-door-arrow">'+(lowerOpen?'▲ 收起':'▼ 展开')+'</div></div>';
+  // Right: 冷藏
+  h+='<div class="fridge-door-card'+(upperOpen?' open':'')+'" id="fdc-upper">';
+  h+='<div class="fridge-door-head" onclick="event.stopPropagation();toggleComp(\'upper\')">';
+  h+='<div class="fridge-door-handle"></div><div class="fridge-door-icon">❄️</div><div class="fridge-door-label">冷藏室</div><div class="fridge-door-temp">0-4°C</div><div class="fridge-door-count">'+upperItems.length+'件'+(upperWarn?' <span style="color:var(--ga);font-weight:600">⚠'+upperWarn+'</span>':'')+'</div>';
+  h+='</div><div class="fridge-door-arrow">'+(upperOpen?'▲ 收起':'▼ 展开')+'</div></div>';
+  h+='</div>'; // close fridge-doors
+
+  // Full-width body panels
+  h+='<div class="fridge-body-panel'+(lowerOpen?' open':'')+'" id="fbp-lower">';
+  if(!lowerItems.length)h+='<div class="empty"><div class="empty-icon">🧊</div>冷冻室暂无物品</div>';
+  else lowerItems.forEach(function(item){h+=renderItemRow(item);});
+  h+='</div>';
+  h+='<div class="fridge-body-panel'+(upperOpen?' open':'')+'" id="fbp-upper">';
+  if(!upperItems.length)h+='<div class="empty"><div class="empty-icon">❄️</div>冷藏室暂无物品</div>';
+  else upperItems.forEach(function(item){h+=renderItemRow(item);});
+  h+='</div>';
+
+  h+='<div style="padding:8px 14px;text-align:center"><button class="inline-btn" onclick="event.stopPropagation();openAddPickerFridge()">＋ 往冰箱加东西</button></div>';
+  h+='</div></div>'; // close zone-expand + zone-card
+
+  // ══ OTHER ZONES ══
+  h+='<div class="sec-label" style="margin-top:4px">📦 其他区域</div>';
+  ZONES.forEach(function(z){
+    var items=ITEMS.filter(function(i){return i.z===z.id&&i.s==='active';});
+    var isOpen=_open[z.id]||false;
+    var warnCount=items.filter(function(i){var e=ex(i);return e.lv==='warning'||e.lv==='expired';}).length;
+    h+='<div class="zone-card'+(isOpen?' open':'')+'" id="zc-'+z.id+'">';
+    h+='<div class="zone-card-head" onclick="toggleZone(\''+z.id+'\')">';
+    h+='<span class="zone-card-icon">'+z.icon+'</span>';
+    h+='<div class="zone-card-info"><div class="zone-card-title">'+z.name+'</div><div class="zone-card-sub">'+z.pos+(warnCount?' · ⚠'+warnCount:'')+'</div></div>';
+    h+='<span class="zone-card-count">'+items.length+'件</span><span class="zone-card-arrow">▶</span>';
+    h+='</div>';
+    h+='<div class="zone-expand">';
+    if(!items.length)h+='<div class="empty"><div class="empty-icon">'+z.icon+'</div>暂无物品</div>';
+    else items.forEach(function(item){h+=renderItemRow(item);});
+    h+='</div></div>';
+  });
+
+  el.innerHTML=h;
+}
+
+function renderItemRow(item){
+  var es=ex(item),h='';
+  h+='<div class="item-row '+es.lv+'" id="ir-'+item.id+'">';
+  h+='<div class="item-icon">'+icat(item.c)+'</div>';
+  h+='<div class="item-body"><div class="item-name">'+esc(item.n)+' <span style="font-size:.55rem;color:var(--t3);font-weight:400">'+item.qty+item.u+'</span><span class="cook-badge" id="cb-'+item.id+'">'+(COOK&&COOK.items[item.id]||'')+'</span></div>';
+  h+='<div class="item-meta">';
+  if(item.note)h+='<span>'+esc(item.note)+'</span>';
+  h+='<span>'+item.d+'</span>';
+  if(es.lb)h+='<span class="item-tag '+(es.lv==='expired'?'bad':es.lv==='warning'?'warn':'ok')+'">'+es.lb+'</span>';
+  h+='</div></div>';
+  var consumable=item.c!=='设备'&&item.c!=='工具'&&item.c!=='快递'&&item.c!=='回收';
+  h+='<div class="item-act">';
+  if(consumable)h+='<button class="item-act-btn" onclick="event.stopPropagation();quickConsume(\''+item.id+'\')">−</button>';
+  if(es.lv==='expired')h+='<button class="item-act-btn del" onclick="event.stopPropagation();requestRemove(\''+item.id+'\')">🗑</button>';
+  h+='</div>';
+  var cookQty=(COOK&&COOK.items[item.id])||0;
+  h+='<div class="item-cook"><button class="cook-btn minus" onclick="event.stopPropagation();cookRemove(\''+item.id+'\')">−</button><span class="cook-qty'+(cookQty>0?' used':'')+'">'+cookQty+'</span><button class="cook-btn plus" onclick="event.stopPropagation();cookAdd(\''+item.id+'\')">+</button></div>';
+  h+='</div>';
+  return h;
+}
+
+// ══ TOGGLES ══
+function toggleZone(zid){
+  _open[zid]=!_open[zid];
+  if(zid==='fridge'){
+    if(!_open[zid]){_open['comp_upper']=false;_open['comp_lower']=false;}
+    renderKitchen();
+  }else{
+    var card=document.getElementById('zc-'+zid);
+    if(card)card.classList.toggle('open');
+  }
+}
+
+function toggleComp(cid){
+  var other=cid==='upper'?'lower':'upper';
+  _open['comp_'+other]=false;
+  _open['comp_'+cid]=!_open['comp_'+cid];
+  // Doors
+  var oc=document.getElementById('fdc-'+cid),cc=document.getElementById('fdc-'+other);
+  if(oc)oc.classList.toggle('open',_open['comp_'+cid]);
+  if(cc)cc.classList.remove('open');
+  // Body panels
+  var op=document.getElementById('fbp-'+cid),cp=document.getElementById('fbp-'+other);
+  if(op)op.classList.toggle('open',_open['comp_'+cid]);
+  if(cp)cp.classList.remove('open');
+  // Arrows
+  [['fdc-'+cid,_open['comp_'+cid]],['fdc-'+other,false]].forEach(function(a){
+    var card=document.getElementById(a[0]);if(!card)return;
+    var arrow=card.querySelector('.fridge-door-arrow');
+    if(arrow){arrow.innerHTML=a[1]?'▲ 收起':'▼ 展开';arrow.style.color=a[1]?'var(--gp)':'var(--t3)';}
+  });
+}
+
+// ══ REVIEW ══
+function renderReview(){
+  var el=document.getElementById('bodyContent');
+  if(R!=='admin'){el.innerHTML='<div class="empty" style="padding:40px"><div class="empty-icon">🔒</div>仅管理员可审核</div>';return;}
+  var pending=REVIEWS.filter(function(r){return r.s==='pending';}),done=REVIEWS.filter(function(r){return r.s!=='pending';}),h='';
+  if(pending.length){h+='<div class="sec-label">⏳ 待审核 ('+pending.length+')</div>';pending.forEach(function(r){h+='<div class="review-card"><div style="font-size:.68rem">'+(r.type==='add'?'<strong>'+esc(r.by)+'</strong> 申请添加 <strong>'+esc(r.item.n)+'</strong> '+r.item.q+r.item.u+' → '+zn(r.item.z)+(r.item.comp?'·'+(r.item.comp==='upper'?'上层':'下层'):''):'<strong>'+esc(r.by)+'</strong> 申请移除 <strong>'+esc(r.tn)+'</strong>')+'</div><div style="font-size:.55rem;color:var(--t3)">'+fmt(r.at)+'</div><div class="review-actions"><button class="rv-btn ok" onclick="approve(\''+r.id+'\')">✅ 通过</button><button class="rv-btn no" onclick="reject(\''+r.id+'\')">✕ 拒绝</button></div></div>';});}
+  if(done.length){h+='<div class="sec-label">📋 已处理</div>';done.slice(-10).reverse().forEach(function(r){h+='<div class="log-row"><span class="log-icon">'+(r.s==='approved'?'✅':'✕')+'</span><div class="log-body">'+esc(r.by)+' '+(r.type==='add'?'添加 '+esc(r.item.n):'移除 '+esc(r.tn))+' · '+(r.s==='approved'?'已通过':'已拒绝')+'</div><span class="log-time">'+fmt(r.at)+'</span></div>';});}
+  if(!h)h='<div class="empty" style="padding:40px"><div class="empty-icon">✅</div>暂无审核记录</div>';
+  document.getElementById('dotReview').classList.toggle('show',pending.length>0);
+  el.innerHTML=h;
+}
+function approve(rid){var r=REVIEWS.find(function(x){return x.id===rid;});if(!r)return;r.s='approved';if(r.type==='add'){ITEMS.push({id:'i'+uid(),z:r.item.z,comp:r.item.comp||null,n:r.item.n,c:r.item.c||guessCat(r.item.n),q:r.item.q,u:r.item.u,d:r.item.d||T(),e:r.item.e||7,note:r.item.note||'',by:r.by,at:r.at,s:'active'});LOGS.unshift({id:'l'+uid(),tp:'add',zn:zn(r.item.z),it:r.item.n,dt:'+'+r.item.q+r.item.u+' · 审核通过',usr:U,tm:N(),ok:1});}else if(r.type==='remove'){var item=ITEMS.find(function(i){return i.id===r.iid;});if(item)item.s='removed';LOGS.unshift({id:'l'+uid(),tp:'remove',zn:r.tz,it:r.tn,dt:'已移除',usr:U,tm:N(),ok:1});}toast('已通过','ok');refresh();}
+function reject(rid){var r=REVIEWS.find(function(x){return x.id===rid;});if(!r)return;r.s='rejected';LOGS.unshift({id:'l'+uid(),tp:'reject',zn:'',it:r.type==='add'?r.item.n:r.tn,dt:'审核未通过',usr:U,tm:N(),ok:0});toast('已拒绝','warn');refresh();}
+
+// ══ LOG ══
+function renderLog(){
+  var el=document.getElementById('bodyContent'),h='';
+  LOGS.slice(0,40).forEach(function(l){
+    var icon=l.tp==='cook'?'🍳':l.tp==='add'?'➕':l.tp==='consume'?'➖':l.tp==='remove'?'🗑':'📝';
+    h+='<div class="log-row"><span class="log-icon">'+icon+'</span><div class="log-body"><strong>'+esc(l.usr)+'</strong> ';
+    if(l.tp==='cook')h+='做饭：<em>'+esc(l.it)+'</em> · '+esc(l.dt);
+    else if(l.tp==='add')h+='添加 <em>'+esc(l.it)+'</em> '+l.dt;
+    else if(l.tp==='consume')h+='消耗 <em>'+esc(l.it)+'</em> '+l.dt;
+    else h+=l.dt;
+    h+='</div><span class="log-time">'+fmt(l.tm)+'</span></div>';
+  });
+  if(!h)h='<div class="empty" style="padding:40px"><div class="empty-icon">📜</div>暂无操作记录</div>';
+  el.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════
+//  PICKER
+// ═══════════════════════════════════════════
+function openAddPicker(){if(!canOp()){toast('只有在地成员可操作','error');return;}_pick={cat:'常用',item:null,zone:'fridge:upper',qty:1,custom:''};document.getElementById('addPicker').classList.add('open');renderPicker();}
+function openAddPickerFridge(){if(!canOp())return;_pick={cat:'常用',item:null,zone:'fridge:upper',qty:1,custom:''};document.getElementById('addPicker').classList.add('open');renderPicker();}
+function closeAddPicker(){document.getElementById('addPicker').classList.remove('open');}
+
+function renderPicker(){
+  var h='';CATS.forEach(function(c){h+='<span class="pcat'+(c===_pick.cat?' on':'')+'" onclick="pickCat(\''+c+'\')">'+(c==='常用'?'⭐':'')+c+'</span>';});
+  document.getElementById('pickerCats').innerHTML=h;
+  var items=QI[_pick.cat]||[],gh='';
+  items.forEach(function(qi){var sel=_pick.item&&_pick.item.n===qi.n;gh+='<div class="pitem'+(sel?' sel':'')+'" onclick="pickItem(\''+qi.n+'\')"><span class="pitem-icon">'+qi.icon+'</span><span class="pitem-name">'+qi.n+'</span></div>';});
+  document.getElementById('pickerGrid').innerHTML=gh;
+  var selEl=document.getElementById('pickerSel'),qr=document.getElementById('pickerQtyRow'),btn=document.getElementById('pickerConfirm');
+  if(_pick.item){selEl.style.display='flex';qr.style.display='flex';document.getElementById('psIcon').textContent=_pick.item.icon;document.getElementById('psName').textContent=_pick.item.n;document.getElementById('psDefaults').textContent=_pick.item.dq+_pick.item.u+'/次 · 保质'+_pick.item.e+'天';document.getElementById('pickerQtyVal').textContent=_pick.qty;document.getElementById('pickerUnit').textContent=_pick.item.u;btn.disabled=false;btn.innerHTML='✅ 添加 <b>'+_pick.item.n+'×'+_pick.qty+_pick.item.u+'</b> → '+zoneLabel(_pick.zone);}
+  else if(_pick.custom){selEl.style.display='none';qr.style.display='none';btn.disabled=false;btn.innerHTML='✅ 添加 <b>'+esc(_pick.custom)+'</b> → '+zoneLabel(_pick.zone);}
+  else{selEl.style.display='none';qr.style.display='none';btn.disabled=true;btn.textContent='选一个物品开始添加';}
+  var zh='';ZQ.forEach(function(zq){zh+='<span class="pzone'+(zq.id===_pick.zone?' on':'')+'" onclick="pickZone(\''+zq.id+'\')">'+zq.icon+' '+zq.l+'</span>';});
+  document.getElementById('pickerZones').innerHTML=zh;
+  document.getElementById('pickerCustom').value=_pick.custom;
+}
+
+function pickCat(c){_pick.cat=c;_pick.item=null;_pick.custom='';_pick.qty=1;renderPicker();}
+function pickItem(name){
+  var all=[];Object.values(QI).forEach(function(arr){arr.forEach(function(qi){all.push(qi);});});
+  var found=all.find(function(qi){return qi.n===name;});
+  if(found){_pick.item=found;_pick.custom='';_pick.qty=found.dq||1;if(found.dz)_pick.zone=DZ[found.dz]||'fridge:upper';renderPicker();}
+}
+function onPickCustom(){_pick.item=null;_pick.custom=document.getElementById('pickerCustom').value.trim();renderPicker();}
+function pickZone(zid){_pick.zone=zid;renderPicker();}
+function pickerQty(d){_pick.qty=Math.max(1,_pick.qty+d);document.getElementById('pickerQtyVal').textContent=_pick.qty;var btn=document.getElementById('pickerConfirm');if(_pick.item)btn.innerHTML='✅ 添加 <b>'+_pick.item.n+'×'+_pick.qty+_pick.item.u+'</b> → '+zoneLabel(_pick.zone);}
+function zoneLabel(zid){var zq=ZQ.find(function(z){return z.id===zid;});return zq?zq.icon+' '+zq.l:zid;}
+
+function confirmAdd(){
+  if(!canOp()){toast('只有在地成员可操作','error');return;}
+  var z,comp=null;
+  if(_pick.zone.startsWith('fridge:')){z='fridge';comp=_pick.zone.split(':')[1];}else{z=_pick.zone;}
+  var n,q,u,e;
+  if(_pick.item){n=_pick.item.n;q=_pick.qty;u=_pick.item.u;e=_pick.item.e;}
+  else if(_pick.custom){n=_pick.custom;q=1;u='个';e=7;}
+  else{toast('请选一个物品','warn');return;}
+  if(R==='admin'){ITEMS.push({id:'i'+uid(),z:z,comp:comp,n:n,c:guessCat(n),q:q,u:u,d:T(),e:e,note:'',by:U,at:N(),s:'active'});LOGS.unshift({id:'l'+uid(),tp:'add',zn:zn(z)+(comp?'·'+(comp==='upper'?'上层':'下层'):''),it:n,dt:'+'+q+u,usr:U,tm:N(),ok:1});toast('已添加 '+n+'×'+q+u,'ok');NT+=1;}
+  else{REVIEWS.push({id:'r'+uid(),type:'add',item:{z:z,comp:comp,n:n,c:guessCat(n),q:q,u:u,d:T(),e:e,note:''},by:U,at:N(),s:'pending'});toast('提交审核中 ✉️','warn');}
+  closeAddPicker();refresh();
+}
+
+// ══ INIT ══
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<title>实景游戏 · 南塘云村</title>
+
+<!-- PWA: manifest only works under HTTPS; harmless CORS error under file:// → removed -->
+<meta name="theme-color" content="#c88740">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="南塘云村">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" type="image/png" href="92e279b22d04d4c831aec15aa09213df (1).png">
+<link rel="apple-touch-icon" href="92e279b22d04d4c831aec15aa09213df (1).png">
+
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/animate.min.css">
+<link rel="stylesheet" href="phosphor-icons.css">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js" defer></script>
+</head>
+<body>
+
+<header style="padding:0;border-bottom:1.5px solid #4a3828;position:relative;overflow:hidden;min-height:180px;">
+  <img src="ai_expand_image1783014990973.png" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 70%;z-index:0">
+  <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.25),rgba(0,0,0,.05) 40%,rgba(0,0,0,.15) 100%);z-index:1"></div>
+  <div style="position:relative;z-index:2;padding:18px 32px">
+    <span style="font-size:2.2rem;filter:drop-shadow(2px 2px 3px rgba(0,0,0,.35))">⚔️</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- ═══ Login Page ═══ -->
+  <div id="loginPage" class="login-page">
+    <div id="loginEntry" class="login-card" style="text-align:center">
+      <img src="92e279b22d04d4c831aec15aa09213df (1).png" class="login-decor" alt="">
+      <div style="font-size:3.5rem;margin-bottom:4px;line-height:1">⚔️</div>
+      <h1 style="font-size:1.6rem;margin:0 0 4px">实景游戏 · 南塘云村</h1>
+      <p style="margin:0 0 4px;font-size:.9rem">欢迎你，寻找人生副本</p>
+      <p id="loginDateRange" style="font-size:.75rem;color:var(--muted);margin:0 0 20px">1998 — 2026</p>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+        <button class="btn pri" onclick="showRegister('visitor')" style="font-size:.9rem;padding:12px 24px">✨ 我是新来的</button>
+        <button class="btn" onclick="showUserList()" style="font-size:.9rem;padding:12px 24px">📋 我有账号</button>
+      </div>
+      <div style="margin-top:28px;opacity:.35">
+        <button onclick="resetAllData()" style="background:none;border:none;color:var(--muted);font-size:.65rem;cursor:pointer;text-decoration:underline dotted" title="清除全部本地数据，恢复出厂状态">🗑️ 重置全部数据</button>
+      </div>
+    </div>
+    <div id="identityPicker" class="hidden login-card" style="text-align:center">
+      <h2>你是谁？</h2>
+      <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+        <div onclick="showRegister('adventurer')" class="avatar-chip" style="padding:14px 18px;min-width:120px"><div style="font-size:2.5rem">⚔️</div><div style="font-weight:700;margin-top:4px">我是冒险者</div><div style="font-size:.72rem;color:var(--muted)">需要邀请码</div></div>
+        <div onclick="showRegister('npc')" class="avatar-chip" style="padding:14px 18px;min-width:120px"><div style="font-size:2.5rem">👥</div><div style="font-weight:700;margin-top:4px">我是南塘NPC</div><div style="font-size:.72rem;color:var(--muted)">在地伙伴</div></div>
+        <div onclick="showRegister('visitor')" class="avatar-chip" style="padding:14px 18px;min-width:120px"><div style="font-size:2.5rem">🏕️</div><div style="font-weight:700;margin-top:4px">我只是来看看</div><div style="font-size:.72rem;color:var(--muted)">游客</div></div>
+      </div>
+      <button class="btn" onclick="showLoginEntry()" style="margin-top:16px">← 返回</button>
+    </div>
+    <div id="registerForm" class="hidden login-card" style="text-align:center;max-width:380px;padding:18px 20px">
+      <h2 id="registerTitle" style="font-size:1rem;margin-bottom:4px"></h2>
+      <div style="margin:4px 0;cursor:pointer" id="regAvatarPreview"></div>
+      <button class="btn" onclick="cycleRegAvatar()" style="font-size:.65rem;padding:2px 8px">🎨 换头像</button>
+      <input type="text" id="regName" placeholder="你的名字" style="margin:6px 0;padding:8px">
+      <input type="password" id="regPassword" placeholder="设置密码（至少6位）" style="margin:6px 0;padding:8px">
+      <div id="regInviteRow" class="hidden"><div id="regInviteLabel" style="font-size:.72rem;color:var(--muted);margin-bottom:2px"></div><input type="text" id="regInviteCode" placeholder="" style="margin:4px 0;padding:8px"></div>
+      <div id="regError" style="color:var(--red);font-size:.75rem;margin:4px 0"></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px"><button class="btn" onclick="showLoginEntry()" style="font-size:.8rem">← 返回</button><button class="btn pri" onclick="doRegister()" style="font-size:.8rem">确认注册 →</button></div>
+    </div>
+    <div id="userListPanel" class="hidden login-card" style="max-width:520px;padding:16px 14px">
+      <div class="login-split">
+        <div class="ls-left" id="userListLeft"></div>
+        <div class="ls-right" id="userListRight">
+          <div class="ls-avatar" id="loginAvatarPreview"></div>
+          <input type="text" id="loginNameInput" placeholder="输入名字..." oninput="onLoginNameInput()" style="font-size:.82rem;padding:8px;margin:6px 0">
+          <input type="password" id="loginPwdInput" placeholder="输入密码" onkeydown="if(event.key==='Enter')doSplitLogin()" style="font-size:.82rem;padding:8px;margin:6px 0">
+          <div id="loginError" style="color:var(--red);font-size:.7rem;margin:2px 0;min-height:12px"></div>
+          <button class="btn pri" onclick="doSplitLogin()" style="width:100%;padding:8px;font-size:.85rem;margin:4px 0 6px">登录</button>
+          <button class="btn" onclick="showLoginEntry()" style="width:100%;padding:6px;font-size:.75rem">← 返回</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="profileSetupCard" class="hidden login-card" style="text-align:center;max-width:380px;padding:18px 20px">
+    <h2>🎉 欢迎加入南塘云村！</h2>
+    <p style="font-size:.82rem;color:var(--muted);margin:4px 0 12px">完善一下你的个人资料吧（可跳过）</p>
+    <label for="psGender" style="font-size:.8rem">性别</label>
+    <select id="psGender" style="width:100%;margin:4px 0;padding:8px;border:1px solid var(--border);border-radius:6px">
+      <option value="">— 不透露 —</option><option value="male">男</option><option value="female">女</option>
+    </select>
+    <label for="psBio" style="font-size:.8rem;margin-top:8px">个人简介</label>
+    <textarea id="psBio" rows="3" placeholder="介绍一下自己…" style="width:100%;margin:4px 0;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button class="btn" onclick="skipProfileSetup()" style="font-size:.8rem">跳过 →</button>
+      <button class="btn pri" onclick="finishProfileSetup()" style="font-size:.8rem">✅ 完成 →</button>
+    </div>
+  </div>
+
+  <!-- Password Modal (kept for backward compat) -->
+  <div id="passwordModal" class="modal-overlay" style="z-index:1000"><div class="modal" style="text-align:center">
+    <h2>输入密码</h2><div id="pwdModalAvatar" style="margin:12px 0"></div><div id="pwdModalName" style="font-weight:700;margin-bottom:12px"></div>
+    <input type="password" id="pwdModalInput" placeholder="密码">
+    <label style="font-size:.78rem;cursor:pointer;display:block;margin:8px 0"><input type="checkbox" id="pwdRememberMe"> 记住我</label>
+    <div id="pwdModalError" style="color:var(--red);font-size:.82rem;margin:4px 0"></div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" onclick="closePasswordModal()">取消</button><button class="btn pri" onclick="doLogin()">登录</button></div>
+  </div></div>
+
+  <!-- ═══ World HUD (1-row: user info + modeBar) ═══ -->
+  <div id="worldHUD" class="hidden"><div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;flex-wrap:wrap;gap:6px">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="avatar-slot" id="hudAvatar" onclick="openProfilePanel()" title="查看角色信息"></span>
+      <span style="font-weight:600" id="hudCurrentUser"></span>
+      <span style="font-size:.78rem;color:var(--muted)"><img src="豆子.png" style="width:1em;height:1em;vertical-align:text-bottom;margin-right:5px;position:relative;top:-1px"> <b id="hudNT">—</b></span>
+      <button class="btn hidden" id="hudGenesisBtn" onclick="switchBuilderMode('genesis')" style="font-size:.8rem;padding:5px 12px">🌍 创世终端</button>
+      <span id="builderModeBar" class="hidden" style="display:flex;gap:6px;flex-wrap:wrap"><span class="dropdown" style="position:relative"><button class="btn" onclick="toggleDropdown('previewMenu')" style="font-size:.8rem;padding:5px 10px">👁️ 预览 ▾</button><div id="previewMenu" class="dropdown-menu hidden" style="position:absolute;right:0;top:100%;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px;min-width:120px;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:2px"><button class="btn" onclick="switchToPreview('builder');toggleDropdown('previewMenu')" style="text-align:left;font-size:.8rem">🧱 共建者</button><button class="btn" onclick="switchToPreview('adventurer');toggleDropdown('previewMenu')" style="text-align:left;font-size:.8rem">⚔️ 冒险者</button><button class="btn" onclick="switchToPreview('npc');toggleDropdown('previewMenu')" style="text-align:left;font-size:.8rem">👥 NPC</button><button class="btn" onclick="switchToPreview('visitor');toggleDropdown('previewMenu')" style="text-align:left;font-size:.8rem">🏕️ 游客</button></div></span></span>
+    </div>
+    <span style="display:flex;align-items:center;gap:2px">
+      <button id="btnInbox" onclick="toggleInbox()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;position:relative;padding:4px 4px" title="信箱">📬</button>
+      <button id="btnContacts" onclick="showContactSidebar()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px 4px" title="常联系">👥</button>
+      <span style="font-size:.7rem;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="statusDot"></span>
+    </span>
+  </div></div>
+
+  <!-- ═══ Instance Sidebar (Seam 2) ═══ -->
+  <nav id="instanceSidebar" class="instance-sidebar hidden"></nav>
+
+  <!-- ═══ Mobile Bottom Nav (Seam 3 — ≤768px 底部导航) ═══ -->
+  <nav id="mobileBottomNav" class="mobile-bottom-nav hidden"></nav>
+
+  <!-- ═══ More Sheet (手机端「更多」浮层) ═══ -->
+  <div id="moreSheetBackdrop" class="more-sheet-backdrop" onclick="closeMoreSheet()"></div>
+  <div id="moreSheet" class="more-sheet">
+    <div class="more-sheet-header">
+      <span class="more-sheet-handle"></span>
+      <span class="more-sheet-title">更多</span>
+      <button class="more-sheet-close" onclick="closeMoreSheet()" aria-label="关闭">✕</button>
+    </div>
+    <div class="more-sheet-body" id="moreSheetBody"></div>
+  </div>
+
+  <!-- ═══ Profile Panel (Seam 3 — 点击头像左侧滑入) ═══ -->
+  <div id="profilePanelBackdrop" class="profile-panel-backdrop" onclick="closeProfilePanel()"></div>
+  <div id="profilePanel" class="profile-panel">
+    <button class="profile-panel-close" onclick="closeProfilePanel()" aria-label="关闭">✕</button>
+    <div class="profile-panel-header">
+      <span class="pp-avatar" id="ppAvatar"></span>
+      <div class="pp-info">
+        <div class="pp-name" id="ppName"></div>
+        <div class="pp-title" id="ppTitle"></div>
+      </div>
+    </div>
+    <div class="profile-panel-body" id="ppBody"></div>
+  </div>
+
+  <!-- ═══ Builder Tabs (hidden in Seam 2 — DOM preserved) ═══ -->
+  <div id="builderTabs" class="tabs hidden">
+    <button class="tab" data-tab="workspace" onclick="switchTab('workspace')" id="builderWorkspaceTab">👤 砚仁</button>
+    <button class="tab" data-tab="treasury" onclick="switchTab('treasury')">📦 社区资源</button>
+    <button class="tab" data-tab="members" onclick="switchTab('members')">👥 成员档案</button>
+    <button class="tab" data-tab="taskhall" onclick="switchTab('taskhall')">🏛️ 工会大厅</button>
+    <button class="tab" data-tab="ntadmin" onclick="switchTab('ntadmin')">🎯 营地管理</button>
+    <button class="tab" data-tab="timeline" onclick="switchTab('timeline')">📅 时间线</button>
+    <button class="tab" data-tab="budget" onclick="switchTab('budget')">💰 工会资金</button>
+    <button class="tab" data-tab="settlement" onclick="switchTab('settlement')">🧾 通关结算</button>
+    <button class="tab" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 排行榜</button>
+    <span style="flex:1"></span>
+    <button class="tab" data-tab="questboard" onclick="openHubQuestHall()" style="margin-right:5px">📋 任务大厅</button>
+    <span class="dropdown" style="position:relative;align-self:center">
+      <button class="tab" onclick="if(!document.getElementById('hubSubPanel').classList.contains('show'))toggleDropdown('hubMenu');renderHubDropdown()" style="cursor:pointer">🗺️ 南塘云村</button>
+      <div id="hubMenu" class="dropdown-menu hidden" style="position:absolute;right:0;top:100%;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:2px"></div>
+    </span>
+    <span class="dropdown" style="position:relative;align-self:center;margin-left:12px">
+      <button class="btn" onclick="toggleDropdown('gearMenu')" title="工具" style="font-size:.8rem;padding:4px 8px"><i class="ph-duotone ph-gear"></i></button>
+      <div id="gearMenu" class="dropdown-menu hidden" style="position:absolute;right:0;top:100%;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px;min-width:170px;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:2px">
+        <button class="btn" onclick="loadData();toggleDropdown('gearMenu')" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-folder-open"></i> 加载数据</button>
+        <button class="btn" onclick="exportData();toggleDropdown('gearMenu')" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-download"></i> 导出数据</button>
+        <button class="btn" id="btnInviteCode" onclick="showInviteSidebar()" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-keyhole"></i> 邀请码</button>
+        <!-- NT-TEST:START -->
+        <button class="btn" id="btnDevtools" onclick="showDevtoolsSidebar()" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-flask"></i> 内测世界</button>
+        <!-- NT-TEST:END -->
+        <hr style="border-color:var(--border);margin:2px 0">
+        <button class="btn" onclick="showVillageSquare();toggleDropdown('gearMenu')" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-house"></i> 回南塘村口</button>
+        <hr style="border-color:var(--border);margin:2px 0">
+        <button class="btn" onclick="logoutUser();toggleDropdown('gearMenu')" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-sign-out"></i> 退出</button>
+      </div>
+    </span>
+  </div>
+
+  <!-- ═══ Adventurer Tabs ═══ -->
+  <div id="adventurerTabs" class="tabs hidden">
+    <button class="tab" data-tab="workspace" onclick="switchTab('workspace')" id="adventurerWorkspaceTab">👤 砚仁</button>
+    <button class="tab" data-tab="timeline" onclick="switchTab('timeline')">📅 时间线</button>
+    <button class="tab" data-tab="leaderboard" onclick="switchTab('leaderboard')">🏆 排行榜</button>
+    <span style="flex:1"></span>
+    <button class="tab" data-tab="questboard" id="advQuestboardBtn" onclick="openHubQuestHall()">📋 任务大厅</button>
+    <span class="dropdown" style="position:relative;align-self:center">
+      <button class="tab" onclick="toggleDropdown('hubMenu2');renderHubDropdown()" style="cursor:pointer">🗺️ 南塘云村</button>
+      <div id="hubMenu2" class="dropdown-menu hidden" style="position:absolute;right:0;top:100%;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px;min-width:160px;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:2px"></div>
+    </span>
+    <span class="dropdown" style="position:relative;align-self:center;margin-left:12px">
+      <button class="btn" onclick="toggleDropdown('gearMenuAdventure')" title="工具" style="font-size:.8rem;padding:4px 8px"><i class="ph-duotone ph-gear"></i></button>
+      <div id="gearMenuAdventure" class="dropdown-menu hidden" style="position:absolute;right:0;top:100%;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px;min-width:140px;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:2px">
+        <button class="btn" onclick="showVillageSquare();toggleDropdown('gearMenuAdventure')" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-house"></i> 回南塘村口</button>
+        <button class="btn" onclick="logoutUser();toggleDropdown('gearMenuAdventure')" style="text-align:left;font-size:.8rem"><i class="ph-duotone ph-sign-out"></i> 退出登录</button>
+      </div>
+    </span>
+  </div>
+
+  <!-- Tab: Task Hall (Staff Daily View) -->
+  <div id="tab-taskhall" class="hidden">
+    <!-- Row 1: Date picker -->
+    <div class="card" style="margin-bottom:8px;padding:8px 18px;text-align:center">
+      <span style="font-weight:700">📅</span>
+      <input type="date" id="taskhallDate" onchange="renderDailyView('staff')" style="border:2px solid var(--border);border-radius:8px;padding:6px 10px;font-family:var(--font);font-size:.85rem;margin:0 8px">
+      <button class="btn" onclick="document.getElementById('taskhallDate').valueAsDate=Clock.date();renderDailyView('staff')" style="font-size:.75rem">今天</button>
+      <span style="font-size:.8rem;color:var(--muted);margin-left:16px" id="taskhallTaskCount"></span>
+    </div>
+
+    <!-- Row 2: Milestone timeline -->
+    <div class="card" style="margin-bottom:6px;padding:8px 14px;overflow-x:auto">
+      <div style="display:flex;align-items:center;gap:0;min-width:max-content;font-size:.7rem" id="taskhallMilestones"></div>
+    </div>
+
+    <!-- Main: Staff (left) + Content (center) -->
+    <div style="display:flex;gap:10px;min-height:360px;align-items:stretch">
+      <!-- Staff Panel -->
+      <div class="card" style="flex:0 0 185px;padding:12px 10px;text-align:center;overflow-y:auto;max-height:420px">
+        <div style="font-size:.72rem;font-weight:700;color:var(--accent);margin-bottom:8px">🧙 共建者</div>
+        <div id="taskhallAvatarList"></div>
+      </div>
+
+      <!-- Center: Daily Tasks -->
+      <div class="card" style="flex:1 1 0;padding:10px 14px;overflow-y:auto;max-height:420px" id="taskhallDailyTasks">
+        <div class="empty-state">📅 加载中...</div>
+      </div>
+    </div>
+
+    <!-- Task table overview (merged from 任务总览) -->
+    <div class="card" id="taskListCard" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:nowrap">
+        <div style="display:flex;gap:8px;align-items:center"><h3 style="margin:0">📊 任务总览</h3></div>
+        <button class="btn green" onclick="showAddTask()">＋ 新增</button>
+      </div>
+      <div class="phase-select-row" id="phaseBlocks"></div>
+      <div style="overflow-x:auto"><table id="taskTable">
+        <thead><tr>
+          <th style="cursor:pointer" onclick="sortTasks('name')">任务 ▾</th>
+          <th style="cursor:pointer" onclick="sortTasks('assignee')">负责人 ▾</th>
+          <th style="cursor:pointer" onclick="sortTasks('start')">起始 ▾</th>
+          <th style="cursor:pointer" onclick="sortTasks('deadline')">截止 ▾</th>
+          <th>确认人</th>
+          <th style="cursor:pointer" onclick="sortTasks('points')">激励点 ▾</th>
+          <th>状态</th>
+          <th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <div class="empty-state hidden" id="taskEmpty">📭 还没有任务，点「＋ 新增」或加载 data.json</div>
+    </div>
+    <div class="card" id="completenessCard">
+      <h3>数据完整性</h3>
+      <div class="completeness" id="completenessInfo"></div>
+    </div>
+  </div>
+
+  <!-- Tab: Map (Player Daily View) -->
+  <div id="tab-map" class="hidden">
+    <!-- Row 1: Date picker -->
+    <div class="card" style="margin-bottom:8px;padding:8px 18px;text-align:center">
+      <span style="font-weight:700">📅</span>
+      <input type="date" id="mapDate" onchange="renderDailyView('player')" style="border:2px solid var(--border);border-radius:8px;padding:6px 10px;font-family:var(--font);font-size:.85rem;margin:0 8px">
+      <button class="btn" onclick="document.getElementById('mapDate').valueAsDate=Clock.date();renderDailyView('player')" style="font-size:.75rem">今天</button>
+      <span style="font-size:.8rem;color:var(--muted);margin-left:16px" id="mapTaskCount"></span>
+    </div>
+
+    <!-- Row 2: Milestone timeline -->
+    <div class="card" style="margin-bottom:6px;padding:8px 14px;overflow-x:auto">
+      <div style="display:flex;align-items:center;gap:0;min-width:max-content;font-size:.7rem" id="mapMilestones"></div>
+    </div>
+
+    <!-- Main: Players (left) + Content (center) -->
+    <div style="display:flex;gap:10px;min-height:360px;align-items:stretch">
+      <!-- Player Panel -->
+      <div class="card" style="flex:0 0 185px;padding:12px 10px;text-align:center;overflow-y:auto;max-height:420px">
+        <div style="font-size:.72rem;font-weight:700;color:#5b8cb8;margin-bottom:8px">⚔️ 冒险者</div>
+        <div id="mapAvatarList"></div>
+      </div>
+
+      <!-- Center: Daily Tasks -->
+      <div class="card" style="flex:1 1 0;padding:10px 14px;overflow-y:auto;max-height:420px" id="mapDailyTasks">
+        <div class="empty-state">📅 加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Members -->
+  <div id="tab-members" class="hidden">
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="memberSubNav">
+      <button class="btn pri" onclick="filterMembers('builder')">🧙 共建者</button>
+      <button class="btn" onclick="filterMembers('adventurer')">⚔️ 冒险者</button>
+      <button class="btn" onclick="filterMembers('npc')">👥 南塘NPC</button>
+      <button class="btn" onclick="filterMembers('visitor')">🏕️ 云村民</button>
+    </div>
+    <div class="ms-avatar-row" id="memberAvatars"></div>
+    <div id="memberDetail"></div>
+    <div class="empty-state hidden" id="memberEmpty">👤 还没有成员数据</div>
+  </div>
+
+  <!-- Tab: Players -->
+  <div id="tab-players" class="hidden">
+    <div class="ms-avatar-row" id="playerAvatars" style="max-width:780px;margin-left:auto;margin-right:auto">
+      <button class="ms-avatar-btn ms-add-btn" onclick="showAddMember()" style="opacity:.6">
+        <div class="ms-av-circle" style="background:#e0dcd4;border:2px dashed var(--border)"><span style="font-size:1.2rem;color:var(--muted)">＋</span></div>
+        <div class="ms-av-name">新增</div>
+      </button>
+    </div>
+    <div id="playerDetail"></div>
+    <div class="empty-state hidden" id="playerEmpty">👤 还没有冒险者数据</div>
+  </div>
+
+  <!-- Tab: Timeline -->
+  <div id="tab-timeline" class="hidden">
+    <!-- Progress Bars (only in calendar) -->
+    <div id="progressBars" style="margin-bottom:8px;padding:8px 14px;background:var(--card);border:1px solid var(--border);border-radius:4px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:nowrap">
+        <span style="white-space:nowrap;font-size:.82rem;font-weight:700;color:var(--accent);min-width:70px">👥 策划组</span>
+        <div id="staffBar" style="flex:1;min-width:80px;height:20px;display:flex;gap:1px"></div>
+        <span style="font-size:.9rem;font-weight:700;color:var(--accent);min-width:36px;text-align:right" id="staffProgPct">0%</span>
+        <span style="font-size:.68rem;color:var(--muted);white-space:nowrap"><b style="color:var(--green)" id="staffProgDone">0</b>✓ <b style="color:var(--yellow)" id="staffProgActive">0</b>◷ <b id="staffProgTotal">0</b>总</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap">
+        <span style="white-space:nowrap;font-size:.82rem;font-weight:700;color:#5b8cb8;min-width:70px">⚔️ 冒险者</span>
+        <div id="playBar" style="flex:1;min-width:80px;height:20px;display:flex;gap:1px"></div>
+        <span style="font-size:.9rem;font-weight:700;color:#5b8cb8;min-width:36px;text-align:right" id="playProgPct">0%</span>
+        <span style="font-size:.68rem;color:var(--muted);white-space:nowrap"><b style="color:#5b8cb8" id="playProgDone">0</b>✓ <b style="color:#8bb8d8" id="playProgActive">0</b>◷ <b id="playProgTotal">0</b>总</span>
+      </div>
+    </div>
+    <!-- 视图切换 -->
+    <div style="display:flex;gap:12px;margin-bottom:10px;justify-content:center">
+      <button class="btn pri" id="btnCalendarView" onclick="switchScheduleView('calendar')" style="font-size:.95rem;padding:10px 28px">📅 日历视图</button>
+      <button class="btn" id="btnTimelineView" onclick="switchScheduleView('timeline')" style="font-size:.95rem;padding:10px 28px">📋 时间线</button>
+    </div>
+
+    <!-- 日历视图 -->
+    <div class="card" id="calendarView">
+      <h3 id="calendarTitle">日程表</h3>
+      <div id="calendarGrid" style="overflow-x:auto"></div>
+    </div>
+
+    <!-- 时间线视图 -->
+    <div class="card hidden" id="timelineViewCard">
+      <h3>全流程时间线</h3>
+      <div class="timeline-wrap" id="timelineView"></div>
+      <div class="empty-state hidden" id="timelineEmpty">📅 还没有日程数据</div>
+    </div>
+  </div>
+
+  <!-- Tab: Budget -->
+  <div id="tab-budget" class="hidden">
+    <!-- 公会资金池 -->
+    <div class="card" style="background:linear-gradient(180deg,#fefdf8,#faf5e8);border:1.5px solid #c4a860;">
+      <h3 style="margin:0 0 14px;text-align:center;font-size:1.2rem">🏦 公会资金池</h3>
+      <div style="display:flex;gap:16px;flex-wrap:nowrap;justify-content:center">
+        <!-- RMB 金库 -->
+        <div style="flex:1;min-width:200px;max-width:360px;background:linear-gradient(135deg,#eaf4e2,#d8e8cc);border:1.5px solid #6a9a4a;border-radius:14px;padding:10px 12px;text-align:center;">
+          <div style="font-size:1.5rem;margin-bottom:2px">💰</div>
+          <div style="font-weight:700;font-size:.85rem;color:#4a6e2a;margin-bottom:8px">人民币金库</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:nowrap">
+            <div style="flex:1;background:rgba(255,255,255,.55);border:2px solid #8aaa6a;border-radius:8px;padding:6px 8px;min-width:0">
+              <div style="font-size:.65rem;color:#4a6e2a;font-weight:600">总预算</div>
+              <div style="font-size:1.1rem;font-weight:700;white-space:nowrap;color:#4a6e2a" id="bmRMBTotal">--</div>
+            </div>
+            <div style="flex:1;background:rgba(255,255,255,.55);border:2px solid #c07050;border-radius:8px;padding:6px 8px;min-width:0">
+              <div style="font-size:.65rem;color:#8a4a30;font-weight:600">已支出</div>
+              <div style="font-size:1.1rem;font-weight:700;white-space:nowrap;color:var(--red)" id="bmRMBSpent">--</div>
+            </div>
+            <div style="flex:1;background:rgba(255,255,255,.55);border:2px solid #5a9a3a;border-radius:8px;padding:6px 8px;min-width:0">
+              <div style="font-size:.65rem;color:#3a6a20;font-weight:600">剩余</div>
+              <div style="font-size:1.1rem;font-weight:700;white-space:nowrap;color:var(--green)" id="bmRMBRemain">--</div>
+            </div>
+          </div>
+          <div style="height:8px;background:#c8d8b8;border-radius:4px;margin-top:12px;overflow:hidden;border:1px solid #a8c898">
+            <div id="bmRMBBar" style="height:100%;background:linear-gradient(90deg,#5a9a3a,#6aaa4a);border-radius:5px;transition:width .3s;width:0%"></div>
+          </div>
+        </div>
+        <!-- NT 金库 -->
+        <div style="flex:1;min-width:200px;max-width:360px;background:linear-gradient(135deg,#fef8e8,#f8e8c8);border:1.5px solid #c8a040;border-radius:14px;padding:10px 12px;text-align:center;">
+          <div style="font-size:1.5rem;margin-bottom:2px"><img src="豆子.png" style="width:1em;height:1em;vertical-align:text-bottom;margin-right:5px;position:relative;top:-1px"></div>
+          <div style="font-weight:700;font-size:.85rem;color:#8a6a20;margin-bottom:8px">NT 金库</div>
+          <div style="display:flex;gap:8px;justify-content:center;flex-wrap:nowrap">
+            <div style="flex:1;background:rgba(255,255,255,.55);border:2px solid #c8a040;border-radius:8px;padding:6px 8px;min-width:0">
+              <div style="font-size:.65rem;color:#8a6a20;font-weight:600">总收入</div>
+              <div style="font-size:1.1rem;font-weight:700;white-space:nowrap;color:#8a6a20" id="bmNTIncome">--</div>
+            </div>
+            <div style="flex:1;background:rgba(255,255,255,.55);border:2px solid #c07050;border-radius:8px;padding:6px 8px;min-width:0">
+              <div style="font-size:.65rem;color:#8a4a30;font-weight:600">已支出</div>
+              <div style="font-size:1.1rem;font-weight:700;white-space:nowrap;color:var(--red)" id="bmNTSpent">--</div>
+            </div>
+            <div style="flex:1;background:rgba(255,255,255,.55);border:2px solid #5a9a3a;border-radius:8px;padding:6px 8px;min-width:0">
+              <div style="font-size:.65rem;color:#3a6a20;font-weight:600">剩余</div>
+              <div style="font-size:1.1rem;font-weight:700;white-space:nowrap;color:var(--green)" id="bmNTRemain">--</div>
+            </div>
+          </div>
+          <div style="height:8px;background:#e8d8b0;border-radius:4px;margin-top:12px;overflow:hidden;border:1px solid #c8b880">
+            <div id="bmNTBar" style="height:100%;background:linear-gradient(90deg,#c8a040,#d4b050);border-radius:5px;transition:width .3s;width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 财务类型筛选块 -->
+    <div class="card">
+      <div class="phase-select-row" id="financeTypeBlocks" style="flex-wrap:wrap;overflow-x:visible"></div>
+<div id="matBudgetSummary" style="padding:4px 8px;margin:4px 0 8px"></div>
+      <div style="margin-bottom:8px"><button class="btn green" onclick="editTx(-1)">＋ 新增流水</button></div>
+      <div class="phase-select-row" id="financePersonBlocks" style="flex-wrap:wrap;overflow-x:visible;margin-top:4px"></div>
+      <div style="overflow-x:auto">
+        <table id="txTable">
+          <thead><tr><th>类型</th><th>出纳人</th><th>事由</th><th>RMB</th><th>NT</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 按人汇总 -->
+    <div class="card">
+      <h3>按人汇总</h3>
+      <div style="overflow-x:auto">
+        <table id="personFinanceTable">
+          <thead><tr><th>姓名</th><th>RMB 经手</th><th>NT 经手</th><th>笔数</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<!-- Tab: Settings -->
+  <div id="tab-settings" class="hidden">
+    <div id="wizardNav" style="display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:16px;flex-wrap:nowrap;overflow-x:auto;padding:4px 0"></div>
+
+<!-- Step 0: Camp Creation (Phase B 新增) -->
+<div id="wiz-step0" class="wiz-step">
+  <div class="card" style="max-width:600px;margin:0 auto">
+    <h3 style="text-align:center;margin:0 0 4px">🌍 创营 · 创建营队</h3>
+    <p style="text-align:center;color:var(--muted);font-size:.82rem;margin:0 0 20px">填入营队的基本信息，点燃属于你们的共创火种。</p>
+    <div style="margin-bottom:16px"><label for="wizCampName" style="font-size:.85rem;font-weight:600">营队名称</label><input type="text" id="wizCampName" placeholder="例：第四期南塘共创营" style="width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-family:var(--font);font-size:.9rem;margin-top:4px;box-sizing:border-box"></div>
+    <div style="margin-bottom:16px"><label for="wizCampPeriod" style="font-size:.85rem;font-weight:600">期数</label><select id="wizCampPeriod" style="width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-family:var(--font);font-size:.9rem;margin-top:4px;box-sizing:border-box"><option value="">-- 选择期数 --</option><option value="第一期">第一期</option><option value="第二期">第二期</option><option value="第三期">第三期</option><option value="第四期">第四期</option><option value="第五期">第五期</option><option value="第六期">第六期</option><option value="第七期">第七期</option><option value="第八期">第八期</option><option value="特别期">特别期</option></select></div>
+    <div style="margin-bottom:16px"><label style="font-size:.85rem;font-weight:600">类型</label><div style="display:flex;gap:16px;margin-top:6px"><label style="font-size:.85rem;cursor:pointer"><input type="radio" name="wizCampType" value="regular" checked onchange="document.getElementById('wizCampTypeVal').value=this.value"> 常规共创营</label><label style="font-size:.85rem;cursor:pointer"><input type="radio" name="wizCampType" value="special" onchange="document.getElementById('wizCampTypeVal').value=this.value"> 特别活动营</label></div><input type="hidden" id="wizCampTypeVal" value="regular"></div>
+    <div style="margin-bottom:16px"><label for="wizCampTheme" style="font-size:.85rem;font-weight:600">一句话主题</label><input type="text" id="wizCampTheme" placeholder="例：南塘有风，共创有光" style="width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-family:var(--font);font-size:.9rem;margin-top:4px;box-sizing:border-box"></div>
+    <div style="margin-bottom:20px"><label for="wizCampDesc" style="font-size:.85rem;font-weight:600">描述 <span style="color:var(--muted);font-weight:400">（可选）</span></label><textarea id="wizCampDesc" rows="3" placeholder="更详细的说明…" style="width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-family:var(--font);font-size:.9rem;margin-top:4px;resize:vertical;box-sizing:border-box"></textarea></div>
+    <div style="margin-bottom:16px"><label style="font-size:.82rem;cursor:pointer;display:flex;align-items:center;gap:6px"><input type="checkbox" id="wizCampTestMode" style="width:16px;height:16px"> 🧪 测试模式（测试营队可删除）</label></div>
+    <div style="text-align:center"><button class="btn pri" onclick="saveStep0()" style="font-size:1rem;padding:12px 32px">✨ 点燃火种 · 创建营队</button></div>
+  </div>
+</div>
+
+    <!-- Step 1: Framework -->
+    <div id="wiz-step1" class="wiz-step">
+      <div class="card"><h3>📅 营期时间</h3>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:.85rem">营期起：<input type="date" id="wizStartDate" onchange="if(!data.camp_dates)data.camp_dates={};data.camp_dates.start=this.value" style="margin-left:4px;padding:4px 8px;border:2px solid var(--border);border-radius:6px;font-family:var(--font)"></label>
+          <label style="font-size:.85rem">天数：<input type="number" id="wizDuration" value="15" min="1" max="60" onchange="if(!data.camp_dates)data.camp_dates={};data.camp_dates.duration_days=parseInt(this.value)||15" style="width:55px;margin-left:4px;padding:4px 8px;border:2px solid var(--border);border-radius:6px"></label>
+          <label style="font-size:.82rem">模板：<select id="wizScheduleTpl" style="padding:4px 8px;border:2px solid var(--border);border-radius:6px;font-size:.82rem;max-width:180px"><option value="">默认空模板</option></select></label>
+          <button class="btn pri" onclick="initDailySchedule()">🔄 生成日历</button>
+        </div>
+      </div>
+      <!-- Daily Schedule -->
+      <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+        <h3 style="margin:0">📅 每日安排</h3>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn" onclick="addScheduleDay()" style="font-size:.72rem">＋天</button>
+          <button class="btn" onclick="removeScheduleDay()" style="font-size:.72rem">−天</button>
+          <button class="btn" onclick="addScheduleSlot()" style="font-size:.72rem">＋行</button>
+          <button class="btn" onclick="copyPrevDaySchedule()" style="font-size:.75rem">📋 复制前一天</button>
+          <button class="btn green" onclick="saveScheduleTemplate()" style="font-size:.72rem">💾 存为模板</button>
+        </div>
+      </div>
+        <div style="overflow-x:auto;max-height:400px;overflow-y:auto" id="wizScheduleGrid"></div>
+        <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);font-size:.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <span>📐 初始：<span id="wizSchedInit"></span>｜ 当前：<span id="wizSchedActual"></span></span>
+          <button class="btn pri" id="wizConfirmBtn" onclick="confirmAndGenerateMilestones()" style="font-size:.78rem">🔮 确认日历并生成里程碑 →</button>
+        </div>
+      </div>
+      <!-- Schedule cell editor modal -->
+      <div id="schedEditModal" class="modal-overlay">
+        <div class="modal">
+          <h2>编辑日程活动</h2>
+          <p id="schedEditLabel" style="font-size:.82rem;color:var(--muted);margin:0 0 8px"></p>
+          <textarea id="schedEditTextarea" style="width:100%;min-height:120px;padding:8px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:.85rem"></textarea>
+          <div class="actions">
+            <button class="btn" onclick="closeScheduleEdit()">取消</button>
+            <button class="btn pri" onclick="saveScheduleEdit()">保存</button>
+          </div>
+        </div>
+      </div>
+      <!-- Milestones -->
+      <div class="card"><h3>📍 里程碑节点</h3>
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">日历确认后点击下方「确认天数并生成里程碑」自动生成 · 🔒锁定后不受日期变更影响</div>
+        <div id="wizMilestoneCards" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+        <div style="overflow-x:auto"><table style="width:100%;font-size:.82rem" id="wizMilestoneTable"><thead><tr><th>节点</th><th>日期</th><th>计算规则</th><th>锁定</th><th></th></tr></thead><tbody id="wizMilestoneBody"></tbody></table></div>
+      </div>
+      <!-- ── 📥 收入参数 ── -->
+      <div class="card"><h3>📥 收入参数</h3>
+        <div style="display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;font-size:.82rem;margin-bottom:6px">
+          <span>🎨冒险者 <input id="wizParticipantBudget" value="10" style="width:45px;text-align:center" oninput="updateWizBudgetCalc()"> 人</span>
+          <span>👥共建者 <input id="wizStaffCount2" value="6" style="width:45px;text-align:center" oninput="updateWizBudgetCalc()"> 人</span>
+          <span>📅天数 <b id="wizBudgetDays">15</b></span>
+          <span style="color:var(--border)">│</span>
+          <span>早鸟 <input id="wizEarlyBird" value="499" style="width:50px;text-align:right" oninput="updateWizBudgetCalc()">×<input id="wizEarlyBirdPct" value="60" style="width:35px;text-align:right" oninput="updateWizBudgetCalc()">%</span>
+          <span>原价 <input id="wizFullPrice" value="599" style="width:50px;text-align:right" oninput="updateWizBudgetCalc()"></span>
+        </div>
+        <div id="wizIncomeItems"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:2px solid var(--green)">
+          <button class="btn" onclick="addBudgetItem('income')" style="font-size:.7rem;padding:2px 8px">＋ 添加收入项</button>
+          <span style="font-weight:700;color:var(--green)">收入合计：RMB <span id="wizIncomeTotalRMB">¥0</span> ｜ NT <span id="wizIncomeTotalNT">NT 0</span></span>
+        </div>
+      </div>
+
+      <!-- ── 📤 支出参数 ── -->
+      <div class="card"><h3>📤 支出参数</h3>
+        <div style="background:#fdfaf5;border-radius:8px;padding:8px 14px;margin-bottom:8px">
+          <div style="font-size:.72rem;font-weight:600;color:var(--muted);margin-bottom:4px">📐 单价参数（自动 × 天数 × 冒险者人数）</div>
+          <div style="display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;font-size:.82rem">
+            <span>🏠住宿 ¥<input id="wizLodgingRMB" value="30" style="width:40px;text-align:right" oninput="updateWizBudgetCalc()"> + NT<input id="wizLodgingNT" value="40" style="width:40px;text-align:right" oninput="updateWizBudgetCalc()"> /人/天</span>
+            <span>🍚吃饭 ¥<input id="wizMealRMB" value="8" style="width:35px;text-align:right" oninput="updateWizBudgetCalc()"> + NT<input id="wizMealNT" value="10" style="width:35px;text-align:right" oninput="updateWizBudgetCalc()"> /人/天</span>
+          </div>
+        </div>
+        <div id="wizExpenseItems"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:2px solid var(--red)">
+          <button class="btn" onclick="addBudgetItem('expense')" style="font-size:.7rem;padding:2px 8px">＋ 添加支出项</button>
+          <span style="font-weight:700;color:var(--red)">支出合计：RMB <span id="wizExpenseTotalRMB">¥0</span> ｜ NT <span id="wizExpenseTotalNT">NT 0</span></span>
+        </div>
+      </div>
+
+      <!-- ── 💬 社区鼓励池 ── -->
+
+      <!-- ── 📊 汇总 & 导出 ── -->
+      <div style="background:linear-gradient(90deg,#fef9ee,#fdf5e0);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;text-align:center;font-size:.84rem;margin-bottom:8px">
+        📊 <b>预测损益：</b>
+        RMB <b id="wizSummaryRMB" style="color:var(--accent);font-size:.95rem">¥0</b>
+        （收入 <span id="wizSummaryTuition" style="color:var(--green)">¥0</span> − 支出 <span id="wizSummaryExpense" style="color:var(--red)">¥0</span>）
+        <span style="margin-left:16px">NT <b id="wizSummaryNT" style="color:var(--accent);font-size:.95rem">NT 0</b></span>
+        <span style="font-size:.65rem;color:var(--muted);margin-left:8px">（收 <span id="wizSummaryNTIn">NT 0</span> − 支 <span id="wizSummaryNTOut">NT 0</span>）</span>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:8px">
+        <button class="btn pri" onclick="exportBudgetExcel()" style="font-size:.82rem">📥 导出预算表 (Excel)</button>
+      </div>
+      <div class="card"><h3>👥 团队</h3>
+        <div style="overflow-x:auto"><table style="width:100%" id="wizTeamTable"><thead><tr><th>姓名</th><th>角色</th><th></th></tr></thead><tbody id="wizTeamBody"></tbody></table></div>
+        <button class="btn green" onclick="addWizMember()" style="margin-top:8px">＋ 添加成员</button>
+      </div>
+      <div style="text-align:right;margin-top:8px"><button class="btn" onclick="saveWizDraft()">💾 暂存</button> <button class="btn pri" onclick="saveStep1()">保存并进入下一步 → ②</button></div>
+    </div>
+
+    <!-- Step 2: Task Pool -->
+    <div id="wiz-step2" class="wiz-step hidden">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <h3 style="margin:0">📋 统一任务池</h3>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="wizTemplateSelect" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;max-width:220px"><option value="">-- 选择模板 --</option></select>
+            <button class="btn" onclick="applyTemplateWiz()">📥 使用模板</button>
+            <button class="btn" onclick="saveTemplateWiz()">💾 保存为模板</button>
+            <button class="btn green" onclick="addWizTask()">＋ 添加行</button>
+            <button class="btn" onclick="importFromExistingWiz()">📥 从已有导入</button>
+            <button class="btn" onclick="toggleAIImport()">🤖 AI导入</button>
+          </div>
+        </div>
+        <div id="aiImportPanel" class="hidden" style="margin-bottom:10px;padding:10px;border:1px solid var(--border);border-radius:8px;background:#faf8f0">
+          <textarea id="aiInputWiz" style="width:100%;height:100px;border:1px solid var(--border);border-radius:6px;padding:8px;font-family:var(--font);font-size:.82rem" placeholder="粘贴会议纪要..."></textarea>
+          <div style="margin-top:6px"><button class="btn pri" onclick="parseAIMinutesWiz()">🔍 解析并导入</button> <span id="aiResultWiz" style="font-size:.78rem;margin-left:8px"></span></div>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">点击类别卡片筛选 · 🟢🟡🔴 标记不删除</div>
+        <!-- Category cards -->
+        <div id="wizCatCards" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;justify-content:center"></div>
+        <!-- Sub filter: active state -->
+        <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap" id="wizActiveFilter">
+          <button class="btn" onclick="wizActiveFilter='all';renderStep2()" style="font-size:.72rem;padding:4px 10px">全部</button>
+          <button class="btn" onclick="wizActiveFilter='yes';renderStep2()" style="font-size:.72rem;padding:4px 10px">🟢要做</button>
+          <button class="btn" onclick="wizActiveFilter='maybe';renderStep2()" style="font-size:.72rem;padding:4px 10px">🟡备选</button>
+          <button class="btn" onclick="wizActiveFilter='no';renderStep2()" style="font-size:.72rem;padding:4px 10px">🔴不做</button>
+          <span style="font-size:.7rem;color:var(--muted);margin-left:8px;align-self:center" id="wizCatLabel"></span>
+        </div>
+        <div style="overflow-x:auto"><table id="wizTaskTable" style="width:100%"><thead><tr>
+          <th style="width:25%">任务名称</th><th style="width:10%">类别</th><th style="width:8%">激励点</th>
+          <th style="width:8%">类型</th><th style="width:15%">来源/说明</th>
+          <th style="width:8%">状态</th><th style="width:10%">启用</th><th style="width:5%"></th>
+        </tr></thead><tbody id="wizTaskBody"></tbody></table></div>
+        <div style="margin-top:10px;font-size:.72rem;color:var(--muted)">
+          <span id="wizTaskCount">0</span> 个任务 · 合计 <b id="wizTaskPoints">0</b> 激励点
+          <span style="margin-left:12px">🟢<span id="wizYesCount">0</span> 🟡<span id="wizMaybeCount">0</span> 🔴<span id="wizNoCount">0</span></span>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:8px"><button class="btn" onclick="switchStep(1)">← ①统筹</button> <button class="btn" onclick="saveWizDraft()">💾 暂存</button> <button class="btn pri" onclick="saveStep2()">保存并进入下一步 → ③</button></div>
+    </div>
+
+    <!-- Step 3: Claim & Assign -->
+    <div id="wiz-step3" class="wiz-step hidden">
+      <div style="display:flex;gap:12px;align-items:stretch;min-height:380px">
+        <!-- Left: Task pool -->
+        <div class="card" style="flex:0 0 340px;overflow-y:auto;max-height:500px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <h3 style="margin:0">📦 待认领任务</h3>
+            <label style="font-size:.72rem;cursor:pointer"><input type="checkbox" id="wizSelectAll" onchange="toggleSelectAll()"> 全选当前</label>
+          </div>
+          <div style="margin-bottom:6px"><select id="wizClaimCatFilter" onchange="renderStep3()" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:.78rem"><option value="">全部类别</option></select></div>
+          <div id="wizAvailableTasks" style="font-size:.82rem"></div>
+          <div style="margin-top:8px;font-size:.72rem;color:var(--muted)">已勾选：<b id="wizSelectedCount">0</b> 项</div>
+        </div>
+        <!-- Right: Staff cards -->
+        <div class="card" style="flex:1;overflow-y:auto;max-height:500px">
+          <h3 style="margin:0 0 8px">👥 共建者</h3>
+          <!-- Avatar slots (very top) -->
+          <div id="wizStaffCardList" style="margin-bottom:8px"></div>
+          <!-- Claim bar: dropdown only -->
+          <div style="margin-bottom:10px;padding:8px 10px;background:#fef9ee;border:1px solid var(--accent);border-radius:8px;display:flex;gap:6px;align-items:center">
+            <span style="font-size:.75rem;font-weight:600;white-space:nowrap">认领给：</span>
+            <select id="wizClaimPerson" style="padding:5px 8px;border:2px solid var(--border);border-radius:6px;font-size:.8rem;flex:1;min-width:90px"></select>
+          </div>
+          <!-- Card editor (preview for existing, blank for new) -->
+          <div id="wizCardEditor" style="background:#fefdf9;border:2px dashed var(--accent);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center">
+            <div style="margin-bottom:8px;cursor:pointer" onclick="cycleEditAvatar()" title="点击换头像">
+              <div id="wizEditAvatar" style="width:56px;height:56px;border-radius:50%;overflow:hidden;margin:0 auto;background:#e0d8c8"></div>
+              <div style="font-size:.6rem;color:var(--muted);margin-top:2px">点击换头像</div>
+            </div>
+            <input type="text" id="wizEditName" placeholder="姓名" style="width:130px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;text-align:center;margin-bottom:6px">
+            <select id="wizEditRole" style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;margin-bottom:6px"></select>
+            <input type="text" id="wizEditNote" placeholder="寄语（选填）" style="width:200px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;text-align:center;margin-bottom:8px">
+            <button class="btn pri" onclick="claimTasks()" style="font-size:.85rem;padding:8px 28px">确认认领 →</button>
+          </div>
+          <!-- Unclaimed bottom -->
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-size:.78rem;font-weight:600;margin-bottom:6px">📋 未认领任务（兜底）</div>
+            <div id="wizUnclaimedTasks" style="font-size:.78rem"></div>
+          </div>
+          <div style="margin-top:8px;font-size:.78rem;font-weight:600;color:var(--accent)" id="wizClaimSummary"></div>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:8px"><button class="btn" onclick="switchStep(2)">← ②任务池</button> <button class="btn" onclick="saveWizDraft()">💾 暂存</button> <button class="btn pri" onclick="saveStep3()">保存并进入下一步 → ④</button></div>
+    </div>
+
+<!-- Step 4: Launch (Phase B 重写) -->
+<div id="wiz-step4" class="wiz-step hidden">
+  <div id="wiz4a-review" class="card" style="max-width:650px;margin:0 auto">
+    <h3>🔍 审核 · 发包前确认</h3>
+    <div id="wiz4aSummary" style="font-size:.85rem;line-height:1.8;margin:12px 0"></div>
+    <div style="margin:12px 0"><label style="font-size:.85rem">审核人：<select id="wiz4aReviewer" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px"></select></label></div>
+    <div style="text-align:right"><button class="btn" onclick="switchStep(3)">← ③选将</button> <button class="btn pri" onclick="wizSubmitReview()">提交审核 →</button></div>
+  </div>
+  <div id="wiz4b-deploy" class="card hidden" style="max-width:650px;margin:0 auto">
+    <h3>📦 发包 · 推送到工作台</h3>
+    <div id="wiz4bConfirm" style="font-size:.85rem;margin:12px 0;line-height:1.8"></div>
+    <div style="text-align:right"><button class="btn" onclick="wizStep4Phase='review';renderStep4()">← 返回审核</button> <button class="btn pri" onclick="wizDeploy()">📦 确认发包</button></div>
+  </div>
+  <div id="wiz4c-ceremony" class="card hidden" style="max-width:650px;margin:0 auto;text-align:center">
+    <h3>🎊 开营仪式</h3>
+    <p style="color:var(--muted);font-size:.85rem">所有共建者将进入星光汇聚仪式</p>
+    <button class="btn pri" onclick="wizStartCeremony()" style="font-size:1rem;padding:12px 32px;margin:16px 0">🎊 开始开营仪式</button>
+  </div>
+  <div id="wiz4d-launch" class="card hidden" style="max-width:650px;margin:0 auto;text-align:center">
+    <h3>🏁 营队正式启动</h3>
+    <div id="wiz4dConfirm" style="font-size:.85rem;margin:12px 0;line-height:1.8"></div>
+    <button class="btn pri" onclick="wizLaunch()" style="font-size:1rem;padding:12px 32px">🏁 正式启动营队</button>
+  </div>
+</div>
+
+  </div>  <!-- Tab: Settlement -->
+  <div id="tab-settlement" class="hidden">
+    <!-- 共建者块 -->
+    <div class="card" style="text-align:center;margin-bottom:6px">
+      <h3 style="margin-bottom:10px">👥 共建者</h3>
+      <div class="ms-avatar-row" id="settleStaffAvatars" style="justify-content:center;margin-bottom:0"></div>
+    </div>
+
+    <!-- 冒险者块 -->
+    <div class="card" style="text-align:center;margin-bottom:6px">
+      <h3 style="margin-bottom:10px">⚔️ 冒险者</h3>
+      <div class="ms-avatar-row" id="settlePlayerAvatars" style="justify-content:center;margin-bottom:0;max-width:780px;margin-left:auto;margin-right:auto"></div>
+    </div>
+
+    <!-- 选中人员详情 -->
+    <div class="card" id="settlementCard">
+      <div class="empty-state" id="settlementEmpty">👆 点击头像查看结算详情</div>
+    </div>
+  </div>
+
+  <!-- Tab: Realm Map / Hub -->
+  <div id="tab-realmMap" class="hidden"><div id="hubContent"></div></div>
+  </div>
+
+  <!-- Tab: Bazaar -->
+  <div id="tab-bazaar" class="hidden"></div>
+
+  <!-- Tab: Canteen -->
+  <div id="tab-canteen" class="hidden"><div id="canteenContent"></div></div>
+
+  <!-- Tab: NT Admin -->
+  <div id="tab-ntadmin" class="hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h2 style="margin:0">🎯 营地管理</h2><button class="btn pri" onclick="showCampTask()">＋ 发布营队任务</button></div>
+    <div class="card" id="ntadminTaskList"></div><div class="card" id="ntadminReviewList"></div><div class="card" id="ntadminPayable"></div><div class="card" id="ntadminPoolStats"></div><div id="ntadminClosePeriod"></div><div class="card" id="ntadminMemberNT"></div>
+  </div>
+  <div id="tab-treasury" class="hidden"><div id="treasuryContent"></div></div>
+
+  <!-- Tab: Profile (Adventurer) -->
+  <div id="tab-profile" class="hidden"><div id="profileContent"></div></div>
+  <div id="tab-workspace" class="hidden"><div id="workspaceContent"></div></div>
+
+  <!-- Tab: Quest Board (Adventurer) -->
+  <div id="tab-questboard" class="hidden">
+    <div id="questBoardContent"></div>
+  </div>
+
+  <!-- Tab: Leaderboard (Adventurer) -->
+  <div id="tab-leaderboard" class="hidden"><div class="card"><h3>🏆 冒险者排行榜</h3><div id="leaderboardContent"></div></div></div>
+
+  <!-- 村口：三页滑动入口 -->
+  <div id="plazaPlaceholder" class="hidden">
+    <!-- 背景图（模糊+暗色叠加） -->
+    <div class="village-bg"></div>
+    <!-- 背景层：色温 + 呼吸光斑 -->
+    <div class="village-bg-layer village-bg-layer-1"></div>
+    <div class="village-bg-layer village-bg-layer-2"></div>
+    <!-- 顶部品牌区 -->
+    <div class="village-brand">
+      <img src="92e279b22d04d4c831aec15aa09213df (1).png" style="width:80px;opacity:.9" alt="">
+      <div style="font-size:1.8rem;margin-bottom:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">⚔️</div>
+      <h2 style="margin:2px 0;font-size:1.1rem;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4);font-weight:600">实景游戏 · 南塘云村</h2>
+      <p style="margin:1px 0 0;font-size:.75rem;color:rgba(255,255,255,.65);text-shadow:0 1px 2px rgba(0,0,0,.3)">欢迎你，寻找人生副本</p>
+    </div>
+
+    <!-- 卡片组：窗口 + 标签 + 指示器 固定间距 -->
+    <div class="village-group">
+      <div class="village-window">
+        <div class="village-carousel" id="villageCarousel">
+          <!-- 第1页：社区副本 -->
+          <div class="village-page" data-page="0">
+            <div class="page-card">
+              <div class="page-emoji">📋</div>
+              <h2 class="page-title">社区副本</h2>
+              <p class="page-desc">线下共创营 · 定时开放</p>
+              <div class="live-pulse" id="livePulse0">—</div>
+              <button class="btn" onclick="openVillageModal('activity')" style="font-size:.88rem;margin-top:10px;padding:10px 24px">📋 进入副本</button>
+            </div>
+          </div>
+          <!-- 第2页：任务大厅 -->
+          <div class="village-page" data-page="1">
+            <div class="page-card">
+              <div class="page-emoji">🏛️</div>
+              <h2 class="page-title">任务大厅</h2>
+              <p class="page-desc">在地任务 · 委托悬赏</p>
+              <div class="live-pulse" id="livePulse1">—</div>
+              <button class="btn pri" onclick="openVillageModal('questhall')" style="font-size:.88rem;margin-top:10px;padding:10px 24px">🏛️ 去接任务</button>
+            </div>
+          </div>
+          <!-- 第3页：实景地图 -->
+          <div class="village-page" data-page="2">
+            <div class="page-card">
+              <div class="page-emoji">🗺️</div>
+              <h2 class="page-title">实景地图</h2>
+              <p class="page-desc">看谁在做什么 · 空间状态总览</p>
+              <div class="live-pulse" id="livePulse2">—</div>
+              <button class="btn" onclick="openVillageModal('map')" style="font-size:.88rem;margin-top:10px;padding:10px 24px">🗺️ 进入地图</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="village-dots-label">← 左右滑动查看更多 →</div>
+      <div class="village-dots" id="villageDots">
+        <span class="vdot" data-dot="0"></span>
+        <span class="vdot active" data-dot="1"></span>
+        <span class="vdot" data-dot="2"></span>
+      </div>
+
+      <!-- 底部操作栏（群组内，与卡片保持固定间距） -->
+      <div class="village-footer">
+        <button class="btn pri" id="btnVillagerMain" onclick="enterVillagerMain()" style="font-size:.8rem">🏠 我的主界面</button>
+        <button class="btn" onclick="logoutUser()" style="font-size:.8rem;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)">🚪 退出登录</button>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:4px;width:100%;text-align:center" id="villageUserInfo">—</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Village Modal: Activity Info -->
+<div id="villageModalActivity" class="village-modal hidden" onclick="if(event.target===this)closeVillageModal('activity')">
+  <div class="vm-inner">
+    <button onclick="closeVillageModal('activity')" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">✕</button>
+    <h2 style="margin:0 0 16px">📋 社区副本</h2>
+    <p style="color:var(--muted);margin-bottom:16px">南塘本地举办的所有活动</p>
+    <div id="villageActivityList"></div>
+  </div>
+</div>
+
+<!-- Village Modal: Task Hall -->
+<div id="villageModalQuesthall" class="village-modal hidden" onclick="if(event.target===this)closeVillageModal('questhall')">
+  <div class="vm-inner" style="max-width:750px">
+    <button onclick="closeVillageModal('questhall')" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">✕</button>
+    <div class="npc-bubble">
+      <div class="npc-avatar" id="npcAvatar" style="overflow:hidden;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#e8c8a0,#d4a878);border:2px solid #d8c0a0"></div>
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:2px">小云 · 任务大厅接待员</div>
+        <div style="font-size:.8rem;color:var(--muted);margin-bottom:8px" id="npcDialogue">你好！我是小云～ 想找什么任务？</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <input type="text" id="villageSearchInput" placeholder="🔍 搜索任务名称…" oninput="villageSearchText=this.value.trim().toLowerCase();_debounce('vs',300,refreshQuestViews)" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;background:var(--bg);color:var(--text)">
+          <button class="btn pri" id="villagePeriodCurrent" onclick="villagePeriod='current';this.classList.add('pri');document.getElementById('villagePeriodArchive').classList.remove('pri');refreshQuestViews()" style="font-size:.72rem;padding:4px 10px;white-space:nowrap">📋 当期</button>
+          <button class="btn" id="villagePeriodArchive" onclick="villagePeriod='archive';this.classList.add('pri');document.getElementById('villagePeriodCurrent').classList.remove('pri');refreshQuestViews()" style="font-size:.72rem;padding:4px 10px;white-space:nowrap">📦 往期</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:.7rem;color:var(--muted);flex-wrap:wrap" id="npcTimelineBar"></div>
+      </div>
+    </div>
+    <div id="villageBanner"></div>
+    <div style="margin-bottom:14px;display:flex;gap:6px;flex-wrap:wrap" id="villageQuickBar"></div>
+    <div style="margin-bottom:10px;font-size:.82rem;font-weight:600">📋 公开委托</div>
+    <div id="villageQuestList" style="max-height:50vh;overflow-y:auto"></div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:.75rem;color:var(--muted)">💡 发布私人委托需要至少 1 NT 余额。营队任务请由共建者在营地管理中发布。</div>
+    </div>
+  </div>
+</div>
+
+<!-- Village Modal: Map -->
+<div id="villageModalMap" class="village-modal hidden" onclick="if(event.target===this)closeVillageModal('map')">
+  <div class="vm-inner" id="villageMapInner">
+    <button onclick="closeVillageModal('map')" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--muted)">✕</button>
+  </div>
+</div>
+
+<!-- 社区窗口：二级滑出面板（复用 hub-sub-panel 样式）-->
+<div class="hub-slide-backdrop" id="activityBackdrop" onclick="closeActivityCommunity()" style="display:none;z-index:1001"></div>
+<div class="hub-sub-panel" id="activityCommunitySlide" style="z-index:1002">
+  <div class="hs-header"><span style="font-weight:700;font-size:.85rem">👀 游览营地</span><button onclick="closeActivityCommunity()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--muted);padding:2px 4px">✕</button></div>
+  <div class="hs-body" id="activityCommunityBody"></div>
+</div>
+
+<!-- Hub Quest Hall Modal -->
+<div id="hubQuestHallModal" class="village-modal hidden" onclick="if(event.target===this)closeHubQuestHall()" style="align-items:center;padding-top:0">
+  <div id="hubQuestHallBg" style="position:fixed;inset:0;background:url(ai_expand_image1783014990973.png) center/cover no-repeat;filter:blur(3px) brightness(.45);z-index:-1"></div>
+  <div class="vm-inner" style="max-width:960px;background:rgba(255,252,248,.94);border-radius:18px;padding:0;overflow:hidden;margin-bottom:0">
+    <button onclick="closeHubQuestHall()" style="position:absolute;top:14px;right:18px;background:rgba(0,0,0,.08);border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);z-index:10;width:32px;height:32px;border-radius:50%">✕</button>
+    <!-- NPC Area -->
+    <div style="background:linear-gradient(135deg,#f8f2e8,#f0e8d8);padding:18px 22px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border)">
+      <div id="hubNpcAvatar" style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#e8c8a0,#d4a878);border:2px solid #d8c0a0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.9rem">小云 · 任务大厅接待员</div>
+        <div style="font-size:.8rem;color:var(--muted)" id="hubNpcText">你好！欢迎来到任务大厅～</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <input id="hubSearch" placeholder="🔍 搜索任务…" oninput="_debounce('hs',300,openHubQuestHall)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.78rem;width:160px;background:var(--bg)">
+        <div style="font-size:.65rem;color:var(--accent);margin-top:4px;cursor:pointer" onclick="villagePeriod='archive';refreshQuestViews()">📦 往期档案</div>
+      </div>
+    </div>
+    <!-- Main: left user card + right task list -->
+    <div style="display:flex;gap:0;min-height:400px">
+      <!-- LEFT: User Card -->
+      <div id="hubUserCard" style="flex:0 0 200px;text-align:center;border-right:1px solid var(--border);padding:16px 12px;background:#fdfbf6"></div>
+      <!-- RIGHT: Task list -->
+      <div style="flex:1;min-width:0;max-height:60vh;overflow-y:auto;padding:14px 16px">
+        <div id="hubQuestFilterBar"></div>
+        <div id="hubQuestCardList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal-overlay" id="addTaskModal">
+  <div class="modal">
+    <h2 id="modalTitle">新增任务</h2>
+    <input type="hidden" id="editTaskIdx" value="-1">
+    <label for="taskType">类型 *</label>
+    <select id="taskType"><option value="初始">初始</option><option value="新增">新增</option><option value="变更">变更</option></select>
+    <label for="taskCategory">类别</label>
+    <select id="taskCategory">
+      <option value="宣传">宣传</option><option value="课程">课程</option><option value="生活">生活</option>
+      <option value="财务">财务</option><option value="管理">管理</option><option value="结项">结项</option>
+      <option value="其他">其他</option>
+    </select>
+    <label for="taskName">任务名称 *</label>
+    <input type="text" id="taskName" placeholder="例如：宣传工作">
+    <label for="taskAssignee">负责人</label>
+    <input type="text" id="taskAssignee" placeholder="姓名">
+    <label for="taskStart">起始日期</label>
+    <input type="date" id="taskStart">
+    <label for="taskDeadline">截止日期</label>
+    <input type="datetime-local" id="taskDeadline" step="60">
+    <label for="taskConfirmer">确认人</label>
+    <input type="text" id="taskConfirmer" placeholder="谁确认完成">
+    <label for="taskPoints">激励点</label>
+    <input type="number" id="taskPoints" value="1" min="1" max="50">
+    <label for="taskStatus">状态</label>
+    <select id="taskStatus">
+      <option value="待开始">待开始</option><option value="进行中">进行中</option>
+      <option value="已完成">已完成</option><option value="已确认">已确认</option>
+    </select>
+    <label for="taskSource">来源</label>
+    <input type="text" id="taskSource" placeholder="会议文件">
+    <label for="taskNote">备注</label>
+    <textarea id="taskNote" placeholder="补充说明..."></textarea>
+    <div class="actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn danger hidden" id="btnDeleteTask" onclick="deleteTask()">删除</button>
+      <button class="btn pri" onclick="saveTask()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Submit Task Modal -->
+<div class="modal-overlay" id="submitTaskModal">
+  <div class="modal" style="max-width:480px">
+    <h2>📤 提交任务</h2>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:12px" id="submitTaskName">—</p>
+    <div id="submitRequirements" style="background:var(--bg);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.75rem;display:none"></div>
+    <label for="submitNote">📝 完成说明（必填）</label>
+    <textarea id="submitNote" rows="4" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;background:var(--bg);color:var(--text);resize:vertical" placeholder="描述你完成的内容…"></textarea>
+    <label for="submitImages" style="margin-top:10px">🖼️ 图片链接（可选，一行一个）</label>
+    <textarea id="submitImages" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;background:var(--bg);color:var(--text);resize:vertical" placeholder="https://..."></textarea>
+    <label for="submitLinks" style="margin-top:10px">🔗 参考链接（可选，一行一个）</label>
+    <textarea id="submitLinks" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;background:var(--bg);color:var(--text);resize:vertical" placeholder="https://..."></textarea>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" onclick="closeSubmitModal()">取消</button>
+      <button class="btn pri" onclick="confirmSubmit()">✅ 确认提交</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settlement Modal — 模拟钱包确认 -->
+<div class="modal-overlay" id="settlementModal" onclick="if(event.target===this)closeSettlementModal()">
+  <div class="modal" style="max-width:420px;text-align:center">
+    <h2>💳 结算确认</h2>
+    <div id="settlementInfo" style="background:var(--bg);border-radius:8px;padding:12px 16px;margin:12px 0;font-size:.82rem;line-height:1.9;text-align:left"></div>
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:12px">⚠️ 当前为模拟钱包 · 未来将跳转 MetaMask / WalletConnect 完成链上支付</div>
+    <div class="actions" style="justify-content:center;gap:10px">
+      <button class="btn" onclick="closeSettlementModal()" style="font-size:.82rem;padding:8px 18px">⏭ 稍后支付</button>
+      <button class="btn pri" onclick="executeSettlement()" style="font-size:.82rem;padding:8px 18px">🔓 确认支付</button>
+    </div>
+  </div>
+</div>
+
+<!-- Deposit Modal -->
+<div class="modal-overlay" id="depositModal">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <h2>💰 充值 NT</h2>
+    <div style="background:var(--bg);border-radius:10px;padding:16px;margin:12px 0">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:8px">向平台多签钱包转账 NT</div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:monospace;font-size:.7rem;word-break:break-all;margin-bottom:6px" id="depositAddress"></div>
+      <button class="btn" onclick="copyDepositAddress()" style="font-size:.72rem;padding:4px 12px">📋 复制地址</button>
+    </div>
+    <div style="font-size:.8rem;font-weight:600;margin-bottom:4px">充值说明</div>
+    <div style="font-size:.72rem;color:var(--muted);line-height:1.6;text-align:left;margin-bottom:12px">
+      1. 打开你的钱包 App<br>
+      2. 扫描二维码或复制地址<br>
+      3. 转账 NT 到该地址<br>
+      4. 转账后等待管理员确认到账<br>
+      5. 确认后余额自动增加
+    </div>
+    <div style="font-size:.72rem;color:var(--accent);margin-bottom:8px">⏳ 到账时间取决于链上确认速度，通常 1-5 分钟</div>
+    <button class="btn" onclick="document.getElementById('depositModal').classList.remove('show')" style="width:100%">关闭</button>
+    <div id="depositHistory" style="border-top:1px solid var(--border);margin-top:12px;padding-top:8px;font-size:.72rem;text-align:left"></div>
+  </div>
+</div>
+
+<!-- Withdraw Modal -->
+<div class="modal-overlay" id="withdrawModal">
+  <div class="modal" style="max-width:400px">
+    <h2>📤 提现 NT</h2>
+    <div style="background:var(--bg);border-radius:8px;padding:12px 16px;margin:12px 0;font-size:.82rem;line-height:1.8">
+      <div id="withdrawBalanceInfo" style="margin-bottom:4px"></div>
+      <div style="font-size:.72rem;color:var(--muted)">提现后从平台多签钱包转账到你的地址</div>
+    </div>
+    <label for="withdrawAmount">提现金额 (NT)</label><input type="number" id="withdrawAmount" min="1" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.85rem;margin-bottom:8px" oninput="updateWithdrawPreview()">
+    <label for="withdrawAddr">接收钱包地址</label><input type="text" id="withdrawAddr" placeholder="0x..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;margin-bottom:8px">
+    <button class="btn" onclick="copyWithdrawAddr()" style="font-size:.65rem;padding:2px 8px;margin-bottom:8px">📋 从剪贴板粘贴</button>
+    <label for="withdrawPwd">支付密码</label><input type="password" id="withdrawPwd" placeholder="输入支付密码" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;margin-bottom:8px">
+    <div id="withdrawPreview" style="font-size:.75rem;color:var(--muted);margin-bottom:8px"></div>
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:8px">⚠️ 提现需管理员审核，审核通过后从多签钱包转账</div>
+    <div class="actions">
+      <button class="btn" onclick="document.getElementById('withdrawModal').classList.remove('show')">取消</button>
+      <button class="btn pri" onclick="submitWithdrawal()">📤 提交申请</button>
+    </div>
+    <div id="withdrawHistory" style="border-top:1px solid var(--border);margin-top:12px;padding-top:8px;font-size:.72rem"></div>
+  </div>
+</div>
+
+<!-- Post Task Modal — personal NT only -->
+<div class="modal-overlay" id="postTaskModal">
+  <div class="modal" style="max-width:500px">
+    <div id="postTaskFormWrap">
+    <h2>＋ 发布委托</h2>
+    <label for="postTaskName">任务名称 *</label>
+    <input type="text" id="postTaskName" placeholder="例如：工笔画临摹练习">
+    <div id="postTaskTypeRow"><label>标签 <input id="newTagInput" placeholder="新标签名" style="width:80px;font-size:.65rem;padding:2px 4px;border:1px solid var(--border);border-radius:3px;margin-left:4px"><span class="btn" onclick="addCustomType()" title="添加自定义标签" style="font-size:.65rem;padding:1px 6px;margin-left:2px;cursor:pointer">＋</span></label><select id="postTaskType" onchange="onTagChange()"><option value="在地任务">📍 在地任务</option><option value="日程任务">📅 日程任务</option><option value="多人任务">👥 多人任务</option><option value="单人任务">🧑 单人任务</option></select><span id="postTaskCustomTags" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px"></span></div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="postTaskVisibility">谁能领</label><select id="postTaskVisibility" onchange="onVisibilityChange()"><option value="all">🌐 所有人</option><option value="adventurer">⚔️ 冒险者</option><option value="builder">🧱 共建者</option><option value="npc">👥 在地伙伴</option><option value="visitor">🏕️ 云村民</option><option value="specific">🎯 指定某人…</option></select></div>
+      <div id="postTaskTargetRow" class="hidden" style="flex:1"><label for="postTaskTarget">指定领取人</label><div style="display:flex;gap:4px"><input type="text" id="postTaskTarget" placeholder="点击选择…" readonly style="flex:1;cursor:pointer;background:var(--bg);font-size:.82rem" onclick="showReviewerPicker('postTaskTarget')"><button class="btn" onclick="showReviewerPicker('postTaskTarget')" style="font-size:.7rem;padding:2px 8px">👤</button></div></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="postTaskPoints">NT 奖励</label><input type="number" id="postTaskPoints" value="5" min="1"></div>
+      <div style="flex:1"><label for="postTaskSlots">人数限制（0=不限）</label><input type="number" id="postTaskSlots" value="1" min="0"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="postTaskStart">开始日期</label><input type="date" id="postTaskStart"></div>
+      <div style="flex:1"><label for="postTaskDeadline">截止日期</label><input type="datetime-local" id="postTaskDeadline" step="60"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="postTaskLocation">地点限制</label><select id="postTaskLocation"><option value="any">🌐 不限</option><option value="local">📍 在地</option><option value="remote">💻 云端</option></select></div>
+      <div style="flex:1"></div>
+    </div>
+    <!-- 标签联动字段 -->
+    <div id="postTaskTagExtras" style="display:none">
+      <div id="postTaskScheduleCfg" style="display:none;background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">
+          <input type="checkbox" id="postTaskRecurring" onchange="onRecurringToggle()"> ☑️ 设置周期
+        </label>
+        <div id="postTaskRecurCfg" style="display:none">
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <select id="postTaskRecurCycle" onchange="onRecurCycleChange()" style="font-size:.78rem">
+              <option value="daily">每天</option><option value="weekly">每周</option><option value="monthly">每月</option><option value="custom_days">自定义日期</option>
+            </select>
+          </div>
+          <div id="postTaskRecurDays" style="display:none;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="1" onchange="onRecurDayChange()"> 周一</label>
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="2" onchange="onRecurDayChange()"> 周二</label>
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="3" onchange="onRecurDayChange()"> 周三</label>
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="4" onchange="onRecurDayChange()"> 周四</label>
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="5" onchange="onRecurDayChange()"> 周五</label>
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="6" onchange="onRecurDayChange()"> 周六</label>
+            <label style="font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="postTaskRecurDay" value="7" onchange="onRecurDayChange()"> 周日</label>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;font-size:.78rem">
+            <select id="postTaskRecurLimit" style="font-size:.78rem">
+              <option value="">不限制</option><option value="times">每天N次</option><option value="persons">每周期N人</option>
+            </select>
+            <input type="number" id="postTaskRecurLimitVal" value="2" min="1" style="width:50px;padding:4px;font-size:.78rem;border:1px solid var(--border);border-radius:4px">
+          </div>
+        </div>
+      </div>
+    </div>
+    <label for="postTaskReviewer">审核人 <span style="font-size:.7rem;color:var(--muted)">（可选）</span></label>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="postTaskReviewer" placeholder="点击选择审核人…" readonly style="flex:1;cursor:pointer;background:var(--bg)" onclick="showReviewerPicker('postTaskReviewer')">
+      <button class="btn" onclick="showReviewerPicker('postTaskReviewer')" style="font-size:.75rem;padding:4px 10px;white-space:nowrap">👤 选择</button>
+    </div>
+    <label style="margin-top:8px">提交要求 <span style="font-size:.7rem;color:var(--muted)">（勾选需要提交的内容）</span></label>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px">
+      <label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" id="postReqNote" checked> 📝 文字</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" id="postReqPhoto"> 📷 照片 <input type="number" id="postReqPhotoCount" value="1" min="1" max="10" style="width:36px;font-size:.7rem;padding:1px 2px" onchange="if(this.value<1)this.value=1"></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" id="postReqFile"> 📎 文件 <input type="number" id="postReqFileCount" value="1" min="1" max="10" style="width:36px;font-size:.7rem;padding:1px 2px" onchange="if(this.value<1)this.value=1"></label>
+    </div>
+    <label for="postTaskNote">任务说明</label>
+    <textarea id="postTaskNote" rows="3" placeholder="任务的详细描述…"></textarea>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:6px;text-align:center" id="postTaskNTInfo"></div>
+    <div class="actions">
+        <button class="btn" onclick="closePostTaskModal()">取消</button>
+        <button class="btn" onclick="savePostDraft()">💾 存草稿</button>
+      <button class="btn pri" onclick="confirmPostTask()">✅ 发布委托</button>
+    </div>
+    <div id="postTaskDraftList" style="border-top:1px dashed var(--border);margin-top:10px;padding-top:8px"></div>
+    </div>
+    <div id="postTaskConfirmWrap" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Inventory Item Modal -->
+<div class="modal-overlay" id="inventoryModal">
+  <div class="modal">
+    <h2 id="inventoryModalTitle">＋ 添加物品</h2>
+    <input type="hidden" id="editItemId" value="">
+    <label for="itemName">名称 *</label><input type="text" id="itemName" placeholder="物品名称">
+    <label for="itemCategory">分类</label><select id="itemCategory">
+      <option value="艺术品">🎨 艺术品</option><option value="文具">📝 文具</option>
+      <option value="手工">🧶 手工</option><option value="书籍">📚 书籍</option>
+      <option value="工具">🔧 工具</option><option value="食材">🥬 食材</option><option value="交换">🤝 交换</option><option value="其他">📦 其他</option>
+    </select>
+    <label for="itemPrice">价格 (NT)</label><input type="number" id="itemPrice" value="0" min="0">
+    <label for="itemDesc">描述</label><textarea id="itemDesc" rows="2" placeholder="物品描述…"></textarea>
+    <label style="display:flex;align-items:center;gap:6px;font-size:.85rem"><input type="checkbox" id="itemListNow" checked> 立即上架到集市</label>
+    <div class="actions">
+      <button class="btn" onclick="document.getElementById('inventoryModal').classList.remove('show')">取消</button>
+      <button class="btn danger hidden" id="btnDeleteItem" onclick="deleteItem()">🗑️ 删除</button>
+      <button class="btn pri" onclick="saveItem()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Purchase Confirm Modal -->
+<div class="modal-overlay" id="purchaseModal">
+  <div class="modal" style="text-align:center">
+    <h2>确认购买</h2>
+    <input type="hidden" id="purchaseItemId" value="">
+    <div style="font-size:1.1rem;margin:12px 0" id="purchaseItemInfo"></div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px" id="purchaseNTInfo"></div>
+    <div class="actions" style="justify-content:center">
+      <button class="btn" onclick="document.getElementById('purchaseModal').classList.remove('show')">取消</button>
+      <button class="btn pri" onclick="confirmPurchase()">✅ 确认购买</button>
+    </div>
+  </div>
+</div>
+
+<!-- Member Edit Modal -->
+<div class="modal-overlay" id="memberModal">
+  <div class="modal">
+    <h2 id="memberModalTitle">编辑成员</h2>
+    <input type="hidden" id="editMemberOldName" value="">
+    <div style="text-align:center;margin-bottom:6px">
+      <div id="avatarPreview" style="width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 6px;background:#f0e8d8"></div>
+      <button class="btn" style="font-size:.65rem" onclick="showAvatarPicker()">🎨 换头像</button>
+    </div>
+    <div id="avatarPicker" style="display:none;margin-bottom:6px;padding:8px;border:1px solid var(--border);border-radius:8px">
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:6px">选择头像风格：</div>
+      <div id="avatarGrid" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+    <label for="memberName">姓名 *</label><input type="text" id="memberName">
+    <label for="memberGender">性别</label><select id="memberGender"><option value="">不限</option><option value="male">男</option><option value="female">女</option></select>
+    <label for="memberRole">营地身份</label><input type="text" id="memberRole" placeholder="核心成员 / 活跃成员 / 参与者">
+    <label for="memberBio">简介</label><textarea id="memberBio" placeholder="一句话介绍..." style="min-height:40px"></textarea>
+    <label for="memberNT">NT 实际获得</label><input type="number" id="memberNT" value="0">
+    <label for="memberNewPassword">🔒 修改密码（留空则不修改）</label>
+    <input type="password" id="memberNewPassword" placeholder="新密码" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;font-size:.85rem;background:var(--card);color:var(--text);margin-bottom:4px">
+    <input type="password" id="memberConfirmPassword" placeholder="确认密码" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:4px;font-size:.85rem;background:var(--card);color:var(--text)">
+    <div class="actions">
+      <button class="btn" onclick="document.getElementById('memberModal').classList.remove('show')">取消</button>
+      <button class="btn danger hidden" id="btnDeleteMember" onclick="deleteMember()">删除</button>
+      <button class="btn pri" onclick="saveMember()">保存</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Hub Sub Panel (滑出子面板) -->
+<div class="hub-slide-backdrop" id="hubSlideBackdrop" onclick="event.stopPropagation();closeHubSub()"></div>
+<div class="hub-sub-panel" id="hubSubPanel">
+  <div class="hs-header"><span style="font-weight:700;font-size:.85rem" id="hubSlideTitle">🏪 集市</span><button onclick="event.stopPropagation();closeHubSub()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--muted);padding:2px 4px">✕</button></div>
+  <div class="hs-body" id="hubSlideBody"></div>
+</div>
+
+<!-- Contact Sidebar -->
+<div class="invite-backdrop" id="contactBackdrop" onclick="closeContactSidebar()"></div>
+<div class="invite-sidebar" id="contactSidebar">
+  <div class="is-header"><span style="font-weight:700;font-size:.85rem">👥 常联系</span><button onclick="closeContactSidebar()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--muted);padding:2px 4px">✕</button></div>
+  <div class="is-body" id="contactSidebarBody"></div>
+</div>
+
+<!-- Invite Code Sidebar -->
+<div class="invite-backdrop" id="inviteBackdrop" onclick="dismissInviteSidebar()"></div>
+<div class="invite-sidebar" id="inviteSidebar">
+  <div class="is-header"><span style="font-weight:700;font-size:.85rem">🎫 邀请码</span><button onclick="closeInviteSidebar()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--muted);padding:2px 4px">✕</button></div>
+  <div class="is-tabs"><button class="is-tab active" id="inviteTabAdventurer" onclick="switchInviteTab('adventurer')">🌍 冒险者</button><button class="is-tab" id="inviteTabNBC" onclick="switchInviteTab('nbc')">🏛️ 南塘NBC</button></div>
+  <div class="is-body" id="inviteSidebarBody"></div>
+</div>
+
+<!-- NT-TEST:START -->
+<!-- 内测世界 Sidebar（管理员 · 复用 invite-sidebar 类，不新增 CSS）-->
+<div class="invite-backdrop" id="devtoolsBackdrop" onclick="closeDevtoolsSidebar()"></div>
+<div class="invite-sidebar" id="devtoolsSidebar">
+  <div class="is-header"><span style="font-weight:700;font-size:.85rem">🧪 内测世界</span><button onclick="closeDevtoolsSidebar()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--muted);padding:2px 4px">✕</button></div>
+  <div class="is-body" id="devtoolsBody"></div>
+</div>
+<!-- NT-TEST:END -->
+
+<!-- Reviewer Picker Dropdown -->
+<div class="picker-dropdown hidden" id="pickerDropdown">
+  <div class="pk-header"><input type="text" id="pickerSearch" placeholder="🔍 搜索…" oninput="_debounce('pk',200,renderReviewerList)"></div>
+  <div class="pk-list" id="pickerList"></div>
+</div>
+
+<!-- Contact Card --><div class="picker-dropdown hidden" id="contactCardDropdown"><div class="pk-header" style="display:flex;align-items:center;gap:8px;justify-content:space-between"><span id="contactCardTitle" style="font-weight:700;font-size:.85rem"></span><button onclick="closeContactCard()" style="background:none;border:none;font-size:1rem;cursor:pointer;color:var(--muted)">✕</button></div><div class="pk-list" id="contactCardBody" style="padding:4px 10px 10px"></div></div>
+
+<!-- Map Invite Card --><div id="mapInviteCard" class="hidden" style="position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5)"><div class="login-card" style="text-align:center;max-width:320px"><h3>🗺️ 实景地图</h3><p style="font-size:.8rem;color:var(--muted);margin:8px 0">输入 NPC 邀请码成为在地伙伴<br>或跳过直接浏览</p><input id="mapInviteInput" placeholder="邀请码（选填）" style="text-align:center"><div style="display:flex;gap:8px;justify-content:center;margin-top:12px"><button class="btn" onclick="closeMapInvite()">跳过</button><button class="btn pri" onclick="submitMapInvite()">确认</button></div></div></div>
+
+<!-- Item Picker (集市选物品，复用 picker-dropdown 样式) -->
+<div class="picker-dropdown hidden" id="itemPickerDropdown">
+  <div class="pk-header"><input type="text" id="itemPickerSearch" placeholder="🔍 搜索我的物品…" oninput="_debounce('ip',200,renderItemPickerList)"></div>
+  <div class="pk-list" id="itemPickerList"></div>
+  <div id="itemPickerDetail" style="display:none;border-top:1px solid var(--border);padding:8px 10px"></div>
+</div>
+
+<!-- Camp Task Modal (NT Admin) -->
+<div class="modal-overlay" id="campTaskModal">
+  <div class="modal" style="max-width:500px">
+    <div id="campTaskFormWrap">
+    <h2>＋ 发布营队任务</h2>
+    <label for="campTaskName">任务名称 *</label><input type="text" id="campTaskName" placeholder="例如：宣传工作">
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="campTaskType">任务类型</label><select id="campTaskType"><option value="支线">支线</option><option value="主线">主线</option><option value="共创">共创</option><option value="隐藏">隐藏</option><option value="身份">身份</option></select></div>
+      <div style="flex:1"><label for="campTaskCategory">分类</label><select id="campTaskCategory"><option value="宣传">宣传</option><option value="课程">课程</option><option value="生活">生活</option><option value="财务">财务</option><option value="管理">管理</option><option value="其他">其他</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="campTaskPoints">NT 奖励</label><input type="number" id="campTaskPoints" value="15" min="1"></div>
+      <div style="flex:1"><label for="campTaskSlots">人数限制（0=不限）</label><input type="number" id="campTaskSlots" value="10" min="0"></div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="campTaskStart">开始日期</label><input type="date" id="campTaskStart"></div>
+      <div style="flex:1"><label for="campTaskDeadline">截止日期</label><input type="datetime-local" id="campTaskDeadline" step="60"></div>
+    </div>
+    <label for="campTaskReviewer">审核人 <span style="font-size:.7rem;color:var(--muted)">（默认管理员）</span></label>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="campTaskReviewer" placeholder="点击选择审核人…" readonly style="flex:1;cursor:pointer;background:var(--bg)" onclick="showReviewerPicker('campTaskReviewer')">
+      <button class="btn" onclick="showReviewerPicker('campTaskReviewer')" style="font-size:.75rem;padding:4px 10px;white-space:nowrap">👤 选择</button>
+    </div>
+    <label style="margin-top:8px">提交要求</label>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px">
+      <label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" id="campReqNote" checked> 📝 文字</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" id="campReqPhoto"> 📷 照片 <input type="number" id="campReqPhotoCount" value="1" min="1" max="10" style="width:36px;font-size:.7rem;padding:1px 2px" onchange="if(this.value<1)this.value=1"></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" id="campReqFile"> 📎 文件 <input type="number" id="campReqFileCount" value="1" min="1" max="10" style="width:36px;font-size:.7rem;padding:1px 2px" onchange="if(this.value<1)this.value=1"></label>
+    </div>
+    <label for="campTaskNote">任务说明</label><textarea id="campTaskNote" rows="3" placeholder="任务的详细描述…"></textarea>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:6px;text-align:center" id="campTaskPoolInfo"></div>
+    <div class="actions">
+      <button class="btn" onclick="closeCampTaskModal()">取消</button>
+      <button class="btn pri" onclick="confirmCampTask()">✅ 提交审核</button>
+    </div>
+    </div>
+    <div id="campTaskConfirmWrap" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Missing functions (restored) -->
+
+
+
+<script src="js/data/schema.js"></script>
+<script src="js/data/store.js"></script>
+<script src="js/data/backup.js"></script>
+<script src="js/app.js"></script>
+<!-- 卡片点击居中：点任意卡片滑到居中，左右卡片不触发按钮 -->
+<script>
+(function(){
+  var carousel = document.getElementById('villageCarousel');
+  if (!carousel) return;
+  carousel.addEventListener('click', function(e){
+    var page = e.target.closest('.village-page');
+    if (!page) return;
+    var idx = parseInt(page.getAttribute('data-page'));
+    if (isNaN(idx)) return;
+    // 用视觉中心判断哪个卡片居中（比 scrollLeft/pageW 更准，抗子像素偏差）
+    var carouselCenter = carousel.scrollLeft + carousel.offsetWidth / 2;
+    var pageCenter = page.offsetLeft + page.offsetWidth / 2;
+    var isCentered = Math.abs(carouselCenter - pageCenter) < page.offsetWidth * 0.3;
+    // 点击非居中卡片：只居中，阻止按钮触发
+    if (!isCentered) {
+      e.stopPropagation();
+      e.preventDefault();
+      carousel.scrollTo({left: page.offsetLeft - (carousel.offsetWidth - page.offsetWidth) / 2, behavior: 'smooth'});
+    }
+    // 点击居中卡片：正常触发按钮
+  }, true);
+  // 边缘卡片毛玻璃透明度降低（提高 opacity 下限 0.55 → 0.68）
+  var _origUpdate = updateCardVisibility;
+  updateCardVisibility = function(carousel){
+    _origUpdate(carousel);
+    var pages = carousel.querySelectorAll('.village-page');
+    var center = carousel.scrollLeft + carousel.offsetWidth / 2;
+    pages.forEach(function(page){
+      var pageCenter = page.offsetLeft + page.offsetWidth / 2;
+      var t = Math.min(1, Math.abs(center - pageCenter) / (page.offsetWidth * 0.7));
+      if (t > 0.1) page.style.opacity = Math.max(0.68, 1 - t * 0.45);
+    });
+  };
+})();
+</script>
+
+
+<!-- ═══ Phase C: 仪式覆盖层 ═══ -->
+<div id="ceremonyIgnite" class="ceremony-overlay hidden">
+  <div id="ceremonyIgniteBg" class="ceremony-bg"></div>
+  <div id="ceremonyIgniteFlame" class="ceremony-flame breathing">🕯️</div>
+  <div id="ceremonyIgniteTitle" class="ceremony-title"></div>
+  <div id="ceremonyIgniteSub" class="ceremony-subtitle"></div>
+  <button class="ceremony-btn hidden" id="ceremonyIgniteBtn" onclick="appState.ceremonyIgniteAction()">✨ 点燃火种 · 创建营队</button>
+  <div id="ceremonyIgniteDone" class="ceremony-done hidden"></div>
+  <button class="ceremony-skip" id="ceremonyIgniteSkip" onclick="appState.ceremonySkip()">跳过仪式 →</button>
+</div>
+<div id="ceremonyLaunch" class="ceremony-overlay hidden">
+  <div id="ceremonyLaunchBg" class="ceremony-bg"></div>
+  <div id="ceremonyLaunchFlame" class="ceremony-flame breathing">🔥</div>
+  <div class="ceremony-title" id="ceremonyLaunchTitle"></div>
+  <div id="ceremonyLaunchStars" class="ceremony-stars"></div>
+  <button class="ceremony-btn" id="ceremonyLaunchBtn" onclick="appState.ceremonyLaunchAction()">🚀 开启共创</button>
+  <div id="ceremonyLaunchStatus" class="ceremony-status"></div>
+  <div id="ceremonyLaunchDone" class="ceremony-done hidden"></div>
+  <button class="ceremony-skip" id="ceremonyLaunchSkip" onclick="appState.ceremonySkip()">跳过仪式 →</button>
+</div>
+<div id="changelogOverlay" class="modal-overlay hidden" style="display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)closeChangelogPanel()">
+  <div class="modal" style="max-width:500px;max-height:70vh;overflow-y:auto" id="changelogContent"></div>
+</div>
+<!-- PWA: register service worker (secure context only; file:// gracefully fails) -->
+<script>
+if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+</script>
+</body>
+</html>

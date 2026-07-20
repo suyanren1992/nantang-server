@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>南塘云村</title>
+<meta name="theme-color" content="#1d2e24">
+<link rel="icon" href="92e279b22d04d4c831aec15aa09213df (1).png">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:100%;overflow:hidden;background:#1d2e24}
+.hidden{display:none!important}
+
+/* LOGIN */
+.login-page{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center}
+.login-bg{position:absolute;inset:-30px;background:url('bg-workshop-watercolor.png') center/cover no-repeat;filter:blur(4px)brightness(.45)}
+.login-content{position:relative;z-index:1;width:90%;max-width:360px}
+.login-card{background:rgba(18,28,20,.92);border:1px solid rgba(100,150,120,.25);border-radius:20px;padding:32px 24px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);text-align:center;color:#fff}
+.login-logo{width:min(160px,50%);margin-bottom:8px}
+.login-emoji{font-size:3rem;margin-bottom:4px}
+.login-card h1{font-size:1.2rem;margin-bottom:4px;color:#a0c8a8;font-weight:700}
+.login-card h2{font-size:1rem;margin-bottom:16px;color:#a0c8a8}
+.login-sub{font-size:.85rem;color:rgba(255,255,255,.6);margin-bottom:4px}
+.login-year{font-size:.7rem;color:rgba(255,255,255,.35);margin-bottom:20px}
+.login-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.login-input{display:block;width:100%;padding:12px;margin:8px 0;border:2px solid rgba(255,255,255,.2);border-radius:10px;font-size:.9rem;background:rgba(255,255,255,.08);color:#fff;text-align:center;font-family:inherit}
+.login-input:focus{outline:none;border-color:#5a8a6e}
+.login-error{color:#d46048;font-size:.75rem;min-height:18px;margin:4px 0}
+.login-back{background:none;border:none;color:rgba(255,255,255,.6);font-size:.85rem;cursor:pointer;margin-top:12px}
+.login-reset{margin-top:24px;background:none;border:none;color:rgba(255,255,255,.2);font-size:.65rem;cursor:pointer;text-decoration:underline dotted}
+.btn-pri{background:linear-gradient(135deg,#3d6b52,#2a4d3a);color:#fff;border:none;padding:14px 24px;border-radius:12px;font-size:.9rem;font-weight:700;cursor:pointer;min-width:130px;transition:transform.1s}
+.btn-pri:active{transform:scale(.96)}
+.btn-outline{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 24px;border-radius:12px;font-size:.9rem;font-weight:600;cursor:pointer;min-width:130px;transition:transform.1s}
+.btn-outline:active{transform:scale(.96)}
+.btn-full{width:100%}
+.id-cards{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
+.id-card{flex:1;padding:16px 12px;border-radius:14px;border:2px solid rgba(150,200,160,.15);cursor:pointer;background:rgba(255,255,255,.06);transition:.15s}
+.id-card:active{transform:scale(.96);border-color:#3d6b52}
+.id-emoji{font-size:2rem;margin-bottom:4px}
+.id-name{font-weight:700;font-size:.85rem}
+.id-hint{font-size:.65rem;color:rgba(255,255,255,.4);margin-top:2px}
+.reg-avatar{width:64px;height:64px;border-radius:50%;overflow:hidden;margin:0 auto 8px;background:#c8d8c8;cursor:pointer}
+.reg-avatar img,.login-avatar-lg img{width:100%;height:100%;object-fit:cover}
+.login-avatar-lg{width:96px;height:96px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:#c8d8c8}
+.avatar-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);padding:6px 16px;border-radius:8px;font-size:.75rem;cursor:pointer;margin-bottom:12px}
+.user-grid{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.user-chip{text-align:center;cursor:pointer;padding:8px;border-radius:10px;border:2px solid transparent;min-width:64px;transition:.1s}
+.user-chip:active,.user-chip.selected{border-color:#3d6b52;background:rgba(60,100,70,.2)}
+.user-chip-avatar{width:48px;height:48px;border-radius:50%;overflow:hidden;margin:0 auto 2px;background:#c8d8c8}
+.user-chip-name{font-size:.7rem;font-weight:600;color:rgba(255,255,255,.85)}
+.user-chip-role{font-size:.6rem;color:rgba(255,255,255,.4)}
+
+/* VILLAGE */
+.village-page{position:fixed;inset:0;overflow-y:auto;overflow-x:hidden}
+.village-bg{position:fixed;inset:-30px;z-index:0;background:url('bg-workshop-watercolor.png') center/cover no-repeat;filter:blur(3px)brightness(.55)}
+.village-bg-layer{position:fixed;inset:0;pointer-events:none;z-index:1}
+.village-bg-layer-2{background:radial-gradient(ellipse at 70% 60%,rgba(120,160,200,.06),rgba(0,0,0,.05)100%);animation:bgDrift2 90s ease-in-out infinite alternate}
+@keyframes bgDrift2{0%{transform:translate(0,0)}100%{transform:translate(-10%,15%)}}
+.village-brand{position:fixed;top:0;left:0;right:0;z-index:5;text-align:center;padding:24px 20px 10px;pointer-events:none}
+.village-brand img{width:80px;opacity:.9}
+.village-brand h2{margin:2px 0;font-size:1.1rem;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4);font-weight:600}
+.village-brand p{margin:1px 0 0;font-size:.75rem;color:rgba(255,255,255,.65)}
+.village-group{position:fixed;top:200px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:10px;z-index:3}
+.village-window{position:relative;width:calc(260px*3+6px);max-width:100vw;height:340px;overflow:hidden}
+.village-carousel{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;height:100%;gap:3px;padding:0 calc((100% - 260px)/2)}
+.village-carousel::-webkit-scrollbar{display:none}
+.vp-card{flex:0 0 260px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;height:100%;touch-action:pan-x manipulation}
+.vp-card-inner{text-align:center;width:100%;max-width:260px;height:270px;padding:28px 24px 24px;background:rgba(255,255,255,.80);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.5);border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,.1);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.vp-emoji{font-size:2rem;margin-bottom:6px}
+.vp-title{font-size:1rem;font-weight:700;margin:4px 0 2px}
+.vp-desc{font-size:.75rem;margin:0 0 2px;color:#5a5a5a}
+.vp-pulse{font-size:.7rem;color:inherit;opacity:.7;margin-top:6px;min-height:1em}
+.vp-btn{margin-top:10px;padding:10px 24px;border-radius:10px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;background:rgba(0,0,0,.06);color:#3d3629}
+.vp-btn.pri{background:linear-gradient(135deg,#3d6b52,#2a4d3a);color:#fff}
+.vp-btn:active{transform:scale(.96)}
+.village-dots-label{font-size:.72rem;color:rgba(255,255,255,.5);pointer-events:none}
+.village-dots{display:flex;gap:10px}
+.vdot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.35);transition:all.3s;cursor:pointer}
+.vdot.active{background:rgba(255,255,255,.9);transform:scale(1.5)}
+.village-footer{display:flex;justify-content:center;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 20px;margin-top:12px}
+.village-footer .btn-pri{padding:10px 20px;font-size:.8rem;min-width:70px}
+.village-footer .btn-outline{padding:10px 20px;font-size:.8rem;min-width:70px}
+.vf-user{font-size:.72rem;color:rgba(255,255,255,.5);margin-top:4px;width:100%;text-align:center}
+
+/* MY PAGE */
+.my-page{position:fixed;inset:0;overflow-y:auto;background:#e8ede6;z-index:10;padding-bottom:80px}
+.my-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid #d0d9ce}
+.my-avatar{width:36px;height:36px;border-radius:50%;overflow:hidden;border:2px solid #3d6b52;background:#c8d8c8;flex-shrink:0}
+.my-avatar img{width:100%;height:100%;object-fit:cover}
+.my-filters{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.my-fchip{flex:none;padding:5px 12px;border-radius:14px;border:1.5px solid #d0d9ce;font-size:.72rem;font-weight:600;color:#5a6e5c;cursor:pointer;white-space:nowrap;background:#fff}
+.my-fchip.on{background:#3d6b52;color:#fff;border-color:#3d6b52}
+.my-flow-title{font-size:.72rem;font-weight:700;color:#5a6e5c;text-transform:uppercase;letter-spacing:.5px}
+
+/* TASK CARD */
+.task-card{background:#fff;border:1px solid #e5ddce;border-radius:12px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.task-card:active{transform:scale(.98)}
+.task-left{border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
+.task-body{flex:1;min-width:0}
+.task-row1{display:flex;justify-content:space-between;margin-bottom:3px}
+.task-name{font-weight:700;font-size:.78rem}
+.task-nt{font-weight:700;font-size:.78rem;color:#3d6b52}
+.task-row2{display:flex;gap:8px;font-size:.62rem;color:#8a8a8a;align-items:center;flex-wrap:wrap}
+.task-chip{font-size:.58rem;padding:1px 6px;border-radius:6px;font-weight:600}
+/* EVENT CARD */
+.event-card{background:#fff;border:1px solid #e5ddce;border-radius:14px;padding:16px;margin-bottom:10px}
+.event-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.event-emoji{font-size:1.8rem;flex-shrink:0}
+.event-info{flex:1;min-width:0}
+.event-name{font-weight:700;font-size:.85rem}
+.event-date{font-size:.65rem;color:#8a8a8a}
+.event-body{font-size:.72rem;color:#5a5a5a;line-height:1.5;margin-bottom:8px}
+.event-footer{display:flex;justify-content:space-between;align-items:center}
+.event-people{font-size:.65rem;color:#3d6b52;font-weight:600}
+.event-btn{padding:8px 18px;border-radius:8px;font-size:.7rem;font-weight:700;cursor:pointer;border:none}
+.event-btn-pri{background:#3d6b52;color:#fff}
+.event-btn-out{background:rgba(61,107,82,.1);color:#3d6b52}
+.event-archive{opacity:.7}
+.event-section-label{font-size:.7rem;font-weight:700;color:#3d6b52;margin:12px 0 8px}
+/* CARD EXPAND */
+.card-detail{animation:fadeIn .2s ease-out}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+/* OVERLAY */
+.overlay{position:fixed;inset:0;z-index:100;background:#e8ede6;display:none;overflow-y:auto;padding-bottom:80px}
+.overlay.open{display:block;animation:fadeIn .2s ease-out}
+.overlay-top{position:sticky;top:0;z-index:10;display:flex;align-items:center;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid #d0d9ce}
+.overlay-close{background:none;border:none;font-size:1.2rem;cursor:pointer;color:#3d6b52;padding:4px 8px;line-height:1}
+.overlay-title{flex:1;text-align:center;font-weight:700;font-size:.9rem;padding-right:36px}
+.overlay-body{padding:14px}
+
+.sub-page{position:fixed;inset:0;z-index:100;background:#e8ede6;transform:translateX(100%);transition:transform.3s ease-out;overflow-y:auto;padding-bottom:80px}
+.sub-page.open{transform:translateX(0)}
+.sub-top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:10px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid #d0d9ce}
+.sub-back{background:none;border:none;font-size:1.1rem;cursor:pointer;color:#3d6b52;padding:4px 8px}
+.sub-title{font-weight:700;font-size:.9rem;flex:1}
+.sub-body{padding:14px}
+.sub-section{margin-bottom:16px}
+.sub-section h3{font-size:.7rem;color:#5a6e5c;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sub-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:.75rem;color:#5a6e5c;margin-top:6px}
+.sub-meta span{display:flex;align-items:center;gap:4px}
+.sub-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:.65rem;font-weight:700}
+.sb-gold{background:#eef0e4;color:#3d6b52}
+.sb-blue{background:#e0eaee;color:#4a7a82}
+.sb-green{background:#e0ece0;color:#5d8c52}
+.sb-red{background:#f5e8e4;color:#b84c38}
+.sb-yellow{background:#fef8e8;color:#8a6a30}
+.sub-bar{position:fixed;bottom:0;left:0;right:0;z-index:10;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom,0px));background:rgba(242,245,241,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid #d0d9ce}
+</style>
+</head>
+<body>
+
+<div id="loginPage" class="login-page">
+  <div class="login-bg"></div>
+  <div class="login-content">
+    <div id="scrEntry" class="login-card">
+      <img src="92e279b22d04d4c831aec15aa09213df (1).png" class="login-logo" alt="">
+      <div class="login-emoji">⚔️</div>
+      <h1>实景游戏 · 南塘云村</h1>
+      <p class="login-sub">欢迎你，寻找人生副本</p>
+      <p class="login-year">1998 — 2026</p>
+      <div class="login-btns">
+        <button class="btn-pri" onclick="S('scrIdentity')">✨ 我是新来的</button>
+        <button class="btn-outline" onclick="S('scrUserList')">📋 我有账号</button>
+      </div>
+      <button class="login-reset">🗑️ 重置</button>
+    </div>
+    <div id="scrIdentity" class="login-card hidden">
+      <h2>选择你的身份</h2>
+      <div class="id-cards">
+        <div class="id-card" onclick="R('adventurer')"><div class="id-emoji">⚔️</div><div class="id-name">冒险者</div><div class="id-hint">需要邀请码</div></div>
+        <div class="id-card" onclick="R('npc')"><div class="id-emoji">👥</div><div class="id-name">在地伙伴</div><div class="id-hint">南塘NPC</div></div>
+        <div class="id-card" onclick="R('visitor')"><div class="id-emoji">🏕️</div><div class="id-name">云村民</div><div class="id-hint">游客</div></div>
+      </div>
+      <button class="login-back" onclick="S('scrEntry')">← 返回</button>
+    </div>
+    <div id="scrRegister" class="login-card hidden">
+      <h2 id="regTitle">注册</h2>
+      <div class="reg-avatar" id="regAvatar" onclick="cycleAvatar()"></div>
+      <button class="avatar-btn" onclick="cycleAvatar()">🎨 换头像</button>
+      <input type="text" id="regName" class="login-input" placeholder="你的名字">
+      <input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少6位）">
+      <div id="regInviteRow" class="hidden"><div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:4px" id="regInviteLabel"></div><input type="text" id="regInviteCode" class="login-input" placeholder="输入邀请码"></div>
+      <div class="login-error" id="regError"></div>
+      <div class="login-btns"><button class="login-back" onclick="S('scrEntry')">← 返回</button><button class="btn-pri" onclick="enterVillage()">确认注册 →</button></div>
+    </div>
+    <div id="scrUserList" class="login-card hidden">
+      <h2>选择账号</h2>
+      <div class="user-grid" id="userGrid"><div class="user-chip" onclick="L('demo')"><div class="user-chip-avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=demo&size=48" width="48" height="48" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity='0'"></div><div class="user-chip-name">demo</div><div class="user-chip-role">预览</div></div></div>
+      <div id="loginForm" class="hidden"><div class="login-avatar-lg" id="loginAvatar"></div><input type="text" id="loginName" class="login-input" placeholder="名字" readonly><input type="password" id="loginPwd" class="login-input" placeholder="密码"><div class="login-error" id="loginError"></div><button class="btn-pri btn-full" onclick="enterVillage()">登录</button><button class="login-back btn-full" style="margin-top:4px" onclick="S('scrEntry')">← 返回</button></div>
+    </div>
+  </div>
+</div>
+
+<div id="villagePage" class="village-page hidden">
+  <div class="village-bg"></div>
+  <div class="village-bg-layer village-bg-layer-2"></div>
+  <div class="village-brand">
+    <img src="92e279b22d04d4c831aec15aa09213df (1).png" alt=""><div style="font-size:1.8rem;margin-bottom:0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">⚔️</div>
+    <h2>实景游戏 · 南塘云村</h2><p>欢迎你，寻找人生副本</p>
+  </div>
+  <div class="village-group">
+    <div class="village-window"><div class="village-carousel" id="villageCarousel">
+      <div class="vp-card" data-page="0"><div class="vp-card-inner"><div class="vp-emoji">📋</div><h2 class="vp-title">社区副本</h2><p class="vp-desc">线下共创营 · 定时开放</p><div class="vp-pulse">浏览活动</div><button class="vp-btn" onclick="openCommunityPage()">📋 进入副本</button></div></div>
+      <div class="vp-card" data-page="1"><div class="vp-card-inner"><div class="vp-emoji">🏛️</div><h2 class="vp-title">任务大厅</h2><p class="vp-desc">在地任务 · 委托悬赏</p><div class="vp-pulse">6 个委托</div><button class="vp-btn pri" onclick="openQuestHallPage()">🏛️ 去接任务</button></div></div>
+      <div class="vp-card" data-page="2"><div class="vp-card-inner"><div class="vp-emoji">🗺️</div><h2 class="vp-title">实景地图</h2><p class="vp-desc">看谁在做什么</p><div class="vp-pulse">探索南塘</div><button class="vp-btn" onclick="openMapPage()">🗺️ 进入地图</button></div></div>
+    </div></div>
+    <div class="village-dots-label">← 左右滑动 →</div>
+    <div class="village-dots" id="villageDots"><span class="vdot" data-dot="0"></span><span class="vdot active" data-dot="1"></span><span class="vdot" data-dot="2"></span></div>
+    <div class="village-footer">
+      <button class="btn-pri" onclick="showMy()">👤 我的</button>
+      <button class="btn-outline">⚙️ 设置</button>
+      <div class="vf-user">demo · 预览</div>
+    </div>
+  </div>
+</div>
+
+<div id="myPage" class="my-page hidden">
+  <div class="my-topbar" style="gap:10px;padding-top:max(12px,env(safe-area-inset-top,0px));padding-bottom:10px">
+    <button onclick="showVillage()" style="background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:0;padding:0;min-width:36px"><span style="font-size:1.3rem">🌐</span><span style="font-size:.5rem;color:#5a6e5c;font-weight:600;margin-top:-2px">村口</span></button>
+    <div class="my-avatar" style="width:34px;height:34px"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=砚仁&size=34" width="34" height="34" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity='0'"></div>
+    <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;font-size:.85rem">砚仁</span><span style="font-size:.6rem;padding:1px 6px;border-radius:6px;background:rgba(61,107,82,.1);color:#3d6b52;font-weight:600">管理员</span><span style="font-size:.6rem;color:#5a6e5c">120天</span></div><div style="font-size:.62rem;color:#5a6e5c">🏕️ 第四期共创营</div></div>
+    <span style="font-size:.85rem">🏅</span>
+    <div style="font-weight:700;color:#3d6b52;font-size:.82rem;white-space:nowrap;margin-left:2px">🫘1,250</div>
+  </div>
+  <div style="padding:10px 14px;display:flex;gap:6px;border-bottom:1px solid #d0d9ce">
+    <div style="flex:1;background:linear-gradient(135deg,#e8f0e4,#dce8d8);border-radius:10px;padding:10px;text-align:center"><div style="font-size:.6rem;color:#5a6e5c">营队 NT</div><div style="font-size:1.2rem;font-weight:700;color:#2a4a30;margin:2px 0">800</div><div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:64%;background:#3d6b52;border-radius:3px"></div></div></div>
+    <div style="flex:1;background:linear-gradient(135deg,#f0f4ee,#e6efe4);border-radius:10px;padding:10px;text-align:center"><div style="font-size:.6rem;color:#5a6e5c">个人 NT</div><div style="font-size:1.2rem;font-weight:700;color:#2a4a30;margin:2px 0">450</div><div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:36%;background:#5a8a6e;border-radius:3px"></div></div></div>
+    <div style="flex:1;background:linear-gradient(135deg,#fef8ee,#f8eed8);border-radius:10px;padding:10px;text-align:center"><div style="font-size:.6rem;color:#8a6a30">冻结</div><div style="font-size:1.2rem;font-weight:700;color:#8a6a30;margin:2px 0">200</div><div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:16%;background:#c8892e;border-radius:3px"></div></div></div>
+  </div>
+  <div style="display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid #d0d9ce;flex-wrap:wrap;align-items:center">
+    <span style="font-size:.7rem;background:#fde8e8;color:#b84c38;padding:4px 10px;border-radius:14px;font-weight:600">🔴 3待处理</span>
+    <span style="font-size:.7rem;background:#f0f0f0;color:#5a6e5c;padding:4px 10px;border-radius:14px;font-weight:600">📦 2草稿</span>
+    <span style="display:inline-flex;align-items:center;gap:0;margin-left:auto;font-size:.7rem;background:#fff8e8;border:1px solid #d0c090;border-radius:14px;overflow:hidden;font-weight:600"><span style="padding:4px 8px;color:#8a6a30">🧾 15 NT</span><span style="padding:4px 10px;background:#3d6b52;color:#fff;cursor:pointer">结算</span></span>
+  </div>
+  <div style="padding:8px 14px 4px">
+    <input type="text" class="login-input" placeholder="🔍 搜索..." style="margin-bottom:6px;text-align:left;font-size:.8rem;padding:8px 12px;background:#fff;color:#1d2e24;border-color:#d0d9ce">
+    <div class="my-filters" style="border:none;padding:0;margin-bottom:4px"><span class="my-fchip on" onclick="pickChip(this)">全部类型</span><span class="my-fchip" onclick="pickChip(this)">主线</span><span class="my-fchip" onclick="pickChip(this)">支线</span><span class="my-fchip" onclick="pickChip(this)">日常</span></div>
+    <div class="my-filters" style="border:none;padding:0;margin-bottom:4px"><span class="my-fchip on" onclick="pickChip(this)">全部范围</span><span class="my-fchip" onclick="pickChip(this)">个人</span><span class="my-fchip" onclick="pickChip(this)">营队</span><span class="my-fchip" onclick="pickChip(this)">社区</span></div>
+    <div class="my-filters" style="border:none;padding:0"><span class="my-fchip on" onclick="pickChip(this)">全部归属</span><span class="my-fchip" onclick="pickChip(this)">我接的</span><span class="my-fchip" onclick="pickChip(this)">我发的</span></div>
+  </div>
+  <div style="padding:4px 14px 0;border-top:1px solid #d0d9ce"><div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><div style="font-size:.75rem;font-weight:700;color:#b84c38">🔴 待处理</div><span style="font-size:.6rem;color:#b84c38;font-weight:600">3 项需要你</span></div></div>
+  <div style="padding:4px 14px">
+    <div style="display:flex;gap:0;margin-bottom:6px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;overflow:hidden;cursor:pointer" onclick="toggleCard(this)"><div style="width:4px;flex-shrink:0;background:#b84c38"></div><div style="flex:1;padding:10px 12px"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:.85rem">财务结算</span><span style="font-weight:700;color:#3d6b52;font-size:.85rem">15 NT</span></div><div style="display:flex;gap:8px;font-size:.68rem;color:#5a6e5c;margin-top:3px"><span style="background:#fde8e8;color:#b84c38;padding:1px 6px;border-radius:6px;font-weight:600">支线</span><span style="font-weight:600;color:#b84c38">📤 待提交</span><span>⏰已逾期</span></div></div><div style="display:flex;align-items:center;padding:10px 8px"><span style="font-size:.65rem;padding:3px 8px;border-radius:8px;font-weight:600;background:#f5e8e4;color:#b84c38;white-space:nowrap">待提交</span></div></div>
+    <div style="display:flex;gap:0;margin-bottom:6px;background:#fffbf5;border:1px solid #e8d5a0;border-radius:10px;overflow:hidden;cursor:pointer" onclick="toggleCard(this)"><div style="width:4px;flex-shrink:0;background:#c8892e"></div><div style="flex:1;padding:10px 12px"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:.85rem">宣传工作</span><span style="font-weight:700;color:#3d6b52;font-size:.85rem">15 NT</span></div><div style="display:flex;gap:8px;font-size:.68rem;color:#5a6e5c;margin-top:3px"><span style="background:#e8f0e8;color:#3d6b52;padding:1px 6px;border-radius:6px;font-weight:600">主线</span><span style="color:#c8892e;font-weight:600">🔍 待审核</span><span>小云提交</span></div></div><div style="display:flex;gap:4px;align-items:center;padding:10px 4px"><span style="font-size:.65rem;padding:3px 6px;border-radius:8px;font-weight:600;background:#e0ece0;color:#5d8c52;cursor:pointer;white-space:nowrap">✓</span><span style="font-size:.65rem;padding:3px 6px;border-radius:8px;font-weight:600;background:#f5e8e4;color:#b84c38;cursor:pointer;white-space:nowrap">✕</span></div></div>
+  </div>
+  <div style="padding:4px 14px 0;border-top:1px solid #d0d9ce"><div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><div style="font-size:.75rem;font-weight:700">📋 进行中</div><div style="display:flex;gap:4px"><span style="font-size:.65rem;padding:3px 8px;border-radius:10px;font-weight:600;cursor:pointer;background:#3d6b52;color:#fff">我接的 3</span><span style="font-size:.65rem;padding:3px 8px;border-radius:10px;font-weight:600;cursor:pointer;background:#e8ede6;color:#5a6e5c">我发的 2</span></div></div></div>
+  <div style="padding:4px 14px">
+    <div style="display:flex;gap:0;margin-bottom:6px;background:#fff;border:1px solid #d0d9ce;border-radius:10px;overflow:hidden;cursor:pointer" onclick="toggleCard(this)"><div style="width:4px;flex-shrink:0;background:#3d6b52"></div><div style="flex:1;padding:10px 12px"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:.85rem">工笔画临摹</span><span style="font-weight:700;color:#3d6b52;font-size:.85rem">10 NT</span></div><div style="display:flex;gap:8px;font-size:.68rem;color:#5a6e5c;margin-top:3px"><span style="background:#e8f0e8;color:#3d6b52;padding:1px 6px;border-radius:6px;font-weight:600">主线</span><span>砚仁发布</span><span>⏰3天后</span><span>👥1/3</span></div></div><div style="display:flex;align-items:center;padding:10px 8px"><span style="font-size:.65rem;padding:3px 8px;border-radius:8px;font-weight:600;background:#e8f0e8;color:#3d6b52;white-space:nowrap">进行中</span></div></div>
+    <div style="display:flex;gap:0;margin-bottom:6px;background:#fff;border:1px solid #d0d9ce;border-radius:10px;overflow:hidden;cursor:pointer" onclick="toggleCard(this)"><div style="width:4px;flex-shrink:0;background:#5d8c52"></div><div style="flex:1;padding:10px 12px"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:.85rem">厨房打扫</span><span style="font-weight:700;color:#3d6b52;font-size:.85rem">5 NT</span></div><div style="display:flex;gap:8px;font-size:.68rem;color:#5a6e5c;margin-top:3px"><span style="background:#e0ece0;color:#5d8c52;padding:1px 6px;border-radius:6px;font-weight:600">日常</span><span>小云发布</span><span>⏰今天</span></div></div><div style="display:flex;align-items:center;padding:10px 8px"><span style="font-size:.65rem;padding:3px 8px;border-radius:8px;font-weight:600;background:#e8f0e8;color:#3d6b52;white-space:nowrap">进行中</span></div></div>
+  </div>
+  <div style="padding:4px 14px 0;border-top:1px solid #d0d9ce"><div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><div style="font-size:.75rem;font-weight:700;color:#c8892e">🧾 待结算</div><span style="font-size:.6rem;color:#c8892e">1 笔未付</span></div></div>
+  <div style="padding:4px 14px">
+    <div style="display:flex;gap:0;margin-bottom:6px;background:#fffbf5;border:1px solid #e8d5a0;border-radius:10px;overflow:hidden;cursor:pointer;opacity:.9" onclick="toggleCard(this)"><div style="width:4px;flex-shrink:0;background:#c8892e"></div><div style="flex:1;padding:10px 12px"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:.85rem">营地布置</span><span style="font-weight:700;color:#3d6b52;font-size:.85rem">8 NT</span></div><div style="display:flex;gap:8px;font-size:.68rem;color:#5a6e5c;margin-top:3px"><span style=background:#f0f4e8;color:#6b8e4e;padding:1px 6px;border-radius:6px;font-weight:600>支线</span><span style=background:#e8f0e8;color:#3d6b52;padding:1px 6px;border-radius:6px;font-size:.6rem;font-weight:600>营队</span><span>✅已完成</span><span style=color:#c8892e;font-weight:600>未结算</span></div></div><div style="display:flex;align-items:center;padding:10px 8px"><span style="font-size:.65rem;padding:3px 8px;border-radius:8px;font-weight:600;background:#fff8e8;color:#8a6a30;white-space:nowrap">待结算</span></div></div>
+  </div>
+  <div style="padding:4px 14px 0;border-top:1px solid #d0d9ce"><div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0"><div style="font-size:.75rem;font-weight:700;color:#5a6e5c">✅ 最近完成</div><span style="font-size:.6rem;color:#5a6e5c">近1月 · 更多已归档</span></div></div>
+  <div style="padding:4px 14px">
+    <div style="display:flex;gap:0;margin-bottom:6px;background:#fff;border:1px solid #d0d9ce;border-radius:10px;overflow:hidden;cursor:pointer;opacity:.85" onclick="toggleCard(this)"><div style="width:4px;flex-shrink:0;background:#a0b8a0"></div><div style="flex:1;padding:10px 12px"><div style="display:flex;justify-content:space-between"><span style="font-weight:700;font-size:.85rem">晨练打卡</span><span style="font-weight:700;color:#3d6b52;font-size:.85rem">2 NT</span></div><div style="display:flex;gap:8px;font-size:.68rem;color:#5a6e5c;margin-top:3px"><span style=background:#e0ece0;color:#5d8c52;padding:1px 6px;border-radius:6px;font-weight:600>日常</span><span style=background:#f2f5f1;color:#5a6e5c;padding:1px 6px;border-radius:6px;font-size:.6rem;font-weight:600>个人</span><span>✅已完成</span><span style=color:#5d8c52>已结算</span></div></div><div style="display:flex;align-items:center;padding:10px 8px"><span style="font-size:.65rem;padding:3px 8px;border-radius:8px;font-weight:600;background:#e0ece0;color:#5d8c52;white-space:nowrap">已结算</span></div></div>
+  </div>
+  <div style="padding:4px 14px 0;border-top:1px solid #d0d9ce"><div class="my-flow-title" style="font-size:.8rem;padding:4px 0">💰 账本</div></div>
+  <div id="ledgerRow" style="padding:4px 14px;display:flex;gap:6px">
+    <div style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 10px;text-align:center;cursor:pointer" onclick="openLedger('personal')"><div style="font-size:.6rem;color:#5a6e5c;margin-bottom:4px">👤 个人</div><div style="font-size:.95rem;font-weight:700;color:#3d6b52">330</div><div style="font-size:.5rem;color:#5a6e5c">NT</div></div>
+    <div style="flex:1.4;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 10px;cursor:pointer" onclick="openLedger('camp')"><div style="font-size:.6rem;color:#5a6e5c;margin-bottom:6px;text-align:center">🏕️ 营队</div><div style="display:flex;justify-content:center;gap:12px"><div style="text-align:center"><div style="font-size:.9rem;font-weight:700;color:#3d6b52">620</div><div style="font-size:.5rem;color:#5a6e5c">NT</div></div><div style="text-align:center"><div style="font-size:.9rem;font-weight:700;color:#8a6a30">8000</div><div style="font-size:.5rem;color:#5a6e5c">RMB</div></div></div></div>
+    <div style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 10px;text-align:center;cursor:pointer" onclick="openLedger('community')"><div style="font-size:.6rem;color:#5a6e5c;margin-bottom:4px">🏘️ 社区</div><div style="font-size:.95rem;font-weight:700;color:#3d6b52">420</div><div style="font-size:.5rem;color:#5a6e5c">公开</div></div>
+  </div>
+  <div style="padding:4px 14px 0;border-top:1px solid #d0d9ce"><div class="my-flow-title" style="font-size:.8rem;padding:4px 0">📦 我的物品</div></div>
+  <div style="padding:4px 14px;display:flex;gap:6px">
+    <div style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;cursor:pointer"><div style="font-size:.6rem;color:#5a6e5c;margin-bottom:3px">🛒 售卖</div><div style="font-size:.9rem;font-weight:700;color:#3d6b52">2</div></div>
+    <div style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;cursor:pointer"><div style="font-size:.6rem;color:#5a6e5c;margin-bottom:3px">📤 已售</div><div style="font-size:.9rem;font-weight:700;color:#5a6e5c">3</div></div>
+    <div style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;cursor:pointer"><div style="font-size:.6rem;color:#5a6e5c;margin-bottom:3px">🏪 拍卖</div><div style="font-size:.9rem;font-weight:700;color:#c8892e">1</div></div>
+  </div>
+  <div style="padding:4px 14px;border-top:1px solid #d0d9ce">
+    <div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px"><span style="font-size:1.8rem">📚</span><div style="flex:1"><div style="font-weight:700;font-size:.85rem">归档文件</div><div style="font-size:.65rem;color:#5a6e5c">个人4 · 社区2 · 共创营3 · 物品5 · 账目2</div></div><span style="font-size:.7rem;color:#5a6e5c">查看 →</span></div>
+  </div>
+  <div style="padding:8px 14px"><div style="display:flex;align-items:center;gap:10px;background:#fff8e8;border:1.5px solid #d0c090;border-radius:10px;padding:12px 14px"><span style="font-size:1.1rem">🧾</span><div style="flex:1"><div style="font-size:.75rem;font-weight:600">待结算</div><div style="font-size:.65rem;color:#8a6a30">2笔未付 · 15 NT</div></div><button style="background:linear-gradient(135deg,#3d6b52,#2a4d3a);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer">结算 15 NT</button></div></div>
+  <div style="padding:4px 14px"><div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:.72rem;border-bottom:1px solid #f0f0f0"><span style="font-size:1rem">📝</span><span>小云 提交了厨房打扫</span><span style="font-size:.65rem;color:#aaa;margin-left:auto">2时前</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:.72rem;border-bottom:1px solid #f0f0f0"><span style="font-size:1rem">✅</span><span>砚仁 完成了宣传工作</span><span style="font-size:.65rem;color:#aaa;margin-left:auto">昨天</span></div><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;font-size:.72rem"><span style="font-size:1rem">👋</span><span>朝林 加入了营队</span><span style="font-size:.65rem;color:#aaa;margin-left:auto">3天前</span></div></div></div>
+</div>
+
+<div id="overlayCommunity" class="overlay">
+  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayCommunity')">✕</button><span class="overlay-title">社区副本</span></div>
+  <div class="overlay-body">
+    <div class="event-section-label" style="margin-top:0">🟢 进行中</div>
+    <div class="event-card">
+      <div class="event-header"><div class="event-emoji">🏕️</div><div class="event-info"><div class="event-name">第四期共创营</div><div class="event-date">7/20 — 7/27 · 还剩3天报名</div></div></div>
+      <div class="event-body">七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。12人已报名，还有4个名额。</div>
+      <div class="event-footer"><span class="event-people">👥 12/16人 · 📍社区办公楼</span><button class="event-btn event-btn-pri">我要报名</button></div>
+    </div>
+    <div class="event-section-label">📅 即将开始</div>
+    <div class="event-card">
+      <div class="event-header"><div class="event-emoji">🎨</div><div class="event-info"><div class="event-name">工笔画写生营</div><div class="event-date">8/1 — 8/5</div></div></div>
+      <div class="event-body">五天集中写生，导师一对一点评。适合有基础的同学。</div>
+      <div class="event-footer"><span class="event-people">👥 5/10人 · 📍大地书房</span><button class="event-btn event-btn-out">了解详情</button></div>
+    </div>
+    <div class="event-section-label" style="color:#8a8a8a">📁 往期归档</div>
+    <div class="event-card event-archive">
+      <div class="event-header"><div class="event-emoji">🌸</div><div class="event-info"><div class="event-name">春季写生周</div><div class="event-date">4/10 — 4/17 · 已结束</div></div></div>
+      <div class="event-footer"><span class="event-people">👥 8人参加</span><span style="font-size:.62rem;color:#8a8a8a">查看回顾 →</span></div>
+    </div>
+  </div>
+</div>
+<div id="overlayQuestHall" class="overlay">
+  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayQuestHall')">✕</button><span class="overlay-title">任务大厅</span></div>
+  <div class="overlay-body" id="questHallBody"><div style="text-align:center;padding:40px;color:#5a6e5c">🏛️<br><br>加载中…</div></div>
+</div>
+<div id="overlayMap" class="overlay">
+  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayMap')">✕</button><span class="overlay-title">实景地图</span></div>
+  <div class="overlay-body"><div style="text-align:center;padding:40px;color:#5a6e5c">🗺️<br><br>地图加载中…</div></div>
+</div>
+<div id="subPage" class="sub-page">
+  <div class="sub-top"><button class="sub-back" onclick="closeSub()">←</button><span class="sub-title" id="subTitle">详情</span></div>
+  <div class="sub-body" id="subBody"></div>
+  <div class="sub-bar hidden" id="subBar"></div>
+</div>
+
+<script src="js/schema.js"></script>
+<script src="js/store.js"></script>
+<script src="js/backup.js"></script>
+<script src="js/mobile-bundle.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/nt.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/seed-test-data.js"></script>
+<script>
+var AVATAR_STYLE='avataaars';
+function avatarURL(seed,size){return 'https://api.dicebear.com/7.x/'+AVATAR_STYLE+'/svg?seed='+encodeURIComponent(seed)+'&size='+(size||80)}
+function avatarImg(seed,size){return '<img src="'+avatarURL(seed,size)+'" width="'+(size||40)+'" height="'+(size||40)+'" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity=\'0\'">'}
+var LEDGER={
+ personal:{balance:330,income:450,expense:120,records:[{d:'07-14',note:'宣传工作完成',amt:15,in:true},{d:'07-13',note:'食堂午餐',amt:10,in:false},{d:'07-12',note:'营地布置完成',amt:8,in:true},{d:'07-11',note:'朝林打赏',amt:5,in:true},{d:'07-10',note:'购买颜料',amt:20,in:false}]},
+ camp:{balance:620,income:800,expense:180,rmb:8000,rmbSpent:3200,records:[{d:'07-14',note:'营队拨款',amt:500,in:true},{d:'07-12',note:'物资采购支出',amt:80,in:false},{d:'07-10',note:'任务奖励发放',amt:100,in:false},{d:'07-08',note:'社区转入',amt:300,in:true}]},
+ community:{balance:420,income:500,expense:80,records:[{d:'07-13',note:'社区基金注入',amt:200,in:true},{d:'07-10',note:'转给营队',amt:80,in:false},{d:'07-08',note:'村民捐赠',amt:300,in:true}]}};
+function openLedger(type){
+  var t=LEDGER[type];if(!t)return;
+  // Close existing ledger expand
+  var ex=document.querySelector('.ledger-expand');if(ex){ex.remove();return}
+  document.querySelectorAll('.ledger-expand').forEach(function(c){c.remove()});
+  var d=document.createElement('div');d.className='ledger-expand';
+  d.style.cssText='margin:6px 14px;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:14px;animation:fadeIn .2s ease-out';
+  var h='<div style=display:flex;gap:8px;margin-bottom:12px>';
+  h+='<div style=flex:1;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center><div style=font-size:.6rem;color:#5a6e5c>收入</div><div style=font-size:1rem;font-weight:700;color:#5d8c52>+'+t.income+'</div></div>';
+  h+='<div style=flex:1;background:#fde8e8;border-radius:10px;padding:10px;text-align:center><div style=font-size:.6rem;color:#5a6e5c>支出</div><div style=font-size:1rem;font-weight:700;color:#b84c38>-'+t.expense+'</div></div>';
+  h+='<div style=flex:1;background:#e8f0e8;border-radius:10px;padding:10px;text-align:center><div style=font-size:.6rem;color:#5a6e5c>余额</div><div style=font-size:1rem;font-weight:700;color:#3d6b52>'+t.balance+'</div></div></div>';
+  if(type==='camp') h+='<div style=background:#fafbfa;border-radius:8px;padding:10px;margin-bottom:12px;text-align:center><div style=font-size:.6rem;color:#5a6e5c;margin-bottom:4px>💰 人民币金库</div><div style=display:flex;justify-content:center;gap:20px><div><div style=font-size:.9rem;font-weight:700;color:#5d8c52>¥'+t.rmb+'</div><div style=font-size:.5rem;color:#5a6e5c>总额</div></div><div><div style=font-size:.9rem;font-weight:700;color:#b84c38>¥'+t.rmbSpent+'</div><div style=font-size:.5rem;color:#5a6e5c>已支出</div></div></div><div style=height:4px;background:#d0d9ce;border-radius:2px;margin-top:6px;overflow:hidden><div style=height:100%;width:'+Math.round(t.rmbSpent/t.rmb*100)+'%;background:#3d6b52;border-radius:2px></div></div></div>';
+  h+='<div style=font-size:.65rem;font-weight:700;color:#5a6e5c;margin-bottom:6px>流水明细</div>';
+  t.records.forEach(function(r){h+='<div style=display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:.72rem><span>'+r.d+' '+r.note+'</span><span style=font-weight:700;color:'+(r.in?'#5d8c52':'#b84c38')+'>'+(r.in?'+':'-')+r.amt+'</span></div>'});
+  d.innerHTML=h;
+  var row=document.getElementById('ledgerRow');
+  if(row) row.parentElement.insertBefore(d,row.nextSibling)
+}
+var TASKS={
+ "财务结算":{name:"财务结算",type:"支线",status:"待提交",nt:15,scope:"营队",note:"结算上月营队支出，整理财务流水，核对各项明细。完成后提交给砚仁审核。",deadline:"2026-07-18",reviewer:"砚仁",claimedAt:"07-10",action:"submit"},
+ "物资采购":{name:"物资采购",type:"支线",status:"待提交",nt:12,scope:"营队",note:"采购本周所需物资：宣纸10刀、颜料3套、画笔5支。预算200元以内。",deadline:"2026-07-19",reviewer:"砚仁",claimedAt:"07-13",action:"submit"},
+ "宣传工作":{name:"宣传工作",type:"主线",status:"待审核",nt:15,scope:"营队",note:"完成第四期共创营的宣传文案和海报设计，需提交设计稿和文案。",deadline:"2026-07-20",reviewer:"小云",claimedAt:"07-08",submittedAt:"07-12",submission:"宣传文案已完成，海报设计稿见附件链接。请审核。",action:"review"},
+ "工笔画临摹":{name:"工笔画临摹",type:"主线",status:"退回修改",nt:10,scope:"个人",note:"临摹一幅工笔花鸟画，提交高清照片。要求构图完整、线条流畅、色彩自然。",deadline:"2026-07-25",reviewer:"小云",claimedAt:"07-08",submittedAt:"07-10",submission:"已完成临摹，照片如下链接。花瓣部分参考了宋代院体画风格。",reviewNote:"构图可以，但线条不够流畅，牡丹花瓣需要重新勾勒。请修改后重新提交。",reviewedAt:"07-11",action:"edit"},
+ "厨房打扫":{name:"厨房打扫",type:"日常",status:"进行中",nt:5,scope:"社区",note:"打扫厨房台面、灶台、地面，倒垃圾。完成后拍照确认。",deadline:"2026-07-17",action:"claim"},
+ "花园浇水":{name:"花园浇水",type:"日常",status:"进行中",nt:3,scope:"社区",note:"给花园和菜地浇水，修剪枯叶。工具在工具房。",deadline:"2026-07-16",action:"claim"},
+ "营地布置":{name:"营地布置",type:"支线",status:"待结算",nt:8,scope:"营队",note:"布置营地公共区域的桌椅和装饰，准备展览空间。",deadline:"2026-07-12",reviewer:"砚仁",claimedAt:"07-05",submittedAt:"07-10",reviewedAt:"07-11",completedAt:"07-11",submission:"桌椅已布置好，装饰完成。展览区留了8个展位，照片见附件。",settled:false},
+ "晨练打卡":{name:"晨练打卡",type:"日常",status:"已完成",nt:2,scope:"个人",note:"连续7天早晨6:30在洱海边晨练打卡。",deadline:"2026-07-14",claimedAt:"07-07",submittedAt:"07-13",completedAt:"07-14",submission:"7天全部完成，每天都有拍照记录。",settled:true},
+};
+function getTask(el){var h=el.closest('[style*="border-radius:10px"]');if(!h)h=el;var spans=h.querySelectorAll('span');var name='';for(var i=0;i<spans.length;i++){var t=spans[i].textContent.trim();if(TASKS[t]){name=t;break}}if(!name){var s=h.textContent.trim().split(' ')[0];name=s}return TASKS[name]||{name:name,type:'',status:'',nt:0,note:'',poster:'',deadline:'',action:''}}
+function pickChip(el){el.parentElement.querySelectorAll('.my-fchip').forEach(function(c){c.classList.remove('on')});el.classList.add('on')}
+function toggleCard(el){
+  var card=el;
+  var next=card.nextElementSibling;
+  if(next&&next.classList.contains('card-expand')){next.remove();return}
+  // Close all other expanded cards
+  document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});
+  var t=getTask(el);
+  var d=document.createElement('div');d.className='card-expand';
+  d.style.cssText='margin-bottom:6px;background:#fafbfa;border:1px solid #d0d9ce;border-radius:10px;padding:14px;font-size:.78rem;animation:fadeIn .2s ease-out';
+  var h='';
+  // 1. Scope + deadline + reviewer tags
+  h+='<div style=display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px>';
+  if(t.scope) h+='<span style=font-size:.6rem;padding:2px 8px;border-radius:6px;font-weight:600;background:'+(t.scope==='营队'?'#e8f0e8;color:#3d6b52':t.scope==='社区'?'#e0eaee;color:#4a7a82':'#f2f5f1;color:#5a6e5c')+'>'+t.scope+'</span>';
+  if(t.deadline) h+='<span style=font-size:.6rem;color:#5a6e5c>⏰ '+t.deadline+'</span>';
+  if(t.reviewer) h+='<span style=font-size:.6rem;color:#5a6e5c>✅ '+t.reviewer+'</span>';
+  h+='</div>';
+  // 2. Task description
+  if(t.note) h+='<div style=margin-bottom:10px;background:#fff;padding:10px 12px;border-radius:8px;border:1px solid #e8ede6;line-height:1.6>'+t.note+'</div>';
+  // 3. Timeline
+  h+='<div style=margin-bottom:10px;background:#fff;padding:10px 12px;border-radius:8px;border:1px solid #e8ede6>';
+  h+='<div style=font-size:.65rem;color:#5a6e5c;margin-bottom:6px>🕐 时间线</div>';
+  h+='<div style=display:flex;flex-direction:column;gap:4px;font-size:.7rem;color:#5a6e5c>';
+  if(t.claimedAt) h+='<div>📥 '+t.claimedAt+' 领取</div>';
+  if(t.submittedAt) h+='<div>📤 '+t.submittedAt+' 提交</div>';
+  if(t.reviewedAt) h+='<div>🔍 '+t.reviewedAt+' 审核</div>';
+  if(t.completedAt) h+='<div>✅ '+t.completedAt+' 完成</div>';
+  if(!t.claimedAt&&!t.submittedAt) h+='<span style=color:#aaa>暂无记录</span>';
+  h+='</div></div>';
+  // 4. Rejection note
+  if(t.reviewNote) h+='<div style=margin-bottom:10px;background:#fff5f5;padding:10px 12px;border-radius:8px;border:1px solid #f0c8c8><div style=font-size:.65rem;color:#b84c38;margin-bottom:4px>🔙 退回意见</div><div style=font-size:.75rem;color:#b84c38;line-height:1.5>'+t.reviewNote+'</div></div>';
+  // 5. Submission content
+  if(t.submission) h+='<div style=margin-bottom:10px;background:#fff;padding:10px 12px;border-radius:8px;border:1px solid #e8ede6><div style=font-size:.65rem;color:#5a6e5c;margin-bottom:4px>📤 提交内容'+(t.action==='edit'?' <span style=color:#3d6b52;cursor:pointer>✎ 修改</span>':'')+'</div><div style=font-size:.75rem;line-height:1.5>'+t.submission+'</div></div>';
+  // 6. Action button
+  if(t.action) h+='<button class=btn-pri style=padding:8px 20px;font-size:.75rem;min-width:90px;margin-top:4px">'+(t.action==='submit'?'📤 提交完成':t.action==='edit'?'📤 重新提交':t.action==='review'?'🔍 审核通过':'🎯 认领任务')+'</button>';
+  d.innerHTML=h;card.parentElement.insertBefore(d,card.nextSibling)
+}
+function openSub(t){document.getElementById('subTitle').textContent=t.name;document.getElementById('subPage').classList.add('open');
+  var h='<span class="sub-badge sb-gold">'+t.type+'</span> ';
+  h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';
+  h+='<div style="font-size:1.1rem;font-weight:700;margin-top:8px">'+t.name+'</div>';
+  h+='<div style="font-size:1.2rem;font-weight:700;color:#3d6b52;margin:4px 0">'+t.nt+' NT</div>';
+  if(t.note) h+='<div class="sub-section"><h3>任务说明</h3><p style="font-size:.85rem;line-height:1.6;color:#1d2e24">'+t.note+'</p></div>';
+  h+='<div class="sub-section"><h3>信息</h3><div class="sub-meta">';
+  if(t.poster) h+='<span>👤 '+t.poster+'</span>';
+  if(t.deadline) h+='<span>⏰ '+t.deadline+'</span>';
+  if(t.reviewer) h+='<span>✅ 审核: '+t.reviewer+'</span>';
+  if(t.slots) h+='<span>👥 '+t.slots+'</span>';
+  h+='</div></div>';
+  if(t.claimants) h+='<div class="sub-section"><h3>领取人</h3><div class="sub-meta">'+t.claimants.map(function(c){return '<span style="background:#f2f5f1;padding:4px 10px;border-radius:8px;font-size:.75rem">'+c+'</span>'}).join('')+'</div></div>';
+  h+='<div class="sub-section"><h3>提交要求</h3><div class="sub-meta"><span>☑ 文字说明</span></div></div>';
+  document.getElementById('subBody').innerHTML=h;
+  var bar=document.getElementById('subBar');
+  if(t.action==='claim'){bar.innerHTML='<button class="btn-pri btn-full" onclick="closeSub()">🎯 认领任务</button>';bar.classList.remove('hidden')}
+  else if(t.action==='submit'){bar.innerHTML='<button class="btn-pri btn-full" onclick="closeSub()">📤 提交完成</button>';bar.classList.remove('hidden')}
+  else bar.classList.add('hidden')
+}
+function closeOverlay(id){document.getElementById(id).classList.remove('open')}
+function openCommunityPage(){document.getElementById('overlayCommunity').classList.add('open')}
+function openQuestHallPage(){
+  var h='<div class="my-filters" style="padding:0 0 10px 0;border:none">';
+  h+='<span class="my-fchip on" onclick="pickChip(this);filterQuests()">全部</span>';
+  h+='<span class="my-fchip" onclick="pickChip(this);filterQuests()">可认领</span>';
+  h+='<span class="my-fchip" onclick="pickChip(this);filterQuests()">进行中</span>';
+  h+='<span class="my-fchip" onclick="pickChip(this);filterQuests()">待审核</span>';
+  h+='</div><div id="questList"></div>';
+  document.getElementById('questHallBody').innerHTML=h;
+  filterQuests();
+  document.getElementById('overlayQuestHall').classList.add('open');
+}
+function filterQuests(){
+  var chip=document.querySelector('#questHallBody .my-fchip.on');
+  var label=chip?chip.textContent:'全部';
+  var items=Object.values(TASKS);
+  if(label==='可认领') items=items.filter(function(t){return t.status==='进行中'});
+  else if(label==='进行中') items=items.filter(function(t){return t.status==='进行中'});
+  else if(label==='待审核') items=items.filter(function(t){return t.status==='待审核'||t.status==='待提交'});
+  var h='';
+  // section: 待处理
+  var urgent=items.filter(function(t){return t.status==='待提交'||t.status==='待审核'});
+  if(urgent.length&&(label==='全部'||label==='待审核')){
+    h+='<div class="event-section-label" style="color:#b84c38">🔴 待处理</div>';
+    urgent.forEach(function(t){h+=questCard(t,'#b84c38','#fde8e8')});
+  }
+  // section: 进行中
+  var active=items.filter(function(t){return t.status==='进行中'});
+  if(active.length&&(label==='全部'||label==='可认领'||label==='进行中')){
+    h+='<div class="event-section-label" style="color:#3d6b52">📋 进行中</div>';
+    active.forEach(function(t){h+=questCard(t,'#3d6b52','#e8f0e8')});
+  }
+  // section: 已完成
+  var done=items.filter(function(t){return t.status==='已完成'||t.status==='待结算'});
+  if(done.length&&label==='全部'){
+    h+='<div class="event-section-label" style="color:#5d8c52">✅ 已完成</div>';
+    done.forEach(function(t){h+=questCard(t,'#5d8c52','#e0ece0')});
+  }
+  if(!h) h='<div style="text-align:center;padding:40px;color:#5a6e5c">🏛️<br><br>暂无匹配任务</div>';
+  var list=document.getElementById('questList');if(list)list.innerHTML=h;
+}
+function questCard(t,color,bg){
+  var icon={'主线':'🎯','支线':'📋','日常':'🧹'}[t.type]||'📌';
+  var h='<div class="task-card" style="border-left:3px solid '+color+'" onclick="openTaskDetail(\''+t.name+'\')">';
+  h+='<div class="task-left" style="background:'+bg+'">'+icon+'</div>';
+  h+='<div class="task-body">';
+  h+='<div class="task-row1"><span class="task-name">'+t.name+'</span><span class="task-nt">'+t.nt+' NT</span></div>';
+  h+='<div class="task-row2">';
+  h+='<span class="task-chip" style="background:'+bg+';color:'+color+'">'+t.type+'</span>';
+  if(t.deadline) h+='<span>⏰'+t.deadline+'</span>';
+  if(t.scope) h+='<span style="color:#3d6b52">📍'+t.scope+'</span>';
+  h+='</div></div></div>';
+  return h;
+}
+function openTaskDetail(name){
+  var t=TASKS[name];if(!t)return;
+  document.getElementById('subTitle').textContent=t.name;
+  var h='<span class="sub-badge sb-gold">'+t.type+'</span> ';
+  h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';
+  h+='<div style="font-size:1.1rem;font-weight:700;margin-top:8px">'+t.name+'</div>';
+  h+='<div style="font-size:1.2rem;font-weight:700;color:#3d6b52;margin:4px 0">'+t.nt+' NT</div>';
+  if(t.note) h+='<div class="sub-section"><h3>任务说明</h3><p style="font-size:.85rem;line-height:1.6">'+t.note+'</p></div>';
+  h+='<div class="sub-section"><h3>信息</h3><div class="sub-meta">';
+  if(t.deadline) h+='<span>⏰ '+t.deadline+'</span>';
+  if(t.reviewer) h+='<span>✅ 审核: '+t.reviewer+'</span>';
+  if(t.scope) h+='<span>📍 '+t.scope+'</span>';
+  h+='</div></div>';
+  document.getElementById('subBody').innerHTML=h;
+  document.getElementById('subPage').classList.add('open');
+}
+function openMapPage(){document.getElementById('overlayMap').classList.add('open')}
+function closeSub(){document.getElementById('subPage').classList.remove('open')}
+function S(id){['scrEntry','scrIdentity','scrRegister','scrUserList'].forEach(function(s){document.getElementById(s).classList.add('hidden')});document.getElementById(id).classList.remove('hidden')}
+function R(role){var t={adventurer:'⚔️ 成为冒险者',npc:'👥 成为在地伙伴',visitor:'🏕️ 成为云村民'};document.getElementById('regTitle').textContent=t[role]||'注册';var r=document.getElementById('regInviteRow');if(role==='adventurer'||role==='npc'){r.classList.remove('hidden');document.getElementById('regInviteLabel').textContent=role==='adventurer'?'邀请码（向冒险者索取）':'NPC 邀请码（管理员发放）'}else r.classList.add('hidden');S('scrRegister')}
+function L(name){document.getElementById('loginName').value=name;document.getElementById('loginForm').classList.remove('hidden')}
+var _s=0;function cycleAvatar(){_s=(_s+1)%60}
+function enterVillage(){document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel()}
+function showMy(){document.getElementById('villagePage').classList.add('hidden');document.getElementById('myPage').classList.remove('hidden')}
+function showVillage(){document.getElementById('myPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden')}
+function initCarousel(){
+  var c=document.getElementById('villageCarousel');if(!c||c._init)return;c._init=true;
+  var p=c.querySelector('.vp-card');var pw=p?p.offsetWidth:260;c.scrollLeft=pw;
+  c.addEventListener('scroll',function(){
+    var idx=Math.round(c.scrollLeft/Math.max(pw,1));idx=Math.max(0,Math.min(2,idx));
+    document.querySelectorAll('.vdot').forEach(function(d,i){d.classList.toggle('active',i===idx)});
+    var pages=c.querySelectorAll('.vp-card');var center=c.scrollLeft+c.offsetWidth/2;
+    pages.forEach(function(pg){
+      var pc=pg.offsetLeft+pg.offsetWidth/2,dist=center-pc,t=Math.min(1,Math.max(0,Math.abs(dist)/(pg.offsetWidth*.7)));
+      pg.style.opacity=(1-t*.45);pg.style.filter='blur('+(t*2).toFixed(1)+'px)';
+      var ci=pg.querySelector('.vp-card-inner');if(ci){var v=Math.round(26+t*229);ci.style.background='rgba(255,255,255,'+(1-t*.92).toFixed(2)+')';ci.style.color='rgb('+v+','+v+','+v+')'}
+    })
+  },{passive:true});
+  document.querySelectorAll('.vdot').forEach(function(d){d.addEventListener('click',function(){var i=parseInt(this.dataset.dot);c.scrollTo({left:pw*i,behavior:'smooth'})})})
+}
+</script>
+</body>
+</html>

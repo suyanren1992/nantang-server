@@ -1,0 +1,22 @@
+{
+  "name": "实景游戏 · 南塘云村",
+  "short_name": "南塘云村",
+  "description": "共创营激励结算系统 — 南塘DAO",
+  "start_url": "nantang-mobile.html",
+  "display": "standalone",
+  "background_color": "#1d2e24",
+  "theme_color": "#1d2e24",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "92e279b22d04d4c831aec15aa09213df (1).png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "92e279b22d04d4c831aec15aa09213df (1).png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
