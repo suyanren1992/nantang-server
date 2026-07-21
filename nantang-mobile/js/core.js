@@ -3,6 +3,10 @@ function avatarImg(seed,size){return '<img src="'+avatarURL(seed,size)+'" width=
 function roleIcon(r){return r==='admin'?'🛡️':r==='builder'?'🧱':r==='adventurer'?'⚔️':r==='npc'?'🏠':'☁️'}
 function roleName(r){return r==='admin'?'管理员':r==='builder'?'共建者':r==='adventurer'?'冒险者':r==='npc'?'在地伙伴':'云村民'}
 // ═══ 公共工具函数 ═══
+function _isOffline() { return !window.API || !API.token || API._serverOnline === false || window.location.protocol === 'file:'; }
+function _guardOnline(action) { if (_isOffline()) { showToast('离线模式，无法'+action,'warn'); return true; } return false; }
+// 更新离线 badge 显示
+setInterval(function(){ var b=document.getElementById('offlineBadge'); if(b)b.style.display=_isOffline()?'inline':'none'; }, 5000);
 function closeAllExpands(){document.querySelectorAll('.card-expand,.submit-expand,.settle-expand,.withdraw-expand,.review-expand,.unclaim-expand,.submission-sub,.ledger-expand,.archive-detail,.confirm-card,.toast-card,.avatar-picker').forEach(function(c){c.remove()})}
 function isTaskOverdue(t){return t.deadline&&t.deadline<today()&&t.status!=='已结算'&&t.status!=='待结算'}
 function _processOverdueTasks(){Object.values(TASKS).forEach(function(t){if(isTaskOverdue(t)){t.action='overdue';AppData.updateTask(t.name,{action:'overdue'});}})}
@@ -261,6 +265,16 @@ function onBuilderPicked(name) {
 }
 var _secFold={claimable:false,active:false,done:false};
 var _pollTimer = null;
+// M5: 离线指示器
+(function(){
+  var _offBar = document.createElement('div'); _offBar.id = '_offlineBar';
+  _offBar.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;z-index:9999;height:3px;background:#f0a030;text-align:center;font-size:.55rem;color:#fff;line-height:18px;padding:1px';
+  _offBar.textContent = '📡 离线';
+  document.body.appendChild(_offBar);
+  function _update(){ _offBar.style.display = navigator.onLine ? 'none' : 'block'; }
+  window.addEventListener('online',_update); window.addEventListener('offline',_update);
+  _update();
+})();
 function _startPolling() {
   if (_pollTimer) return;
   if (typeof API === 'undefined' || !API.token) return;
@@ -448,7 +462,7 @@ function toggleQuestCard(el,name){
   // 操作按钮
   var btns='';var inHall=el.closest('#questHallBody')!==null;
   var isMyClaim=cs.some(function(c){return c.name===CURRENT_USER});
-  var isReviewer=t.reviewer===CURRENT_USER;
+  var isReviewer=t.reviewer===CURRENT_USER||(!t.reviewer&&t.publisher===CURRENT_USER);
   var isPublisher=t.publisher===CURRENT_USER;
   var isSettler=(t.settler||t.settler_id||t.publisher)===CURRENT_USER;
   if(t.status==='draft') btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="publishDraft(\''+esc(t.name)+'\')">✅ 发布草稿</button><button class="btn-sm danger" onclick="deleteDraft(\''+esc(t.name)+'\')">🗑️ 删除</button></div>';

@@ -912,14 +912,14 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
             t.debt += NIGHTLY_RATE
         t.last_deducted = today
 
-    # 2. 社区池补填
-    if pool.balance < 500:
-        pool.balance += 50
-        pool.total_issued += 50
+    # 2. 社区池补填 (M2: 50→20，20人规模轻度补填)
+    if pool.balance < 300:
+        pool.balance += 20
+        pool.total_issued += 20
         lid_r = _ledger_id()
-        await _add_ledger(db, lid_r, None, "community_pool", 50, "pool_refill",
+        await _add_ledger(db, lid_r, None, "community_pool", 20, "pool_refill",
                          f"每日补填 {today}", status="settled")
-        results["pool_refill"] = 50
+        results["pool_refill"] = 20
 
     pool.last_tick_date = today
     await db.commit()

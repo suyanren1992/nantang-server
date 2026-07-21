@@ -59,7 +59,7 @@ function _defaultConfig() { return {
   farming_pricing: { harvest:15, plant:5, water:5, weed:5, fertilize:5, view:2 },
   kitchen_pricing: { stock_in:2, stock_out:1, detail:5 },
   cooking_pricing: { chef:15, helper:5, wash:5 },
-  verifier_reward_pct: 0.2,
+  verifier_reward_pct: 0.25,  // M1: 20%→25%，小社区更需激励校核供给
   accommodation_pricing: {
     dorm101:{ perBed:20, ac:false }, dorm102:{ perBed:30, ac:true },
     dorm103:{ perBed:30, ac:true }, dorm104:{ perRoom:60, ac:true },
@@ -1075,50 +1075,150 @@ function _showFieldSheet() {
 }
 
 // ── 住宿：选房间→展开床位→选床→填日期→申请入住 ──
-var _selectedBed = null, _expandedRoom = null;
+var _selectedBed = null, _expandedRoom = null, _expandedBed = null;
 function _showStaySheet() {
   var mapData = (window.AppData && AppData._data && AppData._data.map_locations) ? AppData._data.map_locations : {};
   var accs = (mapData.accommodations && Object.keys(mapData.accommodations).length) ? mapData.accommodations : (_ml().accommodations || {});
-  // 种子数据兜底
   if (!Object.keys(accs).length) {
-    accs = { dorm101:{type:'triple_bunk',label:'A室·三人大通铺',ac:'无',pricePerBed:20,beds:3,tenants:[]},dorm102:{type:'quad_bunk',label:'B室·四人大通铺',ac:'有',pricePerBed:30,beds:4,tenants:[]},dorm103:{type:'bunk_double',label:'C室·上下床+大床',ac:'有',pricePerBed:30,beds:3,tenants:[]},dorm104:{type:'single',label:'D室·单间大床房',ac:'有',pricePerBed:60,beds:1,tenants:[]},dorm105:{type:'quad_bunk2',label:'E室·两个上下床',ac:'有',pricePerBed:30,beds:4,tenants:[]},dorm106:{type:'bunk_4',label:'F室·四人间上下床',ac:'有',pricePerBed:30,beds:4,tenants:[]} };
+    accs = { dorm101:{label:'A室·三人通铺',ac:'无',pricePerBed:20,beds:3,tenants:[]},dorm102:{label:'B室·四人通铺',ac:'有',pricePerBed:30,beds:4,tenants:[]},dorm103:{label:'C室·上下床',ac:'有',pricePerBed:30,beds:3,tenants:[]},dorm104:{label:'D室·单间',ac:'有',pricePerBed:60,beds:1,tenants:[]},dorm105:{label:'E室·上下床×2',ac:'有',pricePerBed:30,beds:4,tenants:[]},dorm106:{label:'F室·四人间',ac:'有',pricePerBed:35,beds:4,tenants:[]} };
   }
   var rooms = Object.keys(accs).map(function(k){ var a=accs[k]; a._id=k; if(!a.tenants)a.tenants=[]; if(!a.pricePerBed)a.pricePerBed=a.rentNT||30; return a; });
   var me = _me();
+  var activeRoom = _expandedRoom ? accs[_expandedRoom] : null;
+  if (!activeRoom && rooms.length) { _expandedRoom = rooms[0]._id; activeRoom = rooms[0]; }
+  if (activeRoom && !activeRoom.tenants) activeRoom.tenants = [];
+
   var h = '';
+  h += '<style>';
+  h += '.rm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}';
+  h += '.rm-card{background:#fff;border:2px solid #d0d9ce;border-radius:10px;overflow:hidden;cursor:pointer;transition:.12s}';
+  h += '.rm-card:active{transform:scale(.97)}';
+  h += '.rm-card.active{border-color:var(--green-primary);box-shadow:0 0 0 2px var(--green-primary)}';
+  h += '.rm-inner{display:flex;flex-direction:column;align-items:center;padding:12px 6px 8px}';
+  h += '.rm-icon{font-size:1.4rem}.rm-label{font-size:.65rem;font-weight:700;color:var(--tx);margin-top:2px}';
+  h += '.rm-tags{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;justify-content:center}';
+  h += '.rm-tag{font-size:.45rem;padding:1px 5px;border-radius:5px;background:#f0f0f0;color:#7a7a7a}';
+  h += '.rm-tag.noac{background:#fef0d0;color:#8a6a30}';
+  h += '.rm-tag.item{background:#e8f5e8;color:var(--gp)}';
+  h += '.rm-occ{font-size:.5rem;font-weight:600;margin-top:3px;padding:1px 6px;border-radius:6px}';
+  h += '.rm-occ.full{background:#fde8e8;color:var(--red)}.rm-occ.partial{background:#fef8e8;color:var(--ga)}.rm-occ.empty{background:#e8f5e8;color:var(--gp)}';
+  h += '.rm-tenants{font-size:.48rem;color:var(--t2);margin-top:3px;text-align:center;line-height:1.3;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
+  // ── 床位面板（全宽，下方）──
+  h += '.bp-panel{margin-top:2px}';
+  h += '.bp-head{font-size:.72rem;font-weight:700;color:var(--tx);padding:6px 0 8px;display:flex;align-items:center;gap:6px}';
+  h += '.bp-head .rm-tags{display:inline-flex;margin-top:0}';
+  h += '.rm-items-row{font-size:.52rem;color:var(--t2);padding:4px 0 8px}';
+  h += '.rm-items-row span{margin-right:6px}';
+  h += '.rm-add-item{color:var(--gp);cursor:pointer;text-decoration:underline}';
+  h += '.bk-card{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;cursor:pointer;font-size:.68rem;min-height:50px;border:1.5px solid #e0e0e0;background:#fff;transition:.1s}';
+  h += '.bk-card:active{background:#f8faf8}.bk-card.occ{background:#fafcf8}.bk-card.vac{border-style:dashed;border-color:#d0d9ce}';
+  h += '.bk-card.sel{border-color:var(--gp);background:#e8f5e8}';
+  h += '.bk-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}';
+  h += '.bk-num.tkn{background:#e8e8e8;color:#999}.bk-num.free{background:#e8f0e8;color:var(--gp)}';
+  h += '.bk-info{flex:1;min-width:0}';
+  h += '.bk-name{font-weight:600;font-size:.7rem;color:var(--tx)}.bk-meta{font-size:.5rem;color:#999;margin-top:1px}';
+  h += '.bk-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}';
+  h += '.bk-price{font-size:.58rem;color:var(--gp);font-weight:700}.bk-days{font-size:.45rem;color:#999}';
+  h += '.bk-det{display:none;padding:10px 12px;margin:-2px 0 8px 44px;background:#fafaf8;border-radius:8px;border:1px solid #e8ede6;font-size:.6rem}';
+  h += '.bk-det.open{display:block}.bk-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--t2)}.bk-row b{color:var(--tx)}';
+  h += '.stay-bar{display:flex;gap:8px;margin-top:12px;align-items:flex-end;padding-top:8px;border-top:1px solid #e8ede6}';
+  h += '.stay-bar label{flex:1;font-size:.55rem;color:#999}';
+  h += '.stay-bar input{width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.65rem;margin-top:3px}';
+  h += '.stay-btn{width:100%;padding:12px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;border:none;margin-top:8px;min-height:48px}';
+  h += '.stay-btn.go{background:var(--gp);color:#fff}.stay-btn.out{background:var(--rd);color:#fff}.stay-btn.pri{background:var(--gp);color:#fff}';
+  h += '.stay-btn:active{transform:scale(.97)}';
+  h += '</style>';
+
+  // ── 房间卡片网格（上方）──
+  h += '<div class="rm-grid">';
   rooms.forEach(function(r){
-    var myBed = r.tenants.find(function(t){return t.name===me;});
-    var occupiedBeds = r.tenants.length;
-    var full = occupiedBeds >= (r.beds||1);
-    var price = r.pricePerBed || 30;
-    var expanded = _expandedRoom === r._id || myBed;
-    h += '<div style="border:1px solid '+(myBed?'var(--green-primary)':'#e0e0e0')+';border-radius:10px;padding:10px;margin-bottom:6px;'+(myBed?'background:#f5faf5':'')+_seedStyle(r)+'">'+
-      '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="_expandRoom(\''+r._id+'\')"><b style="font-size:.7rem">'+r.label+'</b><span style="font-size:.6rem;color:#999">'+price+'NT/床/天 · '+r.ac+' · '+occupiedBeds+'/'+r.beds+'床 <span style="font-size:.55rem">'+(expanded?'▾':'▸')+'</span></span></div>';
-    if (expanded) {
-      var beds = '';
-      for (var b=1; b<=r.beds; b++) {
-        var taken = r.tenants.find(function(t){return t.bed===b;});
-        var sel = _selectedBed && _selectedBed.room===r._id && _selectedBed.bed===b;
-        var bg = sel?'var(--green-primary);color:#fff':taken?'#f0f0f0;color:#ccc':'#e8f0e8;color:#5a6e5c';
-        var txt = taken?'✕':sel?'✓':b;
-        var click = taken?'':' onclick="_selectBed(\''+r._id+'\','+b+')"';
-        beds += '<span style="display:inline-block;width:34px;height:34px;line-height:34px;border-radius:6px;margin:2px;text-align:center;font-size:.65rem;cursor:'+(taken?'default':'pointer')+';background:'+bg+'"'+click+'>'+txt+'</span>';
+    var occ=r.tenants.length,total=r.beds||1,full=occ>=total,empty=!occ;
+    var occCls=full?'full':empty?'empty':'partial';
+    var icon=r._id.indexOf('104')>=0?'🛏️':r._id.indexOf('103')>=0?'🛌':total>=4?'🏠':'🚪';
+    var active=_expandedRoom===r._id;
+    var tenantNames=r.tenants.map(function(t){return t.name}).join(' · ')||'空置';
+    var noAC=r.ac==='无';
+    h += '<div class="rm-card'+(active?' active':'')+'" onclick="_pickRoom(\''+r._id+'\')">';
+    h += '<div class="rm-inner">';
+    h += '<div class="rm-icon">'+icon+'</div>';
+    h += '<div class="rm-label">'+r.label+'</div>';
+    h += '<div class="rm-tags">';
+    h += '<span class="rm-tag'+(noAC?' noac':'')+'">'+(noAC?'❄️无空调':'❄️有空调')+'</span>';
+    h += '<span class="rm-tag">💵'+r.pricePerBed+'NT</span>';
+    if(r._id==='dorm101')h+='<span class="rm-tag item">🧰</span>';
+    h += '</div>';
+    h += '<div class="rm-occ '+occCls+'">'+occ+'/'+total+' 人</div>';
+    h += '<div class="rm-tenants">👤 '+tenantNames+'</div>';
+    h += '</div></div>';
+  });
+  h += '</div>';
+
+  // ── 床位面板（下方，全宽）──
+  if (activeRoom) {
+    var r = activeRoom; var rid = r._id;
+    var noAC = r.ac==='无';
+    h += '<div class="bp-panel">';
+    h += '<div class="bp-head">🛏 '+r.label+'<div class="rm-tags" style="display:inline-flex">';
+    h += '<span class="rm-tag'+(noAC?' noac':'')+'">'+(noAC?'❄️无空调':'❄️有空调')+'</span>';
+    h += '<span class="rm-tag">💵'+r.pricePerBed+'NT/天</span>';
+    h += '</div></div>';
+    // A室物品
+    if (rid==='dorm101') {
+      var items = r.items || [];
+      h += '<div class="rm-items-row">🧰 房间物品：';
+      if(items.length){items.forEach(function(it){h+='<span>'+it+'</span>';})}else{h+='<span style="color:#aaa">暂无</span>';}
+      h += ' <span class="rm-add-item" onclick="event.stopPropagation();_addRoomItem(\''+rid+'\')">+添加</span></div>';
+    }
+    for (var b=1; b<=(r.beds||1); b++) {
+      var taken = r.tenants.find(function(t){return t.bed===b;});
+      var sel = _selectedBed && _selectedBed.room===rid && _selectedBed.bed===b;
+      var bOpen = _expandedBed && _expandedBed.room===rid && _expandedBed.bed===b;
+      var days = taken ? Math.max(1, Math.ceil((new Date(new Date().getFullYear()+'-'+taken.checkOut.replace('/','-'))-new Date(new Date().getFullYear()+'-'+taken.checkIn.replace('/','-')))/86400000)) : 0;
+      h += '<div class="bk-card'+(taken?' occ':' vac')+(sel?' sel':'')+'" onclick="'+(taken?'_expandBed(\''+rid+'\','+b+')':'_selectBed(\''+rid+'\','+b+')')+'">';
+      h += '<div class="bk-num'+(taken?' tkn':' free')+'">'+(taken?(taken.name||'?')[0]:b)+'</div>';
+      h += '<div class="bk-info">';
+      h += '<div class="bk-name">'+(taken?'床'+b+' · '+taken.name:'床'+b+' · 空置')+'</div>';
+      h += '<div class="bk-meta">'+(taken?taken.checkIn+' → '+taken.checkOut+' · '+days+'天':'点击选择此床位入住')+'</div>';
+      h += '</div>';
+      h += '<div class="bk-right"><div class="bk-price">'+r.pricePerBed+'NT</div><div class="bk-days">/天'+(taken?' · '+days+'天':'')+'</div></div>';
+      h += '</div>';
+      // 展开详情
+      if (bOpen && taken) {
+        var totalP = days * r.pricePerBed;
+        h += '<div class="bk-det open">';
+        h += '<div class="bk-row"><span>🛏 床号</span><b>床'+b+'</b></div>';
+        h += '<div class="bk-row"><span>👤 入住人</span><b>'+taken.name+'</b></div>';
+        h += '<div class="bk-row"><span>📅 入住</span><b>'+taken.checkIn+'</b></div>';
+        h += '<div class="bk-row"><span>📅 离店</span><b>'+taken.checkOut+'</b></div>';
+        h += '<div class="bk-row"><span>📆 天数</span><b>'+days+'天</b></div>';
+        h += '<div class="bk-row"><span>💵 每日房费</span><b>'+r.pricePerBed+' NT</b></div>';
+        h += '<div class="bk-row" style="border-top:1px solid #e8ede6;padding-top:4px;font-weight:700"><span>💰 合计</span><b style="color:var(--gp)">'+totalP+' NT</b></div>';
+        if (taken.name===me) h += '<button class="stay-btn out" style="margin-top:6px;font-size:.6rem;min-height:36px" onclick="_checkoutBed()">🚪 退房</button>';
+        h += '</div>';
       }
-      h += '<div style="margin:8px 0 4px">'+beds+'</div>';
-      r.tenants.forEach(function(t){
-        h += '<div style="font-size:.58rem;color:#999;margin:1px 0">🛏 床'+t.bed+' · '+t.name+' · '+t.checkIn+'→'+t.checkOut+'</div>';
-      });
-      if (myBed) h += '<button class="btn-sm danger" style="width:100%;margin-top:6px;font-size:.6rem;min-height:36px" onclick="_checkoutBed()">🚪 退房</button>';
     }
     h += '</div>';
-  });
-  h += '<div style="margin-top:8px;padding:8px;background:#fafaf5;border-radius:8px;font-size:.6rem;color:#999">💡 点房间展开选床位，填日期后申请入住。按床位收费</div>';
-  h += '<div style="display:flex;gap:6px;margin-top:8px"><label style="flex:1;font-size:.58rem;color:#999">入住<input type="date" id="stayInDate" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.65rem;margin-top:2px"></label><label style="flex:1;font-size:.58rem;color:#999">离店<input type="date" id="stayOutDate" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.65rem;margin-top:2px"></label></div>';
-  h += '<button class="btn-sm pri" style="width:100%;margin-top:6px;min-height:44px" onclick="_applyStay()">✅ 申请入住</button>';
+  }
+
+  // ── 底部操作栏 ──
+  var myBed = activeRoom ? activeRoom.tenants.find(function(t){return t.name===me;}) : null;
+  h += '<div class="stay-bar"><label>入住日期<input type="date" id="stayInDate"></label><label>离店日期<input type="date" id="stayOutDate"></label></div>';
+  if (myBed) {
+    h += '<button class="stay-btn out" onclick="_checkoutBed()">🚪 退房（床'+myBed.bed+' · '+myBed.checkIn+'→'+myBed.checkOut+'）</button>';
+  } else {
+    h += '<button class="stay-btn go" onclick="_applyStay()">✅ 申请入住</button>';
+  }
   _showCardPopup('🛏️ 住宿', h, null, true);
 }
-function _expandRoom(id) { _expandedRoom = (_expandedRoom===id ? null : id); _showStaySheet(); }
-function _selectBed(roomId, bedNum) { _selectedBed = { room: roomId, bed: bedNum }; _showStaySheet(); }
+function _pickRoom(id) { _expandedRoom = id; _expandedBed = null; _selectedBed = null; _showStaySheet(); }
+function _selectBed(roomId, bedNum) { _expandedRoom = roomId; _selectedBed = { room: roomId, bed: bedNum }; _expandedBed = null; _showStaySheet(); }
+function _expandBed(roomId, bedNum) { _expandedRoom = roomId; _expandedBed = (_expandedBed&&_expandedBed.room===roomId&&_expandedBed.bed===bedNum) ? null : {room:roomId,bed:bedNum}; _showStaySheet(); }
+function _addRoomItem(roomId) {
+  var accs = _ml().accommodations || {}; var room = accs[roomId]; if(!room) return;
+  var item = prompt('添加房间物品（如：风扇、毯子、蚊香）：'); if(!item||!item.trim()) return;
+  if(!room.items) room.items = []; room.items.push(item.trim());
+  if(window.AppData) AppData._saveShared(true); _showStaySheet();
+}
 function _checkoutBed() {
   var me = _me();
   var accs = _ml().accommodations || {};
@@ -1172,6 +1272,9 @@ function _applyStay() {
       API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(e){console.warn('[checkin] sync failed',e)});
     }
     if (window.Game&&Game.toast) Game.toast('已入住 '+room.label+' 床位'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
+    // 签约公约 + 角色升级（确认后才执行）
+    if (typeof _completeNewbieQuest === 'function') { _completeNewbieQuest(_me(), 'sign_covenant'); }
+    if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
     // 新手引导
     if (typeof showNewbieOnEntry === 'function') setTimeout(function(){ showNewbieOnEntry(); }, 400);
     _selectedBed = null; _expandedRoom = null;
@@ -1180,11 +1283,11 @@ function _applyStay() {
   };
 
   // 弹出公约确认
-  if (typeof showConfirm === 'function') { showConfirm('📜 南塘社区公约', '入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费', function() { _applyStayConfirm(); }); return; }
+  if (typeof showConfirm === 'function') {
+    showConfirm('📜 签署公约并入住？\n\n入住即表示你同意：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费', doCheckin);
+    return;
+  }
   if (!confirm('📜 南塘社区公约\n\n入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费\n\n点击「确定」签署公约并入住')) return;
-  // CR3: quest + 角色变更在 confirm 之后执行
-  if (typeof _completeNewbieQuest === 'function') { _completeNewbieQuest(_me(), 'sign_covenant'); }
-  if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
   doCheckin();
 }
 

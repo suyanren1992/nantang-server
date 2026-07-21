@@ -358,7 +358,7 @@ if (window.location.protocol !== 'file:') {
       <div class="npc-avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=nantang-guide&size=44" width="44" height="44" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML='👤'"></div>
       <div class="npc-bubble">👋 欢迎来到任务大厅！<br><span style="font-size:.65rem;color:#5a5a5a">有什么可以帮你的？</span></div>
     </div>
-    <div class="quest-search"><input type="text" class="quest-search-input" placeholder="🔍 搜索任务名称或关键字…" oninput="filterQuests()" id="questSearchInput"></div>
+    <div class="quest-search"><input type="text" class="quest-search-input" placeholder="🔍 搜索任务名称或关键字…" oninput="_debounce('qs',250,filterQuests)" id="questSearchInput"></div>
     <div class="my-filters primary-filters" style="padding:0 0 6px 0;border:none">
       <span class="my-fchip on" onclick="pickChip(this);filterQuests()">全部</span>
       <span class="my-fchip" onclick="pickChip(this);filterQuests()">营队</span>
@@ -537,6 +537,7 @@ function _isInboxUnread(msgId) {
 function _markInboxRead(msgId) {
   _inboxReadIds[msgId] = true;
   try { localStorage.setItem('nt_inbox_read', JSON.stringify(_inboxReadIds)); } catch(e) {}
+  if (typeof updateInboxBadge === 'function') updateInboxBadge();
 }
 
 var _inboxMsgCache = { ts: 0, msgs: null };
@@ -628,6 +629,22 @@ function _computeInboxMessages() {
     });
   });
 
+  // 6. 任务提交 — 有人提交了待审核的任务
+  var tasksData = (window.AppData && AppData._data.tasks) ? AppData._data.tasks : {};
+  Object.values(tasksData).forEach(function(t) {
+    (t.claimants || []).forEach(function(c) {
+      if (c.status === 'submitted' || c.submission) {
+        msgs.push({
+          id: 't_sub_'+t.name+'_'+c.name, category:'校核', icon:'📤',
+          text: c.name + ' 提交了任务「'+t.name+'」',
+          sub: '待审核 · +'+t.nt+' NT',
+          createdAt: c.submittedAt || t.claimedAt || now,
+          jumpType:'', jumpId:''
+        });
+      }
+    });
+  });
+
   msgs.sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); });
   _inboxMsgCache = { ts: Date.now(), msgs: msgs };
   return msgs;
@@ -683,7 +700,7 @@ function _renderInbox() {
   h += '</div>';
 
   var content = document.getElementById('inboxContent');
-  if (content) content.innerHTML = h;
+  if (content) { content.innerHTML = h; if (typeof updateInboxBadge === 'function') updateInboxBadge(); }
 }
 
 function _toggleInbox() {
