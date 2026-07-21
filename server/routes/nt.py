@@ -234,8 +234,12 @@ async def spend(req: EarnSpendRequest, user: User = Depends(get_current_user), d
     if user.nt_balance < req.amount:
         raise HTTPException(status_code=400, detail=f"余额不足（当前 {user.nt_balance} NT）")
 
-    user.nt_balance -= req.amount
-    user.updated_at = datetime.utcnow().isoformat()
+    # 重新查询加行锁防并发扣款
+    user_locked = (await db.execute(select(User).where(User.id == user.id).with_for_update())).scalar_one_or_none()
+    if not user_locked or user_locked.nt_balance < req.amount:
+        raise HTTPException(status_code=400, detail="余额不足")
+    user_locked.nt_balance -= req.amount
+    user_locked.updated_at = datetime.utcnow().isoformat()
 
     # spend returns to pool — camp-scope routes to camp_balance
     pool = await _get_pool(db)
@@ -605,7 +609,7 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
 async def settle_task(task_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
     """结算任务——仅任务发布者或管理员可操作。ponytail: 最小实现。"""
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")

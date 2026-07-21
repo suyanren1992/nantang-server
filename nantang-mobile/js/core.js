@@ -267,7 +267,7 @@ function _startPolling() {
   var _pollInterval = 30000;  // C4: 30s 全量同步
   function _pollCycle() {
     API.request('GET', '/api/nt/sync').then(function(srv) {
-      if (srv && srv.detail === 'unauthorized') { _stopPolling(); return; }
+      if (srv && (srv.detail === 'unauthorized' || srv.error === '登录过期')) { _stopPolling(); return; }
       if (srv && !srv.detail) _mergeNTSyncData(srv);
     }).catch(function(e){console.warn('[poll] sync failed',e)});
     // 退避

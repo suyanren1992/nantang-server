@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
-    reward: int = 5
+    reward: int = Field(5, ge=1, le=10000)
     category: str = "other"
     scope: str = "社区"
     note: str = ""

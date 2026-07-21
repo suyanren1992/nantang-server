@@ -4,6 +4,7 @@ var API = {
   token: null,
   _consecutiveFailures: 0,
   _serverOnline: true,  // access token，仅存 JS 内存，不落 localStorage
+  _refreshInProgress: null,  // Promise|null — 防并发重入
   user: null,   // 当前用户信息
   init: function(baseUrl) {
     if (window.location.protocol !== 'file:') { this.base = ''; }
@@ -21,7 +22,28 @@ var API = {
       var resp = await fetch(url, opts);
       this._consecutiveFailures = 0;
       if (!this._serverOnline) { this._serverOnline = true; if (typeof showToast === 'function') showToast('已重新连接', 'ok'); }
-      if (resp.status === 401) { this.token = null; return { ok: false, error: '登录过期', _offline: false }; }
+      if (resp.status === 401) {
+        var self = this;
+        // 防并发：多个请求同时401时共享一次refresh
+        if (!self._refreshInProgress) {
+          self._refreshInProgress = new Promise(function(resolve) {
+            self.silentRefresh(function(user) { resolve(!!user); });
+          });
+        }
+        var refreshed = await self._refreshInProgress;
+        self._refreshInProgress = null;
+        if (refreshed && self.token) {
+          // 重试原请求一次
+          var retryHeaders = { 'Content-Type': 'application/json' };
+          retryHeaders['Authorization'] = 'Bearer ' + self.token;
+          var retryOpts = { method: method, headers: retryHeaders, credentials: 'include' };
+          if (body) retryOpts.body = JSON.stringify(body);
+          var retryResp = await fetch(url, retryOpts);
+          if (retryResp.status !== 401) { self._consecutiveFailures = 0; return await retryResp.json(); }
+        }
+        self.token = null;
+        return { ok: false, error: '登录过期', _offline: false };
+      }
       return await resp.json();
     } catch(e) {
       this._consecutiveFailures++;

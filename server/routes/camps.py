@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 import json
 from database import get_db
@@ -11,6 +11,31 @@ from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
 
 router = APIRouter(prefix="/api/camps", tags=["camps"])
+
+
+class CampBudget(BaseModel):
+    adventurers: int = Field(0, ge=0)
+    builders: int = Field(0, ge=0)
+    lodgingNT: int = Field(0, ge=0)
+    mealNT: int = Field(0, ge=0)
+
+
+class CampCreateRequest(BaseModel):
+    name: str = ""
+    emoji: str = "🏕️"
+    theme: str = ""
+    desc: str = ""
+    status: str = "active"
+    date: str = ""
+    people: int = Field(0, ge=0)
+    max: int = Field(16, ge=1, le=100)
+    location: str = "南塘合作社大院"
+    highlights: list = []
+    budget: CampBudget = CampBudget()
+    schedule: list = []
+    milestones: list = []
+    builders: list = []
+    tasks: list = []
 
 
 def _camp_id():
@@ -36,35 +61,33 @@ async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = 
 
 
 @router.post("")
-async def create_camp(req: dict, user: User = Depends(require_admin),
+async def create_camp(req: CampCreateRequest, user: User = Depends(require_admin),
                       db: AsyncSession = Depends(get_db)):
     camp = Camp(
-        id=req.get("id") or _camp_id(),
-        name=req.get("name", ""), emoji=req.get("emoji", "🏕️"),
-        theme=req.get("theme", ""), desc=req.get("desc", ""),
-        status=req.get("status", "active"), date=req.get("date", ""),
-        people=req.get("people", 0), max=req.get("max", 16),
-        location=req.get("location", "南塘合作社大院"),
-        highlights=json.dumps(req.get("highlights", []), ensure_ascii=False),
-        budget=json.dumps(req.get("budget", {}), ensure_ascii=False),
-        schedule=json.dumps(req.get("schedule", []), ensure_ascii=False),
-        milestones=json.dumps(req.get("milestones", []), ensure_ascii=False),
+        id=_camp_id(),
+        name=req.name, emoji=req.emoji,
+        theme=req.theme, desc=req.desc,
+        status=req.status, date=req.date,
+        people=req.people, max=req.max,
+        location=req.location,
+        highlights=json.dumps(req.highlights, ensure_ascii=False),
+        budget=req.budget.model_dump_json(),
+        schedule=json.dumps(req.schedule, ensure_ascii=False),
+        milestones=json.dumps(req.milestones, ensure_ascii=False),
         created_by=user.id,
         launched_at=datetime.utcnow().isoformat(),
         created_at=datetime.utcnow().isoformat(),
     )
     db.add(camp)
     # Builders
-    builders = req.get("builders", [])
-    for b in builders:
+    for b in req.builders:
         db.add(CampBuilder(camp_id=camp.id, name=b.get("name", ""), role=b.get("role", ""),
                            task_names=json.dumps(b.get("taskNames", []), ensure_ascii=False),
                            total_nt=b.get("totalNT", 0), confirmed=b.get("confirmed", 0)))
     # Tasks — T7: 营地任务走 NTTask(scope='camp')
-    tasks = req.get("tasks", [])
-    for t in tasks:
+    for t in req.tasks:
         db.add(NTTask(
-            id=f"camp_{camp.id}_{t.get('name','')}_{len(tasks)}",
+            id=f"camp_{camp.id}_{t.get('name','')}_{len(req.tasks)}",
             poster=t.get("poster", ""), title=t.get("name", ""), reward=t.get("nt", 0),
             status=t.get("status", "draft"), category=t.get("type", ""),
             scope="camp", camp_ref_id=camp.id,
@@ -72,23 +95,20 @@ async def create_camp(req: dict, user: User = Depends(require_admin),
             deadline=t.get("deadline", ""), reviewer=t.get("reviewer", ""),
             claimants=json.dumps(t.get("claimants", []), ensure_ascii=False)))
     # Budget NT → camp_pool topup
-    budget = req.get("budget", {})
-    if budget:
-        adv = budget.get("adventurers", 0)
-        bld = budget.get("builders", 0)
-        people = adv + bld
-        schedule = req.get("schedule", [])
-        days = len((schedule[0] or {}).get("cells", [])) if schedule else 8
-        if days == 0: days = 8
-        lodging = budget.get("lodgingNT", 0)
-        meal = budget.get("mealNT", 0)
-        camp_total = lodging * people * days + meal * people * days
-        if camp_total > 0:
-            pool = await _get_pool(db)
-            pool.total_issued += camp_total
-            pool.camp_balance += camp_total
-            lid = _ledger_id()
-            await _add_ledger(db, lid, None, "camp_pool", camp_total, "topup", f"营队注资: {camp.name}")
+    adv = req.budget.adventurers
+    bld = req.budget.builders
+    people = adv + bld
+    days = len((req.schedule[0] or {}).get("cells", [])) if req.schedule else 8
+    if days == 0: days = 8
+    lodging = req.budget.lodgingNT
+    meal = req.budget.mealNT
+    camp_total = lodging * people * days + meal * people * days
+    if camp_total > 0:
+        pool = await _get_pool(db)
+        pool.total_issued += camp_total
+        pool.camp_balance += camp_total
+        lid = _ledger_id()
+        await _add_ledger(db, lid, None, "camp_pool", camp_total, "topup", f"营队注资: {camp.name}")
 
     await db.commit()
     return {"ok": True, "camp_id": camp.id}
