@@ -98,7 +98,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
 
     # 冻结余额：本人发布且 escrow 未释放的任务的 escrow_amount
     frozen = 0
-    frozen_statuses = ("进行中", "待审核", "待结算", "已争议")
+    frozen_statuses = ("进行中", "待提交", "待审核", "退回修改", "待结算", "已争议")
     for t in all_tasks:
         if t.poster == user.id and t.status in frozen_statuses:
             frozen += t.escrow_amount if t.escrow_amount is not None else (t.reward * (t.slots or 1))
@@ -123,6 +123,13 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
                         "status": d.status, "created_at": d.created_at, "tx_hash": d.tx_hash}
                        for d in di_r.scalars()]
 
+    # R6: 所有活跃入住记录
+    from models import Tenancy as _Tenancy
+    all_tenancies = [
+        {"room_id": t.room_id, "bed_num": t.bed_num, "user_id": t.user_id,
+         "checkin_date": t.checkin_date, "debt": t.debt}
+        for t in (await db.execute(select(_Tenancy).where(_Tenancy.status == "active"))).scalars()
+    ]
     # 任务
     tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
               "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
@@ -142,6 +149,8 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
         "wallet_address": user.wallet_address,
         "ledger": ledger, "tasks": tasks, "deposit_intents": deposit_intents,
         "task_statuses": TASK_STATUSES,
+        # R6: 所有活跃入住记录（供客户端住宿面板同步）
+        "all_tenancies": all_tenancies,
         # ponytail: C2/C2.5 就位后补 accommodation + pending_verifications
         "accommodation": await _get_accommodation_status(db, user.id),
         "pending_verifications": [
@@ -894,22 +903,24 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     tenancies_r = await db.execute(
         select(Tenancy).where(Tenancy.status == "active")
     )
-    NIGHTLY_RATE = int(os.environ.get("NIGHTLY_RATE", "28"))  # 公约定价均价：20-60NT/床，默认28
+    # 公约定价：每房不同价格（大地书房2F dorm101-106）
+    BED_RATES = {"dorm101":20,"dorm102":30,"dorm103":30,"dorm104":60,"dorm105":30,"dorm106":35}
     for t in tenancies_r.scalars():
         if t.last_deducted == today:
             continue
         tenant_user = (await db.execute(select(User).where(User.id == t.user_id))).scalar_one_or_none()
         if not tenant_user:
             continue
-        if tenant_user.nt_balance >= NIGHTLY_RATE:
-            tenant_user.nt_balance -= NIGHTLY_RATE
-            pool.balance += NIGHTLY_RATE
+        rate = BED_RATES.get(t.room_id, 28)  # fallback 均价 28
+        if tenant_user.nt_balance >= rate:
+            tenant_user.nt_balance -= rate
+            pool.balance += rate
             lid = _ledger_id()
-            await _add_ledger(db, lid, tenant_user.id, "community_pool", NIGHTLY_RATE,
+            await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
                               "accommodation_fee", f"住宿费 {today}", status="settled")
-            results["accommodation_fees"] += NIGHTLY_RATE
+            results["accommodation_fees"] += rate
         else:
-            t.debt += NIGHTLY_RATE
+            t.debt += rate
         t.last_deducted = today
 
     # 2. 社区池补填 (M2: 50→20，20人规模轻度补填)
@@ -920,6 +931,27 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
         await _add_ledger(db, lid_r, None, "community_pool", 20, "pool_refill",
                          f"每日补填 {today}", status="settled")
         results["pool_refill"] = 20
+
+    # 3. 盈余划拨：运营池 > 1000 时，超出 500 的部分转入储备池
+    if pool.balance > 1000:
+        surplus = pool.balance - 500
+        pool.balance -= surplus
+        pool.reserve = (pool.reserve or 0) + surplus
+        lid_s = _ledger_id()
+        await _add_ledger(db, lid_s, "community_pool", "reserve", surplus,
+                          "surplus_sweep", f"盈余划拨 {today}", status="settled")
+        results["surplus_sweep"] = surplus
+
+    # 4. 自动调水：运营池 < 150 时，从储备池补到 300
+    if pool.balance < 150 and (pool.reserve or 0) > 0:
+        need = 300 - pool.balance
+        draw = min(need, pool.reserve or 0)
+        pool.balance += draw
+        pool.reserve = (pool.reserve or 0) - draw
+        lid_a = _ledger_id()
+        await _add_ledger(db, lid_a, "reserve", "community_pool", draw,
+                          "auto_rebalance", f"自动调水 {today}", status="settled")
+        results["auto_rebalance"] = draw
 
     pool.last_tick_date = today
     await db.commit()
