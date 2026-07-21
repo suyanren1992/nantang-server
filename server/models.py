@@ -96,6 +96,8 @@ class CommunityPool(Base):
     task_escrow = Column(Integer, default=0)
     contribution_pool = Column(Integer, default=0)
     camp_balance = Column(Integer, default=0)
+    reserve = Column(Integer, default=0)   # 储备池：链上充值+盈余划拨
+    frozen = Column(Integer, default=0)    # 冻结池：提现锁定+争议暂扣
     last_tick_date = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
 

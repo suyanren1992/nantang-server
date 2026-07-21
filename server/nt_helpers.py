@@ -45,6 +45,7 @@ async def _get_pool(db, lock: bool = False):
         pool = CommunityPool(
             balance=0, total_issued=0, task_escrow=0,
             contribution_pool=0, camp_balance=0,
+            reserve=0, frozen=0,
             updated_at=datetime.utcnow().isoformat(),
         )
         db.add(pool)
@@ -52,6 +53,10 @@ async def _get_pool(db, lock: bool = False):
     # R7 migration guard: 已有数据库的 camp_balance 列可能为 NULL
     if pool.camp_balance is None:
         pool.camp_balance = 0
+    if pool.reserve is None:
+        pool.reserve = 0
+    if pool.frozen is None:
+        pool.frozen = 0
     return pool
 
 
@@ -59,6 +64,7 @@ def _safe_assignees(task):
     """Safely parse task.assignees JSON. Falls back to [task.assignee] on corruption.
 
     Ensures all callers that parse assignees don't 500 on manually-edited DB rows.
+    ponytail: 'assignee' 列（单值）为过渡期兼容，Phase E 后可移除 fallback 分支。
     """
     try:
         if task.assignees:

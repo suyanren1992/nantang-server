@@ -72,7 +72,7 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
              created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
     db.add(u)
     pool = await db.execute(select(CommunityPool).limit(1)); pool = pool.scalar_one_or_none()
-    if not pool: pool = CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0); db.add(pool)
+    if not pool: pool = CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0, reserve=0, frozen=0); db.add(pool)
     # ponytail: NT 仅来自链上充值，注册不再赠送
     await db.commit()
     _rt = create_refresh_token(u.id, u.token_version)

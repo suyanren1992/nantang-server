@@ -50,10 +50,22 @@ async def init_db():
             await session.commit()
         except Exception:
             pass  # 列已存在则跳过
+        # Step 1: 社区资金系统 — reserve/frozen 列
+        try:
+            await session.execute(text("ALTER TABLE community_pool ADD COLUMN reserve INTEGER DEFAULT 0"))
+            await session.commit()
+        except Exception:
+            pass
+        try:
+            await session.execute(text("ALTER TABLE community_pool ADD COLUMN frozen INTEGER DEFAULT 0"))
+            await session.commit()
+        except Exception:
+            pass
         from models import CommunityPool
         r = await session.execute(select(CommunityPool).limit(1))
         if not r.scalar_one_or_none():
-            session.add(CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0))
+            session.add(CommunityPool(balance=0, total_issued=0, task_escrow=0,
+                         contribution_pool=0, camp_balance=0, reserve=0, frozen=0))
             await session.commit()
         # Fix 2: 为已有 NTTask 补 assignees 列（多槽位）
         try:
@@ -69,20 +81,27 @@ async def init_db():
             r2 = await session.execute(text("SELECT * FROM camp_tasks"))
             keys = r2.keys()
             rows = [dict(zip(keys, vals)) for vals in r2.fetchall()]
+            import json as _json
             for row in rows:
                 task_id = f"camp_{row['camp_id']}_{row['id']}"
+                # CampTask claimants JSON → NTTask assignees JSON (name array)
+                claimants_raw = row.get("claimants") or "[]"
+                try: claimants_list = _json.loads(claimants_raw) if isinstance(claimants_raw, str) else claimants_raw
+                except Exception: claimants_list = []
+                assignee_names = [c if isinstance(c, str) else c.get("name", str(c)) for c in claimants_list]
                 await session.execute(text(
-                    "INSERT OR IGNORE INTO nt_tasks(id, poster, title, reward, status, category, scope, note, slots, deadline, reviewer, claimants, camp_ref_id, created_at) "
-                    "VALUES(:id, :poster, :title, :reward, :status, :category, 'camp', :note, :slots, :deadline, :reviewer, :claimants, :camp_ref_id, :created_at)"
+                    "INSERT OR IGNORE INTO nt_tasks(id, poster, title, reward, status, category, scope, note, slots, deadline, reviewer, assignees, camp_ref_id, created_at) "
+                    "VALUES(:id, :poster, :title, :reward, :status, :category, 'camp', :note, :slots, :deadline, :reviewer, :assignees, :camp_ref_id, :created_at)"
                 ), {
                     "id": task_id, "poster": row.get("poster") or "", "title": row["name"], "reward": row.get("nt") or 0,
                     "status": row.get("status") or "draft", "category": row.get("type") or "",
                     "note": row.get("note") or "", "slots": row.get("slots") or 1,
                     "deadline": row.get("deadline"), "reviewer": row.get("reviewer"),
-                    "claimants": row.get("claimants"), "camp_ref_id": row["camp_id"],
+                    "assignees": _json.dumps(assignee_names, ensure_ascii=False), "camp_ref_id": row["camp_id"],
                     "created_at": row.get("created_at")
                 })
             await session.execute(text("DROP TABLE IF EXISTS camp_tasks"))
             await session.commit()
-        except Exception:
-            pass
+            print(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
+        except Exception as e:
+            print(f"[T7 migration] skipped: {e}")
