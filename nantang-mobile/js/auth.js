@@ -7,7 +7,20 @@
 // encodePassword() — 在 utils.js 中定义，此处引用
 
 // ═══ 用户 CRUD ═══
-function getUsers() { try { return JSON.parse(safeStorage.getItem(NT_USERS_KEY)) || {}; } catch(e) { return {}; } }
+function getUsers() {
+  try {
+    var users = JSON.parse(safeStorage.getItem(NT_USERS_KEY)) || {};
+    // A2 兜底：NT_USERS_KEY 为空时从 nt_local_users（{name: seed字符串}）合成用户记录
+    if (Object.keys(users).length === 0) {
+      var localUsers = JSON.parse(safeStorage.getItem('nt_local_users')) || {};
+      var localRoles = JSON.parse(safeStorage.getItem('nt_local_roles')) || {};  // {name: role}
+      Object.keys(localUsers).forEach(function(name) {
+        users[name] = { name: name, avatar_seed: localUsers[name], role: localRoles[name] || 'visitor' };
+      });
+    }
+    return users;
+  } catch(e) { return {}; }
+}
 function saveUsers(users) { safeStorage.setItem(NT_USERS_KEY, JSON.stringify(users)); }
 
 // Phase 3: 邀请码存储 key 常量
@@ -281,7 +294,8 @@ function changeUserRole(name, newRole, opts) {
   var validRoles = ['admin', 'builder', 'adventurer', 'npc', 'visitor'];
   if (validRoles.indexOf(newRole) === -1) return { ok: false, error: '无效的角色：' + newRole };
   var oldRole = opts.fromRole || users[name].role;
-  if ((typeof adminNames!=='undefined'?adminNames:['砚仁']).indexOf(name) !== -1 && newRole !== 'admin') {
+  // P1: HTTP 模式信任服务端 role，仅 file:// 模式启用客户端 adminNames 守卫
+  if (!(typeof API !== 'undefined' && API.token) && (typeof adminNames!=='undefined'?adminNames:['砚仁']).indexOf(name) !== -1 && newRole !== 'admin') {
     return { ok: false, error: '管理员不可被降级' };
   }
   if (newRole === 'builder') {
@@ -377,8 +391,8 @@ function registerUser(name, password, role, avatarSeed, inviteCode) {
 function loginUser(name, password, rememberMe) {
   var users = getUsers(), user = users[name];
   if (!user) return { ok: false, error: '用户不存在' };
-  if (user.password === null) {
-    if (!password || password.length < 2) return { ok: false, error: '请设置你的密码（至少 2 位）' };
+  if (user.password == null) {
+    if (!password || password.length < 8) return { ok: false, error: '请设置你的密码（至少 8 位）' };
     user.password = encodePassword(password, name); saveUsers(users);
   } else {
     var newHash = encodePassword(password, name);
