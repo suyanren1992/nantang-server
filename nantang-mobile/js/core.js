@@ -878,6 +878,14 @@ function enterVillage(){
     if (!seed && typeof API !== 'undefined' && API.user && API.user.avatar_seed) seed = API.user.avatar_seed;
     if (!seed) { try { var _lu2 = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); if (_lu2[name]) seed = _lu2[name]; } catch(e) {} }
     if (!isHTTP) _saveLocalUser(name, seed);
+    // 同时写 nt_local_roles，确保 HTTP 模式 getUsers() fallback 可用
+    if (isHTTP && typeof API !== 'undefined' && API.user && API.user.role) {
+      try {
+        var _lr = JSON.parse(localStorage.getItem('nt_local_roles')||'{}');
+        _lr[name] = API.user.role;
+        localStorage.setItem('nt_local_roles', JSON.stringify(_lr));
+      } catch(e) {}
+    }
     document.getElementById('myPage').classList.add('hidden');
     document.getElementById('overlayCommunity').classList.remove('open');
     document.getElementById('overlayQuestHall').classList.remove('open');
