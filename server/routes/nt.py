@@ -588,9 +588,22 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
     if user.id not in a_ids: raise HTTPException(status_code=403, detail="只有认领者可以提交")
     if task.status not in ("进行中", "待提交", "退回修改"):
         raise HTTPException(status_code=400, detail=f"任务状态不可提交: {task.status}")
-    task.evidence = evidence
-    task.status = "待审核"
-    task.completed_at = datetime.utcnow().isoformat()
+
+    # P4: evidence 改为 JSON map {user_id: text}，全员提交后才设待审核
+    evidence_map = {}
+    try:
+        if task.evidence:
+            evidence_map = json.loads(task.evidence)
+    except (json.JSONDecodeError, TypeError):
+        evidence_map = {}
+    evidence_map[user.id] = evidence
+    task.evidence = json.dumps(evidence_map, ensure_ascii=False)
+
+    # 仅当所有 assignee 都提交后才设为待审核
+    if set(a_ids).issubset(set(evidence_map.keys())):
+        task.status = "待审核"
+        task.completed_at = datetime.utcnow().isoformat()
+
     await db.commit()
     return {"ok": True}
 
@@ -727,8 +740,34 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     # 非自校核
     if vfy.doer == user.id:
         raise HTTPException(status_code=400, detail="不能校核自己的操作")
+
+    # P3: 同对 1h 冷却
+    from datetime import timedelta
+    one_hour_ago = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+    recent = await db.execute(
+        select(VfyModel).where(
+            VfyModel.verifier == user.id,
+            VfyModel.doer == vfy.doer,
+            VfyModel.verified_at >= one_hour_ago
+        )
+    )
+    if recent.scalar_one_or_none():
+        raise HTTPException(status_code=429, detail="同对 1h 内已操作")
+
+    # P3: 日上限 10 次
+    from sqlalchemy import func
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    daily_count = await db.execute(
+        select(func.count(VfyModel.id)).where(
+            VfyModel.verifier == user.id,
+            VfyModel.verified_at.like(f"{today}%")
+        )
+    )
+    if daily_count.scalar() >= 10:
+        raise HTTPException(status_code=429, detail="今日验证已达上限 10 次")
+
     # 校核 NT 走服务端先：扣社区池 → earn（金额从 Verification 表取，不信任客户端）
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)  # P3: TOCTOU 修复，池加行锁
     nt_amount = vfy.nt_amount or 0
     verifier_reward = vfy.verifier_reward or 0
     total_payout = nt_amount + verifier_reward
@@ -758,9 +797,28 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
 
 
 @router.post("/verifications/{vfy_id}/reject")
-async def reject_verification(vfy_id: str, user: User = Depends(get_current_user)):
-    """Peer 驳回校核——仅记录，不涉及 NT。ponytail: 最小实现。"""
-    return {"ok": True, "rejected": True}
+async def reject_verification(vfy_id: str, user: User = Depends(get_current_user),
+                               db: AsyncSession = Depends(get_db)):
+    """Peer 驳回校核——写 DB，3 次驳回后永久拒绝。"""
+    from models import Verification as VfyModel
+    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id))
+    vfy = vfy_r.scalar_one_or_none()
+    if not vfy:
+        raise HTTPException(status_code=404, detail="校核记录不存在")
+    if vfy.status != "pending":
+        raise HTTPException(status_code=400, detail="校核已处理")
+    if vfy.doer == user.id:
+        raise HTTPException(status_code=400, detail="不能校核自己的操作")
+
+    vfy.retry_count = (vfy.retry_count or 0) + 1
+    vfy.rejected_by = user.id
+    vfy.rejected_at = datetime.utcnow().isoformat()
+    if vfy.retry_count >= 3:
+        vfy.status = "permanently_rejected"
+    else:
+        vfy.status = "rejected"
+    await db.commit()
+    return {"ok": True, "rejected": True, "retry_count": vfy.retry_count}
 
 
 # ══ 每日 tick（C2.6：替代客户端 _dailyTick）══
