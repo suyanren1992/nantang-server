@@ -1237,13 +1237,13 @@ window.addEventListener('message',function(e){
     var u = Game.getUser();
     e.source.postMessage({type:'userData', data:u, _bridgeNonce:window._APP_NONCE}, '*');
   }
-  else if(d.type==='openTask'){closeOverlay('overlayMap');openQuestHallPage()}
+  else if(d.type==='openTask'){openQuestHallPage()}
   else if(d.type==='openMe'){document.getElementById('myPage').style.zIndex='200';showMy()}
   else if(d.type==='toast'){showToast(d.msg)}
   else if(d.type==='confirm'){if(confirm(d.title+'\n\n'+d.msg))e.source.postMessage({type:'confirmResult',result:true},'*')}
   else if(d.type==='closeMap'){closeOverlay('overlayMap')}
   // 阶段 1 前置B：地图建筑 → 档案室
-  else if(d.type==='openArchive'){closeOverlay('overlayMap');openArchive(d.tab||'members')}
+  else if(d.type==='openArchive'){openArchive(d.tab||'members')}
   // NT 桥接
   else if(d.type==='ntEarn'){var r=NT.earn(CURRENT_USER,d.amount,d.reason,d.scope);if(r){var t=document.createElement('div');t.textContent='+'+d.amount+' NT · '+d.reason;t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green-primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999';document.body.appendChild(t);setTimeout(function(){t.remove()},2000)}}
   else if(d.type==='ntSpend'){NT.spend(CURRENT_USER,d.amount,d.reason,d.scope)}

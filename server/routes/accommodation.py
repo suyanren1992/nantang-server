@@ -1,4 +1,5 @@
 """Accommodation routes: checkin, checkout, status. Phase C2.5."""
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -35,8 +36,8 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
         raise HTTPException(status_code=400, detail="你已有入住记录，请先退房")
 
     # 原子化：子查询检查房间是否已满
-    # ponytail: max_beds 从 map_locations JSON blob 读取，当前硬编码为 6（后续配置化）
-    MAX_BEDS = 6
+    # ponytail: max_beds 从 map_locations JSON blob 读取，可通过环境变量覆盖
+    MAX_BEDS = int(os.environ.get("MAX_BEDS_PER_ROOM", "6"))
     count_r = await db.execute(
         select(func.count(Tenancy.id)).where(
             Tenancy.room_id == req.room_id, Tenancy.status == "active"

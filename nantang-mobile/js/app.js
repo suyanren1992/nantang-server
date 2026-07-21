@@ -1833,8 +1833,9 @@ function _initMap(){
     _growDirtiness();
     // 章7: 日常清理容器到期检查
     _checkDailyContainers();
-    if(!_mapContainer){currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false;_bindEvents();render();goTo(4);}
-    else { render(); goTo(currentIdx); }
+    if(!_mapContainer){currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false;_bindEvents();}
+    else { currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false; }
+    goTo(4);
     if(typeof refreshUserUI==='function') refreshUserUI();
   }catch(e){console.error('[Map] init failed:',e);if(window.Game&&Game.toast) Game.toast('地图加载失败，请刷新');}
 }

@@ -46,9 +46,9 @@ html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:1
 .login-error{color:#d46048;font-size:.75rem;min-height:18px;margin:4px 0}
 .login-back{background:none;border:none;color:rgba(255,255,255,.6);font-size:.85rem;cursor:pointer;margin-top:12px}
 .login-reset{margin-top:24px;background:none;border:none;color:rgba(255,255,255,.2);font-size:.65rem;cursor:pointer;text-decoration:underline dotted}
-.btn-pri{background:linear-gradient(135deg,var(--green-primary),#2a4d3a);color:#fff;border:none;padding:14px 24px;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;min-width:130px;transition:transform.1s}
+.btn-pri{background:linear-gradient(135deg,var(--green-primary),#2a4d3a);color:#fff;border:none;padding:14px 24px;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;min-width:130px;min-height:44px;display:flex;align-items:center;transition:transform.1s}
 .btn-pri:active{transform:scale(.96)}
-.btn-outline{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 24px;border-radius:12px;font-size:.9rem;font-weight:600;cursor:pointer;min-width:130px;transition:transform.1s}
+.btn-outline{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.25);padding:14px 24px;border-radius:12px;font-size:.9rem;font-weight:600;cursor:pointer;min-width:130px;min-height:44px;display:flex;align-items:center;transition:transform.1s}
 .btn-outline:active{transform:scale(.96)}
 .btn-full{width:100%}
 .id-cards{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
@@ -430,7 +430,7 @@ button:active:not(:disabled),a:active:not(:disabled){transform:scale(.96);transi
 /* ══ 阶段4: 资金流水 ══ */
 .funds-chip-row{display:flex;gap:6px;overflow-x:auto;padding:8px 0 10px;-webkit-overflow-scrolling:touch;white-space:nowrap}
 .funds-chip-row::-webkit-scrollbar{display:none}
-.funds-chip{padding:5px 12px;border-radius:14px;font-size:.62rem;cursor:pointer;background:#f0f0f0;color:#5a6e5c;flex-shrink:0;transition:.12s;user-select:none}
+.funds-chip{padding:5px 12px;border-radius:14px;font-size:.62rem;cursor:pointer;background:#f0f0f0;color:#5a6e5c;flex-shrink:0;min-height:44px;display:flex;align-items:center;transition:.12s;user-select:none}
 .funds-chip.on,.funds-chip:active{background:var(--green-primary);color:#fff}
 .funds-tx-row{display:flex;align-items:center;gap:8px;padding:10px 8px;background:#fff;border-radius:10px;margin-bottom:4px;font-size:.68rem}
 .funds-tx-icon{font-size:1.1rem;flex-shrink:0;width:28px;text-align:center}
@@ -465,7 +465,7 @@ button:active:not(:disabled),a:active:not(:disabled){transform:scale(.96);transi
 .mgmt-btn.pri{background:var(--green-primary);color:#fff}
 .mgmt-btn.warn{background:#fef8e8;color:#c8892e}
 .mgmt-btn.settle{background:#e8f0f0;color:#4a7a82}
-.type-tag{display:inline-block;padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:600;margin-right:4px}
+.type-tag{padding:1px 6px;border-radius:4px;font-size:.62rem;font-weight:600;margin-right:4px;min-height:44px;display:inline-flex;align-items:center}
 .type-tag-main{background:#e8f0e8;color:var(--green-primary)}
 .type-tag-side{background:#fef8e8;color:#c8892e}
 .type-tag-co{background:#e0eaee;color:#4a7a82}

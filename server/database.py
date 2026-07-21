@@ -30,22 +30,59 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_from_user ON nt_ledger(from_user)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_to_user ON nt_ledger(to_user)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_task_id ON nt_ledger(task_id)"))
+        # B+4: NTTask 高频查询列索引
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_poster ON nt_tasks(poster)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_assignee ON nt_tasks(assignee)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_status ON nt_tasks(status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_system ON nt_tasks(is_system_generated)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
-        from models import CommunityPool
-        r = await session.execute(select(CommunityPool).limit(1))
-        if not r.scalar_one_or_none():
-            session.add(CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0))
+        # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错
+        try:
+            await session.execute(text("ALTER TABLE community_pool ADD COLUMN singleton BOOLEAN DEFAULT 1"))
+            await session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_community_pool_singleton ON community_pool(singleton)"))
             await session.commit()
+        except Exception:
+            pass
         # R7: 为已有 User 补 token_version（SQLite ALTER TABLE 加列 + 默认值）
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0"))
             await session.commit()
         except Exception:
             pass  # 列已存在则跳过
+        from models import CommunityPool
+        r = await session.execute(select(CommunityPool).limit(1))
+        if not r.scalar_one_or_none():
+            session.add(CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0))
+            await session.commit()
         # Fix 2: 为已有 NTTask 补 assignees 列（多槽位）
         try:
             await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN assignees TEXT"))
+            await session.commit()
+        except Exception:
+            pass
+        # T7: CampTask 合并到 NTTask — 加 camp_ref_id 列 + 迁移数据
+        try:
+            await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN camp_ref_id TEXT"))
+            await session.commit()
+            # 迁移已有 camp_tasks 数据
+            r2 = await session.execute(text("SELECT * FROM camp_tasks"))
+            keys = r2.keys()
+            rows = [dict(zip(keys, vals)) for vals in r2.fetchall()]
+            for row in rows:
+                task_id = f"camp_{row['camp_id']}_{row['id']}"
+                await session.execute(text(
+                    "INSERT OR IGNORE INTO nt_tasks(id, poster, title, reward, status, category, scope, note, slots, deadline, reviewer, claimants, camp_ref_id, created_at) "
+                    "VALUES(:id, :poster, :title, :reward, :status, :category, 'camp', :note, :slots, :deadline, :reviewer, :claimants, :camp_ref_id, :created_at)"
+                ), {
+                    "id": task_id, "poster": row.get("poster") or "", "title": row["name"], "reward": row.get("nt") or 0,
+                    "status": row.get("status") or "draft", "category": row.get("type") or "",
+                    "note": row.get("note") or "", "slots": row.get("slots") or 1,
+                    "deadline": row.get("deadline"), "reviewer": row.get("reviewer"),
+                    "claimants": row.get("claimants"), "camp_ref_id": row["camp_id"],
+                    "created_at": row.get("created_at")
+                })
+            await session.execute(text("DROP TABLE IF EXISTS camp_tasks"))
             await session.commit()
         except Exception:
             pass

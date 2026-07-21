@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from datetime import datetime
 import json
 from database import get_db
-from models import Camp, CampBuilder, CampTask, User
+from models import Camp, CampBuilder, NTTask, User
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
 
@@ -60,15 +60,17 @@ async def create_camp(req: dict, user: User = Depends(require_admin),
         db.add(CampBuilder(camp_id=camp.id, name=b.get("name", ""), role=b.get("role", ""),
                            task_names=json.dumps(b.get("taskNames", []), ensure_ascii=False),
                            total_nt=b.get("totalNT", 0), confirmed=b.get("confirmed", 0)))
-    # Tasks
+    # Tasks — T7: 营地任务走 NTTask(scope='camp')
     tasks = req.get("tasks", [])
     for t in tasks:
-        db.add(CampTask(camp_id=camp.id, name=t.get("name", ""), type=t.get("type", ""),
-                        nt=t.get("nt", 0), status=t.get("status", "draft"),
-                        category=t.get("category", ""), note=t.get("note", ""),
-                        poster=t.get("poster", ""), deadline=t.get("deadline", ""),
-                        reviewer=t.get("reviewer", ""), slots=t.get("slots", 1),
-                        claimants=json.dumps(t.get("claimants", []), ensure_ascii=False)))
+        db.add(NTTask(
+            id=f"camp_{camp.id}_{t.get('name','')}_{len(tasks)}",
+            poster=t.get("poster", ""), title=t.get("name", ""), reward=t.get("nt", 0),
+            status=t.get("status", "draft"), category=t.get("type", ""),
+            scope="camp", camp_ref_id=camp.id,
+            note=t.get("note", ""), slots=t.get("slots", 1),
+            deadline=t.get("deadline", ""), reviewer=t.get("reviewer", ""),
+            claimants=json.dumps(t.get("claimants", []), ensure_ascii=False)))
     # Budget NT → camp_pool topup
     budget = req.get("budget", {})
     if budget:
@@ -120,16 +122,38 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    tasks_result = await db.execute(select(CampTask).where(CampTask.camp_id == camp_id))
+    # 找出已结算但未营地结算的任务（settler_id 为空表示尚未经过营地级结算）
+    tasks_result = await db.execute(
+        select(NTTask).where(NTTask.camp_ref_id == camp_id, NTTask.status == "已结算",
+                             NTTask.settler_id == None))
     camp_tasks = list(tasks_result.scalars())
-    settled = [t for t in camp_tasks if t.status == "已结算"]
+    total_nt = sum(t.reward for t in camp_tasks)
+    if total_nt <= 0:
+        return {"ok": True, "settled_tasks": 0, "total_nt": 0}
+    # 锁池子 → 扣 camp_balance → 分发到 assignee
+    pool = await _get_pool(db, lock=True)
+    pool.camp_balance -= total_nt
+    now = datetime.utcnow().isoformat()
+    for t in camp_tasks:
+        assignees = json.loads(t.assignees or "[]")
+        share = t.reward // max(len(assignees), 1)
+        for a_name in assignees:
+            u_result = await db.execute(select(User).where(User.id == a_name))
+            u = u_result.scalar_one_or_none()
+            if u:
+                u.nt_balance += share
+                await _add_ledger(db, _ledger_id(), "营地结算", a_name, share, "camp_settle",
+                                  f"营地 {camp.name} 任务 {t.title}", t.id, "settled")
+        t.settler_id = user.id
+        t.settled_at = now
+    await db.commit()
     builders_result = await db.execute(select(CampBuilder).where(CampBuilder.camp_id == camp_id))
     builders = list(builders_result.scalars())
     return {
         "ok": True,
         "total_tasks": len(camp_tasks),
-        "settled_tasks": len(settled),
-        "total_nt": sum(t.nt for t in settled),
+        "settled_tasks": len(camp_tasks),
+        "total_nt": total_nt,
         "builders": [{"name": b.name, "total_nt": b.total_nt} for b in builders],
     }
 
@@ -141,7 +165,7 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    tasks_result = await db.execute(select(CampTask).where(CampTask.camp_id == camp_id))
+    tasks_result = await db.execute(select(NTTask).where(NTTask.camp_ref_id == camp_id))
     camp_tasks = list(tasks_result.scalars())
     done = [t for t in camp_tasks if t.status == "已结算"]
     builders_result = await db.execute(select(CampBuilder).where(CampBuilder.camp_id == camp_id))
@@ -151,7 +175,7 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
                  "status": camp.status, "people": camp.people, "location": camp.location},
         "stats": {"total_tasks": len(camp_tasks), "done_tasks": len(done),
                   "pct": round(len(done) / max(1, len(camp_tasks)) * 100),
-                  "total_nt": sum(t.nt for t in done)},
+                  "total_nt": sum(t.reward for t in done)},
         "builders": sorted([{"name": b.name, "total_nt": b.total_nt} for b in builders],
                            key=lambda x: x["total_nt"], reverse=True),
     }
@@ -166,11 +190,14 @@ async def delete_camp(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    # Cascade delete builders and tasks
-    for tbl in (CampBuilder, CampTask):
+    # Cascade delete builders and tasks (T7: CampTask → NTTask)
+    for tbl in (CampBuilder,):
         r = await db.execute(select(tbl).where(tbl.camp_id == camp_id))
         for row in r.scalars():
             await db.delete(row)
+    tasks_r = await db.execute(select(NTTask).where(NTTask.camp_ref_id == camp_id))
+    for row in tasks_r.scalars():
+        await db.delete(row)
     await db.delete(camp)
     await db.commit()
     return {"ok": True}

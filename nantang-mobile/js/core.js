@@ -98,12 +98,12 @@ window.Game = {
   setMemberLocation: function(buildingId) {
     if (window.AppData) AppData.setMemberLocation(buildingId);
   },
-  openTask: function(taskId) { closeOverlay('overlayMap'); openQuestHallPage(); },
+  openTask: function(taskId) { openQuestHallPage(); },
   toast: function(msg) { showToast(msg); },
   confirm: function(title, message, onConfirm) {
     if (confirm(title + '\n\n' + message)) { setTimeout(onConfirm, 0); }
   },
-  openCamp: function(campId) { closeOverlay('overlayMap'); openCampHome(campId); },
+  openCamp: function(campId) { openCampHome(campId); },
   refresh: function() { if (window.AppData) AppData._saveShared(); if (typeof refreshUserUI === 'function') refreshUserUI(); }
 };
 // NT 用户注册已在 AppData._seedIfEmpty() 中处理
@@ -439,6 +439,12 @@ function toggleQuestCard(el,name){
   // 审核人
   if(t.reviewer&&(t.status==='待审核'||t.status==='退回修改'||t.action==='submit'||t.action==='edit')) h+='<div style=font-size:.62rem;color:#5a6e5c;margin-bottom:4px>✅ 审核人：'+esc(t.reviewer)+'</div>';
   if(t.status==='已结算'&&t.settler) h+='<div style=font-size:.62rem;color:#5a6e5c;margin-bottom:4px>🧾 结算人：'+t.settler+'</div>';
+  // T10: 多人任务提交进度
+  if(t.slots>1&&(t.status==='进行中'||t.status==='待提交')){
+    var evMap={};try{if(t.evidence)evMap=JSON.parse(t.evidence)}catch(e){}
+    var subN=Object.keys(evMap).length;
+    if(subN>0)h+='<div style=font-size:.68rem;color:var(--green-primary);margin-bottom:4px;font-weight:600>📤 '+subN+'/'+t.slots+' 已提交</div>';
+  }
   // 操作按钮
   var btns='';var inHall=el.closest('#questHallBody')!==null;
   var isMyClaim=cs.some(function(c){return c.name===CURRENT_USER});
@@ -457,7 +463,7 @@ function toggleQuestCard(el,name){
     else if(isPublisher&&!isMyClaim) btns='<span style=font-size:.62rem;color:#5a5a5a;background:#f0f0f0;padding:4px 10px;border-radius:8px">⏳ 自己的任务</span>';
     else btns='<span style=font-size:.62rem;color:#5a6e5c;background:#f0f0f0;padding:4px 10px;border-radius:8px">⏳ 等待中</span>';
   }else if(t.status==='待审核'){
-    if(isReviewer&&!inHall) btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="reviewTask(\''+esc(t.name)+'\',\'approve\')">✓ 通过</button><button class="btn-sm danger" onclick="reviewTask(\''+esc(t.name)+'\',\'reject\')">✕ 打回</button></div>';
+    if(isReviewer) btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="reviewTask(\''+esc(t.name)+'\',\'approve\')">✓ 通过</button><button class="btn-sm danger" onclick="reviewTask(\''+esc(t.name)+'\',\'reject\')">✕ 打回</button></div>';
     else if(isMyClaim) btns='<span style=font-size:.62rem;color:#c8892e;background:#fff8e8;padding:4px 10px;border-radius:8px">🔍 等待审核</span>';
   }else if(t.status==='退回修改'){
     if(isMyClaim){
@@ -794,6 +800,8 @@ function updateRegAvatar(){
 }
 function _mergeNTSyncData(data) {
   if (!data || data.detail || !window.NT) return;
+  // T13: cron_active 传播（初始 syncAll 可能不含此字段，轮询补设）
+  if (data.cron_active) window._cronActive = true;
   var me = CURRENT_USER;
   // 余额/CV/XP：服务端权威，直接覆盖
   var ntUser = NT.getUser(me);
@@ -1474,14 +1482,14 @@ window.addEventListener('message',function(e){
     var u = Game.getUser();
     e.source.postMessage({type:'userData', data:u, _bridgeNonce:window._APP_NONCE}, '*');
   }
-  else if(d.type==='openTask'){closeOverlay('overlayMap');openQuestHallPage()}
+  else if(d.type==='openTask'){openQuestHallPage()}
   else if(d.type==='openMe'){document.getElementById('myPage').style.zIndex='200';showMy()}
   else if(d.type==='toast'){showToast(d.msg)}
   else if(d.type==='confirm'){if(confirm(d.title+'\n\n'+d.msg))e.source.postMessage({type:'confirmResult',result:true},'*')}
   else if(d.type==='closeMap'){closeOverlay('overlayMap')}
   // 阶段 1 前置B：地图建筑 → 档案室
-  else if(d.type==='openArchive'){closeOverlay('overlayMap');openArchive(d.tab||'members')}
-  else if(d.type==='openCardRoom'){closeOverlay('overlayMap');openCardRoom()}
+  else if(d.type==='openArchive'){openArchive(d.tab||'members')}
+  else if(d.type==='openCardRoom'){openCardRoom()}
   // NT 桥接
   else if(d.type==='ntEarn'){var r=NT.earn(CURRENT_USER,d.amount,d.reason,d.scope);if(r){var t=document.createElement('div');t.textContent='+'+d.amount+' NT · '+d.reason;t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green-primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999';document.body.appendChild(t);setTimeout(function(){t.remove()},2000)}}
   else if(d.type==='ntSpend'){NT.spend(CURRENT_USER,d.amount,d.reason,d.scope)}

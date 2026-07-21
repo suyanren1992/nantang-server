@@ -117,7 +117,8 @@ class ChainScanner:
 
     async def _process_log(self, db, log):
         from sqlalchemy import select
-        from models import User, NTLedger, DepositIntent, CommunityPool
+        from models import User, NTLedger, DepositIntent
+        from nt_helpers import _get_pool
 
         # Decode Transfer event
         try:
@@ -141,10 +142,10 @@ class ChainScanner:
         if dup:
             return
 
-        # Match user by wallet_address (case-insensitive)
+        # Match user by wallet_address (case-insensitive) — 行锁防并发充值覆盖
         from sqlalchemy import func
         user_result = await db.execute(
-            select(User).where(func.lower(User.wallet_address) == from_addr.lower())
+            select(User).where(func.lower(User.wallet_address) == from_addr.lower()).with_for_update()
         )
         user = user_result.scalar_one_or_none()
         if not user:
@@ -163,10 +164,9 @@ class ChainScanner:
         user.nt_balance += amount
         user.updated_at = datetime.now(timezone.utc).isoformat()
 
-        # Update CommunityPool
-        pool = (await db.execute(select(CommunityPool).limit(1))).scalar_one_or_none()
-        if pool:
-            pool.total_issued += amount
+        # Update CommunityPool — 走 _get_pool 确保池行不存在时自动创建
+        pool = await _get_pool(db)
+        pool.total_issued += amount
 
         # Write ledger with tx_hash（D15: 统一走 routes.nt._add_ledger，tx_hash 与类型不变）
         from routes.nt import _add_ledger, _ledger_id

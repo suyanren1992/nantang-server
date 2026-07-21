@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 import secrets
 import json
@@ -20,19 +20,19 @@ PLATFORM_WALLET = os.environ.get("PLATFORM_WALLET_ADDRESS", "")
 class TransferRequest(BaseModel):
     from_user: str = ""  # admin 可指定转出方
     to: str
-    amount: int
+    amount: int = Field(ge=1, le=10000)
     reason: str = ""
 
 
 class EarnSpendRequest(BaseModel):
-    amount: int
+    amount: int = Field(ge=1, le=50000)
     reason: str = ""
     scope: str = "personal"
 
 
 class TopUpRequest(BaseModel):
     user: str
-    amount: int
+    amount: int = Field(ge=1, le=100000)
     reason: str = ""
 
 
@@ -184,9 +184,9 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     if req.amount > 10000:
         raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
 
-    from_user_obj = user if actual_from == user.id else (
-        (await db.execute(select(User).where(User.id == actual_from))).scalar_one_or_none()
-    )
+    from_user_obj = (await db.execute(
+        select(User).where(User.id == actual_from).with_for_update()
+    )).scalar_one_or_none()
     if not from_user_obj:
         raise HTTPException(status_code=404, detail="转出用户不存在")
     if from_user_obj.nt_balance < req.amount:
@@ -203,10 +203,11 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     to_user.updated_at = datetime.utcnow().isoformat()
 
     cv_amount = req.amount
+    actual_cv_deducted = min(cv_amount, from_user_obj.contribution_value)
     from_user_obj.contribution_value = max(0, from_user_obj.contribution_value - cv_amount)
-    to_user.contribution_value = (to_user.contribution_value or 0) + int(cv_amount * 0.75)
+    to_user.contribution_value = (to_user.contribution_value or 0) + int(actual_cv_deducted * 0.75)
     pool = await _get_pool(db)
-    pool.contribution_pool = (pool.contribution_pool or 0) + int(cv_amount * 0.25)
+    pool.contribution_pool = (pool.contribution_pool or 0) + int(actual_cv_deducted * 0.25)
 
     lid = _ledger_id()
     await _add_ledger(db, lid, actual_from, to_user.id, req.amount, "transfer", req.reason)
@@ -335,7 +336,7 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
 # ══ 充值意向（链上自动化）══
 
 class DepositIntentRequest(BaseModel):
-    amount: int
+    amount: int = Field(ge=1, le=100000)
     from_address: str = ""
 
 
@@ -594,7 +595,7 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
         task.completed_at = datetime.utcnow().isoformat()
 
     await db.commit()
-    return {"ok": True}
+    return {"ok": True, "submitted": len(evidence_map), "total": len(a_ids)}
 
 
 @router.post("/tasks/{task_id}/settle")
@@ -815,15 +816,34 @@ class EarnSyncRequest(BaseModel):
 @router.post("/earn-sync")
 async def earn_sync(req: EarnSyncRequest, user: User = Depends(get_current_user),
                     db: AsyncSession = Depends(get_db)):
-    """客户端离线 earn 队列同步——仅允许同步本人的 earn。ponytail: 无验证逻辑，信任离线 peer 校核。"""
+    """客户端离线 earn 队列同步——仅允许同步本人的 earn。日上限 + 单次上限防滥用。"""
+    import os
+    DAILY_LIMIT = int(os.environ.get("EARN_SYNC_DAILY_LIMIT", "5"))
+    MAX_BATCH = int(os.environ.get("EARN_SYNC_MAX_BATCH", "50"))
+
+    # 日上限：查今日已同步条目数
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    from sqlalchemy import func
+    today_done = (await db.execute(
+        select(func.count(NTLedger.id)).where(
+            NTLedger.to_user == user.id,
+            NTLedger.type == "earn",
+            NTLedger.reason.like(f"离线同步:%")
+        )
+    )).scalar() or 0
+    if today_done >= DAILY_LIMIT:
+        raise HTTPException(status_code=429, detail=f"今日离线同步已达上限 {DAILY_LIMIT} 次")
+
     synced = 0
     pool = await _get_pool(db, lock=True)
     for item in req.items:
         doer = item.get("doer", "")
-        amount = min(int(item.get("amount", 0)), 1000)
+        amount = min(int(item.get("amount", 0)), MAX_BATCH)
         if doer != user.id or amount <= 0:
             continue
         if pool.balance < amount:
+            break
+        if today_done + synced >= DAILY_LIMIT:
             break
         pool.balance -= amount
         user.nt_balance += amount

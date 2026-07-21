@@ -73,6 +73,7 @@ class NTTask(Base):
     escrow_amount = Column(Integer, default=0)
     is_system_generated = Column(Boolean, default=False)    # 系统自动生成=周期/赏金
     idempotency_key = Column(String(128), unique=True, nullable=True)  # cron 幂等
+    camp_ref_id = Column(String, nullable=True)  # T7: CampTask 合并，关联营地 ID
     created_at = Column(String, nullable=True)
     accepted_at = Column(String, nullable=True)
     completed_at = Column(String, nullable=True)
@@ -89,6 +90,7 @@ class NTTask(Base):
 class CommunityPool(Base):
     __tablename__ = "community_pool"
     id = Column(Integer, primary_key=True, autoincrement=True)
+    singleton = Column(Boolean, default=True, unique=True)  # 防多行
     balance = Column(Integer, default=0)
     total_issued = Column(Integer, default=0)
     task_escrow = Column(Integer, default=0)
@@ -99,6 +101,7 @@ class CommunityPool(Base):
 
 
 # ══ Phase 2: Camps ══
+# ponytail: CampTask 已合并到 NTTask(scope='camp', camp_ref_id=...), 2026-07-22 T7
 class Camp(Base):
     __tablename__ = "camps"
     id = Column(String, primary_key=True)
@@ -135,22 +138,7 @@ class CampBuilder(Base):
     confirmed = Column(Integer, default=0)
 
 
-class CampTask(Base):
-    __tablename__ = "camp_tasks"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    camp_id = Column(String, ForeignKey("camps.id"), nullable=False)
-    name = Column(String, nullable=False)
-    type = Column(String, nullable=True)
-    nt = Column(Integer, default=0)
-    status = Column(String, default="draft")
-    category = Column(String, nullable=True)
-    note = Column(Text, nullable=True)
-    poster = Column(String, nullable=True)
-    deadline = Column(String, nullable=True)
-    reviewer = Column(String, nullable=True)
-    slots = Column(Integer, default=1)
-    claimants = Column(Text, nullable=True)         # JSON
-    created_at = Column(String, nullable=True)
+# ponytail: CampTask 表已废弃，改用 NTTask(scope='camp', camp_ref_id=camp_id)。模型类保留注释避免 import 断裂。
 
 
 # ══ Phase 3: Data Layer ══

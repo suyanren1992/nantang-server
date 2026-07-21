@@ -97,7 +97,7 @@ var API = {
     return this.request('GET', '/api/nt/ledger' + qs);
   },
   transfer: function(to, amount, reason) { return this.request('POST', '/api/nt/transfer', {to:to, amount:amount, reason:reason||''}); },
-  earn: function(amount, reason, scope) { return this.request('POST', '/api/nt/earn', {amount:amount, reason:reason||'', scope:scope||'personal'}); },
+  earn: function(amount, reason, scope) { console.warn('[API] earn deprecated, use /api/nt/verifications/{id}/approve'); return Promise.resolve({ok:false, error:"deprecated"}); },
   spend: function(amount, reason, scope) { return this.request('POST', '/api/nt/spend', {amount:amount, reason:reason||'', scope:scope||'personal'}); },
   topUp: function(user, amount, reason) { return this.request('POST', '/api/nt/topup', {user:user, amount:amount, reason:reason||''}); },
   verify: function() { return this.request('GET', '/api/nt/verify'); },

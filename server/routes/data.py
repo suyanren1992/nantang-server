@@ -8,6 +8,7 @@ from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
                     CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, TASK_STATUSES)
 from routes.auth import get_current_user, require_admin
+from pydantic import BaseModel, Field
 from nt_helpers import _safe_assignees
 
 router = APIRouter(prefix="/api/data", tags=["data"])
@@ -17,6 +18,86 @@ def _safe_json(s):
     try: return json.loads(s) if s else {}
     except (json.JSONDecodeError, TypeError): return {}
 
+
+# ══ Pydantic Models (T9: req:dict → typed) ══
+class JournalReq(BaseModel):
+    type: str = Field(min_length=1, default="daily")
+    content: str = Field(default="", max_length=10000)
+    space_id: str = ""
+    discovery_id: str = ""
+
+class ActivityLogReq(BaseModel):
+    type: str = Field(min_length=1)
+    text: str = ""
+
+class CardDiscoveryReq(BaseModel):
+    space_id: str = ""
+    description: str = ""
+    guessed_person: str = ""
+    guessed_at: str = ""
+    status: str = "pending"
+    nt_guesser: int = Field(default=5, ge=0, le=50)
+    nt_doer: int = Field(default=10, ge=0, le=50)
+
+class CardDiscoveryUpdateReq(BaseModel):
+    status: str = ""
+    doer_confirmed_at: str = ""
+    doer_denied_at: str = ""
+
+class VerificationReq(BaseModel):
+    type: str = Field(min_length=1)
+    action: str = ""
+    detail: dict = {}
+    nt_amount: int = Field(default=0, ge=0, le=1000)
+    verifier_reward: int = Field(default=1, ge=0, le=1000)
+
+class VerificationUpdateReq(BaseModel):
+    status: str = ""
+    verifier: str = ""
+    verified_at: str = ""
+    reject_reason: str = ""
+    rejected_by: str = ""
+    rejected_at: str = ""
+    retry_count: int = 0
+
+class NewbieQuestItem(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = ""
+    desc: str = ""
+    nt: int = 0
+
+class NewbieQuestsReq(BaseModel):
+    quests: list[NewbieQuestItem] = []
+
+class CanteenMenuReq(BaseModel):
+    date: str = Field(min_length=1)
+    lunch: list[str] = []
+    dinner: list[str] = []
+
+class MealOrderReq(BaseModel):
+    date: str = Field(min_length=1)
+    meal: str = "lunch"
+
+class MapLocationsReq(BaseModel):
+    locations: str = ""  # JSON blob, minimal validation
+    class Config:
+        extra = "allow"  # allow additional fields for map data
+
+class AnnouncementReq(BaseModel):
+    type: str = Field(min_length=1)
+    doer: str = ""
+    verifier: str = ""
+    action: str = ""
+    nt_amount: int = 0
+
+class InventoryReq(BaseModel):
+    name: str = Field(min_length=1)
+    cat: str = "其他"
+    status: str = "storage"
+    price: int = Field(default=0, ge=0, le=100000)
+    location: str = ""
+    desc: str = ""
+    date: str = ""
 
 # ── Journal ──
 @router.get("/journal")
@@ -28,12 +109,10 @@ async def get_journal(user: User = Depends(get_current_user), db: AsyncSession =
 
 
 @router.post("/journal")
-async def add_journal(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if len(req.get("content", "")) > 10000: raise HTTPException(status_code=400, detail="内容过长")
-    if not req.get("type"): raise HTTPException(status_code=400, detail="类型不能为空")
-    j = Journal(user=user.id, type=req.get("type", "daily"), content=req.get("content", ""),
-                time=datetime.utcnow().isoformat(), space_id=req.get("space_id"),
-                discovery_id=req.get("discovery_id"))
+async def add_journal(req: JournalReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    j = Journal(user=user.id, type=req.type, content=req.content,
+                time=datetime.utcnow().isoformat(), space_id=req.space_id,
+                discovery_id=req.discovery_id)
     db.add(j)
     await db.commit()
     return {"ok": True}
@@ -47,9 +126,9 @@ async def get_activity_log(user: User = Depends(get_current_user), db: AsyncSess
 
 
 @router.post("/activity_log")
-async def add_activity_log(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    a = ActivityLog(time=datetime.utcnow().isoformat(), type=req.get("type", ""),
-                    text=req.get("text", ""))
+async def add_activity_log(req: ActivityLogReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    a = ActivityLog(time=datetime.utcnow().isoformat(), type=req.type,
+                    text=req.text)
     db.add(a)
     await db.commit()
     return {"ok": True}
@@ -66,13 +145,13 @@ async def get_card_discoveries(user: User = Depends(get_current_user), db: Async
 
 
 @router.post("/card_discoveries")
-async def add_card_discovery(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def add_card_discovery(req: CardDiscoveryReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     d = CardDiscovery(
-        id=req.get("id", f"disc_{datetime.utcnow().timestamp()}"),
-        space_id=req.get("space_id"), description=req.get("description"),
-        guesser=user.id, guessed_person=req.get("guessed_person"),
-        guessed_at=req.get("guessed_at"), status=req.get("status", "pending"),
-        nt_guesser=req.get("nt_guesser", 5), nt_doer=req.get("nt_doer", 10),
+        id=f"disc_{datetime.utcnow().timestamp()}",
+        space_id=req.space_id, description=req.description,
+        guesser=user.id, guessed_person=req.guessed_person,
+        guessed_at=req.guessed_at, status=req.status,
+        nt_guesser=req.nt_guesser, nt_doer=req.nt_doer,
         created_at=datetime.utcnow().isoformat(),
     )
     db.add(d)
@@ -81,7 +160,7 @@ async def add_card_discovery(req: dict, user: User = Depends(get_current_user), 
 
 
 @router.put("/card_discoveries/{disc_id}")
-async def update_card_discovery(disc_id: str, req: dict, user: User = Depends(get_current_user),
+async def update_card_discovery(disc_id: str, req: CardDiscoveryUpdateReq, user: User = Depends(get_current_user),
                                 db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(CardDiscovery).where(CardDiscovery.id == disc_id))
     d = result.scalar_one_or_none()
@@ -113,13 +192,13 @@ async def get_verifications(user: User = Depends(get_current_user), db: AsyncSes
 
 
 @router.post("/verifications")
-async def add_verification(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def add_verification(req: VerificationReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     v = Verification(
-        id=req.get("id", f"vfy_{datetime.utcnow().timestamp()}"),
-        type=req.get("type", ""), doer=user.id,
-        action=req.get("action", ""), detail=json.dumps(req.get("detail", {}), ensure_ascii=False),
-        nt_amount=min(int(req.get("nt_amount", 0)), 1000),
-        verifier_reward=min(int(req.get("verifier_reward", 1)), 1000),
+        id=f"vfy_{datetime.utcnow().timestamp()}",
+        type=req.type, doer=user.id,
+        action=req.action, detail=json.dumps(req.detail, ensure_ascii=False),
+        nt_amount=req.nt_amount,
+        verifier_reward=req.verifier_reward,
         status="pending", created_at=datetime.utcnow().isoformat(),
     )
     db.add(v)
@@ -128,7 +207,7 @@ async def add_verification(req: dict, user: User = Depends(get_current_user), db
 
 
 @router.put("/verifications/{vfy_id}")
-async def update_verification(vfy_id: str, req: dict, user: User = Depends(get_current_user),
+async def update_verification(vfy_id: str, req: VerificationUpdateReq, user: User = Depends(get_current_user),
                               db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Verification).where(Verification.id == vfy_id))
     v = result.scalar_one_or_none()
@@ -152,11 +231,10 @@ async def get_newbie_quests(user: User = Depends(get_current_user), db: AsyncSes
 
 
 @router.post("/newbie_quests")
-async def init_newbie_quests(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    quests = req.get("quests", [])
-    for q in quests:
-        db.add(NewbieQuest(user=user.id, quest_id=q.get("id"), name=q.get("name"),
-                           desc=q.get("desc"), nt=q.get("nt", 0), done=0))
+async def init_newbie_quests(req: NewbieQuestsReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    for q in req.quests:
+        db.add(NewbieQuest(user=user.id, quest_id=q.id, name=q.name,
+                           desc=q.desc, nt=q.nt, done=0))
     await db.commit()
     return {"ok": True}
 
@@ -193,11 +271,11 @@ async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/canteen_menu")
-async def set_canteen_menu(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def set_canteen_menu(req: CanteenMenuReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user or user.role != "admin":
         raise HTTPException(status_code=403)
-    m = CanteenMenu(date=req.get("date", ""), lunch=json.dumps(req.get("lunch", []), ensure_ascii=False),
-                    dinner=json.dumps(req.get("dinner", []), ensure_ascii=False))
+    m = CanteenMenu(date=req.date, lunch=json.dumps(req.lunch, ensure_ascii=False),
+                    dinner=json.dumps(req.dinner, ensure_ascii=False))
     db.add(m)
     await db.commit()
     return {"ok": True}
@@ -211,8 +289,8 @@ async def get_meal_orders(user: User = Depends(get_current_user), db: AsyncSessi
 
 
 @router.post("/meal_orders")
-async def add_meal_order(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    o = MealOrder(user=user.id, date=req.get("date", ""), meal=req.get("meal", "lunch"),
+async def add_meal_order(req: MealOrderReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    o = MealOrder(user=user.id, date=req.date, meal=req.meal,
                   status="ordered", ordered_at=datetime.utcnow().isoformat())
     db.add(o)
     await db.commit()
@@ -231,7 +309,7 @@ async def get_map_locations(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/map_locations")
-async def save_map_locations(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def save_map_locations(req: MapLocationsReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user or user.role != "admin":
         raise HTTPException(status_code=403)
     result = await db.execute(select(MapLocation).where(MapLocation.key == "shared"))
@@ -239,7 +317,7 @@ async def save_map_locations(req: dict, user: User = Depends(get_current_user), 
     if not ml:
         ml = MapLocation(key="shared")
         db.add(ml)
-    ml.data = json.dumps(req, ensure_ascii=False)
+    ml.data = json.dumps(req.model_dump(), ensure_ascii=False)
     await db.commit()
     return {"ok": True}
 
@@ -253,10 +331,10 @@ async def get_announcements(db: AsyncSession = Depends(get_db), limit: int = 20)
 
 
 @router.post("/announcements")
-async def add_announcement(req: dict, user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
-    a = Announcement(type=req.get("type", ""), doer=req.get("doer", ""),
-                     verifier=req.get("verifier", ""), action=req.get("action", ""),
-                     nt_amount=req.get("nt_amount", 0), created_at=datetime.utcnow().isoformat())
+async def add_announcement(req: AnnouncementReq, user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    a = Announcement(type=req.type, doer=req.doer,
+                     verifier=req.verifier, action=req.action,
+                     nt_amount=req.nt_amount, created_at=datetime.utcnow().isoformat())
     db.add(a)
     await db.commit()
     return {"ok": True}
@@ -272,12 +350,12 @@ async def get_inventory(user: User = Depends(get_current_user), db: AsyncSession
 
 
 @router.post("/inventory")
-async def add_inventory(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    i = InventoryItem(id=req.get("id", f"i{datetime.utcnow().timestamp()}"), user=user.id,
-                      name=req.get("name", ""), cat=req.get("cat", "其他"),
-                      status=req.get("status", "storage"), price=req.get("price", 0),
-                      location=req.get("location", ""), desc=req.get("desc", ""),
-                      date=req.get("date", ""))
+async def add_inventory(req: InventoryReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    i = InventoryItem(id=f"i{datetime.utcnow().timestamp()}", user=user.id,
+                      name=req.name, cat=req.cat,
+                      status=req.status, price=req.price,
+                      location=req.location, desc=req.desc,
+                      date=req.date)
     db.add(i)
     await db.commit()
     return {"ok": True}
