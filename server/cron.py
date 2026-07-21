@@ -39,12 +39,12 @@ async def _get_pool(db):
     return pool
 
 
-async def _add_ledger(db, entry_id, from_user, to_user, amount, type_, reason="", task_id=None):
+async def _add_ledger(db, entry_id, from_user, to_user, amount, type_, reason="", task_id=None, status="settled"):
     entry = NTLedger(
         entry_id=entry_id, task_id=task_id,
         from_user=from_user, to_user=to_user,
         amount=amount, type=type_, reason=reason,
-        status="settled", created_at=datetime.utcnow().isoformat(),
+        status=status, created_at=datetime.utcnow().isoformat(),
     )
     db.add(entry)
 
