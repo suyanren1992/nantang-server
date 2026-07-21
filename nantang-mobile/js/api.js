@@ -18,6 +18,7 @@ var API = {
     if (this.token) headers['Authorization'] = 'Bearer ' + this.token;
     var opts = { method: method, headers: headers, credentials: 'include' };
     if (body) opts.body = JSON.stringify(body);
+    opts.signal = AbortSignal.timeout(30000);  // 30s timeout
     try {
       var resp = await fetch(url, opts);
       this._consecutiveFailures = 0;

@@ -5,7 +5,6 @@ from database import Base
 # D1: 任务状态统一词汇表
 TASK_STATUSES = {
     "open": "进行中",
-    "submitted": "待审核",
     "rejected": "退回修改",
     "verified": "待结算",
     "settled": "已结算",

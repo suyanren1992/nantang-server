@@ -1178,6 +1178,7 @@ function _applyStay() {
   };
 
   // 弹出公约确认
+  if (typeof showConfirm === 'function') { showConfirm('📜 南塘社区公约', '入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费', function() { _applyStayConfirm(); }); return; }
   if (!confirm('📜 南塘社区公约\n\n入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费\n\n点击「确定」签署公约并入住')) return;
   // CR3: quest + 角色变更在 confirm 之后执行
   if (typeof _completeNewbieQuest === 'function') { _completeNewbieQuest(_me(), 'sign_covenant'); }
@@ -2040,7 +2041,7 @@ function _doKitchenAction(action, label, nt) {
 }
 function _submitKitchenEntry() {
   if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
-    showToast('入住后可用', 'warn'); return;
+    showToast('入住后可用（前往 🏠 住宿页面→入住）', 'warn'); return;
   }
   var sel = window._qkSelected;
   var act = window._qkAction;

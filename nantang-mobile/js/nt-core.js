@@ -266,17 +266,23 @@ function cancelTask(taskId, reason) {
   if (t.status === 'settled' || t.status === 'verified') return _err('已结算/已验证任务无法取消，请发起争议');
   if (t.status === 'completed' || t.status === 'cancelled') return _err('任务状态('+t.status+')不允许取消');
 
-  var poster = _getUser(t.poster);
-
-  // 退还托管 NT——以 escrow_amount 为准（对齐服务端）
-  var escrowRefund = t.escrow_amount || (t.reward * (t.slots || 1));
-  TASK_ESCROW -= escrowRefund;
-  poster.ntBalance += escrowRefund;
+  // 社区任务（poster='社区'）：退款回社区池，不创建幽灵用户
+  if (t.poster === '社区') {
+    var escrowRefund = t.escrow_amount || (t.reward * (t.slots || 1));
+    TASK_ESCROW -= escrowRefund;
+    COMMUNITY_POOL += escrowRefund;
+    _addLedger('escrow', 'community_pool', escrowRefund, 'refund', '取消社区任务: '+t.title, t.taskId);
+  } else {
+    var poster = _getUser(t.poster);
+    var escrowRefund = t.escrow_amount || (t.reward * (t.slots || 1));
+    TASK_ESCROW -= escrowRefund;
+    poster.ntBalance += escrowRefund;
+    _addLedger('escrow', t.poster, escrowRefund, 'refund', '取消任务: '+t.title, t.taskId);
+  }
 
   t.status = 'cancelled';
   t.disputeReason = reason || '';
 
-  _addLedger('escrow', t.poster, escrowRefund, 'refund', '取消任务: '+t.title, t.taskId);
   if (t.assignee) {
     var assignee = _getUser(t.assignee);
     if (assignee) _adjustTrust(assignee, -5);

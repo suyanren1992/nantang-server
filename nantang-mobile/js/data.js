@@ -533,14 +533,8 @@ function upgradeRole(name,newRole,code){
 function scrollToSection(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
 function closeOverlay(id,showVillage){document.getElementById(id).classList.remove('open');if(showVillage!==false){var anyOpen=document.querySelector('.overlay.open');if(!anyOpen)document.getElementById('villagePage').classList.remove('hidden')}}
 function openCommunityPage(){document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub();renderTimeline()}
-// ── 营地种子数据 ──
-// ponytail: CAMP_MOCK fallback 阶段2创营上线后删除
-var CAMP_MOCK = [
-  { id:'camp_demo_1', name:'第五期共创营', emoji:'🏕️', theme:'南塘有风，共创有光', date:'2026-07-20 — 2026-08-03', status:'active', people:8, max:16, location:'南塘合作社大院', desc:'两周深度共创，在地生活+创作+分享', highlights:['2026-07-20 开营仪式','2026-07-25 工笔画工作坊','2026-08-01 成果分享会'] },
-  { id:'camp_demo_2', name:'暑期艺术营', emoji:'🎨', theme:'用画笔记录南塘', date:'2026-08-10 — 2026-08-20', status:'upcoming', people:3, max:12, location:'南塘合作社大院', desc:'暑期艺术创作营，面向青少年和艺术爱好者', highlights:['2026-08-10 开营仪式'] },
-  { id:'camp_demo_3', name:'第一期试运营', emoji:'🌟', theme:'探索在地共创模式', date:'2026-06-01 — 2026-06-15', status:'archived', people:12, max:12, location:'南塘合作社大院', desc:'第一次试运营，验证在地共创模式', highlights:['2026-06-01 开营','2026-06-15 结营'] }
-];
-function getCamps(){ return (window.AppData&&AppData._data.camps&&Object.keys(AppData._data.camps).length) ? Object.values(AppData._data.camps) : CAMP_MOCK; }
+// 营地数据——从 AppData 读取，服务端同步
+function getCamps(){ return (window.AppData&&AppData._data.camps) ? Object.values(AppData._data.camps) : []; }
 function renderCommunityHub() {
   var el = document.getElementById('communityHubContent'); if (!el) return;
   var role = (typeof getUsers==='function'?getUsers():{})[CURRENT_USER]||{};

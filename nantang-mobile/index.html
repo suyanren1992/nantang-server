@@ -490,10 +490,7 @@ if (window.location.protocol !== 'file:') {
   <div class="sub-bar hidden" id="subBar"></div>
 </div>
 
-<!-- D8: schema.js 已废弃，Phase C 后客户端只是缓存 -->
 <script src="js/utils.js"></script>
-<script src="js/backup.js"></script>
-<script src="js/store.js"></script>
 <script src="js/mobile-bundle.js"></script>
 <script src="js/nt.js"></script>
 <script src="js/auth.js"></script>
@@ -512,33 +509,8 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-cardroom.js?v=3"></script>
 <script src="js/app.js?v=3"></script>
 <script>
-// A2 过渡完成：TASKS 直接指向 AppData。旧种子数据 _OLD_TASKS 已废弃。
+// D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
-// Step 5: 物品持久化到 AppData
-var MOCK_ITEMS = [];
-var JOURNAL_TYPES = {
-  cooking:    { icon:'🍳', label:'厨房记录', cv:3, xp:3 },
-  farming:    { icon:'🌿', label:'田间记录', cv:3, xp:3 },
-  repair:     { icon:'🔧', label:'修缮记录', cv:5, xp:5 },
-  art:        { icon:'🎨', label:'创作记录', cv:3, xp:3 },
-  cleaning:   { icon:'🧹', label:'打扫记录', cv:2, xp:2 },
-  daily:      { icon:'📋', label:'日常记录', cv:2, xp:2 },
-  stock_in:   { icon:'📦', label:'入库记录', cv:2, xp:2 },
-  stock_out:  { icon:'🗑', label:'出库记录', cv:1, xp:1 },
-  register:   { icon:'🌟', label:'加入社区', cv:0, xp:0 },
-  task_done:  { icon:'✅', label:'完成任务', cv:0, xp:0 }
-};
-// Step 5: 新手任务 + CV抵押
-var NEWBIE_QUESTS = [
-  { id:'sign_covenant', name:'签署社区公约', desc:'阅读并签署南塘在地社区公约', nt:5 },
-  { id:'meet_3', name:'认识3位在地成员', desc:'和3位在地成员交换名字和一句话介绍', nt:15 },
-  { id:'checkin_5', name:'社区空间打卡', desc:'参观并打卡5个社区空间', nt:20 },
-  { id:'join_meal', name:'参加1次饭局', desc:'报名参加一次社区饭局', nt:10 },
-  { id:'join_cleaning', name:'参加1次大扫除', desc:'参加第一次大扫除', nt:15 }
-];
-// 每周大扫除后解冻50% CV
-var ITEM_CATS=['画材','画作','杯具','纸张','文具','工具','书籍','食材','手工','其他'];
-var ITEM_ICONS={画材:'🎨',画作:'🖼️',杯具:'☕',纸张:'📜',文具:'✒️',工具:'🔧',书籍:'📚',食材:'🥬',手工:'🧶',其他:'📦'};
 var _itemFold={};
 var _inboxReadIds = {};
 try { _inboxReadIds = JSON.parse(localStorage.getItem('nt_inbox_read') || '{}'); } catch(e) {}
