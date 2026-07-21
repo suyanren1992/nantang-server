@@ -351,4 +351,4 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
                      for v in v_r.scalars()]
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
             "activity": activity, "items": items, "newbie": newbie,
-            "verifications": verifications}
+            "verifications": verifications, "cron_active": True}

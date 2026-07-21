@@ -1,12 +1,52 @@
 """Cron runner — 每日 00:05 触发。ponytail: 单进程 asyncio sleep loop，无 APScheduler 依赖。
 
-Round 6 会扩展 _do_daily_tick() 为完整的周期任务生成逻辑（读 periodic_tasks.json → 创建系统任务）。
+Round 6: 完整实现周期任务自动生成（读 periodic_tasks.json → 检查幂等 → 扣池 → 创建 NTTask）。
 """
 import asyncio
+import json
 import logging
+import os
 from datetime import datetime, timedelta
-
+from sqlalchemy import select
+from database import async_session
+from models import NTTask, CommunityPool, NTLedger
 logger = logging.getLogger("cron")
+
+TEMPLATES_PATH = os.path.join(os.path.dirname(__file__), "config", "periodic_tasks.json")
+
+
+# ponytail: inline helpers to avoid circular import from routes.nt
+def _ledger_id():
+    now = datetime.utcnow()
+    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}"
+
+
+def _task_id():
+    import secrets
+    return f"T{datetime.utcnow().strftime('%y%m%d%H%M%S')}-{secrets.token_hex(3)}"
+
+
+async def _get_pool(db):
+    q = select(CommunityPool).limit(1)
+    result = await db.execute(q)
+    pool = result.scalar_one_or_none()
+    if not pool:
+        pool = CommunityPool(balance=0, total_issued=0, task_escrow=0,
+                             contribution_pool=0, camp_balance=0,
+                             updated_at=datetime.utcnow().isoformat())
+        db.add(pool)
+        await db.flush()
+    return pool
+
+
+async def _add_ledger(db, entry_id, from_user, to_user, amount, type_, reason="", task_id=None):
+    entry = NTLedger(
+        entry_id=entry_id, task_id=task_id,
+        from_user=from_user, to_user=to_user,
+        amount=amount, type=type_, reason=reason,
+        status="settled", created_at=datetime.utcnow().isoformat(),
+    )
+    db.add(entry)
 
 
 async def _wait_until(target_hour=0, target_minute=5):
@@ -25,12 +65,73 @@ async def run_cron():
     while True:
         await _wait_until(0, 5)
         try:
-            await _do_daily_tick()
+            await tick_daily()
         except Exception as e:
             logger.error(f"cron tick failed: {e}")
 
 
-async def _do_daily_tick():
-    """每日逻辑——Round 6 会扩展为任务生成。此刻仅打日志占位。"""
-    logger.info("cron: daily tick executed")
-    # TODO Round 6: 读 periodic_tasks.json → 生成系统任务
+async def tick_daily():
+    """每日 00:05 触发——生成每日任务 + 检查每周任务。"""
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    weekday = datetime.utcnow().weekday()  # 0=Monday, 6=Sunday
+
+    try:
+        templates = json.load(open(TEMPLATES_PATH, encoding="utf-8"))["templates"]
+    except Exception as e:
+        logger.error(f"cron: failed to load templates: {e}")
+        return
+
+    async with async_session() as db:
+        pool = await _get_pool(db)
+        created = 0
+
+        for tmpl in templates:
+            # 周期匹配
+            if tmpl["period"] == "weekly":
+                target_day = tmpl.get("dayOfWeek", 0)
+                if weekday != target_day:
+                    continue
+
+            # 幂等键
+            idem_key = f"{tmpl['id']}:{today}"
+            existing = await db.execute(
+                select(NTTask).where(NTTask.idempotency_key == idem_key)
+            )
+            if existing.scalar_one_or_none():
+                continue
+
+            # 池余额检查
+            cost = tmpl["reward"] * tmpl["slots"]
+            if pool.balance < cost:
+                logger.warning(f"cron: pool balance ({pool.balance}) < {cost}, skip {tmpl['id']}")
+                continue
+
+            # 扣池 + 创建任务
+            pool.balance -= cost
+            pool.task_escrow += cost
+            task = NTTask(
+                id=_task_id(),
+                poster="社区",
+                title=tmpl["title"],
+                reward=tmpl["reward"],
+                slots=tmpl["slots"],
+                scope=tmpl.get("scope", "社区"),
+                category=tmpl.get("category", "other"),
+                status="进行中",
+                is_system_generated=True,
+                idempotency_key=idem_key,
+                escrow_amount=cost,
+                created_at=datetime.utcnow().isoformat(),
+            )
+            db.add(task)
+            lid = _ledger_id()
+            await _add_ledger(db, lid, "community_pool", "escrow", cost,
+                              "task_freeze", f"系统任务: {tmpl['title']}", task.id, status="pending")
+            created += 1
+            logger.info(f"cron: created task {task.id} — {tmpl['title']} ({cost} NT)")
+
+        await db.commit()
+        if created > 0:
+            logger.info(f"cron: tick complete, {created} tasks generated")
+        else:
+            logger.debug("cron: tick complete, no new tasks")
