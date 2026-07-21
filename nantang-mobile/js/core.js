@@ -822,8 +822,8 @@ function _mergeNTSyncData(data) {
     data.tasks.forEach(function(t) {
       t.publisher = t.poster || t.publisher;
       var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'', is_system_generated:t.is_system_generated||false };
-      else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false });
+      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'', is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' };
+      else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' });
     });
   }
   // 充值意图缓存

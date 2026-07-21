@@ -64,7 +64,7 @@ async def tick_daily():
         return
 
     async with async_session() as db:
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)
         created = 0
 
         for tmpl in templates:

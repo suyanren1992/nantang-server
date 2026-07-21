@@ -131,7 +131,8 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
               "evidence": t.evidence, "escrow_amount": t.escrow_amount,
               "is_system_generated": t.is_system_generated or False,
               "created_at": t.created_at, "verified_at": t.verified_at,
-              "verifier_id": t.verifier_id} for t in all_tasks]
+              "verifier_id": t.verifier_id,
+              "settler_id": t.settler_id, "settled_at": t.settled_at} for t in all_tasks]
 
     return {
         "balance": user.nt_balance, "cv": user.contribution_value,

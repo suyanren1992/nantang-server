@@ -337,6 +337,8 @@ function changeUserRole(name, newRole, opts) {
 
   // Phase 3: 双向同步 — AppData 也更新角色
   if (window.AppData) AppData.setMe('role', newRole);
+  // HTTP 模式: saveUsers 是 no-op, 额外写 nt_local_roles 确保刷新后角色不丢
+  try { var _localRoles = JSON.parse(localStorage.getItem('nt_local_roles') || '{}'); _localRoles[name] = newRole; localStorage.setItem('nt_local_roles', JSON.stringify(_localRoles)); } catch(e) {}
 
   // Phase 0: 角色通过 saveUsers 和 AppData 同步，不再写 data.members
   saveData();

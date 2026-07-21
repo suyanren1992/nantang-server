@@ -399,12 +399,14 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
                  "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
                  "assignees": _safe_assignees(t), "slots": t.slots,
                  "deadline": t.deadline, "reviewer": t.reviewer,
-                 "note": t.note, "evidence": t.evidence, "settler_id": t.settler_id,
+                 "note": t.note, "evidence": t.evidence,
+                 "escrow_amount": t.escrow_amount, "settler_id": t.settler_id,
+                 "settled_at": t.settled_at,
                  "is_system_generated": t.is_system_generated or False,
                  "created_at": t.created_at} for t in tasks_r.scalars()]
     # 我的日记
     j_r = await db.execute(select(Journal).where(Journal.user == user.id).order_by(Journal.id.desc()).limit(200))
-    journal = [{"type": j.type, "content": j.content, "time": j.time, "space_id": j.space_id} for j in j_r.scalars()]
+    journal = [{"type": j.type, "content": j.content, "time": j.time, "space_id": j.space_id, "discovery_id": j.discovery_id} for j in j_r.scalars()]
     # 卡片发现（全社区共享）
     d_r = await db.execute(select(CardDiscovery).order_by(CardDiscovery.created_at.desc()).limit(100))
     discoveries = [{"id": d.id, "space_id": d.space_id, "description": d.description,
