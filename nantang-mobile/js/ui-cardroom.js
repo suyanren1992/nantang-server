@@ -417,6 +417,24 @@ function _renderVerifyTab() {
     });
   }
 
+  // L1: 月度校核排行榜
+  var thisMonth = new Date().toISOString().slice(0,7);
+  var monthlyVerifiers = {};
+  resolved.forEach(function(v) {
+    if (v.status !== 'verified' || !v.verifiedAt) return;
+    if (v.verifiedAt.slice(0,7) !== thisMonth) return;
+    var name = v.verifier || '?';
+    monthlyVerifiers[name] = (monthlyVerifiers[name] || 0) + 1;
+  });
+  var topVerifiers = Object.entries(monthlyVerifiers).sort(function(a,b){ return b[1]-a[1]; }).slice(0,3);
+  if (topVerifiers.length) {
+    h += '<div style="font-weight:700;font-size:.65rem;color:#5a6e5c;margin:12px 0 6px">🏆 本月校核贡献 (' + thisMonth + ')</div>';
+    var medals = ['🥇','🥈','🥉'];
+    topVerifiers.forEach(function(e, i) {
+      h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px solid #f0f0f0">' + (medals[i]||'👏') + ' ' + esc(e[0]) + ' · ' + e[1] + '次</div>';
+    });
+  }
+
   return h;
 }
 
@@ -923,7 +941,7 @@ function _submitDiscGuess(name) {
 
   var discs = _getDiscoveries();
   discs.unshift(disc);
-  if (discs.length > 100) discs.length = 100;
+  if (discs.length > 200) discs.length = 200;  // L2: 100→200，20人时7天窗口不截断
   _saveDiscoveries();
 
   if (typeof logActivity === 'function') {
@@ -970,7 +988,7 @@ function _submitSelfReport() {
   };
   var discs = _getDiscoveries();
   discs.unshift(disc);
-  if (discs.length > 100) discs.length = 100;
+  if (discs.length > 200) discs.length = 200;  // L2: 100→200，20人时7天窗口不截断
   _saveDiscoveries();
 
   if (typeof logActivity === 'function') {
