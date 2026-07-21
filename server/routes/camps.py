@@ -88,6 +88,7 @@ async def create_camp(req: dict, user: User = Depends(get_current_user),
         if camp_total > 0:
             pool = await _get_pool(db)
             pool.total_issued += camp_total
+            pool.camp_balance += camp_total
             lid = _ledger_id()
             await _add_ledger(db, lid, None, "camp_pool", camp_total, "topup", f"营队注资: {camp.name}")
 

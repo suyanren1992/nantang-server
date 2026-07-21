@@ -1,4 +1,4 @@
-function avatarURL(seed,size){return 'https://api.dicebear.com/7.x/'+AVATAR_STYLE+'/svg?seed='+encodeURIComponent(seed)+'&size='+(size||80)}
+function avatarURL(seed,size){var ver=typeof DICEBEAR_VER!=='undefined'?DICEBEAR_VER:'9.x';return 'https://api.dicebear.com/'+ver+'/'+AVATAR_STYLE+'/svg?seed='+encodeURIComponent(seed)+'&size='+(size||80)}
 function avatarImg(seed,size){return '<img src="'+avatarURL(seed,size)+'" width="'+(size||40)+'" height="'+(size||40)+'" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity=\'0\'">'}
 function roleIcon(r){return r==='admin'?'🛡️':r==='builder'?'🧱':r==='adventurer'?'⚔️':r==='npc'?'🏠':'☁️'}
 function roleName(r){return r==='admin'?'管理员':r==='builder'?'共建者':r==='adventurer'?'冒险者':r==='npc'?'在地伙伴':'云村民'}
@@ -102,6 +102,7 @@ window.Game = {
   confirm: function(title, message, onConfirm) {
     if (confirm(title + '\n\n' + message)) { setTimeout(onConfirm, 0); }
   },
+  openCamp: function(campId) { closeOverlay('overlayMap'); openCampHome(campId); },
   refresh: function() { if (window.AppData) AppData._saveShared(); if (typeof refreshUserUI === 'function') refreshUserUI(); }
 };
 // NT 用户注册已在 AppData._seedIfEmpty() 中处理
@@ -194,6 +195,27 @@ function onBuilderPicked(name) {
   renderWizardStep(5);
 }
 var _secFold={claimable:false,active:false,done:false};
+var _pollTimer = null;
+function _startPolling() {
+  if (_pollTimer) return;
+  if (typeof API === 'undefined' || !API.token) return;
+  _pollTimer = setInterval(function() {
+    API.fetchTasks(function(tasks) {
+      if (tasks && window.AppData) { tasks.forEach(function(t) {
+        var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
+        if (!dup) { AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:[], action:'' }; }
+      });}
+    });
+    API.fetchDiscoveries(function(discs) {
+      if (discs && window.AppData) { if (!AppData._data.cardDiscoveries) AppData._data.cardDiscoveries = []; discs.forEach(function(d) {
+        if (!AppData._data.cardDiscoveries.find(function(x){ return x.id===d.id; })) { AppData._data.cardDiscoveries.push({ id:d.id, spaceId:d.space_id, description:d.description, guesser:d.guesser, guessedPerson:d.guessed_person, status:d.status, ntGuesser:d.nt_guesser, ntDoer:d.nt_doer, createdAt:d.created_at }); }
+      });}
+    });
+  }, 10000); // 每 10 秒
+}
+function _stopPolling() {
+  if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+}
 function openQuestHallPage(){
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role||'visitor';
@@ -593,19 +615,55 @@ function S(id){
   }
 }
 function renderLoginUserList(){
-  var users=getUsers();var names=Object.keys(users);
-  var h='';names.forEach(function(n){var s=(users[n]&&users[n].avatar_seed!=null)?users[n].avatar_seed:n;if(s==null)s=_avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];h+='<div class="user-chip'+(n===CURRENT_USER?' selected':'')+'" onclick="pickLoginUser(\''+esc(n)+'\')"><div class="user-chip-avatar"><img src="'+avatarURL(s,48)+'" width="48" height="48" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity=\'0\'"></div><div class="user-chip-name">'+n+'</div><div class="user-chip-role">'+(users[n]?(users[n].role==='admin'?'管理员':'云村民'):'')+'</div></div>'});
-  document.getElementById('userScroll').innerHTML=h;
-  if(names[0]){document.getElementById('loginName').value=names[0];renderLoginAvatar()}
+  var localUsers = {};
+  try { localUsers = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); } catch(e) {}
+  var names = Object.keys(localUsers);
+  // HTTP 模式：本地没有 → 从服务器拉用户列表
+  if (names.length === 0 && window.location.protocol !== 'file:') {
+    fetch('/api/auth/users').then(function(r){return r.json()}).then(function(list){
+      if (Array.isArray(list)) { list.forEach(function(u){ localUsers[u.name] = u.avatar_seed || u.name; }); names = Object.keys(localUsers); }
+      _renderUserChips(localUsers, names);
+    }).catch(function(){ _renderUserChips(localUsers, names); });
+    return;
+  }
+  _renderUserChips(localUsers, names);
+}
+function _renderUserChips(localUsers, names) {
+  if (names.length === 0) {
+    document.getElementById('userScroll').innerHTML = '<div style="text-align:center;padding:20px;color:rgba(255,255,255,.4);font-size:.7rem">还没有账号，请注册或手动输入名字</div>';
+    return;
+  }
+  var h = '';
+  names.forEach(function(n){
+    var s = localUsers[n] || n;
+    var initial = n.charAt(0);
+    h += '<div class="user-chip" onclick="pickLoginUser(\''+esc(n)+'\')"><div class="user-chip-avatar"><img src="'+avatarURL(s,48)+'" width="48" height="48" style="border-radius:50%;object-fit:cover;background:#c8d8c8" alt="'+initial+'" onerror="this.outerHTML=&#39;<div style=width:48px;height:48px;border-radius:50%;background:#c8d8c8;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#5a6e5c>&#39;+&#39;'+initial+'&#39;+&#39;</div>&#39;"></div><div class="user-chip-name">'+n+'</div></div>';
+  });
+  document.getElementById('userScroll').innerHTML = h;
+  if (names[0]) { document.getElementById('loginName').value = names[0]; renderLoginAvatar(); }
+}
+// ── 登录用户列表渲染 ──
+// 登录/注册成功时保存到本地列表
+function _saveLocalUser(name, seed) {
+  try {
+    var lu = JSON.parse(localStorage.getItem('nt_local_users')||'{}');
+    // 只有真正的种子才存，null/空字符串/等于名字的不存
+    lu[name] = (seed && seed !== name) ? seed : (lu[name] && lu[name] !== name ? lu[name] : (name));
+    localStorage.setItem('nt_local_users', JSON.stringify(lu));
+  } catch(e) {}
 }
 function pickLoginUser(name){document.getElementById('loginName').value=name;document.querySelectorAll('#userScroll .user-chip').forEach(function(c){c.classList.remove('selected')});event.target.closest('.user-chip').classList.add('selected');renderLoginAvatar()}
 function renderLoginAvatar(){
   var name=document.getElementById('loginName').value||'';
-  var users=getUsers();
-  var seed=(users[name]&&users[name].avatar_seed!==undefined)?users[name].avatar_seed:name;
-  if(seed==null)seed=_avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
+  var seed = name; // fallback: 用名字生成头像
+  // 优先从本地登录记录查头像种子
+  try { var lu = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); if (lu[name]) seed = lu[name]; } catch(e) {}
+  // 其次从 nt_users 查
+  if (seed === name) { var users=getUsers(); if (users[name]&&users[name].avatar_seed!=null) seed = users[name].avatar_seed; }
+  if (seed == null) seed = _avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
   var url=avatarURL(seed,96);
-  document.getElementById('loginAvatar').innerHTML='<img src="'+url+'" width="96" height="96" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity=\'0\'">'
+  var initial = name ? name.charAt(0) : '?';
+  document.getElementById('loginAvatar').innerHTML='<img src="'+url+'" width="96" height="96" style="border-radius:50%;object-fit:cover;background:#c8d8c8" alt="'+initial+'" onerror="this.outerHTML=&#39;<div style=width:96px;height:96px;border-radius:50%;background:#c8d8c8;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#5a6e5c;margin:0 auto>&#39;+initial+&#39;</div>&#39;">'
 }
 function cycleAvatar(styleIdx){
   document.querySelectorAll('.avatar-picker').forEach(function(p){p.remove()});
@@ -643,6 +701,11 @@ function enterVillage(){
   var isHTTP = window.location.protocol !== 'file:';
   // 提取进入村庄的公共尾段
   function _finishEnter(name) {
+    // 头像：优先 _profileSeed，其次 API.user，最后 nt_local_users
+    var seed = _profileSeed;
+    if (!seed && typeof API !== 'undefined' && API.user && API.user.avatar_seed) seed = API.user.avatar_seed;
+    if (!seed) { try { var _lu2 = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); if (_lu2[name]) seed = _lu2[name]; } catch(e) {} }
+    _saveLocalUser(name, seed);
     document.getElementById('myPage').classList.add('hidden');
     document.getElementById('overlayCommunity').classList.remove('open');
     document.getElementById('overlayQuestHall').classList.remove('open');
@@ -653,6 +716,8 @@ function enterVillage(){
     if(typeof _completeNewbieQuest==='function')_completeNewbieQuest(CURRENT_USER,'sign_covenant');
     setTimeout(function(){ if(typeof showNewbieOnEntry==='function')showNewbieOnEntry(); },600);
     if(typeof API!=='undefined'&&API.token){API.syncAll(_mergeSyncData);}
+    if(typeof API!=='undefined'&&API.token){fetch('/api/nt/balance',{headers:{'Authorization':'Bearer '+API.token}}).then(function(r){return r.json();}).then(function(srv){if(srv&&!srv.detail&&!srv._offline){var ntUser=window.NT?NT.getUser(CURRENT_USER):null;if(ntUser){ntUser.ntBalance=srv.balance;ntUser.contributionValue=srv.cv;ntUser.experienceValue=srv.xp;}}}).catch(function(){});}
+    _startPolling();
   }
   if(isReg){
     var n=document.getElementById('regName').value.trim();var p=document.getElementById('regPwd').value.trim();
@@ -661,12 +726,17 @@ function enterVillage(){
     if(!_profileSeed)_profileSeed=_avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
     if (isHTTP) {
       API.asyncAuth('register', n, p, 'visitor', _profileSeed, function(result) {
-        if (!result || !result.name) { showToast((result&&result.error)||'注册失败','error'); return; }
-        if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
-        _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
-        _finishEnter(n);
+        if (result && result.name) {
+          if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
+          _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
+          _finishEnter(n);
+        } else if (!result) {
+          showToast('无法连接服务器，请检查网络','error');
+        } else {
+          showToast(result.error||'注册失败','error');
+        }
       });
-      return; // 异步，等回调
+      return;
     } else {
       var firstUser = (typeof getUsers === 'function') ? (Object.keys(getUsers()).length === 0) : true;
       var role = firstUser ? 'admin' : 'visitor';
@@ -680,9 +750,14 @@ function enterVillage(){
     if(!lp){showToast('请输入密码','error',document.getElementById('loginPwd'));return}
     if (isHTTP) {
       API.asyncAuth('login', ln, lp, null, null, function(result) {
-        if (!result || !result.name) { showToast((result&&result.error)||'登录失败','error'); return; }
-        setCurrentUser(ln);if(window.AppData)AppData.switchUser(ln);
-        _finishEnter(ln);
+        if (result && result.name) {
+          setCurrentUser(ln);if(window.AppData)AppData.switchUser(ln);
+          _finishEnter(ln);
+        } else if (!result) {
+          showToast('无法连接服务器，请检查网络','error');
+        } else {
+          showToast(result.error||'登录失败','error');
+        }
       });
       return;
     } else {
@@ -1093,6 +1168,12 @@ function saveProfileEdits(){
 }
 function logout(){
   var m=document.getElementById('profileCard');if(m)m.remove();
+  // 记住用户名方便下次登录
+  try { localStorage.setItem('nt_last_user', CURRENT_USER || ''); } catch(e) {}
+  document.cookie = 'nt_user=; path=/; max-age=0';
+  document.cookie = 'nt_rt=; path=/; max-age=0';
+  try { localStorage.removeItem('nt_refresh'); } catch(e) {}
+  if (typeof API !== 'undefined') API.logout();
   // FIX-09: 仅清会话，不删持久化数据。
   // NT 数据由 nt-core.js 独立持久化（NT_STORE_KEY），不受 logout 影响。
   // Phase 1: AppData 按用户分 key（nt_app_v2_{userId}），重新登录后自动恢复。

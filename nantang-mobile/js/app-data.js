@@ -214,6 +214,21 @@ window.AppData = {
     clearTimeout(this._timerS);
     var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, _lastAccommodationDeduction: this._data._lastAccommodationDeduction };
     if (immediate) { this._saveKey('nt_app_v2_shared', data); return; }
+    // 服务器同步：在 _saveShared 末尾统一推送
+    if (typeof API !== 'undefined' && API.token) {
+      var self = this;
+      var payload = {
+        camps: this._data.camps,
+        map_locations: this._data.map_locations,
+        inventory: this._data.inventory,
+        canteenMenu: this._data.canteenMenu
+      };
+      fetch('/api/data/sync_shared', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.token },
+        body: JSON.stringify(payload)
+      }).catch(function(){});
+    }
     var self = this;
     this._timerS = setTimeout(function() { self._saveKey('nt_app_v2_shared', data); }, 200);
   },
@@ -400,9 +415,10 @@ window.AppData = {
       var room = accs[roomId];
       if (room.status !== 'occupied' || !room.tenant) return;
       var roomPrice = room.rentNT || 30;
-      var totalDue = roomPrice * daysPassed;
       if (window.NT) {
         var user = NT.getUser(room.tenant);
+        var userOverdue = user ? (user.overdueNT || 0) : 0;
+        var totalDue = roomPrice * daysPassed + (room.overdueNT || 0) + userOverdue;
         if (user) {
           var affordable = Math.min(user.ntBalance, totalDue);
           if (affordable > 0) {
@@ -410,7 +426,7 @@ window.AppData = {
           }
           var unpaid = totalDue - affordable;
           if (unpaid > 0) {
-            room.overdueNT = (room.overdueNT || 0) + unpaid;
+            user.overdueNT = (user.overdueNT || 0) + unpaid;
             if (typeof showToast === 'function') showToast(room.tenant+' 住宿欠费 '+unpaid+' NT', 'warn');
           }
         }

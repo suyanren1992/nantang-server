@@ -61,7 +61,7 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
              created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
     db.add(u)
     pool = await db.execute(select(CommunityPool).limit(1)); pool = pool.scalar_one_or_none()
-    if not pool: pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0); db.add(pool)
+    if not pool: pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0, contribution_pool=0, camp_balance=0); db.add(pool)
     pool.total_issued += (200 if is_first else 50)
     await db.commit()
     _rt = create_refresh_token(u.id)

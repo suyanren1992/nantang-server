@@ -74,6 +74,8 @@ class CommunityPool(Base):
     balance = Column(Integer, default=2000)
     total_issued = Column(Integer, default=2000)
     task_escrow = Column(Integer, default=0)
+    contribution_pool = Column(Integer, default=0)
+    camp_balance = Column(Integer, default=0)
     updated_at = Column(String, nullable=True)
 
 

@@ -100,6 +100,8 @@ function registerUser(userId, initialDeposit) {
 // ═══════════════════════════════════════════════
 
 function deposit(userId, amount) {
+  console.warn('[NT] deposit() deprecated, use topUp()');
+  return null;
   var u = _getUser(userId); if (!u) return null;
   u.depositBalance += amount;
   u.availableDeposit += amount;
@@ -109,6 +111,8 @@ function deposit(userId, amount) {
 }
 
 function withdraw(userId, amount) {
+  console.warn('[NT] withdraw() deprecated, use cashOut()');
+  return null;
   var u = _getUser(userId); if (!u) return null;
   if (u.availableDeposit < amount) return _err('可用保证金不足');
   u.depositBalance -= amount;
@@ -210,6 +214,8 @@ function verifyTask(taskId, verifierId, approved, reason) {
     if (assignee) {
       assignee.ntBalance += t.reward;
       assignee.totalEarned += t.reward;
+      assignee.contributionValue = (assignee.contributionValue||0) + t.reward;
+      assignee.experienceValue = (assignee.experienceValue||0) + t.reward;
     }
     poster.totalPaid += t.reward;
 
@@ -347,10 +353,12 @@ function batchSettle() {
 // ═══════════════════════════════════════════════
 
 // 向后兼容：路由到 COMMUNITY_POOL
+// ponytail: 三池支持前，earn/spend wrapper 固定走 community pool，scope 仅影响 ledger type 标签
 function earn(userId, amount, reason, scope) {
   return earnFromPool(userId, amount, reason, 'community', scope);
 }
 
+// ponytail: CAMP_POOLS 端到端实现前，spend() 固定走 community pool。scope 仅影响 ledger type 标签。
 function spend(userId, amount, reason, scope) {
   return spendToPool(userId, amount, reason, 'community', scope);
 }
@@ -376,7 +384,6 @@ function cashOut(userId, amount, reason, txId) {
   if (u.ntBalance < amount) return _err('NT 余额不足');
   if (amount <= 0) return _err('提现金额必须大于 0');
   u.ntBalance -= amount;
-  u.totalPaid += amount;
   _totalIssued -= amount;
   _addLedger(userId, 'system', amount, 'withdrawal', reason || '提现');
   if (txId) _processedTxIds[txId] = true;
@@ -387,6 +394,10 @@ function cashOut(userId, amount, reason, txId) {
 function earnFromPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
   scope = scope || 'personal';
+  if (pool !== 'community' && (!pool || pool.indexOf('camp:') !== 0)) {
+    console.error('[NT] earnFromPool: invalid pool', pool);
+    return null;
+  }
   // 检查池子余额
   if (pool === 'community' && COMMUNITY_POOL < amount) {
     console.error('[NT] 社区公共池余额不足！当前:'+COMMUNITY_POOL+' 需要:'+amount);
@@ -411,9 +422,12 @@ function spendToPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
   if (u.ntBalance < amount) return _err('NT 余额不足');
   scope = scope || 'personal';
+  if (pool !== 'community' && (!pool || pool.indexOf('camp:') !== 0)) {
+    console.error('[NT] spendToPool: invalid pool', pool);
+    return null;
+  }
   u.ntBalance -= amount;
   u.totalPaid += amount;
-  u.contributionValue = Math.max(0, (u.contributionValue||0) - amount);
   if (pool === 'community') { COMMUNITY_POOL += amount; }
   else if (pool && pool.indexOf('camp:') === 0) {
     var campId = pool.slice(5);
@@ -426,6 +440,13 @@ function spendToPool(userId, amount, reason, pool, scope) {
 
 function getCommunityPool() { return COMMUNITY_POOL; }
 function getCampPool(campId) { return CAMP_POOLS[campId] || 0; }
+
+function depositToCampPool(campId, amount, reason) {
+  if (!CAMP_POOLS[campId]) CAMP_POOLS[campId] = 0;
+  CAMP_POOLS[campId] += amount; _totalIssued += amount;
+  _addLedger('system', 'camp:' + campId, amount, 'deposit', reason || '营队注资');
+  _saveState(true); return CAMP_POOLS[campId];
+}
 
 function depositToCommunityPool(amount, reason) {
   COMMUNITY_POOL += amount;
@@ -460,6 +481,7 @@ var PUBLIC_CV_POOL = 0;
 // ponytail: 无过期机制。当审批数 >1000 时改为 LRU Map 或加 TTL 自动清理。
 var _processedTxIds = {};
 function _addToPublicPool(cv, source) {
+  // ponytail: PUBLIC_CV_POOL 单向积累无出口。当 >10000 时需实现分配机制（如按周活跃度分发给成员）
   PUBLIC_CV_POOL += cv;
   _addLedger('system', '__public_pool__', cv, 'cv_pool_'+source, '公共池收入');
 }
@@ -640,6 +662,7 @@ window.NT = {
   getCommunityPool: getCommunityPool,
   getCampPool: getCampPool,
   depositToCommunityPool: depositToCommunityPool,
+  depositToCampPool: depositToCampPool,
 
   // CV / XP / 公共池
   checkCvGate: checkCvGate,

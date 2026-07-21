@@ -72,7 +72,7 @@ async def _get_pool(db: AsyncSession) -> CommunityPool:
     result = await db.execute(select(CommunityPool).limit(1))
     pool = result.scalar_one_or_none()
     if not pool:
-        pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0, updated_at=datetime.utcnow().isoformat())
+        pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0, contribution_pool=0, camp_balance=0, updated_at=datetime.utcnow().isoformat())
         db.add(pool)
         await db.flush()
     return pool
@@ -125,6 +125,12 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     user.updated_at = datetime.utcnow().isoformat()
     to_user.updated_at = datetime.utcnow().isoformat()
 
+    cv_amount = req.amount
+    user.contribution_value = max(0, user.contribution_value - cv_amount)
+    to_user.contribution_value = (to_user.contribution_value or 0) + int(cv_amount * 0.75)
+    pool = await _get_pool(db)
+    pool.contribution_pool = (pool.contribution_pool or 0) + int(cv_amount * 0.25)
+
     lid = _ledger_id()
     await _add_ledger(db, lid, user.id, to_user.id, req.amount, "transfer", req.reason)
     await db.commit()
@@ -139,13 +145,18 @@ async def earn(req: EarnSpendRequest, user: User = Depends(get_current_user), db
         raise HTTPException(status_code=400, detail="金额必须大于0")
 
     pool = await _get_pool(db)
-    if pool.balance < req.amount:
-        raise HTTPException(status_code=400, detail=f"社区池余额不足（当前 {pool.balance} NT）")
-
-    pool.balance -= req.amount
+    if req.scope == "camp" or (hasattr(req, 'pool') and req.pool and req.pool.startswith('camp:')):
+        if pool.camp_balance < req.amount:
+            raise HTTPException(status_code=400, detail=f"营队池余额不足（当前 {pool.camp_balance} NT）")
+        pool.camp_balance -= req.amount
+    else:
+        if pool.balance < req.amount:
+            raise HTTPException(status_code=400, detail=f"社区池余额不足（当前 {pool.balance} NT）")
+        pool.balance -= req.amount
 
     user.nt_balance += req.amount
     user.experience_value += req.amount
+    user.contribution_value += req.amount
     user.updated_at = datetime.utcnow().isoformat()
 
     lid = _ledger_id()
@@ -168,13 +179,12 @@ async def spend(req: EarnSpendRequest, user: User = Depends(get_current_user), d
     user.updated_at = datetime.utcnow().isoformat()
 
     # spend returns to community pool
-    if req.scope == "personal":
-        pool = await _get_pool(db)
-        pool.balance += req.amount
+    pool = await _get_pool(db)
+    pool.balance += req.amount
 
     lid = _ledger_id()
-    await _add_ledger(db, lid, user.id, "community_pool" if req.scope == "personal" else None,
-                      req.amount, "spend", req.reason)
+    await _add_ledger(db, lid, user.id, "community_pool",
+                      req.amount, f"{req.scope}_spend", req.reason)
     await db.commit()
     return {"ok": True, "entry_id": lid, "balance": user.nt_balance}
 
@@ -199,6 +209,22 @@ async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: Asy
     await _add_ledger(db, lid, None, target.id, req.amount, "topup", req.reason)
     await db.commit()
     return {"ok": True, "entry_id": lid}
+
+
+@router.post("/cashout")
+async def cashout(req: TopUpRequest, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    if req.amount <= 0: raise HTTPException(status_code=400, detail="金额必须大于0")
+    target = (await db.execute(select(User).where(User.id == req.user))).scalar_one_or_none()
+    if not target: raise HTTPException(status_code=404, detail="用户不存在")
+    if target.nt_balance < req.amount:
+        raise HTTPException(status_code=400, detail=f"余额不足（当前 {target.nt_balance} NT）")
+    target.nt_balance -= req.amount; target.updated_at = datetime.utcnow().isoformat()
+    pool = await _get_pool(db); pool.total_issued -= req.amount
+    if pool.total_issued < 0: raise HTTPException(status_code=400, detail="系统发行量不足")
+    lid = _ledger_id()
+    await _add_ledger(db, lid, target.id, None, req.amount, "cashout", req.reason)
+    await db.commit()
+    return {"ok": True, "entry_id": lid, "balance": target.nt_balance}
 
 
 @router.get("/verify")
@@ -305,10 +331,11 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
     if approved:
         assignee = await db.execute(select(User).where(User.id == task.assignee))
         assignee = assignee.scalar_one_or_none()
-        if assignee:
-            assignee.nt_balance += task.reward
-            assignee.experience_value += task.reward
-            await _adjust_trust(assignee, 5)
+        if not assignee:
+            raise HTTPException(status_code=400, detail="任务执行者不存在")
+        assignee.nt_balance += task.reward
+        assignee.experience_value += task.reward
+        await _adjust_trust(assignee, 5)
         pool.task_escrow -= task.reward
         task.status = "待结算"
         task.verifier_id = user.id
@@ -328,8 +355,12 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
         poster = poster.scalar_one_or_none()
         if poster:
             poster.nt_balance += task.reward
-            pool.task_escrow -= task.reward
+        else:
+            pool.balance += task.reward
+        pool.task_escrow -= task.reward
         task.status = "已取消"
+        if not poster:
+            await _add_ledger(db, _ledger_id(), task.poster or "escrow", "community_pool", task.reward, "escrow_absorbed", "发布者不存在,NT 回收", task_id)
 
     await db.commit()
     return {"ok": True, "status": task.status}
