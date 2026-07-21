@@ -316,6 +316,10 @@ function doSubmit(name){
   var sub=note;
   if(t.reqPhoto){for(var i=1;i<=t.reqPhoto;i++){var p=document.getElementById('submitPhoto'+i);if(p&&p.value.trim())sub+='\n📷照片'+i+': '+p.value.trim()}}
   if(t.reqFile){for(var j=1;j<=t.reqFile;j++){var f=document.getElementById('submitFile'+j);if(f&&f.value.trim())sub+='\n📎附件'+j+': '+f.value.trim()}}
+  if ((t.slots || 1) > 1) {
+    var allSubmitted = (t.claimants || []).every(function(c) { return c.submission; });
+    if (!allSubmitted) { AppData._saveShared(); filterQuests(); renderMyTasks(); return; }
+  }
   var c=(t.claimants||[]).find(function(x){return x.name===CURRENT_USER});
   if(c){c.submission=sub;c.submittedAt=today();c.status='submitted'}
   else{t.claimants=t.claimants||[];t.claimants.push({name:CURRENT_USER,submission:sub,submittedAt:today(),status:'submitted'})}
@@ -334,6 +338,7 @@ function claimTask(name){
   var t=TASKS[name];if(!t)return;
   if(t.publisher===CURRENT_USER){showToast('不能领取自己发布的任务','error');return}
   t.claimants=t.claimants||[];
+  if ((t.claimants || []).length >= (t.slots || 1)) { showToast('名额已满', 'error'); return; }
   if(t.claimants.some(function(c){return c.name===CURRENT_USER})){showToast('你已经领取过了','warn');return}
   t.claimants.push({name:CURRENT_USER,status:'in_progress'});
   t.claimedAt=t.claimedAt||today();

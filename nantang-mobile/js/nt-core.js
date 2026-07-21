@@ -269,6 +269,34 @@ function disputeTask(taskId) {
   _saveState(true); return t;
 }
 
+function unclaimTask(taskId, assigneeId) {
+  var t = _getTask(taskId); if (!t) return null;
+  if (t.assignee !== assigneeId) return _err('你不是此任务的认领者');
+  if (t.status !== 'active' && t.status !== 'pending') return _err('任务状态不允许放弃');
+  TASK_ESCROW -= t.reward;
+  var poster = _getUser(t.poster);
+  if (poster) poster.ntBalance += t.reward;
+  t.assignee = null; t.status = 'pending'; t.acceptedAt = null;
+  _saveState(true); return t;
+}
+
+function resolveDispute(taskId, resolution) {
+  var t = _getTask(taskId); if (!t) return null;
+  if (t.status !== 'disputed') return _err('任务不在争议状态');
+  if (resolution === 'approve') {
+    TASK_ESCROW -= t.reward;
+    var a = _getUser(t.assignee); if (a) { a.ntBalance += t.reward; a.totalEarned += t.reward; }
+    t.status = 'settled'; t.settledAt = new Date().toISOString();
+    _addLedger('escrow', t.assignee, t.reward, 'dispute_resolve', '争议裁决:判给执行者', taskId);
+  } else if (resolution === 'refund') {
+    TASK_ESCROW -= t.reward;
+    var p = _getUser(t.poster); if (p) p.ntBalance += t.reward;
+    t.status = 'cancelled';
+    _addLedger('escrow', t.poster, t.reward, 'dispute_resolve', '争议裁决:退还发布者', taskId);
+  } else { return _err('无效裁决类型，需为 approve/refund'); }
+  _saveState(true); return t;
+}
+
 // ═══════════════════════════════════════════════
 //  批量结算（净额清算）
 // ═══════════════════════════════════════════════
@@ -643,6 +671,8 @@ window.NT = {
   verifyTask: verifyTask,
   cancelTask: cancelTask,
   disputeTask: disputeTask,
+  unclaimTask: unclaimTask,
+  resolveDispute: resolveDispute,
 
   // 批量结算
   batchSettle: batchSettle,

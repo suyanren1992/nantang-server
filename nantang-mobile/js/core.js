@@ -4,7 +4,7 @@ function roleIcon(r){return r==='admin'?'🛡️':r==='builder'?'🧱':r==='adve
 function roleName(r){return r==='admin'?'管理员':r==='builder'?'共建者':r==='adventurer'?'冒险者':r==='npc'?'在地伙伴':'云村民'}
 // ═══ 公共工具函数 ═══
 function closeAllExpands(){document.querySelectorAll('.card-expand,.submit-expand,.settle-expand,.withdraw-expand,.review-expand,.unclaim-expand,.submission-sub,.ledger-expand,.archive-detail,.confirm-card,.toast-card,.avatar-picker').forEach(function(c){c.remove()})}
-function isTaskOverdue(t){return t.deadline&&t.deadline<today()&&t.status!=='已完成'&&t.status!=='已结算'&&t.status!=='待结算'}
+function isTaskOverdue(t){return t.deadline&&t.deadline<today()&&t.status!=='已结算'&&t.status!=='待结算'}
 function NT_ICON(s){s=s||14;return'<img src=豆子.png alt=NT onerror="this.outerHTML=\'🌱\'" style=width:'+s+'px;height:'+s+'px;vertical-align:middle;margin-right:2px>'}
 // FIX-15: LEDGER 已废弃。RMB 金库迁移到 AppData._data.campRmb。
 function openLedger(type){
@@ -256,7 +256,7 @@ function filterQuests(){
   // sections
   var claimable=items.filter(function(t){return t.status==='进行中'&&(t.claimants||[]).length===0});
   var active=items.filter(function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'||(t.status==='进行中'&&(t.claimants||[]).length>0)});
-  var done=items.filter(function(t){return t.status==='已完成'||t.status==='待结算'||t.status==='已结算'});
+  var done=items.filter(function(t){return t.status==='待结算'||t.status==='已结算'});
   function typedColor(t){return t==='主线'?{c:'var(--green-primary)',b:'#e8f0e8',icon:'🎯'}:t==='支线'?{c:'#c8892e',b:'#fef8e8',icon:'📋'}:{c:'#4a7a82',b:'#e0eaee',icon:'🧹'}}
   // section renderer
   function renderSection(label,emoji,arr,key){
@@ -333,7 +333,7 @@ function toggleQuestCard(el,name){
   // 时间线（完整链路）
   h+='<div style=margin-bottom:8px><div style=font-size:.72rem;color:#5a5a5a;margin-bottom:3px>🕐 时间线</div>';
   h+='<div style=display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:#5a6e5c>';
-  if(t.deadline){var isOverdue=t.deadline<(today())&&t.status!=='已完成'&&t.status!=='已结算';h+='<div style=color:'+(isOverdue?'var(--red)':'#5a6e5c')+'>⏰ 截止：'+t.deadline+(isOverdue?' ⚠️已逾期':'')+'</div>'}
+  if(t.deadline){var isOverdue=t.deadline<(today())&&t.status!=='已结算';h+='<div style=color:'+(isOverdue?'var(--red)':'#5a6e5c')+'>⏰ 截止：'+t.deadline+(isOverdue?' ⚠️已逾期':'')+'</div>'}
   if(t.claimedAt) h+='<div>'+t.claimedAt+' 📥 领取</div>';
   cs.forEach(function(c){if(c.submittedAt) h+='<div>'+c.submittedAt+' 📤 '+esc(c.name)+' 提交</div>'});
   if(t.reviewedAt) h+='<div>'+t.reviewedAt+' 🔍 审核通过</div>';
@@ -578,7 +578,7 @@ function publishDraft(name){
   document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});
   filterQuests();renderDrafts();renderMyTasks();refreshUserUI();
 }
-function deleteDraft(name){AppData.deleteTask(name);document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});filterQuests();renderDrafts()}
+function deleteDraft(name){showConfirm('确定删除草稿「'+name+'」？',function(){AppData.deleteTask(name);document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});filterQuests();renderDrafts()})}
 function clearPubForm(){['pubName','pubNT','pubSlots','pubDeadline','pubReviewer','pubNote'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('pubNT').value='5';document.getElementById('pubSlots').value='1'}
 function renderDrafts(){
   var el=document.getElementById('draftList');if(!el)return;
@@ -694,6 +694,17 @@ function _mergeSyncData(data) {
   });}
   if (data.journal) { AppData._data.journal = []; data.journal.forEach(function(j) { AppData._data.journal.push({type:j.type, content:j.content, time:j.time, space_id:j.space_id}); }); }
   if (data.activity) { AppData._data.activity_log = data.activity; }
+  if (data.items && Array.isArray(data.items)) {
+    if (!AppData._data.items[AppData._currentUser]) AppData._data.items[AppData._currentUser] = [];
+    var existing = AppData._data.items[AppData._currentUser];
+    data.items.forEach(function(it) {
+      if (!existing.find(function(e) { return e.id === it.id; })) existing.push(it);
+    });
+  }
+  if (data.newbie && Array.isArray(data.newbie)) {
+    AppData._data.newbieQuests = {};
+    data.newbie.forEach(function(q) { AppData._data.newbieQuests[q.quest_id] = q; });
+  }
 }
 function enterVillage(){
   var isReg=!document.getElementById('scrRegister').classList.contains('hidden');
@@ -721,8 +732,10 @@ function enterVillage(){
   }
   if(isReg){
     var n=document.getElementById('regName').value.trim();var p=document.getElementById('regPwd').value.trim();
-    if(!n){showToast('请输入名字','error',document.getElementById('regName'));return}
-    if(p.length<6){showToast('密码至少6位','error',document.getElementById('regPwd'));return}
+    var errors=[];
+    if(!n) errors.push('请输入名字');
+    if(p.length<6) errors.push('密码至少6位');
+    if(errors.length){showToast(errors.join('；'),'error');return}
     if(!_profileSeed)_profileSeed=_avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
     if (isHTTP) {
       API.asyncAuth('register', n, p, 'visitor', _profileSeed, function(result) {
@@ -812,7 +825,7 @@ function refreshVillageCards(){
   // 实景地图：进行中任务数 + 在线提示
   el=document.getElementById('vpMapInfo');
   if(el){
-    var totalActive=tasks.filter(function(t){return t.status!=='已结算'&&t.status!=='已完成'}).length;
+    var totalActive=tasks.filter(function(t){return t.status!=='已结算'}).length;
     if(totalActive>0)el.textContent=totalActive+' 个活跃任务 · 探索南塘';
     else el.textContent='探索南塘 · 看看大家在哪';
   }
@@ -1205,6 +1218,7 @@ function changePwd(){
   showToast('密码已修改！','ok');renderProfile('view');
 }
 function closeMyPage(){
+  window.location.hash = '';
   var p=document.getElementById('myPage');p.classList.add('hidden');p.style.zIndex='';
   document.getElementById('villagePage').classList.remove('behind');
   // FIX-11: 如果当前有打开的 overlay，说明用户从 myPage 内导航到了别处，不应触发返回 questHall

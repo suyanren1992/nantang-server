@@ -20,7 +20,7 @@ var API = {
       var resp = await fetch(url, opts);
       if (resp.status === 401) { this.token = null; return { ok: false, error: '登录过期', _offline: false }; }
       return await resp.json();
-    } catch(e) { return { ok: false, error: '网络错误', _offline: true }; }
+    } catch(e) { if (typeof showToast !== 'undefined') showToast('网络异常，请检查连接', 'warn'); return { ok: false, error: '网络错误', _offline: true }; }
   },
 
   // ── 认证 ──
@@ -28,31 +28,51 @@ var API = {
     var path = type === 'register' ? '/api/auth/register' : '/api/auth/login';
     var body = type === 'register' ? {name:name, password:password, role:role||'visitor', avatar_seed:seed} : {name:name, password:password};
     var self = this;
-    fetch((this.base||'') + path, { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify(body) })
+    fetch((this.base||'') + path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        if (d && d.ok && d.token) { self.token = d.token; self.user = d.user; if (callback) callback(d.user); }
-        else { if (callback) callback(d); }
+        if (d && d.ok && d.token) {
+          self.token = d.token; self.user = d.user;
+          if (d.refresh_token) {
+            try { localStorage.setItem('nt_refresh', d.refresh_token); } catch(e) {}
+            document.cookie = 'nt_rt=' + d.refresh_token + '; path=/; max-age=604800';
+          }
+          if (callback) callback(d.user);
+        } else { if (callback) callback(d); }
       })
       .catch(function() { if (callback) callback(null); });
   },
 
-  // ── 静默刷新（页面加载时调用，refresh_token cookie 自动带上）──
   silentRefresh: function(callback) {
     var self = this;
-    fetch((this.base||'') + '/api/auth/refresh', { method: 'POST', credentials: 'include' })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d && d.ok && d.token) { self.token = d.token; self.user = d.user; if (callback) callback(d.user); }
-        else { if (callback) callback(null); }
+    var rt = null;
+    try { rt = localStorage.getItem('nt_refresh'); } catch(e) {}
+    if (!rt) { var m = document.cookie.match(/(?:^|;\s*)nt_rt=([^;]*)/); rt = m ? m[1] : null; }
+    if (!rt) { if (callback) callback(null, 'no_token'); return; }
+    fetch((this.base||'') + '/api/auth/refresh', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({refresh_token: rt}) })
+      .then(function(r) { return r.json().then(function(d) { return {ok:r.ok,status:r.status,data:d}; }); })
+      .then(function(r) {
+        var d = r.data;
+        if (d && d.ok && d.token) {
+          self.token = d.token; self.user = d.user;
+          if (d.refresh_token) { try { localStorage.setItem('nt_refresh', d.refresh_token); } catch(e) {} }
+          if (callback) callback(d.user);
+        } else if (r.status === 401) {
+          try { localStorage.removeItem('nt_refresh'); } catch(e) {};
+          if (callback) callback(null, 'expired');
+        } else {
+          try { localStorage.removeItem('nt_refresh'); } catch(e) {};
+          if (callback) callback(null, 'server_error');
+        }
       })
-      .catch(function() { if (callback) callback(null); });
+      .catch(function(e) { if (callback) callback(null, 'network'); });
   },
 
   logout: function(callback) {
-    var self = this;
+    this.token = null; this.user = null;
+    try { localStorage.removeItem('nt_refresh'); } catch(e) {}
     fetch((this.base||'') + '/api/auth/logout', { method: 'POST', credentials: 'include' })
-      .finally(function() { self.token = null; self.user = null; if (callback) callback(); });
+      .finally(function() { if (callback) callback(); });
   },
 
   // ── NT 操作 ──

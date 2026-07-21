@@ -2,12 +2,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from database import get_db
-from models import NTTask, User, CommunityPool
+from models import NTTask, User
 from routes.auth import get_current_user, require_admin
-from routes.nt import _ledger_id, _add_ledger, _adjust_trust
+from routes.nt import _ledger_id, _add_ledger, _adjust_trust, _get_pool
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -18,7 +18,7 @@ class TaskCreate(BaseModel):
     category: str = "other"
     scope: str = "社区"
     note: str = ""
-    slots: int = 1
+    slots: int = Field(1, ge=1, le=100)
     deadline: str = ""
     reviewer: str = ""
     location_id: str = ""
@@ -68,6 +68,10 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     if user.nt_balance < req.reward:
         raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward} NT，当前 {user.nt_balance}）")
 
+    if req.reviewer and req.reviewer.strip():
+        rv = (await db.execute(select(User).where(User.id == req.reviewer.strip()))).scalar_one_or_none()
+        if not rv: raise HTTPException(status_code=400, detail="审核人不存在")
+
     task_id = _task_id()
     task = NTTask(
         id=task_id, poster=user.id, title=req.title, reward=req.reward,
@@ -77,10 +81,8 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         status="进行中", created_at=datetime.utcnow().isoformat(),
     )
     user.nt_balance -= req.reward
-    pool_result = await db.execute(select(CommunityPool).limit(1))
-    pool = pool_result.scalar_one_or_none()
-    if pool:
-        pool.task_escrow += req.reward
+    pool = await _get_pool(db)
+    pool.task_escrow += req.reward
     db.add(task)
     lid = _ledger_id()
     await _add_ledger(db, lid, user.id, "escrow", req.reward, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
@@ -116,6 +118,8 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
         task.settled_at = datetime.utcnow().isoformat()
     if req.status == "待审核" and old_status != "待审核":
         task.completed_at = datetime.utcnow().isoformat()
+    if req.status == "退回修改":
+        task.completed_at = None
     await db.commit()
     return {"ok": True, "status": task.status}
 
@@ -137,12 +141,12 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
     if task.escrow_amount > 0 and task.status != "已结算":
         poster_result = await db.execute(select(User).where(User.id == task.poster))
         poster = poster_result.scalar_one_or_none()
+        pool = await _get_pool(db)
         if poster:
             poster.nt_balance += task.escrow_amount
-        pool_result = await db.execute(select(CommunityPool).limit(1))
-        pool = pool_result.scalar_one_or_none()
-        if pool:
-            pool.task_escrow = max(0, pool.task_escrow - task.escrow_amount)
+        else:
+            pool.balance += task.escrow_amount
+        pool.task_escrow -= task.escrow_amount
     await db.delete(task)
     await db.commit()
     return {"ok": True}

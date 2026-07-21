@@ -1260,8 +1260,18 @@ window.addEventListener('message',function(e){
   var isHTTP = window.location.protocol !== 'file:';
   if (isHTTP) {
     if (typeof API === 'undefined') return;
-    API.silentRefresh(function(u) {
-      if (!u || !u.name) { document.body.style.visibility = 'visible'; try { localStorage.removeItem('nt_refresh'); } catch(e) {} showToast('服务器未连接，请手动登录','warn'); return; }
+    showToast('正在恢复会话…', 'info');
+    var _refreshTimeout = setTimeout(function() { document.body.style.visibility = 'visible'; showToast('会话恢复超时，请手动登录', 'warn'); }, 5000);
+    API.silentRefresh(function(u, errType) {
+      clearTimeout(_refreshTimeout);
+      if (!u || !u.name) {
+        document.body.style.visibility = 'visible';
+        try { localStorage.removeItem('nt_refresh'); } catch(e) {}
+        if (errType === 'network') showToast('网络不通，请检查连接后手动登录', 'warn');
+        else if (errType === 'expired') showToast('登录已过期，请重新登录', 'warn');
+        else showToast('服务器未连接，请手动登录', 'warn');
+        return;
+      }
       setCurrentUser(u.name);
       if (window.AppData) AppData.switchUser(u.name);
       // 保存头像种子到本地记录

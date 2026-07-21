@@ -305,6 +305,7 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
         raise HTTPException(status_code=404, detail="任务不存在")
     if task.status != "进行中":
         raise HTTPException(status_code=400, detail=f"任务状态不可接取: {task.status}")
+    if task.assignee: raise HTTPException(status_code=409, detail="任务已被接取")
     task.assignee = user.id
     task.status = "进行中"
     task.accepted_at = datetime.utcnow().isoformat()
@@ -322,7 +323,7 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    if task.reviewer and task.reviewer != user.id and user.role != "admin":
+    if user.role != "admin" and (not task.reviewer or task.reviewer != user.id):
         raise HTTPException(status_code=403, detail="只有指定的审核人可以验证此任务")
     if task.status not in ("待审核", "进行中", "待提交"):
         raise HTTPException(status_code=400, detail=f"任务状态不可验证: {task.status}")
@@ -364,3 +365,51 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
 
     await db.commit()
     return {"ok": True, "status": task.status}
+
+
+@router.post("/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user: raise HTTPException(status_code=401)
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task: raise HTTPException(status_code=404)
+    if task.poster != user.id and user.role != "admin":
+        raise HTTPException(status_code=403)
+    if task.status in ("已结算", "待结算"):
+        raise HTTPException(status_code=400, detail="不可取消已结算任务")
+    if task.escrow_amount > 0:
+        pool = await _get_pool(db)
+        poster = (await db.execute(select(User).where(User.id == task.poster))).scalar_one_or_none()
+        if poster: poster.nt_balance += task.escrow_amount
+        else: pool.balance += task.escrow_amount
+        pool.task_escrow -= task.escrow_amount
+    task.status = "已取消"
+    await db.commit()
+    return {"ok": True}
+
+@router.post("/tasks/{task_id}/submit")
+async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user: raise HTTPException(status_code=401)
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task: raise HTTPException(status_code=404)
+    if task.assignee != user.id: raise HTTPException(status_code=403, detail="只有认领者可以提交")
+    if task.status not in ("进行中", "待提交", "退回修改"):
+        raise HTTPException(status_code=400, detail=f"任务状态不可提交: {task.status}")
+    task.evidence = evidence
+    task.status = "待审核"
+    task.completed_at = datetime.utcnow().isoformat()
+    await db.commit()
+    return {"ok": True}
+
+@router.post("/tasks/{task_id}/dispute")
+async def dispute_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user: raise HTTPException(status_code=401)
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task: raise HTTPException(status_code=404)
+    if task.poster != user.id and task.assignee != user.id:
+        raise HTTPException(status_code=403, detail="只有任务参与者可以发起争议")
+    task.status = "已争议"
+    await db.commit()
+    return {"ok": True}
