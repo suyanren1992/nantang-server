@@ -13,6 +13,13 @@
 </head>
 <body>
 <script>
+// ?reset — 清空所有本地数据（手机端调试用，清完自动刷新）
+if (location.search.indexOf('reset') !== -1) {
+  localStorage.clear();
+  sessionStorage.clear();
+  document.body.innerHTML = '<div style="text-align:center;padding:40px;font-size:1rem;color:#3d6b52">✅ 本地数据已清除<br><br><a href="/" style="color:var(--green-primary)">点击重新进入</a></div>';
+  throw new Error('reset');
+}
 // HTTP 模式：清旧数据 + 验证期间隐藏页面（防闪烁）
 if (window.location.protocol !== 'file:') {
   document.documentElement.style.visibility = 'hidden';
@@ -45,7 +52,7 @@ if (window.location.protocol !== 'file:') {
       <div class="reg-avatar" id="regAvatar" onclick="cycleAvatar()"></div>
       <button class="avatar-btn" onclick="cycleAvatar()">🎨 换头像</button>
       <input type="text" id="regName" class="login-input" placeholder="你的名字">
-      <input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少6位）">
+      <input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少8位）">
       <div><div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:4px">邀请码（可选，填入后可解锁身份）</div><input type="text" id="regInviteCode" class="login-input" placeholder="输入邀请码"></div>
       <div class="login-error" id="regError"></div>
       <div class="login-btns"><button class="btn-pri" onclick="enterVillage()">确认注册 →</button></div>
@@ -101,7 +108,7 @@ if (window.location.protocol !== 'file:') {
       <div class="my-id-row2">☁️ 云村民</div>
       <div class="my-id-row3" id="myCampRow"></div>
     </div>
-    <div style="margin-left:auto;position:relative;cursor:pointer" onclick="if(typeof _toggleInbox==='function')_toggleInbox()">
+    <div style="margin-left:auto;position:relative;cursor:pointer" onclick="event.stopPropagation();if(typeof _toggleInbox==='function')_toggleInbox()">
       <span style="font-size:1.3rem">📬</span>
       <span id="inboxBadge" style="position:absolute;top:-4px;right:-6px;background:#b84c38;color:#fff;font-size:.55rem;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 4px;display:none">0</span>
     </div>
@@ -199,10 +206,7 @@ if (window.location.protocol !== 'file:') {
   </div>
   <div class="overlay-body" id="innBody"></div>
 </div>
-<!-- ══ 阶段4: 客栈床位详情 Sheet ══ -->
-<div id="innDetailSheet" class="inn-sheet" style="display:none" onclick="if(event.target===this)closeInnDetail()">
-  <div class="inn-sheet-card" id="innDetailCard"></div>
-</div>
+<!-- ══ 阶段4: 客栈床位详情 — E3.1 已移除，住宿走 _showStaySheet() ══ -->
 <!-- ══ 卡片室 ══ -->
 <div id="overlayCardRoom" class="overlay" style="z-index:110">
   <div class="overlay-top">
@@ -213,7 +217,7 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-body" id="cardRoomBody" style="padding-bottom:60px"></div>
   <div style="position:fixed;bottom:0;left:0;right:0;padding:8px 14px;padding-bottom:max(8px,env(safe-area-inset-bottom,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--green-border);z-index:10;display:flex;gap:8px">
     <button class="btn-pri" style="flex:1;font-size:.72rem;padding:8px" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()">🔍 发起发现</button>
-    <button class="btn-outline" style="flex:1;font-size:.72rem;padding:8px;color:var(--green-primary);border-color:var(--green-primary)" onclick="if(typeof openSelfReport==='function')openSelfReport()">📝 上报劳动</button>
+    <button class="btn-outline" style="flex:1;font-size:.72rem;padding:8px;color:var(--green-primary);border-color:var(--green-primary)" onclick="if(typeof openPathChooser==='function')openPathChooser()">📝 上报劳动</button>
     <button class="btn-sm sec" style="font-size:.65rem;padding:8px;flex-shrink:0" onclick="if(typeof _openCardRules==='function')_openCardRules()">📜</button>
   </div>
 </div>
@@ -384,7 +388,7 @@ if (window.location.protocol !== 'file:') {
     <div id="pubTypeExtra"></div>
     <div class="pub-row">
       <div class="pub-field"><label>谁能领</label><select id="pubScope" onchange="onPubScopeChange()"><option value="all">🌐 所有人</option><option value="adventurer">⚔️ 冒险者</option><option value="npc">👥 在地伙伴</option><option value="visitor">🏕️ 云村民</option><option value="specific">🎯 指定某人</option></select></div>
-      <div class="pub-field"><label>人数 (0=不限)</label><input type="number" id="pubSlots" value="1" min="0"></div>
+      <div class="pub-field"><label>人数</label><input type="number" id="pubSlots" value="1" min="1"></div>
     </div>
     <div class="pub-row">
       <div class="pub-field"><label>发布时间</label><input type="date" id="pubStartDate"></div>
@@ -425,7 +429,7 @@ if (window.location.protocol !== 'file:') {
           <div class="ub-role" id="ubRole">🧙 管理员 · 南塘云村</div>
         </div>
         </div>
-        <button class="ub-back" id="ubInboxBtn" onclick="if(typeof _toggleInbox==='function')_toggleInbox()" title="信箱" style="position:relative">📬<span id="ubInboxBadge" style="position:absolute;top:-2px;right:-4px;background:var(--g-red);color:#fff;border-radius:10px;font-size:.5rem;padding:1px 5px;display:none">0</span></button>
+        <button class="ub-back" id="ubInboxBtn" onclick="event.stopPropagation();if(typeof _toggleInbox==='function')_toggleInbox()" title="信箱" style="position:relative">📬<span id="ubInboxBadge" style="position:absolute;top:-2px;right:-4px;background:var(--g-red);color:#fff;border-radius:10px;font-size:.5rem;padding:1px 5px;display:none">0</span></button>
       </div>
       <div class="ub-stats" id="ubStats">
         <div class="ub-stat" id="ubStatDate">📅 —</div>
@@ -434,7 +438,7 @@ if (window.location.protocol !== 'file:') {
         <div class="ub-stat" id="ubStatStay">🛏️ —</div>
         <div class="ub-stat" id="ubFarmStat">🌿 —</div>
         <div class="ub-stat" id="ubStatTasks">📋 —</div>
-        <div class="ub-stat" id="ubNewbieChip" style="display:none;cursor:pointer;background:#e8f5e9;color:#3d6b52;border-radius:10px;padding:2px 8px;font-weight:600" onclick="toggleNewbieGuide()">🌱 新手</div>
+        <span id="offlineBadge" style="display:none;color:#b84c38;font-size:.6rem;margin-left:8px">离线</span><div class="ub-stat" id="ubNewbieChip" style="display:none;cursor:pointer;background:#e8f5e9;color:#3d6b52;border-radius:10px;padding:2px 8px;font-weight:600" onclick="toggleNewbieGuide()">🌱 新手</div>
       </div>
       </div>
     <div class="scroll-area" id="scrollArea">
@@ -479,7 +483,7 @@ if (window.location.protocol !== 'file:') {
   <div class="sub-bar hidden" id="subBar"></div>
 </div>
 
-<script src="js/schema.js"></script>
+<!-- D8: schema.js 已废弃，Phase C 后客户端只是缓存 -->
 <script src="js/utils.js"></script>
 <script src="js/backup.js"></script>
 <script src="js/store.js"></script>
@@ -532,6 +536,20 @@ var _itemFold={};
 var _inboxReadIds = {};
 try { _inboxReadIds = JSON.parse(localStorage.getItem('nt_inbox_read') || '{}'); } catch(e) {}
 var _inboxCategory = '全部';
+var _inboxShowAllUnread = false;
+
+// B10: 预创建信箱 panel DOM——避免首次点击 createElement 开销
+(function(){
+  var p = document.createElement('div'); p.id = 'inboxPanel';
+  p.style.cssText = 'display:none;position:fixed;top:calc(50px + env(safe-area-inset-top, 0px));right:8px;width:340px;max-width:92vw;max-height:70vh;overflow-y:auto;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.2);border-radius:14px;background:#fff;border:1px solid #e0e0e0';
+  p.innerHTML = '<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.82rem">📬 信箱</h3><button onclick="closeInbox()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#999">✕</button></div><div id="inboxContent"></div></div>';
+  document.body.appendChild(p);
+  p.addEventListener('click', function(e){ e.stopPropagation(); });
+  document.addEventListener('click', function(e){
+    if (p.style.display === 'none') return;
+    if (!p.contains(e.target) && e.target.id !== 'ubInboxBtn') { p.style.display = 'none'; }
+  });
+})();
 
 function _isInboxUnread(msgId) {
   return !_inboxReadIds[msgId];
@@ -542,17 +560,20 @@ function _markInboxRead(msgId) {
   try { localStorage.setItem('nt_inbox_read', JSON.stringify(_inboxReadIds)); } catch(e) {}
 }
 
+var _inboxMsgCache = { ts: 0, msgs: null };
 function _computeInboxMessages() {
   var msgs = [];
   var me = CURRENT_USER;
   if (!me) return msgs;
+  // B10: 5 秒结果缓存——一次渲染调用两次/连续点击不再重复全量遍历
+  if (_inboxMsgCache.msgs && Date.now() - _inboxMsgCache.ts < 5000) return _inboxMsgCache.msgs;
   var now = new Date().toISOString();
 
   // 1. 校核 — 待校核项
   var vfys = (window.AppData && AppData._data.pendingVerifications) ? AppData._data.pendingVerifications : [];
   vfys.forEach(function(v) {
     if (v.status !== 'pending') return;
-    var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', field_harvest:'🌿', field_action:'🌿', daily_container:'🗑️', quest:'📋', stay:'🛏️', labor_report:'📝', other:'⭐' };
+    var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', store_in:'🏬', field_harvest:'🌿', field_action:'🌿', daily_container:'🗑️', quest:'📋', stay:'🛏️', labor_report:'📝', other:'⭐' };
     msgs.push({
       id: 'vfy_'+v.id, category:'校核', icon:icons[v.type]||'📋',
       text: (v.doer||'系统') + ' · ' + v.action,
@@ -593,7 +614,7 @@ function _computeInboxMessages() {
     if (jDate < weekAgo) return;
     if (j.type === 'tip' || j.type === 'encourage') {
       msgs.push({
-        id: 'j_'+jDate+'_'+Math.random().toString(36).slice(2,6), category:'互动',
+	        id: 'j_'+(jDate||'')+'_'+((j.content||'')+j.type).length.toString(36), category:'互动',
         icon: j.type==='tip'?'💝':'💬', text: j.content||'', sub:'', createdAt: jDate,
         jumpType:'ledger', jumpId:'all'
       });
@@ -608,7 +629,7 @@ function _computeInboxMessages() {
       var txDate = tx.date || '';
       if (txDate < threeDaysAgo) return;
       msgs.push({
-        id: 'nt_'+txDate+'_'+Math.random().toString(36).slice(2,6), category:'财务',
+	        id: 'l_'+(tx.entry_id || (txDate+'_'+tx.type+'_'+tx.amount)), category:'财务',
         icon: (tx.amount||0) >= 0 ? '💰' : '💸',
         text: (tx.note || tx.type || '交易'),
         sub: ((tx.amount||0) >= 0 ? '+' : '') + (tx.amount||0) + ' NT',
@@ -629,6 +650,7 @@ function _computeInboxMessages() {
   });
 
   msgs.sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); });
+  _inboxMsgCache = { ts: Date.now(), msgs: msgs };
   return msgs;
 }
 
@@ -667,7 +689,9 @@ function _renderInbox() {
 
     if (unread.length) {
       h += '<div style="font-size:.62rem;color:var(--red);font-weight:600;margin-bottom:4px">🔴 新消息 ('+unread.length+')</div>';
-      unread.forEach(function(m){ h += _renderMsg(m); });
+      // B10: 大批量截断——首屏最多 20 条未读，点击「查看更多」展开
+      (_inboxShowAllUnread ? unread : unread.slice(0, 20)).forEach(function(m){ h += _renderMsg(m); });
+      if (!_inboxShowAllUnread && unread.length > 20) h += '<div style="text-align:center;padding:6px"><button class="btn-sm sec" style="font-size:.58rem;padding:4px 10px" onclick="event.stopPropagation();_inboxShowAllUnread=true;_renderInbox()">查看更多（剩余 '+(unread.length-20)+' 条）</button></div>';
     }
     if (read.length) {
       h += '<div style="font-size:.6rem;color:#aaa;margin:8px 0 4px">较早</div>';
@@ -685,20 +709,9 @@ function _renderInbox() {
 
 function _toggleInbox() {
   var panel = document.getElementById('inboxPanel');
-  if (panel && panel.style.display === 'block') { panel.style.display = 'none'; return; }
-  if (panel) { panel.style.display = 'block'; _renderInbox(); return; }
-
-  panel = document.createElement('div'); panel.id = 'inboxPanel';
-  panel.style.cssText = 'position:fixed;top:50px;right:8px;width:340px;max-width:92vw;max-height:70vh;overflow-y:auto;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.2);border-radius:14px;background:#fff;border:1px solid #e0e0e0';
-  panel.innerHTML = '<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.82rem">📬 信箱</h3><button onclick="closeInbox()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#999">✕</button></div><div id="inboxContent"></div></div>';
-  document.body.appendChild(panel);
-  panel.addEventListener('click', function(e){ e.stopPropagation(); });
-  document.addEventListener('click', function _closeInbox(e){
-    if (!panel || panel.style.display === 'none') { document.removeEventListener('click', _closeInbox); return; }
-    if (!panel.contains(e.target) && e.target.id !== 'ubInboxBtn') { panel.style.display = 'none'; }
-  });
-
-  _renderInbox();
+  if (!panel) return;
+  if (panel.style.display === 'block') { panel.style.display = 'none'; return; }
+  panel.style.display = 'block'; _renderInbox();
 }
 
 function closeInbox() {
@@ -976,27 +989,7 @@ var _builderPendingTasks = [];
 // ═══ 第⑦步 — 启营仪式 + 启动 ═══
 
 
-// ══ 阶段4: 客栈数据 ══
-var INN_ROOMS = [
-  { building:'竹', type:'单人间', rooms:[
-    { id:'zhu_a', name:'竹·A间', bed:'1.2m', desk:true, dir:'朝南', price:30, occupant:null, checkIn:null, checkOut:null },
-    { id:'zhu_b', name:'竹·B间', bed:'1.2m', desk:true, dir:'朝北', price:30, occupant:null, checkIn:null, checkOut:null }
-  ]},
-  { building:'梅', type:'单人间', rooms:[
-    { id:'mei_a', name:'梅·A间', bed:'1.2m', desk:true, dir:'朝东', price:30, occupant:'砚仁', checkIn:'2026-07-20', checkOut:'2026-07-27' },
-    { id:'mei_b', name:'梅·B间', bed:'1.2m', desk:true, dir:'朝西', price:30, occupant:null, checkIn:null, checkOut:null }
-  ]},
-  { building:'兰', type:'四人间', beds:[
-    { id:'lan_a', name:'兰·床A', price:15, occupant:'朝林', checkIn:'2026-07-20', checkOut:'2026-07-27' },
-    { id:'lan_b', name:'兰·床B', price:15, occupant:'大飞', checkIn:'2026-07-20', checkOut:'2026-07-25' },
-    { id:'lan_c', name:'兰·床C', price:15, occupant:null, checkIn:null, checkOut:null },
-    { id:'lan_d', name:'兰·床D', price:15, occupant:null, checkIn:null, checkOut:null }
-  ]},
-  { building:'菊', type:'单人间', rooms:[
-    { id:'ju_a', name:'菊·A间', bed:'1.2m', desk:true, dir:'朝南', price:30, occupant:null, checkIn:null, checkOut:null },
-    { id:'ju_b', name:'菊·B间', bed:'1.2m', desk:true, dir:'朝北', price:30, occupant:null, checkIn:null, checkOut:null }
-  ]}
-];
+// ══ 阶段4: 客栈 — E3.1 已迁移到 AppData.map_locations.accommodations ══
 
 
 
@@ -1256,10 +1249,11 @@ window.addEventListener('message',function(e){
   var isHTTP = window.location.protocol !== 'file:';
   if (isHTTP) {
     if (typeof API === 'undefined') return;
-    showToast('正在恢复会话…', 'info');
-    var _refreshTimeout = setTimeout(function() { document.body.style.visibility = 'visible'; showToast('会话恢复超时，请手动登录', 'warn'); }, 5000);
+    var loadingEl = document.createElement('div'); loadingEl.id = 'loginLoading'; loadingEl.textContent = '正在恢复会话…'; loadingEl.style.cssText = 'text-align:center;padding:16px;color:#5a6e5c;font-size:.75rem'; document.getElementById('loginPage').appendChild(loadingEl);
+    var _refreshTimedOut = false; var _refreshTimeout = setTimeout(function() { _refreshTimedOut = true; document.body.style.visibility = 'visible'; showToast('会话恢复超时，请手动登录', 'warn'); }, 5000);
     API.silentRefresh(function(u, errType) {
-      clearTimeout(_refreshTimeout);
+      if (_refreshTimedOut) return;
+      clearTimeout(_refreshTimeout); if (loadingEl) loadingEl.remove();
       if (!u || !u.name) {
         document.body.style.visibility = 'visible';
         try { localStorage.removeItem('nt_refresh'); } catch(e) {}
@@ -1334,11 +1328,21 @@ window.addEventListener('message',function(e){
 })();
 
 // ══ Hash 路由 ══
-var _om=openMapPage;openMapPage=function(){window.location.hash='map';_om();};
-var _oc=openCommunityPage;openCommunityPage=function(){window.location.hash='community';_oc();};
-var _oq=openQuestHallPage;openQuestHallPage=function(){window.location.hash='quests';_oq();};
-var _sm=showMy;showMy=function(o){window.location.hash='workbench';_sm(o);};
-var _co=closeOverlay;closeOverlay=function(id){window.location.hash='';_co(id);};
+var _hashFromCode = false;
+window.addEventListener('hashchange', function(e) {
+    if (_hashFromCode) { _hashFromCode = false; return; }
+    var h = window.location.hash;
+    if (h === '#map' && typeof openMapPage === 'function') openMapPage();
+    else if (h === '#community' && typeof openCommunityPage === 'function') openCommunityPage();
+    else if (h === '#quests' && typeof openQuestHallPage === 'function') openQuestHallPage();
+    else if (h === '#workbench' && typeof showMy === 'function') showMy();
+    else if (h === '' || h === '#') { if (typeof closeOverlay === 'function') closeOverlay(); }
+});
+var _om=openMapPage;openMapPage=function(){_hashFromCode=true;window.location.hash='map';_om();};
+var _oc=openCommunityPage;openCommunityPage=function(){_hashFromCode=true;window.location.hash='community';_oc();};
+var _oq=openQuestHallPage;openQuestHallPage=function(){_hashFromCode=true;window.location.hash='quests';_oq();};
+var _sm=showMy;showMy=function(o){_hashFromCode=true;window.location.hash='workbench';_sm(o);};
+var _co=closeOverlay;closeOverlay=function(id){if(window.location.hash!=='')_hashFromCode=true;window.location.hash='';_co(id);};
 </script>
 </body>
 </html>

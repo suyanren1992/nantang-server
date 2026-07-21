@@ -575,6 +575,30 @@ function _getRoomsForBuilding(groupId) {
   });
 }
 
+// R5.1: 贡献路径选择器
+function openPathChooser() {
+  var h = '<div style="background:#fff;border-radius:16px;width:320px;max-width:92vw;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.25)">';
+  h += '<div style="font-weight:700;font-size:.82rem;margin-bottom:4px;text-align:center">你想做什么？</div>';
+  h += '<div style="font-size:.62rem;color:#5a6e5c;text-align:center;margin-bottom:14px">选择你的贡献方式</div>';
+
+  // 推荐：做完求验证
+  h += '<div onclick="closeDiscoveryForm();openSelfReport()" style="background:linear-gradient(135deg,#e8f0e8,#dce8d8);border:2px solid var(--green-primary);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer;position:relative">';
+  h += '<div style="position:absolute;top:8px;right:10px;font-size:.55rem;background:var(--green-primary);color:#fff;padding:2px 8px;border-radius:10px">推荐</div>';
+  h += '<div style="font-size:1.2rem;margin-bottom:4px">✅ 我做完了求验证</div>';
+  h += '<div style="font-size:.6rem;color:#5a6e5c">做完劳动后上报，等待另一位成员验证通过 +NT</div>';
+  h += '</div>';
+
+  // 备选：需要帮忙
+  h += '<div onclick="closeDiscoveryForm();openPublishTask()" style="background:#fff;border:1.5px solid #d0d9ce;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer">';
+  h += '<div style="font-size:1.2rem;margin-bottom:4px">📝 我需要帮忙</div>';
+  h += '<div style="font-size:.6rem;color:#5a6e5c">发布委托任务，请别人帮忙做一件事</div>';
+  h += '</div>';
+
+  h += '<button class="btn-sm sec" style="width:100%;font-size:.62rem" onclick="closeDiscoveryForm()">取消</button>';
+  h += '</div>';
+  _showModal(h);
+}
+
 // ── Step 1: 选空间（建筑 tabs → 房间网格）──
 function openNewDiscovery() { _discDraft = {}; _formMode = 'discovery'; _renderStep1(); }
 function openSelfReport(opts) {
