@@ -359,11 +359,18 @@ if (window.location.protocol !== 'file:') {
       <div class="npc-bubble">👋 欢迎来到任务大厅！<br><span style="font-size:.65rem;color:#5a5a5a">有什么可以帮你的？</span></div>
     </div>
     <div class="quest-search"><input type="text" class="quest-search-input" placeholder="🔍 搜索任务名称或关键字…" oninput="filterQuests()" id="questSearchInput"></div>
-    <div class="my-filters" style="padding:0 0 10px 0;border:none">
+    <div class="my-filters primary-filters" style="padding:0 0 6px 0;border:none">
       <span class="my-fchip on" onclick="pickChip(this);filterQuests()">全部</span>
       <span class="my-fchip" onclick="pickChip(this);filterQuests()">营队</span>
       <span class="my-fchip" onclick="pickChip(this);filterQuests()">个人委托</span>
       <span class="my-fchip" onclick="pickChip(this);filterQuests()">社区</span>
+    </div>
+    <!-- R8: 二级chip -->
+    <div class="my-filters secondary-filters" style="padding:0 0 10px 0;border:none;opacity:0.4" id="secondaryChips">
+      <span class="my-fchip on" onclick="pickChip(this);filterQuests()">全部来源</span>
+      <span class="my-fchip" onclick="pickChip(this);filterQuests()">个人发布</span>
+      <span class="my-fchip" onclick="pickChip(this);filterQuests()">周期任务</span>
+      <span class="my-fchip" onclick="pickChip(this);filterQuests()">赏金</span>
     </div>
     <div id="questList"></div>
   </div>

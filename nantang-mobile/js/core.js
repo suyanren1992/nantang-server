@@ -221,8 +221,12 @@ function openQuestHallPage(){
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role||'visitor';
   var isCampMember = role==='admin'||role==='builder'||role==='adventurer'||role==='npc';
+  var isOnsite = role==='admin'||role==='builder'||role==='npc'||role==='adventurer';
   var campChip = document.querySelector('#questHallBody .my-fchip[onclick*="营队"]');
   if (campChip) campChip.style.display = isCampMember ? '' : 'none';
+  // R8.2: 非在地成员隐藏二级chip + 恢复一级chip全选
+  var secChips = document.getElementById('secondaryChips');
+  if (secChips) secChips.style.opacity = isOnsite ? '' : '0.4';
   // 从 API 拉取最新任务（完成后刷新列表）
   if(typeof API!=='undefined'&&API.token){
     API.fetchTasks(function(tasks){
@@ -234,7 +238,7 @@ function openQuestHallPage(){
           exists = localTasks.find(function(lt){return lt.title===t.title && lt.publisher===t.poster;});
         }
         if(!exists){
-          AppData._data.tasks[t.id] = {name:t.id,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:''};
+          AppData._data.tasks[t.id] = {name:t.id,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:'',is_system_generated:t.is_system_generated||false};
         }
       })}
       filterQuests();
@@ -243,8 +247,12 @@ function openQuestHallPage(){
   document.getElementById('overlayQuestHall').classList.add('open');
 }
 function filterQuests(){
-  var chip=document.querySelector('#questHallBody .my-fchip.on');
+  // R8: 一级chip限定 primary-filters 作用域
+  var chip=document.querySelector('#questHallBody .primary-filters .my-fchip.on');
   var scope=chip?chip.textContent:'全部';
+  // R8: 二级chip（来源过滤）
+  var srcChip=document.querySelector('#questHallBody .secondary-filters .my-fchip.on');
+  var sourceFilter=srcChip?srcChip.textContent:'全部来源';
   var kw=document.getElementById('questSearchInput');
   var keyword=(kw&&kw.value||'').trim().toLowerCase();
   var items=Object.values(TASKS);
@@ -252,6 +260,10 @@ function filterQuests(){
   if(scope==='营队') items=items.filter(function(t){return t.scope==='营队'});
   else if(scope==='个人委托') items=items.filter(function(t){return t.scope==='个人'});
   else if(scope==='社区') items=items.filter(function(t){return t.scope==='社区'});
+  // R8: source filter (二级chip)
+  if(sourceFilter==='周期任务') items=items.filter(function(t){return t.is_system_generated});
+  else if(sourceFilter==='个人发布') items=items.filter(function(t){return !t.is_system_generated && t.poster!=='社区'});
+  else if(sourceFilter==='赏金') items=items.filter(function(t){return t.poster==='社区' && !t.is_system_generated});
   // keyword
   if(keyword) items=items.filter(function(t){return (t.name||'').toLowerCase().indexOf(keyword)!==-1||(t.title||'').toLowerCase().indexOf(keyword)!==-1||(t.note||'').toLowerCase().indexOf(keyword)!==-1||(t.publisher||'').toLowerCase().indexOf(keyword)!==-1});
   // sections
@@ -282,7 +294,10 @@ function toggleSection(key){_secFold[key]=!_secFold[key];if(key.indexOf('my')===
 // opts: { context:'hall'|'my', showReviewBtn:bool }
 function renderTaskCard(t, opts) {
   var ctx = opts && opts.context || 'hall';
-  var tc = t.type==='主线'?{c:'var(--green-primary)',b:'#e8f0e8',icon:'🎯'}
+  // R8: 系统任务蓝色边框，赏金任务黄色边框
+  var tc = t.is_system_generated ? {c:'#4a8aaa',b:'#e0eaf4',icon:'🤖'}
+         : t.poster==='社区' ? {c:'#c8892e',b:'#fef8e8',icon:'🏛️'}
+         : t.type==='主线'?{c:'var(--green-primary)',b:'#e8f0e8',icon:'🎯'}
          : t.type==='支线'?{c:'#c8892e',b:'#fef8e8',icon:'📋'}
          : {c:'#4a7a82',b:'#e0eaee',icon:'🧹'};
   var cls = t.type==='支线'?'task-type-side':t.type==='日常'?'task-type-daily':'task-type-main';
@@ -311,7 +326,9 @@ function renderTaskCard(t, opts) {
   h += '<div class="task-row1"><span class="task-name">'+esc(t.name)+'</span><span class="task-nt"><img src=豆子.png alt=NT onerror="this.outerHTML=\'🌱\'" style=width:18px;height:18px;vertical-align:middle;margin-right:3px>'+t.nt+' NT</span></div>';
   h += '<div class="task-row2">';
   h += '<span class="task-chip '+cls+'">'+t.type+'</span>';
-  if(t.publisher) h += '<span>👤'+esc(t.publisher)+(t.publisher===CURRENT_USER?'(我)':'')+'发布</span>';
+  // R8: poster='社区' 特殊显示
+  if(t.publisher==='社区') h += '<span>🏛️社区发布</span>';
+  else if(t.publisher) h += '<span>👤'+esc(t.publisher)+(t.publisher===CURRENT_USER?'(我)':'')+'发布</span>';
   h += '<span>'+claimLine+'</span>';
   if(quickBtn) h += '<span style=margin-left:auto>'+quickBtn+'</span>';
   h += '</div></div>';
@@ -731,8 +748,8 @@ function _mergeNTSyncData(data) {
   if (data.tasks && window.AppData) {
     data.tasks.forEach(function(t) {
       var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'' };
-      else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline });
+      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'', is_system_generated:t.is_system_generated||false };
+      else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false });
     });
   }
   // 充值意图缓存
