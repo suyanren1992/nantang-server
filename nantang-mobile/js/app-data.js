@@ -255,18 +255,14 @@ window.AppData = {
       this._data.map_locations.config = this._data.map_locations.config || {};
       // 住宿
       this._data.map_locations.accommodations = {
-        dorm101: { beds:3, pricePerBed:20, label:'A室·三人大通铺', ac:'无', tenants:[{name:'王五',bed:1,checkIn:'7/15',checkOut:'7/20'}], status:'occupied', _seed:true },
+        dorm101: { beds:3, pricePerBed:20, label:'A室·三人大通铺', ac:'无', tenants:[], status:'vacant' },
         dorm102: { beds:4, pricePerBed:30, label:'B室·四人大通铺', ac:'有', tenants:[], status:'vacant' },
-        dorm103: { beds:3, pricePerBed:30, label:'C室·上下床+大床', ac:'有', tenants:[{name:'李四',bed:1,checkIn:'7/15',checkOut:'7/18'}], status:'occupied', _seed:true },
+        dorm103: { beds:3, pricePerBed:30, label:'C室·上下床+大床', ac:'有', tenants:[], status:'vacant' },
         dorm104: { beds:1, pricePerBed:60, label:'D室·单间大床房', ac:'有', tenants:[], status:'vacant' },
         dorm105: { beds:4, pricePerBed:30, label:'E室·两个上下床', ac:'有', tenants:[], status:'vacant' },
         dorm106: { beds:4, pricePerBed:35, label:'F室·四人间上下床', ac:'有', tenants:[], status:'vacant' }
       };
-this._data.map_locations.people_on_site = [
-        { name:'小杨', location:'kitchen', building:'office', activity:'🍳厨房做饭', _seed:true },
-        { name:'朝林', location:'reading', building:'study', activity:'📖大书房看书', _seed:true },
-        { name:'若曦', location:'studio', building:'office', activity:'🎨画室画画', _seed:true }
-      ];
+this._data.map_locations.people_on_site = [];
       // 田地
       this._data.map_locations.plots = [
         { id:'fa', name:'A区', icon:'🥬', crop:'番茄', planted:'6/15', harvest:'8/30', days:55, remain:45, status:'growing' },
@@ -279,8 +275,8 @@ this._data.map_locations.people_on_site = [
       this._data.map_locations.state.room_items = [
         { room:'storage', icon:'📦', text:'备用桌椅', sub:'×3套', status:'clean' },
         { room:'storage', icon:'🧹', text:'清洁工具', sub:'拖把·水桶', status:'clean' },
-        { room:'kitchen', icon:'🧊', text:'冰箱上层', sub:'小杨·7/12', status:'clean' },
-        { room:'kitchen', icon:'🧊', text:'冰箱下层', sub:'公共·7/10', status:'clean' },
+        { room:'kitchen', icon:'🧊', text:'冰箱上层', sub:'', status:'clean' },
+        { room:'kitchen', icon:'🧊', text:'冰箱下层', sub:'', status:'clean' },
         { room:'kitchen', icon:'🍳', text:'灶台', sub:'正常', status:'clean' },
         { room:'kitchen', icon:'📦', text:'白菜', sub:'⚠3天过期', status:'warn' },
         { room:'office_r', icon:'🪑', text:'办公桌×2', sub:'', status:'clean' },
@@ -291,8 +287,8 @@ this._data.map_locations.people_on_site = [
         { room:'study_r', icon:'📚', text:'藏书·200册', sub:'', status:'clean' },
         { room:'reading', icon:'📚', text:'藏书·200册', sub:'', status:'clean' },
         { room:'mahjong', icon:'🀄', text:'麻将桌×2', sub:'', status:'clean' },
-        { room:'dorm101', icon:'🛏', text:'王五入住', sub:'5天·150NT待付', status:'clean', _seed:true },
-        { room:'dorm103', icon:'🛏', text:'李四入住', sub:'3天·90NT待付', status:'clean', _seed:true }
+        { room:'dorm101', icon:'🛏', text:'空置', sub:'', status:'clean' },
+        { room:'dorm103', icon:'🛏', text:'空置', sub:'', status:'clean' }
       ];
       // 停车
       this._data.map_locations.state.parking = { vehicle:'🛵三轮车', status:'在库', key:'🔑钥匙在门卫处', user:'无人取用' };
@@ -351,23 +347,7 @@ this._data.map_locations.people_on_site = [
     if (!vfy) return { ok: false, error: '校核项不存在' };
     if (vfy.status !== 'pending' && vfy.status !== 'rejected') return { ok: false, error: '已校核过了' };
     if (vfy.doer === verifierName) return { ok: false, error: '不能校核自己的操作' };
-    // 章0.6: 验证冷却（通过+退回都计入，防拒绝骚扰）
-    var oneHourAgo = Date.now() - 3600000;
-    var recentVfy = vfys.filter(function(v){
-      return v.verifier === verifierName && v.doer === vfy.doer
-        && (v.status === 'verified' || v.status === 'rejected')
-        && (v.verifiedAt || v.rejectedAt) && new Date(v.verifiedAt || v.rejectedAt).getTime() > oneHourAgo;
-    });
-    if (recentVfy.length > 0) return { ok: false, error: '你刚刚校核过此人的操作，请 1 小时后再来' };
-    // 每日上限仅计通过次数
-    if (approved !== false) {
-      var today = new Date().toISOString().slice(0,10);
-      var todayVfy = vfys.filter(function(v){
-        return v.verifier === verifierName && v.status === 'verified'
-          && v.verifiedAt && v.verifiedAt.slice(0,10) === today;
-      });
-      if (todayVfy.length >= 10) return { ok: false, error: '你今天已达到校核上限（10次）' };
-    }
+    // 冷却/日上限校验——已迁移到服务端（P3），客户端仅保留结构性校验
     // 退回模式
     if (approved === false) {
       vfy.retryCount = (vfy.retryCount || 0) + 1;
@@ -382,29 +362,41 @@ this._data.map_locations.people_on_site = [
       this._saveShared(true);
       return { ok: true, rejected: true, retryCount: vfy.retryCount };
     }
-    // 通过模式
-    vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
-    // C2: HTTP 模式走服务端 earn，客户端不再直接操作 NT
-    if (window.NT && vfy.ntAmount > 0) {
-      var isOffline = (typeof API === 'undefined' || !API.token);
-      if (isOffline) {
+    // 通过模式——HTTP 先调 API，成功回调中更新本地状态（悲观更新）
+    var isOffline = (typeof API === 'undefined' || !API.token);
+    if (isOffline) {
+      // 离线：直接本地 earn + 入队
+      vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
+      if (window.NT && vfy.ntAmount > 0) {
         try { NT.earn(vfy.doer, vfy.ntAmount, vfy.action, 'camp'); } catch(e) {}
-        this._data._pendingEarnQueue.push({doer: vfy.doer, amount: vfy.ntAmount, action: vfy.action, scope: 'camp', ts: Date.now()});
-        this._saveShared(true);
-      } else {
-        API.request('POST', '/api/nt/verifications/' + vfy.id + '/approve',
-          {doer: vfy.doer, action: vfy.action, nt_amount: vfy.ntAmount, verifier_reward: vfy.verifierReward}
-        ).catch(function(){});
-      }
-    }
-    if (window.NT && vfy.verifierReward > 0) {
-      var isOffline2 = (typeof API === 'undefined' || !API.token);
-      if (isOffline2) {
-        try { NT.earn(verifierName, vfy.verifierReward, '校核: '+vfy.action, 'personal'); } catch(e) {}
-        this._data._pendingEarnQueue.push({doer: verifierName, amount: vfy.verifierReward, action: '校核: '+vfy.action, scope: 'personal', ts: Date.now()});
+        this._data._pendingEarnQueue.push({vfyId: vfy.id, doer: vfy.doer, amount: vfy.ntAmount, action: vfy.action, reward: vfy.verifierReward || 0, ts: Date.now()});
         this._saveShared(true);
       }
-      // ponytail: verifier reward 合并到 approve 端点中处理，不单独调 API
+    } else {
+      // HTTP：异步调用API，成功/失败在回调中处理
+      var self = this;
+      API.request('POST', '/api/nt/verifications/' + vfy.id + '/approve',
+        {doer: vfy.doer, action: vfy.action, nt_amount: vfy.ntAmount, verifier_reward: vfy.verifierReward}
+      ).then(function() {
+        vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
+        self.addAnnouncement(vfy.type, vfy.doer, verifierName, vfy.action, vfy.ntAmount);
+        if (vfy.type === 'cleaning' && typeof _completeNewbieQuest === 'function') _completeNewbieQuest(vfy.doer, 'join_cleaning');
+        if (!self._data.discoveries) self._data.discoveries = [];
+        self._data.discoveries.unshift({ id: vfy.id, type: vfy.type, doer: vfy.doer, verifier: verifierName, action: vfy.action, ntAmount: vfy.ntAmount, verifiedAt: vfy.verifiedAt, status: 'active' });
+        self._saveShared(true);
+        if (typeof renderCardRoom === 'function') renderCardRoom();
+      }).catch(function(err) {
+        var msg = (err && err.detail) || '网络错误';
+        if (err && err.status === 429) {
+          msg = msg.indexOf('1h') !== -1 ? '你在 1 小时内已经验证过 TA 了' :
+                msg.indexOf('10') !== -1 ? '今天已验证 10 次，明天再来吧' : msg;
+        }
+        showToast(msg, 'warn');
+        vfy.status = 'pending'; vfy.verifier = null; vfy.verifiedAt = null;
+        self._saveShared(true);
+        if (typeof renderCardRoom === 'function') renderCardRoom();
+      });
+      return { ok: true };  // 异步处理，先返回
     }
     // 写入公告栏
     this.addAnnouncement(vfy.type, vfy.doer, verifierName, vfy.action, vfy.ntAmount);
@@ -418,20 +410,21 @@ this._data.map_locations.people_on_site = [
   },
   // ══ 离线 earn 队列同步 ══
   _drainPendingEarns: function() {
-    var queue = this._data._pendingEarnQueue;
-    if (!queue || !queue.length) return;
+    if (!this._data._pendingEarnQueue || !this._data._pendingEarnQueue.length) return;
     if (typeof API === 'undefined' || !API.token) return;
-    var self = this;
-    var copy = queue.slice();
+    var queue = this._data._pendingEarnQueue.slice(0);
     this._data._pendingEarnQueue = [];
-    this._saveShared(true);
-    API.request('POST', '/api/nt/earn-sync', {items: copy})
-      .then(function() { console.log('[AppData] pending earns synced: ' + copy.length); })
-      .catch(function() {
-        // 失败时恢复队列
-        self._data._pendingEarnQueue = copy.concat(self._data._pendingEarnQueue);
-        self._saveShared(true);
+    var self = this;
+    var seen = {};
+    queue.forEach(function(item) {
+      var key = item.vfyId || (item.doer + '|' + item.ts);
+      if (seen[key]) return; seen[key] = true;
+      API.request('POST', '/api/nt/verifications/' + item.vfyId + '/approve',
+        {doer: item.doer, action: item.action, nt_amount: item.amount, verifier_reward: item.reward || 0}
+      ).catch(function() {
+        self._data._pendingEarnQueue.push(item);
       });
+    });
   },
   // ══ 公告栏 ══
   addAnnouncement: function(type, doer, verifier, action, ntAmount) {

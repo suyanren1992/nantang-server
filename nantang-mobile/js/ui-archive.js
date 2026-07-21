@@ -174,15 +174,17 @@ function openInboxPanel() {
 }
 
 function updateInboxBadge() {
-  var badge = document.getElementById('inboxBadge');
-  if (!badge) return;
   var data = computeInboxMessages();
-  if (data.newer.length) {
-    badge.textContent = data.newer.length;
-    badge.style.display = 'block';
-  } else {
-    badge.style.display = 'none';
-  }
+  var unread = data.newer.filter(function(m) {
+    var id = m.id || (m.type + '_' + (m.person||'') + '_' + (m.taskNames||[]).join(','));
+    return !(window._inboxReadIds && window._inboxReadIds[id]);
+  });
+  ['inboxBadge','ubInboxBadge'].forEach(function(bid){
+    var badge = document.getElementById(bid);
+    if (!badge) return;
+    if (unread.length) { badge.textContent = unread.length; badge.style.display = 'block'; }
+    else { badge.style.display = 'none'; }
+  });
 }
 
 // 在现有 logActivity 调用点之后，补写日志

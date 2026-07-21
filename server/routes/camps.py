@@ -142,30 +142,35 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    # 找出已结算但未营地结算的任务（settler_id 为空表示尚未经过营地级结算）
+    # 找出待结算的营地任务（verify 后 status="待结算"，尚未营地级结算）
     tasks_result = await db.execute(
-        select(NTTask).where(NTTask.camp_ref_id == camp_id, NTTask.status == "已结算",
-                             NTTask.settler_id == None))
+        select(NTTask).where(NTTask.camp_ref_id == camp_id, NTTask.status == "待结算"))
     camp_tasks = list(tasks_result.scalars())
     total_nt = sum(t.reward for t in camp_tasks)
     if total_nt <= 0:
         return {"ok": True, "settled_tasks": 0, "total_nt": 0}
     # 锁池子 → 扣 camp_balance → 分发到 assignee
     pool = await _get_pool(db, lock=True)
+    if total_nt > pool.camp_balance:
+        raise HTTPException(status_code=400, detail=f"营地余额不足（需 {total_nt} NT，当前 {pool.camp_balance}）")
     pool.camp_balance -= total_nt
     now = datetime.utcnow().isoformat()
     for t in camp_tasks:
         assignees = json.loads(t.assignees or "[]")
-        share = t.reward // max(len(assignees), 1)
-        for a_name in assignees:
+        n = max(len(assignees), 1)
+        base_share = t.reward // n   # 整数除，余数分给第一个人
+        remainder = t.reward - base_share * n
+        for i, a_name in enumerate(assignees):
             u_result = await db.execute(select(User).where(User.id == a_name))
             u = u_result.scalar_one_or_none()
             if u:
+                share = base_share + (remainder if i == 0 else 0)
                 u.nt_balance += share
                 await _add_ledger(db, _ledger_id(), "营地结算", a_name, share, "camp_settle",
                                   f"营地 {camp.name} 任务 {t.title}", t.id, "settled")
         t.settler_id = user.id
         t.settled_at = now
+        t.status = "已结算"
     await db.commit()
     builders_result = await db.execute(select(CampBuilder).where(CampBuilder.camp_id == camp_id))
     builders = list(builders_result.scalars())
@@ -216,7 +221,16 @@ async def delete_camp(camp_id: str, user: User = Depends(get_current_user),
         for row in r.scalars():
             await db.delete(row)
     tasks_r = await db.execute(select(NTTask).where(NTTask.camp_ref_id == camp_id))
-    for row in tasks_r.scalars():
+    tasks_to_delete = list(tasks_r.scalars())
+    # R13: 退还未结算任务的 NT 到社区池
+    unsettled_total = sum(t.reward for t in tasks_to_delete if t.status != "已结算")
+    if unsettled_total > 0:
+        pool = await _get_pool(db, lock=True)
+        pool.balance += unsettled_total
+        pool.camp_balance = max(0, pool.camp_balance - unsettled_total)
+        await _add_ledger(db, _ledger_id(), "camp_pool", "community_pool", unsettled_total, "camp_refund",
+                          f"删除营地 {camp.name} 退还未结算 NT", task_id=None, status="settled")
+    for row in tasks_to_delete:
         await db.delete(row)
     await db.delete(camp)
     await db.commit()

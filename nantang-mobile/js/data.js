@@ -301,6 +301,7 @@ function expandCard(name,cls,css,html,el){
   d.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function openSubmit(el,name){
+  if (typeof _guardOnline === 'function' && _guardOnline('提交任务')) return;
   var t=TASKS[name];if(!t)return;
   if(t.deadline&&t.deadline<(today())){showToast('任务已逾期，无法提交','error');return}
   var h='<div style=font-weight:700;margin-bottom:8px>📤 提交 · '+esc(t.name)+' · <img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
@@ -311,6 +312,7 @@ function openSubmit(el,name){
   expandCard(name,'submit-expand','margin-bottom:16px;background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)',h,el)
 }
 function doSubmit(name){
+  if (typeof _guardOnline === 'function' && _guardOnline('提交任务')) return;
   var t=TASKS[name];if(!t)return;
   var noteEl=document.getElementById('submitNote');if(!noteEl)return;var note=noteEl.value.trim();if(!note)return;
   var sub=note;
@@ -340,6 +342,7 @@ function doSubmit(name){
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function claimTask(name){
+  if (typeof _guardOnline === 'function' && _guardOnline('领取任务')) return;
   var t=TASKS[name];if(!t)return;
   if(t.publisher===CURRENT_USER){showToast('不能领取自己发布的任务','error');return}
   t.claimants=t.claimants||[];
@@ -377,11 +380,11 @@ function reviewTask(name,action){
     var _t=t;var _name=name;
     showConfirm('确认审核通过「'+_name+'」？通过后将释放 NT 奖励给完成者。',function(){
     _t.status='待结算';_t.completedAt=today();_t.reviewedAt=today();
+    var _done = function() { document.querySelectorAll('.card-expand,.review-expand,.submission-sub').forEach(function(c){c.remove()}); filterQuests();renderMyTasks();refreshUserUI(); };
     _t.claimants.forEach(function(c){if(c.status==='submitted')c.status='completed'});
+    if(_t._ntTaskId&&window.NT){var isOffline=(typeof API==='undefined'||!API.token);if(isOffline){var vr=NT.verifyTask(_t._ntTaskId, CURRENT_USER, true);if(!vr){showToast('审核失败，请刷新后重试','error');return;}}else{API.request('POST','/api/nt/tasks/'+(_t._srvId||_t._ntTaskId)+'/verify',{approved:true}).then(function(r){if(!r||!r.ok){showToast('服务端审核失败: '+(r&&r.detail||'请重试'),'error');return} AppData.updateTask(_name, {status:'待结算', completedAt:_t.completedAt, reviewedAt:_t.reviewedAt, claimants:_t.claimants}); _done();}).catch(function(){showToast('服务端审核失败','error')});return;}}
     AppData.updateTask(_name, {status:'待结算', completedAt:_t.completedAt, reviewedAt:_t.reviewedAt, claimants:_t.claimants});
-    if(_t._ntTaskId&&window.NT){var isOffline=(typeof API==='undefined'||!API.token);if(isOffline){var vr=NT.verifyTask(_t._ntTaskId, CURRENT_USER, true);if(!vr){showToast('审核失败，请刷新后重试','error');return;}}else{API.request('POST','/api/nt/tasks/'+(_t._srvId||_t._ntTaskId)+'/verify',{approved:true}).catch(function(){showToast('服务端审核失败','error')});}}
-    document.querySelectorAll('.card-expand,.review-expand,.submission-sub').forEach(function(c){c.remove()});
-    filterQuests();renderMyTasks();refreshUserUI();
+    _done();
     });
   }else{
     var h='<div style=font-weight:700;margin-bottom:6px;color:var(--red)>🔙 退回修改 · '+esc(name)+'</div><textarea id="reviewReason" rows="2" placeholder="说明退回理由…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.review-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmReject(\''+esc(name)+'\')">✕ 确认打回</button></div>';

@@ -3,10 +3,15 @@ function avatarImg(seed,size){return '<img src="'+avatarURL(seed,size)+'" width=
 function roleIcon(r){return r==='admin'?'🛡️':r==='builder'?'🧱':r==='adventurer'?'⚔️':r==='npc'?'🏠':'☁️'}
 function roleName(r){return r==='admin'?'管理员':r==='builder'?'共建者':r==='adventurer'?'冒险者':r==='npc'?'在地伙伴':'云村民'}
 // ═══ 公共工具函数 ═══
+// R8: 合并客户端 claimants（含 submission 字段）与服务端 assignees（纯 ID 数组）
+function _mergeClaimants(existing, serverIds) {
+  var map = {}; existing.forEach(function(c){ map[c.name] = c; });
+  return serverIds.map(function(id){ return map[id] || {name:id}; });
+}
 function _isOffline() { return !window.API || !API.token || API._serverOnline === false || window.location.protocol === 'file:'; }
 function _guardOnline(action) { if (_isOffline()) { showToast('离线模式，无法'+action,'warn'); return true; } return false; }
-// 更新离线 badge 显示
-setInterval(function(){ var b=document.getElementById('offlineBadge'); if(b)b.style.display=_isOffline()?'inline':'none'; }, 5000);
+// 更新离线 badge 显示（全局：地图栏 + 村口个人页）
+setInterval(function(){ document.querySelectorAll('.offline-badge').forEach(function(b){b.style.display=_isOffline()?'inline':'none'}); }, 5000);
 function closeAllExpands(){document.querySelectorAll('.card-expand,.submit-expand,.settle-expand,.withdraw-expand,.review-expand,.unclaim-expand,.submission-sub,.ledger-expand,.archive-detail,.confirm-card,.toast-card,.avatar-picker').forEach(function(c){c.remove()})}
 function isTaskOverdue(t){return t.deadline&&t.deadline<today()&&t.status!=='已结算'&&t.status!=='待结算'}
 function _processOverdueTasks(){Object.values(TASKS).forEach(function(t){if(isTaskOverdue(t)){t.action='overdue';AppData.updateTask(t.name,{action:'overdue'});}})}
@@ -850,13 +855,28 @@ function _mergeNTSyncData(data) {
     data.tasks.forEach(function(t) {
       t.publisher = t.poster || t.publisher;
       var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'', is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' };
-      else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' });
+      var srvC = (t.assignees||[]).map(function(id){ return {name:id}; });
+      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:srvC, action:'', is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' };
+      else { var kp=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' }); dup.claimants=_mergeClaimants(kp, t.assignees||[]); }
     });
   }
   // 充值意图缓存
   if (data.deposit_intents && window.AppData) {
     AppData._data._depositIntents = data.deposit_intents;
+  }
+  // R6: 同步所有活跃入住记录到本地住宿面板
+  if (data.all_tenancies && window.AppData) {
+    var accs = AppData._data.map_locations && AppData._data.map_locations.accommodations;
+    if (accs) {
+      // 清空旧 tenancy 数据（保留房间结构）
+      Object.keys(accs).forEach(function(k){ if(accs[k].tenants) accs[k].tenants = []; });
+      data.all_tenancies.forEach(function(t){
+        var room = accs[t.room_id]; if(!room) return;
+        if(!room.tenants) room.tenants = [];
+        room.tenants.push({ name:t.user_id, bed:t.bed_num, checkIn:(t.checkin_date||'').slice(5,10), checkOut:'', debt:t.debt||0 });
+      });
+      AppData._saveShared();
+    }
   }
   // 流水缓存（供离线查看）
   if (data.ledger && window.NT) {
@@ -871,8 +891,9 @@ function _mergeSyncData(data) {
   if (data.tasks) { data.tasks.forEach(function(t) {
     t.publisher = t.poster || t.publisher;
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-    if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:[], action:'' };
-    else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id });
+    var srvClaimants = (t.assignees||[]).map(function(id){ return {name:id}; });
+    if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'' };
+    else { var keep=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id }); dup.claimants=_mergeClaimants(keep, t.assignees||[]); }
   });}
   if (data.journal) {
     AppData._data.journal = AppData._data.journal || [];
@@ -893,6 +914,15 @@ function _mergeSyncData(data) {
   if (data.newbie && Array.isArray(data.newbie)) {
     AppData._data.newbieQuests = {};
     data.newbie.forEach(function(q) { AppData._data.newbieQuests[q.quest_id] = q; });
+  }
+  if (data.verifications && Array.isArray(data.verifications)) {
+    var localVfys = AppData._data.pendingVerifications || [];
+    var localById = {}; localVfys.forEach(function(v){ localById[v.id] = v; });
+    data.verifications.forEach(function(sv) {
+      if (!localById[sv.id]) { localVfys.push(sv); }
+      else if (localById[sv.id].status === 'pending') { Object.assign(localById[sv.id], sv); }
+    });
+    AppData._data.pendingVerifications = localVfys;
   }
 }
 function enterVillage(){

@@ -3,7 +3,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from database import get_db
 from models import User, Tenancy, NTTask
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/accommodation", tags=["accommodation"])
 
 
 class CheckinRequest(BaseModel):
-    room_id: str
+    room_id: str = Field(min_length=1)
     bed_num: int = 1
 
 
@@ -27,13 +27,28 @@ class RoleChangeRequest(BaseModel):
 @router.post("/checkin")
 async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
                   db: AsyncSession = Depends(get_db)):
-    """入住——原子化：子查询防超额。ponytail: map_locations JSON blob 中的 max_beds 不做服务端校验。"""
-    # 检查是否已有 active tenancy
+    """入住——原子化：子查询防超额。已入住则自动换房。"""
+    # 已有入住 → 自动退旧房（换房场景）
     existing = await db.execute(
         select(Tenancy).where(Tenancy.user_id == user.id, Tenancy.status == "active")
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="你已有入住记录，请先退房")
+    old = existing.scalar_one_or_none()
+    old_room = None
+    if old:
+        old_room = old.room_id
+        old.status = "checked_out"
+        # 结算旧房间的欠费
+        if old.debt > 0:
+            if user.nt_balance >= old.debt:
+                user.nt_balance -= old.debt
+                pool = await _get_pool(db)
+                pool.balance += old.debt
+                await _add_ledger(db, _ledger_id(), user.id, "community_pool", old.debt, "debt_settlement",
+                                 f"换房欠费结算: {old.debt} NT")
+            else:
+                await _add_ledger(db, _ledger_id(), user.id, "community_pool", old.debt, "debt_unpaid",
+                                 f"换房欠费未结: {old.debt} NT")
+            old.debt = 0
 
     # 原子化：子查询检查房间是否已满
     # ponytail: max_beds 从 map_locations JSON blob 读取，可通过环境变量覆盖
@@ -56,7 +71,8 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
         user.role = "npc"
     await db.commit()
     return {"ok": True, "room_id": req.room_id, "bed_num": req.bed_num,
-            "checkin_date": now, "role": user.role}
+            "checkin_date": now, "role": user.role,
+            "switched_from": old_room}
 
 
 @router.post("/checkout")
@@ -71,7 +87,7 @@ async def checkout(user: User = Depends(get_current_user),
         raise HTTPException(status_code=400, detail="没有活跃的入住记录")
 
     t.status = "checked_out"
-    # 结算欠费：从余额扣，回流社区池
+    # 结算欠费：从余额扣，回流社区池。未清部分记录账本，tenancy debt 清零
     if t.debt > 0:
         if user.nt_balance >= t.debt:
             user.nt_balance -= t.debt
@@ -80,19 +96,20 @@ async def checkout(user: User = Depends(get_current_user),
             lid = _ledger_id()
             await _add_ledger(db, lid, user.id, "community_pool", t.debt, "debt_settlement",
                              f"退房欠费结算: {t.debt} NT")
-            t.debt = 0
         else:
             lid = _ledger_id()
             await _add_ledger(db, lid, user.id, "community_pool", t.debt, "debt_unpaid",
                              f"退房欠费未结: {t.debt} NT（余额不足）")
-    # 角色降级：检查是否还有其他 active tenancy
-    other = await db.execute(
-        select(func.count(Tenancy.id)).where(
-            Tenancy.user_id == user.id, Tenancy.status == "active"
+        t.debt = 0
+    # 角色降级：admin/builder 不降级
+    if user.role not in ("admin", "builder"):
+        other = await db.execute(
+            select(func.count(Tenancy.id)).where(
+                Tenancy.user_id == user.id, Tenancy.status == "active"
+            )
         )
-    )
-    if (other.scalar() or 0) == 0:
-        user.role = "visitor"
+        if (other.scalar() or 0) == 0:
+            user.role = "visitor"
 
     # R10: 释放已认领的系统生成任务
     import json

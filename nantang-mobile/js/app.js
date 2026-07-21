@@ -1021,7 +1021,7 @@ function closeMgmt() {
 }
 
 function renderMgmtPanel(type) {
-  var fn = { cleaning:renderCleaningPanel, stay:renderStayPanel, field:renderFieldPanel, kitchen:renderKitchenPanel }[type];
+  var fn = { cleaning:renderCleaningPanel, stay:_showStaySheet, field:renderFieldPanel, kitchen:renderKitchenPanel }[type];
   _d('mgmtBody').innerHTML = fn ? fn() : '';
 }
 
@@ -1075,7 +1075,10 @@ function _showFieldSheet() {
 }
 
 // ── 住宿：选房间→展开床位→选床→填日期→申请入住 ──
+// ── 住宿：选房间→床位面板→点击空床→居中入住卡（日历+计算+管理员提示）──
 var _selectedBed = null, _expandedRoom = null, _expandedBed = null;
+var _showCheckinCard = false, _calYear, _calMonth, _calStart, _calEnd;
+
 function _showStaySheet() {
   var mapData = (window.AppData && AppData._data && AppData._data.map_locations) ? AppData._data.map_locations : {};
   var accs = (mapData.accommodations && Object.keys(mapData.accommodations).length) ? mapData.accommodations : (_ml().accommodations || {});
@@ -1090,46 +1093,72 @@ function _showStaySheet() {
 
   var h = '';
   h += '<style>';
+  // 房间卡片
   h += '.rm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}';
   h += '.rm-card{background:#fff;border:2px solid #d0d9ce;border-radius:10px;overflow:hidden;cursor:pointer;transition:.12s}';
-  h += '.rm-card:active{transform:scale(.97)}';
-  h += '.rm-card.active{border-color:var(--green-primary);box-shadow:0 0 0 2px var(--green-primary)}';
+  h += '.rm-card:active{transform:scale(.97)}.rm-card.active{border-color:var(--green-primary);box-shadow:0 0 0 2px var(--green-primary)}';
   h += '.rm-inner{display:flex;flex-direction:column;align-items:center;padding:12px 6px 8px}';
   h += '.rm-icon{font-size:1.4rem}.rm-label{font-size:.65rem;font-weight:700;color:var(--tx);margin-top:2px}';
   h += '.rm-tags{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;justify-content:center}';
   h += '.rm-tag{font-size:.45rem;padding:1px 5px;border-radius:5px;background:#f0f0f0;color:#7a7a7a}';
-  h += '.rm-tag.noac{background:#fef0d0;color:#8a6a30}';
-  h += '.rm-tag.item{background:#e8f5e8;color:var(--gp)}';
+  h += '.rm-tag.noac{background:#fef0d0;color:#8a6a30}.rm-tag.item{background:#e8f5e8;color:var(--gp)}';
   h += '.rm-occ{font-size:.5rem;font-weight:600;margin-top:3px;padding:1px 6px;border-radius:6px}';
   h += '.rm-occ.full{background:#fde8e8;color:var(--red)}.rm-occ.partial{background:#fef8e8;color:var(--ga)}.rm-occ.empty{background:#e8f5e8;color:var(--gp)}';
   h += '.rm-tenants{font-size:.48rem;color:var(--t2);margin-top:3px;text-align:center;line-height:1.3;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
-  // ── 床位面板（全宽，下方）──
-  h += '.bp-panel{margin-top:2px}';
-  h += '.bp-head{font-size:.72rem;font-weight:700;color:var(--tx);padding:6px 0 8px;display:flex;align-items:center;gap:6px}';
-  h += '.bp-head .rm-tags{display:inline-flex;margin-top:0}';
+  // 床位面板 — 独立卡片，横向排列
+  h += '.bp-panel{background:#fff;border:1.5px solid #d0d9ce;border-radius:12px;padding:10px 12px;margin-top:4px;animation:rmFade .2s}';
+  h += '.bp-head{font-size:.7rem;font-weight:700;color:var(--tx);padding-bottom:8px;display:flex;align-items:center;gap:6px;border-bottom:1px solid #e8ede6;margin-bottom:8px}';
+  h += '.bp-bed-row{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}';
+  h += '.bp-bed-row::-webkit-scrollbar{display:none}';
+  h += '.bd-card{flex:0 0 100px;width:100px;background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:.12s;position:relative}';
+  h += '.bd-card:active{transform:scale(.96)}.bd-card.occ{background:#f9faf6}.bd-card.vac{border-style:dashed;border-color:#c0d0c0}';
+  h += '.bd-card.sel{border-color:var(--gp);background:#e8f5e8;box-shadow:0 0 0 1px var(--gp)}';
+  h += '.bd-avatar{width:36px;height:36px;border-radius:50%;margin:0 auto 4px;background:#e8f0e8;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:var(--gp);overflow:hidden}';
+  h += '.bd-avatar img{width:100%;height:100%;object-fit:cover}';
+  h += '.bd-num{font-size:.6rem;font-weight:700;color:var(--tx)}.bd-name{font-size:.52rem;color:var(--t2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
+  h += '.bd-date{font-size:.45rem;color:#999;margin-top:1px}.bd-price{font-size:.52rem;color:var(--gp);font-weight:600;margin-top:2px}';
+  // 入住弹窗
+  h += '.ci-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}';
+  h += '.ci-card{background:#fff;border-radius:16px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);animation:ciPop .25s ease-out}';
+  h += '@keyframes ciPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}';
+  h += '.ci-head{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid #e8ede6}';
+  h += '.ci-title{font-size:.75rem;font-weight:700;color:var(--tx);flex:1}';
+  h += '.ci-close{font-size:1.1rem;cursor:pointer;color:#999;padding:4px 8px;border:none;background:none}';
+  h += '.cal-wrap{padding:12px 16px}';
+  h += '.cal-month{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}';
+  h += '.cal-month-title{font-size:.72rem;font-weight:700;color:var(--tx)}';
+  h += '.cal-nav{font-size:.9rem;cursor:pointer;padding:4px 10px;border:none;background:#f0f0f0;border-radius:6px;color:var(--t2)}';
+  h += '.cal-nav:active{background:#e0e0e0}';
+  h += '.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;max-width:280px;margin:0 auto}';
+  h += '.cal-dow{font-size:.48rem;color:#999;padding:3px 0}';
+  h += '.cal-day{width:100%;height:34px;display:flex;align-items:center;justify-content:center;font-size:.58rem;cursor:pointer;border-radius:6px;transition:.1s;user-select:none;-webkit-tap-highlight-color:transparent}';
+  h += '.cal-day:hover{background:#e8ece8}.cal-day.other{color:#ccc;cursor:default}';
+  h += '.cal-day.start,.cal-day.end{background:#2a4d3a!important;color:#fff!important;font-weight:800;font-size:.68rem;text-shadow:0 1px 1px rgba(0,0,0,.3)}';
+  h += '.cal-day.range{background:#d8ecd8}';
+  h += '.cal-day.today{box-shadow:inset 0 0 0 2px var(--gp)}';
+  h += '.ci-info{padding:8px 16px;font-size:.65rem;color:var(--t2)}';
+  h += '.ci-info-row{display:flex;justify-content:space-between;padding:4px 0}';
+  h += '.ci-info-row b{color:var(--tx)}';
+  h += '.ci-total{font-size:.78rem;font-weight:700;color:var(--gp);text-align:center;padding:8px 0}';
+  h += '.ci-tip{display:flex;align-items:flex-start;gap:8px;margin:0 16px 12px;padding:10px 12px;background:#fdf9f0;border-radius:10px;border:1px solid #f0e8d0}';
+  h += '.ci-tip-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;overflow:hidden;background:#e8f0e8}';
+  h += '.ci-tip-avatar img{width:100%;height:100%;object-fit:cover}';
+  h += '.ci-tip-text{flex:1;font-size:.58rem;color:#8a6a30;line-height:1.5}';
+  h += '.ci-tip-text strong{color:#6a4a10}';
+  h += '.ci-actions{display:flex;gap:8px;padding:12px 16px 16px}';
+  h += '.ci-btn{flex:1;padding:12px;border-radius:10px;font-size:.72rem;font-weight:700;cursor:pointer;border:none;min-height:44px;transition:.1s}';
+  h += '.ci-btn:active{transform:scale(.97)}';
+  h += '.ci-btn.go{background:var(--gp);color:#fff}.ci-btn.no{background:#f0f0f0;color:var(--t2)}';
+  h += '.bk-det{padding:10px 12px;margin-top:8px;background:#fafaf8;border-radius:8px;border:1px solid #e8ede6;font-size:.6rem}';
+  h += '.bk-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--t2)}.bk-row b{color:var(--tx)}';
+  h += '@keyframes rmFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}';
+  h += '@keyframes fadeIn{from{opacity:0}to{opacity:1}}';
   h += '.rm-items-row{font-size:.52rem;color:var(--t2);padding:4px 0 8px}';
   h += '.rm-items-row span{margin-right:6px}';
   h += '.rm-add-item{color:var(--gp);cursor:pointer;text-decoration:underline}';
-  h += '.bk-card{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;cursor:pointer;font-size:.68rem;min-height:50px;border:1.5px solid #e0e0e0;background:#fff;transition:.1s}';
-  h += '.bk-card:active{background:#f8faf8}.bk-card.occ{background:#fafcf8}.bk-card.vac{border-style:dashed;border-color:#d0d9ce}';
-  h += '.bk-card.sel{border-color:var(--gp);background:#e8f5e8}';
-  h += '.bk-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}';
-  h += '.bk-num.tkn{background:#e8e8e8;color:#999}.bk-num.free{background:#e8f0e8;color:var(--gp)}';
-  h += '.bk-info{flex:1;min-width:0}';
-  h += '.bk-name{font-weight:600;font-size:.7rem;color:var(--tx)}.bk-meta{font-size:.5rem;color:#999;margin-top:1px}';
-  h += '.bk-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}';
-  h += '.bk-price{font-size:.58rem;color:var(--gp);font-weight:700}.bk-days{font-size:.45rem;color:#999}';
-  h += '.bk-det{display:none;padding:10px 12px;margin:-2px 0 8px 44px;background:#fafaf8;border-radius:8px;border:1px solid #e8ede6;font-size:.6rem}';
-  h += '.bk-det.open{display:block}.bk-row{display:flex;justify-content:space-between;padding:3px 0;color:var(--t2)}.bk-row b{color:var(--tx)}';
-  h += '.stay-bar{display:flex;gap:8px;margin-top:12px;align-items:flex-end;padding-top:8px;border-top:1px solid #e8ede6}';
-  h += '.stay-bar label{flex:1;font-size:.55rem;color:#999}';
-  h += '.stay-bar input{width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.65rem;margin-top:3px}';
-  h += '.stay-btn{width:100%;padding:12px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;border:none;margin-top:8px;min-height:48px}';
-  h += '.stay-btn.go{background:var(--gp);color:#fff}.stay-btn.out{background:var(--rd);color:#fff}.stay-btn.pri{background:var(--gp);color:#fff}';
-  h += '.stay-btn:active{transform:scale(.97)}';
   h += '</style>';
 
-  // ── 房间卡片网格（上方）──
+  // ── 房间卡片网格 ──
   h += '<div class="rm-grid">';
   rooms.forEach(function(r){
     var occ=r.tenants.length,total=r.beds||1,full=occ>=total,empty=!occ;
@@ -1139,158 +1168,290 @@ function _showStaySheet() {
     var tenantNames=r.tenants.map(function(t){return t.name}).join(' · ')||'空置';
     var noAC=r.ac==='无';
     h += '<div class="rm-card'+(active?' active':'')+'" onclick="_pickRoom(\''+r._id+'\')">';
-    h += '<div class="rm-inner">';
-    h += '<div class="rm-icon">'+icon+'</div>';
-    h += '<div class="rm-label">'+r.label+'</div>';
+    h += '<div class="rm-inner"><div class="rm-icon">'+icon+'</div><div class="rm-label">'+r.label+'</div>';
     h += '<div class="rm-tags">';
     h += '<span class="rm-tag'+(noAC?' noac':'')+'">'+(noAC?'❄️无空调':'❄️有空调')+'</span>';
     h += '<span class="rm-tag">💵'+r.pricePerBed+'NT</span>';
     if(r._id==='dorm101')h+='<span class="rm-tag item">🧰</span>';
-    h += '</div>';
-    h += '<div class="rm-occ '+occCls+'">'+occ+'/'+total+' 人</div>';
+    h += '</div><div class="rm-occ '+occCls+'">'+occ+'/'+total+' 人</div>';
     h += '<div class="rm-tenants">👤 '+tenantNames+'</div>';
     h += '</div></div>';
   });
   h += '</div>';
 
-  // ── 床位面板（下方，全宽）──
+  // ── 床位面板（独立卡片，全宽）──
   if (activeRoom) {
     var r = activeRoom; var rid = r._id;
-    var noAC = r.ac==='无';
     h += '<div class="bp-panel">';
-    h += '<div class="bp-head">🛏 '+r.label+'<div class="rm-tags" style="display:inline-flex">';
-    h += '<span class="rm-tag'+(noAC?' noac':'')+'">'+(noAC?'❄️无空调':'❄️有空调')+'</span>';
-    h += '<span class="rm-tag">💵'+r.pricePerBed+'NT/天</span>';
-    h += '</div></div>';
-    // A室物品
+    h += '<div class="bp-head">🛏 '+r.label+'<span class="rm-tag">💵'+r.pricePerBed+'NT/天</span></div>';
     if (rid==='dorm101') {
       var items = r.items || [];
-      h += '<div class="rm-items-row">🧰 房间物品：';
+      h += '<div class="rm-items-row">🧰 物品：';
       if(items.length){items.forEach(function(it){h+='<span>'+it+'</span>';})}else{h+='<span style="color:#aaa">暂无</span>';}
       h += ' <span class="rm-add-item" onclick="event.stopPropagation();_addRoomItem(\''+rid+'\')">+添加</span></div>';
     }
+    h += '<div class="bp-bed-row">';
     for (var b=1; b<=(r.beds||1); b++) {
       var taken = r.tenants.find(function(t){return t.bed===b;});
       var sel = _selectedBed && _selectedBed.room===rid && _selectedBed.bed===b;
-      var bOpen = _expandedBed && _expandedBed.room===rid && _expandedBed.bed===b;
       var days = taken ? Math.max(1, Math.ceil((new Date(new Date().getFullYear()+'-'+taken.checkOut.replace('/','-'))-new Date(new Date().getFullYear()+'-'+taken.checkIn.replace('/','-')))/86400000)) : 0;
-      h += '<div class="bk-card'+(taken?' occ':' vac')+(sel?' sel':'')+'" onclick="'+(taken?'_expandBed(\''+rid+'\','+b+')':'_selectBed(\''+rid+'\','+b+')')+'">';
-      h += '<div class="bk-num'+(taken?' tkn':' free')+'">'+(taken?(taken.name||'?')[0]:b)+'</div>';
-      h += '<div class="bk-info">';
-      h += '<div class="bk-name">'+(taken?'床'+b+' · '+taken.name:'床'+b+' · 空置')+'</div>';
-      h += '<div class="bk-meta">'+(taken?taken.checkIn+' → '+taken.checkOut+' · '+days+'天':'点击选择此床位入住')+'</div>';
+      var isMe = taken && taken.name===me;
+      h += '<div class="bd-card'+(taken?' occ':' vac')+(sel?' sel':'')+'" onclick="'+(taken?'_expandBed(\''+rid+'\','+b+')':'_openCheckinCard(\''+rid+'\','+b+')')+'">';
+      h += '<div class="bd-avatar">';
+      if (taken) {
+        var au = (typeof getUsers === 'function' ? getUsers() : {})[taken.name] || {};
+        var seed = au.avatar_seed || taken.name || 'default';
+        h += avatarImg(seed, 36);
+      } else {
+        h += '<span style="font-size:.7rem;color:#aaa">🛏</span>';
+      }
       h += '</div>';
-      h += '<div class="bk-right"><div class="bk-price">'+r.pricePerBed+'NT</div><div class="bk-days">/天'+(taken?' · '+days+'天':'')+'</div></div>';
+      h += '<div class="bd-num">'+(taken?taken.name:'床'+b)+'</div>';
+      h += '<div class="bd-name">'+(taken?'床'+b+(isMe?' · 我':'')+'':'空置')+'</div>';
+      h += '<div class="bd-date">'+(taken?taken.checkIn+'→'+taken.checkOut:'20NT/天')+'</div>';
+      h += '<div class="bd-price">'+(taken?(days+'天'):'点击选择')+'</div>';
       h += '</div>';
-      // 展开详情
-      if (bOpen && taken) {
-        var totalP = days * r.pricePerBed;
-        h += '<div class="bk-det open">';
-        h += '<div class="bk-row"><span>🛏 床号</span><b>床'+b+'</b></div>';
-        h += '<div class="bk-row"><span>👤 入住人</span><b>'+taken.name+'</b></div>';
-        h += '<div class="bk-row"><span>📅 入住</span><b>'+taken.checkIn+'</b></div>';
-        h += '<div class="bk-row"><span>📅 离店</span><b>'+taken.checkOut+'</b></div>';
-        h += '<div class="bk-row"><span>📆 天数</span><b>'+days+'天</b></div>';
-        h += '<div class="bk-row"><span>💵 每日房费</span><b>'+r.pricePerBed+' NT</b></div>';
-        h += '<div class="bk-row" style="border-top:1px solid #e8ede6;padding-top:4px;font-weight:700"><span>💰 合计</span><b style="color:var(--gp)">'+totalP+' NT</b></div>';
-        if (taken.name===me) h += '<button class="stay-btn out" style="margin-top:6px;font-size:.6rem;min-height:36px" onclick="_checkoutBed()">🚪 退房</button>';
+    }
+    h += '</div>';
+    // 已占床位 → 详情展开
+    var bOpen = _expandedBed;
+    if (bOpen && bOpen.room===rid) {
+      var bt = r.tenants.find(function(t){return t.bed===bOpen.bed;});
+      if (bt) {
+        var bdays = Math.max(1, Math.ceil((new Date(new Date().getFullYear()+'-'+bt.checkOut.replace('/','-'))-new Date(new Date().getFullYear()+'-'+bt.checkIn.replace('/','-')))/86400000));
+        var btotal = bdays * r.pricePerBed;
+        h += '<div class="bk-det">';
+        h += '<div class="bk-row"><span>🛏 床号</span><b>床'+bOpen.bed+'</b></div>';
+        h += '<div class="bk-row"><span>👤 入住人</span><b>'+bt.name+'</b></div>';
+        h += '<div class="bk-row"><span>📅 入住</span><b>'+bt.checkIn+'</b></div>';
+        h += '<div class="bk-row"><span>📅 离店</span><b>'+bt.checkOut+'</b></div>';
+        h += '<div class="bk-row"><span>📆 天数</span><b>'+bdays+'天</b></div>';
+        h += '<div class="bk-row"><span>💵 每日</span><b>'+r.pricePerBed+' NT</b></div>';
+        h += '<div class="bk-row" style="border-top:1px solid #e8ede6;padding-top:4px;font-weight:700"><span>💰 合计</span><b style="color:var(--gp)">'+btotal+' NT</b></div>';
+        if (bt.name===me) h += '<button class="ci-btn go" style="width:100%;margin-top:6px;font-size:.6rem;min-height:34px;background:var(--rd)" onclick="_checkoutBed()">🚪 退房</button>';
         h += '</div>';
       }
     }
     h += '</div>';
   }
 
-  // ── 底部操作栏 ──
-  var myBed = activeRoom ? activeRoom.tenants.find(function(t){return t.name===me;}) : null;
-  h += '<div class="stay-bar"><label>入住日期<input type="date" id="stayInDate"></label><label>离店日期<input type="date" id="stayOutDate"></label></div>';
-  if (myBed) {
-    h += '<button class="stay-btn out" onclick="_checkoutBed()">🚪 退房（床'+myBed.bed+' · '+myBed.checkIn+'→'+myBed.checkOut+'）</button>';
-  } else {
-    h += '<button class="stay-btn go" onclick="_applyStay()">✅ 申请入住</button>';
+  // ── 入住弹窗 ──
+  if (_showCheckinCard && activeRoom) {
+    h += '<div class="ci-overlay" onclick="_closeCheckinCard()">' + _renderCheckinCard(activeRoom) + '</div>';
   }
+
   _showCardPopup('🛏️ 住宿', h, null, true);
 }
-function _pickRoom(id) { _expandedRoom = id; _expandedBed = null; _selectedBed = null; _showStaySheet(); }
-function _selectBed(roomId, bedNum) { _expandedRoom = roomId; _selectedBed = { room: roomId, bed: bedNum }; _expandedBed = null; _showStaySheet(); }
-function _expandBed(roomId, bedNum) { _expandedRoom = roomId; _expandedBed = (_expandedBed&&_expandedBed.room===roomId&&_expandedBed.bed===bedNum) ? null : {room:roomId,bed:bedNum}; _showStaySheet(); }
-function _addRoomItem(roomId) {
-  var accs = _ml().accommodations || {}; var room = accs[roomId]; if(!room) return;
-  var item = prompt('添加房间物品（如：风扇、毯子、蚊香）：'); if(!item||!item.trim()) return;
-  if(!room.items) room.items = []; room.items.push(item.trim());
-  if(window.AppData) AppData._saveShared(true); _showStaySheet();
-}
-function _checkoutBed() {
-  var me = _me();
-  var accs = _ml().accommodations || {};
-  var found = null;
-  Object.keys(accs).forEach(function(rid){
-    var r = accs[rid];
-    if (!r.tenants) return;
-    var idx = r.tenants.findIndex(function(t){return t.name===me;});
-    if (idx >= 0) { found = { room: r, id: rid, idx: idx, t: r.tenants[idx] }; }
-  });
-  if (!found) { if (window.Game&&Game.toast) Game.toast('你没有入住记录'); return; }
-  if (!confirm('确认退房？\n'+found.room.label+' 床位'+found.t.bed+'\n入住 '+found.t.checkIn+' → 离店 '+found.t.checkOut)) return;
-  found.room.tenants.splice(found.idx, 1);
-  if (window.AppData) { AppData._saveShared(true); AppData.flipPresence(me, 'cloud', null); }
-  // E3.3: 检查是否还有其他房间的 tenant，没有则降级为 visitor
-  var hasOther = false;
-  Object.keys(accs).forEach(function(rid2){
-    if (rid2 === found.id) return;
-    var rr = accs[rid2];
-    if (rr.tenants && rr.tenants.find(function(t){return t.name===me;})) hasOther = true;
-  });
-  if (!hasOther && typeof changeUserRole === 'function') { changeUserRole(me, 'visitor'); }
-  // 服务端同步退房
-  if (typeof API !== 'undefined' && API.token) {
-    API.request('POST', '/api/accommodation/checkout').catch(function(e){console.warn('[checkout] sync failed',e)});
+function _pickRoom(id) { _expandedRoom = id; _expandedBed = null; _selectedBed = null; _showCheckinCard = false; _showStaySheet(); }
+function _openCheckinCard(roomId, bedNum) { _selectedBed = { room: roomId, bed: bedNum }; _showCheckinCard = true; _expandedRoom = roomId; _expandedBed = null; _showStaySheet(); }
+function _expandBed(roomId, bedNum) { _expandedRoom = roomId; _showCheckinCard = false; _expandedBed = (_expandedBed&&_expandedBed.room===roomId&&_expandedBed.bed===bedNum) ? null : {room:roomId,bed:bedNum}; _showStaySheet(); }
+function _closeCheckinCard() { _showCheckinCard = false; _selectedBed = null; _calStart = null; _calEnd = null; var ov = document.querySelector('.ci-overlay'); if (ov) ov.remove(); }
+
+function _renderCheckinCard(activeRoom) {
+  if (!_selectedBed || !activeRoom) return '';
+  var r = activeRoom, rid = r._id, bed = _selectedBed.bed;
+  var now = new Date();
+  if (!_calYear) { _calYear = now.getFullYear(); _calMonth = now.getMonth() + 1; }
+  var pricePerDay = r.pricePerBed || 20;
+  var totalDays = (_calStart && _calEnd) ? Math.ceil((new Date(_calEnd.y, _calEnd.m-1, _calEnd.d) - new Date(_calStart.y, _calStart.m-1, _calStart.d)) / 86400000) + 1 : 0;
+  var totalPrice = totalDays * pricePerDay;
+
+  var h = '';
+  h += '<div class="ci-card" onclick="event.stopPropagation()">';
+  h += '<div class="ci-head"><span style="font-size:1.3rem">🛏</span><div class="ci-title">'+r.label+' · 床'+bed+'<br><span style="font-size:.55rem;color:#999">'+pricePerDay+'NT/天</span></div><button class="ci-close" onclick="_closeCheckinCard()">✕</button></div>';
+  h += _renderMiniCalendar();
+  h += '<div class="ci-info">';
+  h += '<div class="ci-info-row"><span>📅 入住</span><b>' + (_calStart ? _calStart.y+'-'+String(_calStart.m).padStart(2,'0')+'-'+String(_calStart.d).padStart(2,'0') : '点击日历选择') + '</b></div>';
+  h += '<div class="ci-info-row"><span>📅 退房</span><b>' + (_calEnd ? _calEnd.y+'-'+String(_calEnd.m).padStart(2,'0')+'-'+String(_calEnd.d).padStart(2,'0') : '再次点击选择退房') + '</b></div>';
+  h += '</div>';
+  if (totalDays > 0) {
+    h += '<div class="ci-total">💵 '+totalDays+'天 × '+pricePerDay+'NT = '+totalPrice+' NT</div>';
   }
-  if (window.Game&&Game.toast) Game.toast('已退房 · 状态已切为云在线');
-  _expandedRoom = null; _selectedBed = null;
-  var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
-  render();
+  h += _renderCheckinTip(r);
+  h += '<div class="ci-actions">';
+  h += '<button class="ci-btn no" onclick="_closeCheckinCard()">✕ 取消</button>';
+  h += '<button class="ci-btn go" onclick="_confirmCheckin()"' + (totalDays <= 0 ? ' disabled style="opacity:.5;cursor:default"' : '') + '>✅ 确认入住</button>';
+  h += '</div>';
+  h += '</div>';
+  return h;
 }
-function _applyStay() {
-  if (!_selectedBed) { if (window.Game&&Game.toast) Game.toast('请先选择一个床位'); return; }
-  var checkInRaw = (_d('stayInDate')||{}).value;
-  var checkOutRaw = (_d('stayOutDate')||{}).value;
-  if (!checkInRaw || !checkOutRaw) { if (window.Game&&Game.toast) Game.toast('请选择入住和离店日期'); return; }
-  var checkIn = checkInRaw.slice(5); // YYYY-MM-DD → MM-DD
-  var checkOut = checkOutRaw.slice(5);
+
+function _renderMiniCalendar() {
+  var y = _calYear, m = _calMonth;
+  var monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  var dow = ['一','二','三','四','五','六','日'];
+  var firstDay = new Date(y, m-1, 1).getDay() || 7;
+  var daysInMonth = new Date(y, m, 0).getDate();
+  var today = new Date(); var todayStr = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+
+  var h = '<div class="cal-wrap"><div class="cal-month">';
+  h += '<button class="cal-nav" onclick="_calNav(-1);return false">◀</button>';
+  h += '<span class="cal-month-title">'+y+'年 '+monthNames[m-1]+'</span>';
+  h += '<button class="cal-nav" onclick="_calNav(1);return false">▶</button>';
+  h += '</div><div class="cal-grid">';
+  dow.forEach(function(d){ h += '<div class="cal-dow">'+d+'</div>'; });
+  for (var i = 1; i < firstDay; i++) { h += '<div class="cal-day other"></div>'; }
+  for (var d = 1; d <= daysInMonth; d++) {
+    var dateStr = y+'-'+m+'-'+d;
+    var cls = 'cal-day';
+    if (dateStr === todayStr) cls += ' today';
+    if (_calStart && _calEnd) {
+      var cur = new Date(y, m-1, d);
+      var s = new Date(_calStart.y, _calStart.m-1, _calStart.d);
+      var e = new Date(_calEnd.y, _calEnd.m-1, _calEnd.d);
+      if (cur.getTime() === s.getTime()) cls += ' start';
+      else if (cur.getTime() === e.getTime()) cls += ' end';
+      else if (cur > s && cur < e) cls += ' range';
+    } else if (_calStart) {
+      var cur2 = new Date(y, m-1, d);
+      var s2 = new Date(_calStart.y, _calStart.m-1, _calStart.d);
+      if (cur2.getTime() === s2.getTime()) cls += ' start';
+    }
+    h += '<div class="'+cls+'" data-y="'+y+'" data-m="'+m+'" data-d="'+d+'" onclick="_calPick('+y+','+m+','+d+');return false">'+d+'</div>';
+  }
+  h += '</div>';
+  h += '<div style="text-align:center;padding:6px 0 0"><button class="cal-nav" style="font-size:.55rem" onclick="_calStart=null;_calEnd=null;_calUpdateHighlights();_calUpdateInfo();return false">⟳ 重置日期</button></div>';
+  h += '</div>';
+  return h;
+}
+function _calNav(dir) {
+  _calMonth += dir; if (_calMonth > 12) { _calMonth = 1; _calYear++; } if (_calMonth < 1) { _calMonth = 12; _calYear--; }
+  // 翻月需要重建日历格子（月份变了），但只换日历 wrap 的 innerHTML
+  var wrap = document.querySelector('.cal-wrap');
+  if (wrap) wrap.outerHTML = _renderMiniCalendar();
+}
+function _calPick(y, m, d) {
+  if (!_calStart || (_calStart && _calEnd)) { _calStart = {y:y, m:m, d:d}; _calEnd = null; }
+  else { var cur = new Date(y, m-1, d); var s = new Date(_calStart.y, _calStart.m-1, _calStart.d);
+    if (cur < s) { _calStart = {y:y, m:m, d:d}; _calEnd = null; }
+    else { _calEnd = {y:y, m:m, d:d}; } }
+  // 纯 DOM 更新，零 innerHTML
+  _calUpdateHighlights();
+  _calUpdateInfo();
+}
+function _calUpdateHighlights() {
+  var grid = document.querySelector('.cal-grid'); if (!grid) return;
+  var days = grid.querySelectorAll('.cal-day:not(.other)');
+  days.forEach(function(el){
+    el.classList.remove('start','end','range');
+    if (!_calStart) return;
+    var y = parseInt(el.getAttribute('data-y')), m = parseInt(el.getAttribute('data-m')), d = parseInt(el.getAttribute('data-d'));
+    var cur = new Date(y, m-1, d);
+    var s = new Date(_calStart.y, _calStart.m-1, _calStart.d);
+    if (cur.getTime() === s.getTime()) el.classList.add('start');
+    if (_calEnd) {
+      var e = new Date(_calEnd.y, _calEnd.m-1, _calEnd.d);
+      if (cur.getTime() === e.getTime()) el.classList.add('end');
+      else if (cur > s && cur < e) el.classList.add('range');
+    }
+  });
+}
+function _calUpdateInfo() {
+  var rows = document.querySelectorAll('.ci-info-row b');
+  if (rows[0]) rows[0].textContent = _calStart ? _calStart.y+'-'+String(_calStart.m).padStart(2,'0')+'-'+String(_calStart.d).padStart(2,'0') : '点击日历选择';
+  if (rows[1]) rows[1].textContent = _calEnd ? _calEnd.y+'-'+String(_calEnd.m).padStart(2,'0')+'-'+String(_calEnd.d).padStart(2,'0') : '再次点击选择退房';
+  var totalEl = document.querySelector('.ci-total');
+  var confirmBtn = document.querySelector('.ci-btn.go');
+  if (_selectedBed) {
+    var room = (_ml().accommodations||{})[_selectedBed.room];
+    var ppd = room ? room.pricePerBed||20 : 20;
+    var td = (_calStart && _calEnd) ? Math.ceil((new Date(_calEnd.y, _calEnd.m-1, _calEnd.d) - new Date(_calStart.y, _calStart.m-1, _calStart.d)) / 86400000) + 1 : 0;
+    if (totalEl) {
+      if (td > 0) { totalEl.textContent = '💵 '+td+'天 × '+ppd+'NT = '+(td*ppd)+' NT'; totalEl.style.display = 'block'; }
+      else totalEl.style.display = 'none';
+    }
+    if (confirmBtn) {
+      if (td > 0) { confirmBtn.disabled = false; confirmBtn.style.opacity = '1'; confirmBtn.style.cursor = 'pointer'; }
+      else { confirmBtn.disabled = true; confirmBtn.style.opacity = '.5'; confirmBtn.style.cursor = 'default'; }
+    }
+  }
+}
+function _confirmCheckin() {
+  if (!_calStart || !_calEnd || !_selectedBed) return;
   var accs = _ml().accommodations || {};
-  var room = accs[_selectedBed.room];
-  if (!room) return;
+  var room = accs[_selectedBed.room]; if (!room) return;
   if (!room.tenants) room.tenants = [];
   if (room.tenants.find(function(t){return t.bed===_selectedBed.bed;})) { if (window.Game&&Game.toast) Game.toast('该床位已被占用'); return; }
+  var checkIn = String(_calStart.m).padStart(2,'0')+'/'+String(_calStart.d).padStart(2,'0');
+  var checkOut = String(_calEnd.m).padStart(2,'0')+'/'+String(_calEnd.d).padStart(2,'0');
+  var totalD = Math.ceil((new Date(_calEnd.y,_calEnd.m-1,_calEnd.d)-new Date(_calStart.y,_calStart.m-1,_calStart.d))/86400000)+1;
+  var totalP = totalD * room.pricePerBed;
+  // 检查是否已有入住（换房场景）
+  var me = _me(), oldRoom = null, oldBed = null;
+  Object.keys(accs).forEach(function(k){
+    var rr = accs[k]; if(!rr.tenants)return;
+    var idx = rr.tenants.findIndex(function(t){return t.name===me;});
+    if(idx>=0){ oldRoom = rr; oldBed = rr.tenants[idx]; }
+  });
+  var isSwitch = !!oldRoom;
+  var confirmMsg = isSwitch
+    ? '🏠 换房确认\n\n从 '+oldRoom.label+' 床'+oldBed.bed+' → '+room.label+' 床'+_selectedBed.bed+'\n'+checkIn+' → '+checkOut+' · '+totalD+'天 · '+totalP+' NT\n\n旧房间欠费将自动结算'
+    : '📜 签署公约并入住？\n\n'+checkIn+' → '+checkOut+' · '+totalD+'天 · '+totalP+' NT\n\n入住即表示同意遵守社区公约';
 
-  // E3.2: 签署公约确认
   var doCheckin = function() {
-    room.tenants.push({ name:_me(), bed:_selectedBed.bed, checkIn:checkIn, checkOut:checkOut });
+    // 移除旧房间的入住记录
+    if (oldRoom && oldBed) {
+      var oidx = oldRoom.tenants.indexOf(oldBed);
+      if (oidx >= 0) oldRoom.tenants.splice(oidx, 1);
+    }
+    room.tenants.push({ name:me, bed:_selectedBed.bed, checkIn:checkIn, checkOut:checkOut });
     if (window.AppData) AppData._saveShared(true);
-    // 服务端同步
     if (typeof API !== 'undefined' && API.token) {
       API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(e){console.warn('[checkin] sync failed',e)});
     }
-    if (window.Game&&Game.toast) Game.toast('已入住 '+room.label+' 床位'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
-    // 签约公约 + 角色升级（确认后才执行）
-    if (typeof _completeNewbieQuest === 'function') { _completeNewbieQuest(_me(), 'sign_covenant'); }
-    if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
-    // 新手引导
-    if (typeof showNewbieOnEntry === 'function') setTimeout(function(){ showNewbieOnEntry(); }, 400);
-    _selectedBed = null; _expandedRoom = null;
+    if (window.Game&&Game.toast) Game.toast(isSwitch?'已换房到 '+room.label+' 床'+_selectedBed.bed:'已入住 '+room.label+' 床'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
+    if (typeof _completeNewbieQuest === 'function') _completeNewbieQuest(me, 'sign_covenant');
+    if (typeof changeUserRole === 'function' && !isSwitch) changeUserRole(me, 'npc');
+    _showCheckinCard = false; _selectedBed = null; _expandedRoom = null; _calStart = null; _calEnd = null;
     var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
     render();
   };
-
-  // 弹出公约确认
   if (typeof showConfirm === 'function') {
-    showConfirm('📜 签署公约并入住？\n\n入住即表示你同意：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费', doCheckin);
+    showConfirm(confirmMsg, doCheckin);
     return;
   }
-  if (!confirm('📜 南塘社区公约\n\n入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费\n\n点击「确定」签署公约并入住')) return;
+  if (!confirm(confirmMsg)) return;
   doCheckin();
 }
 
+function _renderCheckinTip(room) {
+  var now = new Date(), m = now.getMonth() + 1;
+  var season = (m >= 3 && m <= 5) ? '春' : (m >= 6 && m <= 8) ? '夏' : (m >= 9 && m <= 11) ? '秋' : '冬';
+  var tips = [];
+  if (room.ac === '无') tips.push(season==='夏'?'A室没有空调，最近天热记得带风扇～':season==='冬'?'A室冬天多盖一床被子哦～':'A室注意通风哦～');
+  if (room.pricePerBed >= 50) tips.push('这是单间大床房，适合长期居住，安静舒适～');
+  if (room.beds >= 4) tips.push('多人间热闹，适合短期活动和团队住宿～');
+  if (season === '夏') tips.push('夏天山里蚊虫多，记得带驱蚊水和清凉油！');
+  if (season === '冬') tips.push('冬天取暖请用热水袋，房间禁止明火和电热毯哦～');
+  if (season === '春') tips.push('春天花开正好，窗外景色很美，适合早起散步～');
+  if (season === '秋') tips.push('秋天干燥，多喝水，注意防火防盗～');
+  if (now.getDay() === 5 || now.getDay() === 6) tips.push('周末房源紧张，确认后尽快付款锁定床位～');
+  if (!tips.length) tips.push('欢迎入住南塘云村！有任何需要找社区管理员～');
+  var tip = tips[Math.floor(Math.random() * tips.length)];
+
+  var adminSeed = 'nantang_admin';
+  var users = (typeof getUsers === 'function' ? getUsers() : {}) || {};
+  var adminUser = null;
+  Object.keys(users).forEach(function(k){ if (users[k].role === 'admin' && (!adminUser || (users[k].created||'99') < (adminUser.created||'99'))) adminUser = users[k]; });
+  if (adminUser) adminSeed = adminUser.avatar_seed || adminUser.name || adminSeed;
+
+  var h = '<div class="ci-tip">';
+  h += '<div class="ci-tip-avatar">'+avatarImg(adminSeed, 32)+'</div>';
+  h += '<div class="ci-tip-text"><strong>南塘管家</strong><br>💬 '+tip+'</div>';
+  h += '</div>';
+  return h;
+}
+
+function _addRoomItem(roomId) {
+  var accs = _ml().accommodations || {}; var room = accs[roomId]; if(!room) return;
+  var item = prompt('添加房间物品（如：风扇、毯子、蚊香）：'); if(!item||!item.trim()) return;
+  if(!room.items) room.items = [];
+  room.items.push(item.trim());
+  if(window.AppData) AppData._saveShared(true);
+  _showStaySheet();
+}
+
+// ponytail: _applyStay 已替换为 _confirmCheckin + 入住弹窗日历 (2026-07-22)
 function _toggleForm(type) {
   _mgmtFormType = (_mgmtFormType === type) ? '' : type;
   renderMgmtPanel(type);
@@ -1408,7 +1569,8 @@ function _submitMyCleaning() {
 /* ══════════════════════════════════════
    🛏️ 住宿管理（我的视角）
    ══════════════════════════════════════ */
-function renderStayPanel() {
+// ponytail: deprecated 2026-07-22，路由已切到 _showStaySheet。旧 MGMT_DATA.stay 系统待 Phase E 移除
+function renderStayPanel() { console.warn('[deprecated] renderStayPanel, use _showStaySheet');
   var dormRooms = _getDormRooms();
   var me = _me();
   var myRoom = MGMT_DATA.stay.myRoom;
