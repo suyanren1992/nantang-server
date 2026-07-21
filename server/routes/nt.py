@@ -375,7 +375,7 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
     camp_out = sum(e.amount for e in camp_out_result.scalars())
     camp_pool_ledger = camp_in - camp_out
     camp_pool_drift = pool.camp_balance - camp_pool_ledger
-    total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance
+    total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance + (pool.reserve or 0) + (pool.frozen or 0)
 
     return {
         "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0,
@@ -383,6 +383,8 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
             "total_user_balance": total_user_balance,
             "community_pool": pool.balance,
             "task_escrow": pool.task_escrow,
+            "reserve": pool.reserve or 0,
+            "frozen": pool.frozen or 0,
             "camp_balance": pool.camp_balance,
             "camp_pool_ledger": camp_pool_ledger,
             "camp_pool_drift": camp_pool_drift,
@@ -486,7 +488,9 @@ async def chain_balance():
 @router.get("/pools")
 async def pools(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     pool = await _get_pool(db)
-    return {"community_pool": pool.balance, "task_escrow": pool.task_escrow, "total_issued": pool.total_issued}
+    return {"community_pool": pool.balance, "reserve": pool.reserve or 0, "frozen": pool.frozen or 0,
+            "task_escrow": pool.task_escrow, "camp_balance": pool.camp_balance or 0,
+            "total_issued": pool.total_issued}
 
 
 # R11-7: POST /api/nt/tasks 已废弃 — 使用 POST /api/tasks（tasks.py 版本，字段齐全）。客户端无调用方（grep 确认 2026-07-21）。

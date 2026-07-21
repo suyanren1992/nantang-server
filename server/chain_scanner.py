@@ -167,6 +167,7 @@ class ChainScanner:
         # Update CommunityPool — 走 _get_pool 确保池行不存在时自动创建
         pool = await _get_pool(db)
         pool.total_issued += amount
+        pool.reserve = (pool.reserve or 0) + amount  # 充值进储备池
 
         # Write ledger with tx_hash（D15: 统一走 routes.nt._add_ledger，tx_hash 与类型不变）
         from routes.nt import _add_ledger, _ledger_id
