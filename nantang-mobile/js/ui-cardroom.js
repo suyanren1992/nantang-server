@@ -362,9 +362,83 @@ function closeCardRoom() {
 }
 
 var _cardFilter = '全部';
+var _cardroomTab = _cardroomTab || 'guess';
+
+// R4.2: 校核 tab 渲染
+function _renderVerifyTab() {
+  var vfys = (window.AppData && AppData._data.pendingVerifications) ? AppData._data.pendingVerifications : [];
+  var pending = vfys.filter(function(v) { return v.status === 'pending'; });
+  var resolved = vfys.filter(function(v) { return v.status === 'verified' || v.status === 'rejected' || v.status === 'permanently_rejected'; });
+
+  // R4.4: 云村民只读——非在地成员隐藏操作按钮
+  var users = typeof getUsers === 'function' ? getUsers() : {};
+  var role = (users[CURRENT_USER] || {}).role || 'visitor';
+  var isOnsite = role === 'admin' || role === 'builder' || role === 'npc' || role === 'adventurer';
+
+  var h = '';
+
+  // 待验证
+  if (pending.length) {
+    h += '<div style="font-weight:700;font-size:.72rem;color:#5a6e5c;margin-bottom:6px">⏳ 待验证 (' + pending.length + ')</div>';
+    pending.forEach(function(v) {
+      var icon = ({cleaning:'🧹',stock_in:'📦',stock_out:'🗑',field_harvest:'🌿',field_action:'🌿',quest:'📋',stay:'🛏️',labor_report:'📝'})[v.type] || '📋';
+      h += '<div style="background:#fffdf9;border:1.5px solid #c8c0b0;border-radius:10px;padding:10px 12px;margin-bottom:6px">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+      h += '<div style="flex:1"><span>' + icon + '</span> <b style="font-size:.72rem">' + esc(v.doer||'') + '</b> · ' + esc(v.action||'') + '</div>';
+      h += '<span style="font-size:.65rem;font-weight:700;color:#8a6a20">+' + (v.ntAmount||0) + ' NT</span></div>';
+      if (v.detail && v.detail.spaceId) h += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">📍 ' + esc(v.detail.spaceId||'') + '</div>';
+      h += '<div style="font-size:.55rem;color:#aaa;margin-top:4px">' + (v.createdAt||'').slice(0,16).replace('T',' ') + '</div>';
+      if (isOnsite) {
+        h += '<div style="display:flex;gap:6px;margin-top:8px">';
+        h += '<button class="btn-sm danger" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, false)">🙅 不是</button>';
+        h += '<button class="btn-sm pri" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, true)">✅ 确认 +' + (v.ntAmount||0) + 'NT</button>';
+        h += '</div>';
+      } else {
+        h += '<div style="font-size:.55rem;color:#aaa;margin-top:6px;background:#f5f5f5;padding:4px 8px;border-radius:6px" title="仅在地成员可校核">☁️ 云村民只读</div>';
+      }
+      h += '</div>';
+    });
+  } else {
+    h += '<div style="text-align:center;padding:20px;color:#aaa;font-size:.7rem">✅ 暂无待验证项</div>';
+  }
+
+  // 已处理
+  if (resolved.length) {
+    h += '<div style="font-weight:700;font-size:.65rem;color:#5a6e5c;margin:12px 0 6px">📋 最近已处理 (' + resolved.length + ')</div>';
+    resolved.slice(0, 10).forEach(function(v) {
+      var stIcon = v.status === 'verified' ? '✅' : (v.status === 'permanently_rejected' ? '🚫' : '❌');
+      var stColor = v.status === 'verified' ? '#5d8c52' : '#b84c38';
+      h += '<div style="font-size:.62rem;color:' + stColor + ';padding:4px 0;border-bottom:1px solid #f0f0f0">' + stIcon + ' ' + esc(v.doer||'') + ' · ' + esc(v.action||'') + ' <span style="color:#aaa">' + (v.verifiedAt||v.rejectedAt||'').slice(0,10) + '</span></div>';
+    });
+  }
+
+  return h;
+}
+
 function renderCardRoom() {
   var el = document.getElementById('cardRoomBody');
   if (!el) return;
+
+  // R4.1: Tab 切换栏
+  var h = '';
+  h += '<div class="my-tabbar" style="margin-bottom:8px">';
+  h += '<div class="my-tab ' + (_cardroomTab === 'guess' ? 'on' : '') + '" onclick="_cardroomTab=\'guess\';renderCardRoom()">🃏 匿名好事</div>';
+  h += '<div class="my-tab ' + (_cardroomTab === 'verify' ? 'on' : '') + '" onclick="_cardroomTab=\'verify\';renderCardRoom()">✓ 待验证</div>';
+  h += '</div>';
+
+  // 副标题
+  if (_cardroomTab === 'guess') {
+    h += '<div style="font-size:.6rem;color:#aaa;margin-bottom:8px">谁做了这件事？猜对有奖</div>';
+  } else {
+    h += '<div style="font-size:.6rem;color:#aaa;margin-bottom:8px">确认社区成员的劳动</div>';
+  }
+
+  // 校核 tab 走独立渲染
+  if (_cardroomTab === 'verify') {
+    el.innerHTML = h + _renderVerifyTab();
+    return;
+  }
+
   var discs = _getDiscoveries();
   var sevenDaysAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
   var recentDiscs = discs.filter(function(d) { return d.createdAt.slice(0, 10) >= sevenDaysAgo; });
@@ -375,7 +449,7 @@ function renderCardRoom() {
   // 计算资金池（粗略：按公约定价累加今日已揭卡片的 NT）
   var poolNT = 0; resolved.forEach(function(d){ poolNT += d.ntDoer||0; });
 
-  var h = '';
+  h += '';
 
   // ── 顶部庄家信息 ──
   h += '<div style="background:linear-gradient(135deg,#2a1f0a,#4a3820);color:#ffd700;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">';
