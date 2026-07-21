@@ -42,6 +42,11 @@ class CreateTaskRequest(BaseModel):
     category: str = "other"
 
 
+class WithdrawRequest(BaseModel):
+    amount: int = Field(ge=50, le=200)
+    to_address: str = ""  # 可选，默认用 profile 的 wallet_address
+
+
 async def _adjust_trust(user: User, delta: int):
     user.trust_score = max(0, min(100, user.trust_score + delta))
     if user.trust_score >= 80:
@@ -396,10 +401,6 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
 
 
 # ══ 充值意向（链上自动化）══
-
-class WithdrawRequest(BaseModel):
-    amount: int = Field(ge=50, le=200)
-    to_address: str = ""  # 可选，默认用 profile 的 wallet_address
 
 class DepositIntentRequest(BaseModel):
     amount: int = Field(ge=1, le=100000)
@@ -808,6 +809,8 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     # 非自校核
     if vfy.doer == user.id:
         raise HTTPException(status_code=400, detail="不能校核自己的操作")
+    if user.role == "visitor":
+        raise HTTPException(status_code=403, detail="入住后可使用校核")
 
     # P3: 同对 1h 冷却
     from datetime import timedelta
@@ -847,18 +850,26 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     vfy.verifier = user.id
     vfy.verified_at = datetime.utcnow().isoformat()
     # 发放 NT 给 doer
-    doer = (await db.execute(select(User).where(User.id == vfy.doer))).scalar_one_or_none()
+    doer = (await db.execute(
+        select(User).where(User.id == vfy.doer).with_for_update()
+    )).scalar_one_or_none()
     if doer and nt_amount > 0:
         doer.nt_balance += nt_amount
         lid = _ledger_id()
         await _add_ledger(db, lid, "community_pool", vfy.doer, nt_amount, "earn",
                           f"校核通过: {vfy.action}", status="settled")
-    # 发放 verifier 奖励
+    elif nt_amount > 0:
+        pool.balance += nt_amount  # doer 不存在，回流社区池
+    # 发放 verifier 奖励——加行锁防并发
     if verifier_reward > 0:
-        user.nt_balance += verifier_reward
-        lid2 = _ledger_id() + "-v"
-        await _add_ledger(db, lid2, "community_pool", user.id, verifier_reward, "earn",
-                          f"校核奖励: {vfy.action}", status="settled")
+        verifier = (await db.execute(
+            select(User).where(User.id == user.id).with_for_update()
+        )).scalar_one_or_none()
+        if verifier:
+            verifier.nt_balance += verifier_reward
+            lid2 = _ledger_id() + "-v"
+            await _add_ledger(db, lid2, "community_pool", user.id, verifier_reward, "earn",
+                              f"校核奖励: {vfy.action}", status="settled")
     await db.commit()
     return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
             "verifier_balance": user.nt_balance}
