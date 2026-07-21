@@ -888,6 +888,9 @@ function _mergeSyncData(data) {
   if (!data || !window.AppData) return;
   // R7: 读取 cron_active 标志，服务端已接管则客户端降级
   if (data.cron_active) window._cronActive = true;
+  if (data.pool_balance !== undefined && window.AppData) {
+    AppData._data._poolBalance = data.pool_balance;
+  }
   if (data.tasks) { data.tasks.forEach(function(t) {
     t.publisher = t.poster || t.publisher;
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });

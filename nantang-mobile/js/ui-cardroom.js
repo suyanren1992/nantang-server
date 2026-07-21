@@ -395,7 +395,7 @@ function _renderVerifyTab() {
       h += '<div style="font-size:.55rem;color:#aaa;margin-top:4px">' + (v.createdAt||'').slice(0,16).replace('T',' ') + '</div>';
       if (isOnsite) {
         h += '<div style="display:flex;gap:6px;margin-top:8px">';
-        h += '<button class="btn-sm danger" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, false)">🙅 不是</button>';
+        h += '<button class="btn-sm danger" style="flex:1;font-size:.6rem;padding:6px" onclick="if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\'))AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, false)">🙅 不是</button>';
         h += '<button class="btn-sm pri" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, true)">✅ 确认 +' + (v.ntAmount||0) + 'NT</button>';
         h += '</div>';
       } else {

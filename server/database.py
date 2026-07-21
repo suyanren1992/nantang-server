@@ -35,6 +35,7 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_assignee ON nt_tasks(assignee)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_status ON nt_tasks(status)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_system ON nt_tasks(is_system_generated)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_status_created ON verifications(status, created_at DESC)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错

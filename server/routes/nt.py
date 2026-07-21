@@ -823,7 +823,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
         )
     )
     if recent.scalar_one_or_none():
-        raise HTTPException(status_code=429, detail="同对 1h 内已操作")
+        raise HTTPException(status_code=429, detail="你在 1 小时内已经验证过 TA 的记录，请稍后再来")
 
     # P3: 日上限 10 次
     from sqlalchemy import func
@@ -835,7 +835,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
         )
     )
     if daily_count.scalar() >= 10:
-        raise HTTPException(status_code=429, detail="今日验证已达上限 10 次")
+        raise HTTPException(status_code=429, detail="今天已验证 10 次，明天再来吧")
 
     # 校核 NT 走服务端先：扣社区池 → earn（金额从 Verification 表取，不信任客户端）
     pool = await _get_pool(db, lock=True)  # P3: TOCTOU 修复，池加行锁

@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
-                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, TASK_STATUSES)
+                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, CommunityPool, TASK_STATUSES)
 from routes.auth import get_current_user, require_admin
 from pydantic import BaseModel, Field
 from nt_helpers import _safe_assignees
@@ -433,7 +433,10 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
                       "verifier_reward": v.verifier_reward, "status": v.status,
                       "retry_count": v.retry_count, "created_at": v.created_at}
                      for v in v_r.scalars()]
+    pool_r = (await db.execute(select(CommunityPool).limit(1))).scalar_one_or_none()
+    pool_balance = pool_r.balance if pool_r else 0
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
             "activity": activity, "items": items, "newbie": newbie,
             "verifications": verifications, "cron_active": True,
-            "task_statuses": TASK_STATUSES}
+            "task_statuses": TASK_STATUSES,
+            "pool_balance": pool_balance}
