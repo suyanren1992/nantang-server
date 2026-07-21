@@ -201,9 +201,11 @@ function _startPolling() {
   if (typeof API === 'undefined' || !API.token) return;
   _pollTimer = setInterval(function() {
     API.fetchTasks(function(tasks) {
+      if (tasks && tasks._offline) return;
+      if (tasks && tasks.detail === 'unauthorized') { _stopPolling(); return; }
       if (tasks && window.AppData) { tasks.forEach(function(t) {
         var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-        if (!dup) { AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:[], action:'' }; }
+        if (!dup) { AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, locationId: t.location_id || '', claimants:[], action:'' }; }
       });}
     });
     API.fetchDiscoveries(function(discs) {
@@ -252,7 +254,7 @@ function filterQuests(){
   else if(scope==='个人委托') items=items.filter(function(t){return t.scope==='个人'});
   else if(scope==='社区') items=items.filter(function(t){return t.scope==='社区'});
   // keyword
-  if(keyword) items=items.filter(function(t){return t.name.toLowerCase().indexOf(keyword)!==-1||(t.note||'').toLowerCase().indexOf(keyword)!==-1||(t.publisher||'').toLowerCase().indexOf(keyword)!==-1});
+  if(keyword) items=items.filter(function(t){return (t.name||'').toLowerCase().indexOf(keyword)!==-1||(t.title||'').toLowerCase().indexOf(keyword)!==-1||(t.note||'').toLowerCase().indexOf(keyword)!==-1||(t.publisher||'').toLowerCase().indexOf(keyword)!==-1});
   // sections
   var claimable=items.filter(function(t){return t.status==='进行中'&&(t.claimants||[]).length===0});
   var active=items.filter(function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'||(t.status==='进行中'&&(t.claimants||[]).length>0)});
@@ -540,8 +542,10 @@ function publishTask(){
   document.getElementById('pubConfirmCard').innerHTML=h;
   document.getElementById('pubConfirm').style.display='flex';
 }
+var _publishing = false;
 function doPublish(){
-  var name=document.getElementById('pubName').value.trim();if(!name)return;
+  if (_publishing) return; _publishing = true;
+  var name=document.getElementById('pubName').value.trim();if(!name){_publishing=false;return}
   var target=document.getElementById('pubTarget');var scope=document.getElementById('pubScope').value;
   if(scope==='specific'&&target)scope=target.value;
   var nt=parseInt(document.getElementById('pubNT').value,10)||5;
@@ -562,9 +566,11 @@ function doPublish(){
   }
   document.getElementById('pubConfirm').style.display='none';
   clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
+  _publishing = false;
 }
 function publishDraft(name){
-  var t=TASKS[name];if(!t)return;
+  if (_publishing) return; _publishing = true;
+  var t=TASKS[name];if(!t){_publishing=false;return}
   var ntD=t.nt||0;
   t.status='进行中';t.action='claim';
   AppData.updateTask(name, {status:'进行中', action:'claim'});
@@ -577,6 +583,7 @@ function publishDraft(name){
   }
   document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});
   filterQuests();renderDrafts();renderMyTasks();refreshUserUI();
+  _publishing = false;
 }
 function deleteDraft(name){showConfirm('确定删除草稿「'+name+'」？',function(){AppData.deleteTask(name);document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});filterQuests();renderDrafts()})}
 function clearPubForm(){['pubName','pubNT','pubSlots','pubDeadline','pubReviewer','pubNote'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('pubNT').value='5';document.getElementById('pubSlots').value='1'}

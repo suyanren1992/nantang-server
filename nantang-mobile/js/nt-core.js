@@ -301,10 +301,12 @@ function resolveDispute(taskId, resolution) {
 //  批量结算（净额清算）
 // ═══════════════════════════════════════════════
 
-// ⚠️ DEAD CODE — MVP阶段不使用。verifyTask() 已直接完成转账，再次调用 batchSettle 会导致双重扣款。
-// 启用条件：将 verifyTask 中的转账逻辑移除，仅保留状态变更，由 batchSettle 统一结算。
-// 见执行方案 FIX-14。
+// ⚠️ DISABLED — verifyTask() 已直接完成转账，再次调用 batchSettle 会导致双重扣款。
 function batchSettle() {
+  console.error('[NT] batchSettle() is disabled. Use verifyTask() instead.');
+  return { settled: 0, error: 'disabled' };
+}
+var _batchSettle_dead = function() {
   // 收集所有 verified 但未 settled 的流水
   var entries = LEDGER.filter(function(e) {
     return e.type === 'task_reward' && e.status === 'pending' && e.taskId;
@@ -421,6 +423,7 @@ function cashOut(userId, amount, reason, txId) {
 // ══ 章1: 三池 API ══
 function earnFromPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
+  if (amount <= 0) { console.error('[NT] amount must be > 0, got', amount); return null; }
   scope = scope || 'personal';
   if (pool !== 'community' && (!pool || pool.indexOf('camp:') !== 0)) {
     console.error('[NT] earnFromPool: invalid pool', pool);
@@ -448,6 +451,7 @@ function earnFromPool(userId, amount, reason, pool, scope) {
 
 function spendToPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
+  if (amount <= 0) { console.error('[NT] amount must be > 0, got', amount); return null; }
   if (u.ntBalance < amount) return _err('NT 余额不足');
   scope = scope || 'personal';
   if (pool !== 'community' && (!pool || pool.indexOf('camp:') !== 0)) {
@@ -659,10 +663,6 @@ window.NT = {
   // 用户
   registerUser: registerUser,
   getUser: getUser,
-
-  // 保证金（模拟合约）
-  deposit: deposit,
-  withdraw: withdraw,
 
   // 任务生命周期
   createTask: createTask,

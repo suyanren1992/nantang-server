@@ -1028,7 +1028,7 @@ function confirmDiscovery(discId) {
       if (g.guessedPerson === d.guessedPerson) {
         NT.earn(g.name, 1, '猜中奖励: ' + (d.actionLabel||d.description), 'personal');
       } else {
-        NT.spend(g.name, 0.1, '猜错: ' + (d.actionLabel||d.description), 'personal');
+        NT.spend(g.name, 1, '猜错: ' + (d.actionLabel||d.description), 'personal');
       }
     });
     // 如果发现者也猜了
@@ -1078,7 +1078,7 @@ function denyDiscovery(discId) {
 
   // 猜错 -0.1 NT
   (d.guesses || []).forEach(function(g) {
-    if (window.NT) NT.spend(g.name, 0.1, '猜错: ' + (d.actionLabel||d.description), 'personal');
+    if (window.NT) NT.spend(g.name, 1, '猜错: ' + (d.actionLabel||d.description), 'personal');
   });
 
   _saveDiscoveries();

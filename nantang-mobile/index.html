@@ -1219,12 +1219,10 @@ function _filterArchiveCards() {
   list.innerHTML = h;
 }
 
-var _secFold={claimable:false,active:false,done:false};
 // opts: { context:'hall'|'my', showReviewBtn:bool }
 // PUB_USERS 已删除——改为 live call Object.keys(getUsers()) inside filterReviewers/filterPubTargets
 var _avatarStyles=['avataaars','bottts','fun-emoji','pixel-art','micah','lorelei','adventurer','big-ears','big-smile','croodles','identicon','personas'];
 var _avatarStyleIdx=0;
-var _avatarSeedPool=[];
 fillSeedPool();
 // FIX-08: 会话级 bridge nonce — file:// 协议下 origin 不可靠，nonce 作为共享密钥
 window._APP_NONCE = 'nt_'+Math.random().toString(36).slice(2)+'_'+Date.now().toString(36);

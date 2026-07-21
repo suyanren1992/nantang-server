@@ -20,7 +20,11 @@ var API = {
       var resp = await fetch(url, opts);
       if (resp.status === 401) { this.token = null; return { ok: false, error: '登录过期', _offline: false }; }
       return await resp.json();
-    } catch(e) { if (typeof showToast !== 'undefined') showToast('网络异常，请检查连接', 'warn'); return { ok: false, error: '网络错误', _offline: true }; }
+    } catch(e) {
+      if (e.name === 'TypeError') return {ok:false, error:'网络不通', _offline:true};
+      if (e.name === 'AbortError') return {ok:false, error:'请求超时', _offline:true};
+      return {ok:false, error:'网络异常', _offline:true};
+    }
   },
 
   // ── 认证 ──

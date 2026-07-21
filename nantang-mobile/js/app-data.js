@@ -26,6 +26,7 @@ window.AppData = {
     if (!this._data.pendingConfigChanges) this._data.pendingConfigChanges = [];
     if (!this._data.configHistory) this._data.configHistory = [];
     if (!this._data._lastAccommodationDeduction) this._data._lastAccommodationDeduction = '';
+    if (this._data.campRmb === undefined) this._data.campRmb = 0;
     if (!this._data.map_locations) this._data.map_locations = { buildings: [], plots: [], accommodations: {}, people_on_site: [] };
     if (!this._data.member_locations) this._data.member_locations = {};
     this._migrateInviteCodes();
@@ -127,7 +128,8 @@ window.AppData = {
   updateTask: function(name, updates) {
     if (this._data.tasks[name]) Object.assign(this._data.tasks[name], updates);
     this._saveShared();
-    if (typeof API !== 'undefined' && API.token) API.syncTaskUpdate(name, updates);
+    var srvId = (this._data.tasks[name] && this._data.tasks[name]._srvId) || name;
+    if (typeof API !== 'undefined' && API.token) API.syncTaskUpdate(srvId, updates);
   },
   deleteTask: function(name) {
     delete this._data.tasks[name];
@@ -235,7 +237,7 @@ window.AppData = {
   _savePrivate: function(immediate) {
     if (!this._currentUser) return;
     clearTimeout(this._timerP);
-    var data = { myItems: this._data.myItems, items: this._data.items, journal: this._data.journal, newbieQuests: this._data.newbieQuests, cleaning: this._data.cleaning };
+    var data = { items: this._data.items, journal: this._data.journal, newbieQuests: this._data.newbieQuests, cleaning: this._data.cleaning };
     if (immediate) { this._saveKey('nt_app_v2_' + this._currentUser, data); return; }
     var self = this;
     this._timerP = setTimeout(function() { self._saveKey('nt_app_v2_' + self._currentUser, data); }, 200);
@@ -545,7 +547,7 @@ window.AppData = {
   _tickDirtiness: function() {
     var ml = this._data.map_locations;
     if (!ml || !ml.state || !ml.state.room_items) return;
-    var today = new Date().toISOString().slice(0,10);
+    var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
     if (ml._lastDirtinessTick === today) return;
     ml._lastDirtinessTick = today;
     var rates = (ml.config && ml.config.dirtiness_rates) ? ml.config.dirtiness_rates : { bathroom:15, kitchen:10, hallway:8, studio:8, bedroom:5, laundry:5, storage:3, outdoor:2, field:0 };
@@ -558,7 +560,7 @@ window.AppData = {
 
   _dailyPoolRefill: function() {
     if (!window.NT) return;
-    var today = new Date().toISOString().slice(0,10);
+    var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
     if (this._data._lastPoolRefill === today) return;
     this._data._lastPoolRefill = today;
     var pool = NT.getCommunityPool();
