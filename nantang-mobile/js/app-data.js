@@ -569,6 +569,8 @@ window.AppData = {
   },
 
   _dailyPoolRefill: function() {
+    // R7: 服务端 cron 已接管，cron_active 时客户端跳过
+    if (window._cronActive) return;
     // E3.7: HTTP 模式由服务端 daily_tick 处理，客户端不再独立执行
     if (typeof API !== 'undefined' && API.token) return;
     if (!window.NT) return;

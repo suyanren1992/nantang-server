@@ -200,21 +200,19 @@ var _pollTimer = null;
 function _startPolling() {
   if (_pollTimer) return;
   if (typeof API === 'undefined' || !API.token) return;
-  _pollTimer = setInterval(function() {
-    API.fetchTasks(function(tasks) {
-      if (tasks && tasks._offline) return;
-      if (tasks && tasks.detail === 'unauthorized') { _stopPolling(); return; }
-      if (tasks && window.AppData) { tasks.forEach(function(t) {
-        var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-        if (!dup) { AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category||'其他', nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee||'', deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence||'', locationId: t.location_id || '', claimants:[], action:'' }; }
-      });}
-    });
-    API.fetchDiscoveries(function(discs) {
-      if (discs && window.AppData) { if (!AppData._data.cardDiscoveries) AppData._data.cardDiscoveries = []; discs.forEach(function(d) {
-        if (!AppData._data.cardDiscoveries.find(function(x){ return x.id===d.id; })) { AppData._data.cardDiscoveries.push({ id:d.id, spaceId:d.space_id, description:d.description, guesser:d.guesser, guessedPerson:d.guessed_person, status:d.status, ntGuesser:d.nt_guesser, ntDoer:d.nt_doer, createdAt:d.created_at }); }
-      });}
-    });
-  }, 10000); // 每 10 秒
+  var _pollInterval = 30000;  // C4: 30s 全量同步
+  function _pollCycle() {
+    API.request('GET', '/api/nt/sync').then(function(srv) {
+      if (srv && srv.detail === 'unauthorized') { _stopPolling(); return; }
+      if (srv && !srv.detail) _mergeNTSyncData(srv);
+    }).catch(function(){});
+    // 退避
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    _pollInterval = (typeof API !== 'undefined' && API._serverOnline === false)
+      ? Math.min(_pollInterval * 2, 120000) : 30000;
+    _pollTimer = setInterval(_pollCycle, _pollInterval);
+  }
+  _pollTimer = setInterval(_pollCycle, _pollInterval);
 }
 function _stopPolling() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
@@ -222,7 +220,7 @@ function _stopPolling() {
 function openQuestHallPage(){
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role||'visitor';
-  var isCampMember = role==='admin'||role==='builder'||role==='adventurer';
+  var isCampMember = role==='admin'||role==='builder'||role==='adventurer'||role==='npc';
   var campChip = document.querySelector('#questHallBody .my-fchip[onclick*="营队"]');
   if (campChip) campChip.style.display = isCampMember ? '' : 'none';
   // 从 API 拉取最新任务（完成后刷新列表）
@@ -260,6 +258,8 @@ function filterQuests(){
   var claimable=items.filter(function(t){return t.status==='进行中'&&(t.claimants||[]).length===0});
   var active=items.filter(function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'||(t.status==='进行中'&&(t.claimants||[]).length>0)});
   var done=items.filter(function(t){return t.status==='待结算'||t.status==='已结算'||t.status==='已完成'});
+  // B3: 已取消/已争议任务不再从大厅消失
+  var closed=items.filter(function(t){return t.status==='已取消'||t.status==='已争议'});
   function typedColor(t){return t==='主线'?{c:'var(--green-primary)',b:'#e8f0e8',icon:'🎯'}:t==='支线'?{c:'#c8892e',b:'#fef8e8',icon:'📋'}:{c:'#4a7a82',b:'#e0eaee',icon:'🧹'}}
   // section renderer
   function renderSection(label,emoji,arr,key){
@@ -274,6 +274,7 @@ function filterQuests(){
   if(!claimable.length) h+='<div style="font-size:.65rem;color:#5a5a5a;padding:0 0 8px">暂无待领取任务，<span style="color:var(--green-primary);cursor:pointer;text-decoration:underline" onclick="openPublishTask()">+ 发布委托</span> 创建新任务</div>';
   h+=renderSection('进行中','📋',active,'active');
   h+=renderSection('最近完成','✅',done,'done');
+  h+=renderSection('已取消/已争议','🚫',closed,'closed');
   var list=document.getElementById('questList');if(list)list.innerHTML=h||'<div style="text-align:center;padding:40px;color:#5a6e5c">🏛️<br><br>没有匹配的任务</div>';
 }
 function toggleSection(key){_secFold[key]=!_secFold[key];if(key.indexOf('my')===0)renderMyTasks();else filterQuests()}
@@ -294,6 +295,7 @@ function renderTaskCard(t, opts) {
   if(t.status==='待审核'||t.status==='退回修改') cardCls=' warn';
   else if(t.status==='待提交') cardCls=' urgent';
   else if(t.status==='已完成'||t.status==='已结算'||t.status==='待结算') cardCls=' done';
+  else if(t.status==='已取消'||t.status==='已争议') cardCls=' closed';
   var isMyClaim = claimed.some(function(c){return c.name===CURRENT_USER});
   var isPublisher = t.publisher===CURRENT_USER;
   var rightEl = '';
@@ -558,13 +560,16 @@ function doPublish(){
   // 先校验 AppData，失败不扣 NT
   var addResult=AppData.addTask(data);
   if(!addResult.ok){showToast(addResult.error,'error');return;}
-  // 新任务才冻结 NT
+  // C2: HTTP 模式服务端已在 POST /api/tasks 中处理扣款+冻结，客户端不再重复
   if(!data._ntTaskId&&window.NT){
-    var ntR=NT.createTask(CURRENT_USER, name, nt, 'other');
-    if(!ntR){showToast('NT 余额不足（需 '+nt+' NT，请先赚取或充值）','error');return}
-    if(!ntR.taskId){showToast('NT 系统异常，请重试','error');return}
-    data._ntTaskId=ntR.taskId;
-    AppData.updateTask(name, {_ntTaskId: ntR.taskId});
+    var isOffline = (typeof API === 'undefined' || !API.token);
+    if (isOffline) {
+      var ntR=NT.createTask(CURRENT_USER, name, nt, 'other', null, data.slots||1);
+      if(!ntR){showToast('NT 余额不足（需 '+(nt*(data.slots||1))+' NT，请先赚取或充值）','error');return}
+      if(!ntR.taskId){showToast('NT 系统异常，请重试','error');return}
+      data._ntTaskId=ntR.taskId;
+      AppData.updateTask(name, {_ntTaskId: ntR.taskId});
+    }
   }
   document.getElementById('pubConfirm').style.display='none';
   clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
@@ -577,11 +582,14 @@ function publishDraft(name){
   t.status='进行中';t.action='claim';
   AppData.updateTask(name, {status:'进行中', action:'claim'});
   if(!t._ntTaskId&&window.NT&&ntD>0){
-    var ntR=NT.createTask(CURRENT_USER, name, ntD, 'other');
-    if(!ntR){showToast('NT 余额不足（需 '+ntD+' NT）','error');return}
-    if(!ntR.taskId){showToast('NT 系统异常，请重试','error');return}
-    t._ntTaskId=ntR.taskId;
-    AppData.updateTask(name, {_ntTaskId: ntR.taskId});
+    var isOffline = (typeof API === 'undefined' || !API.token);
+    if (isOffline) {
+      var ntR=NT.createTask(CURRENT_USER, name, ntD, 'other', null, t.slots||1);
+      if(!ntR){showToast('NT 余额不足（需 '+ntD+' NT）','error');return}
+      if(!ntR.taskId){showToast('NT 系统异常，请重试','error');return}
+      t._ntTaskId=ntR.taskId;
+      AppData.updateTask(name, {_ntTaskId: ntR.taskId});
+    }
   }
   document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});
   filterQuests();renderDrafts();renderMyTasks();refreshUserUI();
@@ -659,6 +667,13 @@ function _saveLocalUser(name, seed) {
     // 只有真正的种子才存，null/空字符串/等于名字的不存
     lu[name] = (seed && seed !== name) ? seed : (lu[name] && lu[name] !== name ? lu[name] : (name));
     localStorage.setItem('nt_local_users', JSON.stringify(lu));
+    // A2: 顺带缓存角色到并行 key，供 auth.js getUsers() 的 fallback 读取
+    var role = (typeof API !== 'undefined' && API.user && API.user.role) || (typeof getUsers === 'function' && (getUsers()[name] || {}).role);
+    if (role) {
+      var lr = JSON.parse(localStorage.getItem('nt_local_roles')||'{}');
+      lr[name] = role;
+      localStorage.setItem('nt_local_roles', JSON.stringify(lr));
+    }
   } catch(e) {}
 }
 function pickLoginUser(name){document.getElementById('loginName').value=name;document.querySelectorAll('#userScroll .user-chip').forEach(function(c){c.classList.remove('selected')});event.target.closest('.user-chip').classList.add('selected');renderLoginAvatar()}
@@ -695,12 +710,49 @@ function updateRegAvatar(){
   var av=document.getElementById('regAvatar');if(!av)return;
   av.innerHTML='<img src="'+avatarURL(_profileSeed!=null?_profileSeed:'demo',64)+'" width="64" height="64" style="border-radius:50%;object-fit:cover" alt="">';
 }
+function _mergeNTSyncData(data) {
+  if (!data || data.detail || !window.NT) return;
+  var me = CURRENT_USER;
+  // 余额/CV/XP：服务端权威，直接覆盖
+  var ntUser = NT.getUser(me);
+  if (ntUser) {
+    ntUser.ntBalance = data.balance || 0;
+    ntUser.contributionValue = data.cv || 0;
+    ntUser.experienceValue = data.xp || 0;
+    ntUser.frozenBalance = data.frozen_balance || 0;
+  }
+  // 角色：服务端权威
+  if (data.role && window.AppData) {
+    var users = (typeof getUsers === 'function') ? getUsers() : {};
+    if (users[me]) users[me].role = data.role;
+    try { localStorage.setItem('nt_users', JSON.stringify(users)); } catch(e) {}
+  }
+  // 任务合并
+  if (data.tasks && window.AppData) {
+    data.tasks.forEach(function(t) {
+      var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
+      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'' };
+      else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline });
+    });
+  }
+  // 充值意图缓存
+  if (data.deposit_intents && window.AppData) {
+    AppData._data._depositIntents = data.deposit_intents;
+  }
+  // 流水缓存（供离线查看）
+  if (data.ledger && window.NT) {
+    try { localStorage.setItem('nt_synced_ledger_' + me, JSON.stringify(data.ledger)); } catch(e) {}
+  }
+}
+
 function _mergeSyncData(data) {
   if (!data || !window.AppData) return;
+  // R7: 读取 cron_active 标志，服务端已接管则客户端降级
+  if (data.cron_active) window._cronActive = true;
   if (data.tasks) { data.tasks.forEach(function(t) {
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
     if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:[], action:'' };
-    else Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id });
+    else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id });
   });}
   if (data.journal) {
     AppData._data.journal = AppData._data.journal || [];
@@ -741,21 +793,28 @@ function enterVillage(){
     var pc=document.getElementById('profileCard');if(pc)pc.remove();
     _fromQuestHall=false;
     document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
-    if(typeof _completeNewbieQuest==='function')_completeNewbieQuest(CURRENT_USER,'sign_covenant');
+    // E3.4: sign_covenant 已移至 _applyStay() 签署公约时触发
     setTimeout(function(){ if(typeof showNewbieOnEntry==='function')showNewbieOnEntry(); },600);
     if(typeof API!=='undefined'&&API.token){
       API.syncAll(function(data) {
         if (data && !data.detail && !data._offline && data.ok !== false) _mergeSyncData(data);
       });
+      // C1: /api/nt/sync 为权威数据源，覆盖本地 NT 状态
+      API.request('GET', '/api/nt/sync').then(function(srv) {
+        if (srv && !srv.detail) _mergeNTSyncData(srv);
+      }).catch(function(){});
+      // C2.6: 触发每日 tick（幂等，服务端同一天不重复执行）
+      API.request('POST', '/api/system/daily-tick').catch(function(){});
     }
-    if(typeof API!=='undefined'&&API.token){fetch('/api/nt/balance',{headers:{'Authorization':'Bearer '+API.token}}).then(function(r){return r.json();}).then(function(srv){if(srv&&!srv.detail&&!srv._offline){var ntUser=window.NT?NT.getUser(CURRENT_USER):null;if(ntUser){ntUser.ntBalance=Math.max(ntUser.ntBalance||0,srv.balance||0);ntUser.contributionValue=Math.max(ntUser.contributionValue||0,srv.cv||0);ntUser.experienceValue=Math.max(ntUser.experienceValue||0,srv.xp||0);}}}).catch(function(){});}
     _startPolling();
+    // B10: 预创建信箱面板 DOM（创建后立刻隐藏），首次点击不再 createElement
+    setTimeout(function(){ if (typeof _toggleInbox === 'function' && !document.getElementById('inboxPanel')) { _toggleInbox(); closeInbox(); } }, 800);
   }
   if(isReg){
     var n=document.getElementById('regName').value.trim();var p=document.getElementById('regPwd').value.trim();
     var errors=[];
     if(!n) errors.push('请输入名字');
-    if(p.length<6) errors.push('密码至少6位');
+    if(p.length<8) errors.push('密码至少8位');
     if(errors.length){showToast(errors.join('；'),'error');return}
     if(!_profileSeed)_profileSeed=_avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
     if (isHTTP) {
@@ -784,7 +843,7 @@ function enterVillage(){
     var ln=document.getElementById('loginName').value.trim();var lp=document.getElementById('loginPwd').value;
     if(!lp){showToast('请输入密码','error',document.getElementById('loginPwd'));return}
     if (isHTTP) {
-      API.asyncAuth('login', ln, lp, null, null, function(result) {
+      API.asyncAuth('login', ln, lp, null, null, null, function(result) {
         if (result && result.name) {
           setCurrentUser(ln);if(window.AppData)AppData.switchUser(ln);
           _finishEnter(ln);
@@ -810,7 +869,7 @@ function enterVillage(){
   var pc=document.getElementById('profileCard');if(pc)pc.remove();
   _fromQuestHall=false;
   document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
-if(typeof _completeNewbieQuest==='function')_completeNewbieQuest(CURRENT_USER,'sign_covenant');
+// E3.4: sign_covenant 已移至 _applyStay()
 setTimeout(function(){ if(typeof showNewbieOnEntry==='function')showNewbieOnEntry(); },600)
 // 从 API 拉取其他用户的数据
 if(typeof API!=='undefined'&&API.token){
@@ -971,7 +1030,11 @@ function refreshUserUI(){
 function showMy(opts){document.getElementById('villagePage').classList.add('hidden');document.getElementById('villagePage').classList.add('behind');document.getElementById('myPage').classList.remove('hidden');renderMyTasks();refreshUserUI();
   // 刷新工作台动态
   var af=document.getElementById('activityFeed');if(af&&window.AppData){var log=AppData._data.activity_log||[];if(log.length){var h='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div>';log.slice(0,5).forEach(function(a){h+='<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:.65rem;color:#5a6e5c">'+(a.time||'').slice(0,16).replace('T',' ')+' · '+esc(a.text||'')+'</div>'});h+='</div>';af.innerHTML=h;}else{af.innerHTML='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div><div style="padding:12px;text-align:center;color:#5a5a5a;font-size:.7rem">暂无动态</div></div>';}}
-  if(window.NT&&!NT.verify().pass)console.error('[NT] 会计等式不成立！',NT.verify())
+  if(window.NT&&!NT.verify().pass){
+  var v=NT.verify();
+  console.error('[NT] 会计等式不成立！',v);
+  if(typeof showToast==='function') showToast('NT 会计等式异常，请检查账本','warn');
+}
   // 阶段 3：营地概览联动 preselect chip（审计 P3）
   if (opts && opts.presetChip === '营队') {
     setTimeout(function() {
@@ -985,7 +1048,7 @@ function showMy(opts){document.getElementById('villagePage').classList.add('hidd
   // 任务可见性：非营地成员隐藏 [营队] chip
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role||'visitor';
-  var isCampMember = role==='admin'||role==='builder'||role==='adventurer';
+  var isCampMember = role==='admin'||role==='builder'||role==='adventurer'||role==='npc';
   if (!isCampMember) {
     var campChip = document.querySelector('#myChipRow .my-fchip[onclick*="营队"]');
     if (campChip) campChip.style.display = 'none';
@@ -1012,7 +1075,8 @@ function renderMyTasks(){
     {label:'🔴 待处理',color:'var(--red)',key:'urgent',filter:function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'}},
     {label:'📋 进行中',color:'var(--green-primary)',key:'active',filter:function(t){return t.status==='进行中'}},
     {label:'🧾 待结算',color:'#c8892e',key:'settle',filter:function(t){return t.status==='待结算'}},
-    {label:'✅ 最近完成',color:'#5a6e5c',key:'done',filter:function(t){return t.status==='已完成'||t.status==='已结算'}}
+    {label:'✅ 最近完成',color:'#5a6e5c',key:'done',filter:function(t){return t.status==='已完成'||t.status==='已结算'}},
+    {label:'🚫 已取消/争议',color:'#999',key:'closed',filter:function(t){return t.status==='已取消'||t.status==='已争议'}}
   ];
   var h='';
   secs.forEach(function(s){
@@ -1076,7 +1140,7 @@ function renderProfile(mode){
     h+='<div style="margin-top:12px;display:flex;gap:6px"><button class="btn-sm sec" style=flex:1 onclick="renderProfile(\'view\')">取消</button><button class="btn-sm pri" style=flex:1 onclick="saveProfileEdits();renderProfile(\'view\')">💾 保存</button></div>';
     h+='<div style="border-top:1px solid #e0e0e0;margin-top:12px;padding-top:10px"><div style="font-size:.68rem;font-weight:700;color:#5a6e5c;margin-bottom:6px">🔑 修改密码</div>';
     h+='<input id="profileOldPwd" class="login-input" type="password" placeholder="当前密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
-    h+='<input id="profileNewPwd" class="login-input" type="password" placeholder="新密码（至少6位）" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
+    h+='<input id="profileNewPwd" class="login-input" type="password" placeholder="新密码（至少8位）" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
     h+='<input id="profileCfmPwd" class="login-input" type="password" placeholder="确认新密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
     h+='<button class="btn-sm warn" style="width:100%;margin-top:6px" onclick="changePwd()">🔑 确认修改密码</button></div>';
   }else if(mode==='review'){
@@ -1104,11 +1168,13 @@ if(!AppData._data.pendingTransactions)AppData._data.pendingTransactions=[];
 
 function showRechargeForm(){
   var el=document.getElementById('profileTxForm');if(!el)return;
+  var wallet=(window.AppData&&AppData.me()&&AppData.me().wallet)||'';
+  if(!wallet){el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px;color:#c8892e;font-size:.72rem">请先在个人资料中设置钱包地址（编辑资料 -> 钱包地址），充值需要链上转账凭证。</div>';return}
   el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
     '<input id="rechargeAmount" type="number" min="1" placeholder="充值 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.75rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
-    '<input id="rechargeNote" placeholder="备注（选填）" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.72rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
+    '<div style="font-size:.6rem;color:#5a6e5c;margin-bottom:4px">你的钱包：'+wallet.substring(0,10)+'...'+wallet.slice(-6)+'</div>'+
     '<div style="display:flex;gap:4px"><button class="btn-sm sec" style=flex:1 onclick="document.getElementById(\'profileTxForm\').innerHTML=\'\'">取消</button>'+
-    '<button class="btn-sm pri" style=flex:1 onclick="submitRecharge()">提交申请</button></div></div>';
+    '<button class="btn-sm pri" style=flex:1 onclick="submitRecharge()">生成充值地址</button></div></div>';
 }
 function showWithdrawForm(){
   var el=document.getElementById('profileTxForm');if(!el)return;
@@ -1123,10 +1189,17 @@ function showWithdrawForm(){
 function submitRecharge(){
   var amt=parseInt(document.getElementById('rechargeAmount').value,10)||0;
   if(amt<=0){showToast('请输入有效金额','error');return}
-  var note=document.getElementById('rechargeNote').value.trim();
-  var tx={id:_genTxId(),type:'topUp',user:CURRENT_USER,amount:amt,reason:note,status:'pending',createdAt:today()};
-  AppData._data.pendingTransactions.push(tx);AppData._save();
-  document.getElementById('profileTxForm').innerHTML='<div style="color:var(--green-primary);font-size:.7rem;text-align:center;padding:4px">✅ 已提交充值申请，等待管理员审核</div>';
+  if(typeof API==='undefined'||!API.token){showToast('请先登录','error');return}
+  var wallet=(window.AppData&&AppData.me()&&AppData.me().wallet)||'';
+  API.createDepositIntent(amt, wallet).then(function(r){
+    if(!r||r.detail||!r.ok){showToast((r&&r.error)||'创建充值意向失败','error');return}
+    var el=document.getElementById('profileTxForm');if(!el)return;
+    el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
+      '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:4px">请向以下地址转账 '+amt+' NT</div>'+
+      '<div style="background:#f5f5f5;padding:10px;border-radius:8px;word-break:break-all;font-size:.65rem;font-family:monospace;margin-bottom:8px;user-select:all" onclick="navigator.clipboard.writeText(this.textContent);showToast(\'已复制\')">'+r.to_address+'</div>'+
+      '<div style="font-size:.58rem;color:#5a6e5c;margin-bottom:8px">转账成功后系统将自动检测并入账（约30秒）。如未到账请联系管理员并提供交易哈希。</div>'+
+      '<button class="btn-sm sec" style=width:100% onclick="document.getElementById(\'profileTxForm\').innerHTML=\'\'">关闭</button></div>';
+  });
 }
 function submitWithdraw(){
   var amt=parseInt(document.getElementById('withdrawAmount').value,10)||0;
@@ -1150,6 +1223,12 @@ function approveTx(txId){
       var result=tx.type==='topUp'?NT.topUp(tx.user,tx.amount,tx.reason||'管理员审核充值',tx.id):NT.cashOut(tx.user,tx.amount,tx.reason||'管理员审核提现',tx.id);
       if(!result){showToast('NT 操作失败，请检查余额或用户状态','error');return}
     } catch(e) { showToast('NT 系统异常，请刷新后重试','error');return; }
+  }
+  // A3: 审批充值同步服务端余额（服务端 /api/nt/topup 需 admin 权限）
+  if (tx.type==='topUp' && typeof API !== 'undefined' && API.token) {
+    API.topUp(tx.user, tx.amount, tx.reason).catch(function(e) {
+      showToast('服务端同步失败', 'warn');
+    });
   }
   tx.status='approved';tx.reviewedBy=CURRENT_USER;tx.reviewedAt=today();AppData._save();
   renderProfile('review');refreshUserUI();
@@ -1197,7 +1276,8 @@ function saveProfileEdits(){
   u.wallet=wallet;u.bio=bio;u.location=loc;u.avatar_seed=_profileSeed!=null&&_profileSeed!==undefined?_profileSeed:u.avatar_seed;
   saveUsers(users);
   if(window.AppData){var me=AppData.me();if(me){me.wallet=wallet;me.bio=bio;me.location=loc;me.avatar_seed=u.avatar_seed;AppData._save();}}
-  // Phase 0: 头像通过 AppData 同步，不再写 data.members
+  // 同步钱包地址到服务端
+  if(wallet&&typeof API!=='undefined'&&API.token){API.updateProfile({wallet_address:wallet}).catch(function(){});}
   if(window.AppData){var me=AppData.me();if(me){me.avatar_seed=u.avatar_seed;AppData._save();}}
   refreshUserUI();
 }
@@ -1230,8 +1310,17 @@ function changePwd(){
   var n=document.getElementById('profileNewPwd').value;
   var c=document.getElementById('profileCfmPwd').value;
   if(!o||!n||!c){showToast('请填写完整');return}
-  if(n.length<6){showToast('新密码至少6位','error');return}
+  if(n.length<8){showToast('新密码至少8位','error');return}
   if(n!==c){showToast('两次密码不一致','error');return}
+  // 优先走服务端（HTTP 模式）
+  if(typeof API!=='undefined'&&API.token){
+    API.changePassword(o,n).then(function(r){
+      if(r&&r.ok){showToast('密码已修改！请重新登录','ok');renderProfile('view');}
+      else{showToast((r&&r.error)||'修改失败','error');}
+    });
+    return;
+  }
+  // file:// 离线 fallback
   var users=getUsers();var u=users[CURRENT_USER];
   if(!u){showToast('用户数据异常','error');return}
   if(u.password!==encodePassword(o,CURRENT_USER)){showToast('当前密码错误','error');return}
