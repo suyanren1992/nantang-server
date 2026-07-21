@@ -1,5 +1,5 @@
 """SQLAlchemy models for Nantang Cloud Village."""
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float, Boolean
 from database import Base
 
 
@@ -13,7 +13,7 @@ class User(Base):
     experience_value = Column(Integer, default=0)
     trust_score = Column(Integer, default=100)
     trust_level = Column(String, default="可信")
-    frozen_cv = Column(Integer, default=75)
+    frozen_cv = Column(Integer, default=0)
     wallet_address = Column(String, nullable=True)
     bio = Column(String, nullable=True)
     location = Column(String, nullable=True)
@@ -45,18 +45,21 @@ class NTTask(Base):
     id = Column(String, primary_key=True)
     poster = Column(String, nullable=False)
     assignee = Column(String, nullable=True)
+    assignees = Column(Text, nullable=True)  # JSON 数组，多 assignee。ponytail: 过渡期与 assignee 列共存
     title = Column(String, nullable=False)
     reward = Column(Integer, default=0)
     status = Column(String, default="pending")
     category = Column(String, default="other")
     scope = Column(String, default="社区")
     note = Column(Text, nullable=True)
-    slots = Column(Integer, default=1)  # ponytail: 当前仅支持单 assignee，DB/NT 层均为单 assignee 模型，UI 的 claimants[] 多槽交互为视觉假象。trigger: 多槽需求确认后改为 JSON list 列 + 更新所有端点
+    slots = Column(Integer, default=1)
     deadline = Column(String, nullable=True)
     reviewer = Column(String, nullable=True)
     evidence = Column(Text, nullable=True)
     location_id = Column(String, nullable=True)
     escrow_amount = Column(Integer, default=0)
+    is_system_generated = Column(Boolean, default=False)    # 系统自动生成=周期/赏金
+    idempotency_key = Column(String(128), unique=True, nullable=True)  # cron 幂等
     created_at = Column(String, nullable=True)
     accepted_at = Column(String, nullable=True)
     completed_at = Column(String, nullable=True)
@@ -73,11 +76,12 @@ class NTTask(Base):
 class CommunityPool(Base):
     __tablename__ = "community_pool"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    balance = Column(Integer, default=2000)
-    total_issued = Column(Integer, default=2000)
+    balance = Column(Integer, default=0)
+    total_issued = Column(Integer, default=0)
     task_escrow = Column(Integer, default=0)
     contribution_pool = Column(Integer, default=0)
     camp_balance = Column(Integer, default=0)
+    last_tick_date = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
 
 
@@ -252,3 +256,30 @@ class InventoryItem(Base):
     location = Column(String, nullable=True)
     desc = Column(Text, nullable=True)
     date = Column(String, nullable=True)
+
+
+# ══ 充值意向（链上自动化充值）══
+class DepositIntent(Base):
+    __tablename__ = "deposit_intents"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    amount = Column(Integer, nullable=False)
+    from_address = Column(String, nullable=False)
+    to_address = Column(String, nullable=False)
+    tx_hash = Column(String, nullable=True)
+    status = Column(String, default="pending")  # pending|detected|confirmed|expired
+    created_at = Column(String, nullable=False)
+    detected_at = Column(String, nullable=True)
+
+
+# ══ Phase C2.5: 身份与入住 ══
+class Tenancy(Base):
+    __tablename__ = "tenancies"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    room_id = Column(String, nullable=False)       # 引用 map_locations 中的 roomId
+    bed_num = Column(Integer, default=1)
+    checkin_date = Column(String, nullable=False)
+    last_deducted = Column(String, nullable=True)  # 上次扣费日期（幂等）
+    debt = Column(Integer, default=0)
+    status = Column(String, default="active")      # active / checked_out

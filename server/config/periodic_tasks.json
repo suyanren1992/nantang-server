@@ -1,0 +1,8 @@
+{
+  "templates": [
+    {"id":"daily_sweep","title":"日常清扫","period":"daily","scope":"社区","poster":"社区","slots":1,"reward":3,"category":"卫生"},
+    {"id":"weekly_deep_clean","title":"周末大扫除","period":"weekly","dayOfWeek":6,"scope":"社区","poster":"社区","slots":3,"reward":12,"category":"卫生"},
+    {"id":"weekly_inventory","title":"库存盘点","period":"weekly","dayOfWeek":0,"scope":"社区","poster":"社区","slots":1,"reward":8,"category":"库存"},
+    {"id":"daily_compost","title":"翻堆肥","period":"daily","scope":"社区","poster":"社区","slots":1,"reward":5,"category":"田园"}
+  ]
+}

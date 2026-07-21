@@ -574,6 +574,21 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
         raise HTTPException(status_code=403)
     if task.status in ("已结算", "待结算", "已取消", "已争议"):
         raise HTTPException(status_code=400, detail="不可取消已结算/已取消/已争议任务")
+
+    # R1.5: poster='社区' 的任务取消——退款回社区池
+    if task.poster == "社区":
+        pool = await _get_pool(db)
+        if task.escrow_amount > 0:
+            pool.balance += task.escrow_amount
+            pool.task_escrow -= task.escrow_amount
+            lid = _ledger_id()
+            await _add_ledger(db, lid, "escrow", "community_pool", task.escrow_amount,
+                              "task_cancelled", f"取消社区任务: {task.title}", task_id)
+            task.escrow_amount = 0
+        task.status = "已取消"
+        await db.commit()
+        return {"ok": True}
+
     if task.escrow_amount > 0:
         pool = await _get_pool(db)
         poster = (await db.execute(select(User).where(User.id == task.poster))).scalar_one_or_none()
