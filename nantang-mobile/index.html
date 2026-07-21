@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
 <title>南塘云村</title>
 <meta name="theme-color" content="#1d2e24">
-<style>body{visibility:hidden}</style>
+<style>body{visibility:hidden}[onclick]{touch-action:manipulation}</style>
 <link rel="icon" href="../92e279b22d04d4c831aec15aa09213df (1).png">
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/main.css?v=3">
@@ -638,8 +638,9 @@ function _renderInbox() {
 
   var CATS = ['全部','校核','发现','互动','财务','系统'];
   var h = '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">';
+  var _fullMsgs = _computeInboxMessages();
   CATS.forEach(function(c) {
-    var cnt = c==='全部' ? allMsgs.length : _computeInboxMessages().filter(function(m){return m.category===c;}).length;
+    var cnt = c==='全部' ? _fullMsgs.length : _fullMsgs.filter(function(m){return m.category===c;}).length;
     var active = _inboxCategory === c;
     h += '<button onclick="_inboxCategory=\''+c+'\';_renderInbox()" style="font-size:.6rem;padding:3px 8px;border-radius:12px;border:1px solid '+(active?'var(--green-primary)':'#d0d9ce')+';background:'+(active?'#e8f0e8':'#fff')+';color:'+(active?'var(--green-primary)':'#5a6e5c')+';cursor:pointer;white-space:nowrap">'+c+(cnt>0?' '+cnt:'')+'</button>';
   });

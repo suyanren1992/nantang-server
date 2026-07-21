@@ -584,3 +584,9 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 .quick-card:active{transform:scale(.97);background:#fafaf5}
 .ic-muted{color:var(--g-text-dim)}
 .ic-warn{color:#c8892e}
+
+/* ═══ iOS/mobile 改善 ═══ */
+.login-page { padding-bottom: env(safe-area-inset-bottom, 20px); }
+#inboxPanel { top: calc(50px + env(safe-area-inset-top, 0px)); }
+.avatar-picker { position: fixed; }
+[onclick] { touch-action: manipulation; }

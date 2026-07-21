@@ -147,6 +147,7 @@ window.AppData = {
     var items = this._data.items[this._currentUser] || [];
     return (!filter || filter === 'all') ? items : items.filter(function(i) { return i.status === filter; });
   },
+  // ponytail: 有出库需求时补 deleteItem(userId, itemId)
   addItem: function(item) {
     if (!this._data.items[this._currentUser]) this._data.items[this._currentUser] = [];
     this._data.items[this._currentUser].push(item);
