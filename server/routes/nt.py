@@ -316,6 +316,51 @@ async def cashout(req: TopUpRequest, admin: User = Depends(require_admin), db: A
     return {"ok": True, "entry_id": lid, "balance": target.nt_balance}
 
 
+# ══ 提现（两阶段冻结）══
+@router.post("/withdraw")
+async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
+                    db: AsyncSession = Depends(get_db)):
+    """用户提现 NT——第一阶段：冻结到 frozen，等待管理员多签确认"""
+    from web3 import Web3
+    from datetime import timedelta
+
+    # 输入校验
+    addr = req.to_address or user.wallet_address
+    if not addr or not Web3.is_address(addr):
+        raise HTTPException(400, "请先设置有效的钱包地址（0x开头40位）")
+    if user.nt_balance < req.amount:
+        raise HTTPException(400, f"余额不足（当前 {user.nt_balance} NT）")
+    if user.trust_score < 60:
+        raise HTTPException(400, "信誉分≥60方可提现")
+
+    # 7天冷却
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    recent = (await db.execute(
+        select(func.count(NTLedger.id)).where(
+            NTLedger.from_user == user.id, NTLedger.type == "withdraw",
+            NTLedger.created_at >= week_ago
+        )
+    )).scalar()
+    if recent > 0:
+        raise HTTPException(429, "7天内已提现过，请等待冷却期结束")
+
+    pool = await _get_pool(db, lock=True)
+    if (pool.reserve or 0) < req.amount:
+        raise HTTPException(400, f"储备池余额不足（当前 {pool.reserve or 0} NT），请联系管理员")
+
+    # 第一阶段：冻结
+    user.nt_balance -= req.amount
+    pool.reserve = (pool.reserve or 0) - req.amount
+    pool.frozen = (pool.frozen or 0) + req.amount
+    lid = _ledger_id()
+    await _add_ledger(db, lid, user.id, "frozen_pool", req.amount, "withdraw",
+                      f"提现至 {addr[:10]}... 等待管理员签名", status="pending")
+    await _adjust_trust(user, -10)
+    await db.commit()
+    return {"ok": True, "entry_id": lid, "balance": user.nt_balance,
+            "status": "pending", "expected_time": "24小时内"}
+
+
 @router.get("/verify")
 async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User))
@@ -349,6 +394,10 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
 
 
 # ══ 充值意向（链上自动化）══
+
+class WithdrawRequest(BaseModel):
+    amount: int = Field(ge=50, le=200)
+    to_address: str = ""  # 可选，默认用 profile 的 wallet_address
 
 class DepositIntentRequest(BaseModel):
     amount: int = Field(ge=1, le=100000)
