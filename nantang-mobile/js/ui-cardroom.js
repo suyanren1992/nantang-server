@@ -377,6 +377,11 @@ function _renderVerifyTab() {
 
   var h = '';
 
+  // B2: 校核积压告警
+  if (pending.length > 30) {
+    h += '<div style="background:#fff5f5;border:1px solid #f0c8c8;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:.62rem;color:#b84c38">⚠️ 校核积压 ' + pending.length + ' 条，社区需要你帮忙验证！</div>';
+  }
+
   // 待验证
   if (pending.length) {
     h += '<div style="font-weight:700;font-size:.72rem;color:#5a6e5c;margin-bottom:6px">⏳ 待验证 (' + pending.length + ')</div>';

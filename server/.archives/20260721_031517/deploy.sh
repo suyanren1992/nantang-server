@@ -75,7 +75,7 @@ systemctl restart nginx
 # 8. 设置 JWT 密钥
 JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 echo "export JWT_SECRET=$JWT_SECRET" >> /etc/environment
-sed -i "s/SECRET_KEY = .*/SECRET_KEY = \"$JWT_SECRET\"/" $APP_DIR/server/auth_utils.py
+# B3: 不再 sed 修改源码——JWT_SECRET 通过环境变量注入（systemd Environment=）
 
 echo ""
 echo "=== 部署完成 ==="

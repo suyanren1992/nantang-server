@@ -130,6 +130,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
               "deadline": t.deadline, "reviewer": t.reviewer, "note": t.note,
               "evidence": t.evidence, "escrow_amount": t.escrow_amount,
               "is_system_generated": t.is_system_generated or False,
+              "camp_ref_id": t.camp_ref_id, "location_id": t.location_id,
               "created_at": t.created_at, "verified_at": t.verified_at,
               "verifier_id": t.verifier_id,
               "settler_id": t.settler_id, "settled_at": t.settled_at} for t in all_tasks]
@@ -468,24 +469,33 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    if user.role != "admin" and (not task.reviewer or task.reviewer != user.id):
+    if user.role != "admin" and task.reviewer and task.reviewer != user.id:
         raise HTTPException(status_code=403, detail="只有指定的审核人可以验证此任务")
+    if user.role != "admin" and not task.reviewer and task.poster != user.id:
+        raise HTTPException(status_code=403, detail="未指定审核人时，只有发布者可以验证")
     if task.status not in ("待审核", "待提交", "退回修改"):
         raise HTTPException(status_code=400, detail=f"任务状态不可验证: {task.status}")
 
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)
     if approved:
         import json
         assignee_ids = _safe_assignees(task)
         if not assignee_ids:
             raise HTTPException(status_code=400, detail="任务执行者不存在")
+        is_camp = task.scope == "camp"  # R4: 营地任务从 camp_balance 支付
+        total_payout = task.reward * len(assignee_ids)
+        if is_camp:
+            if pool.camp_balance < total_payout:
+                raise HTTPException(status_code=400, detail="营地余额不足")
+            pool.camp_balance -= total_payout
+        else:
+            pool.task_escrow -= total_payout
         for aid in assignee_ids:
             a = (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
             if a:
                 a.nt_balance += task.reward
                 a.experience_value += task.reward
                 await _adjust_trust(a, 5)
-        pool.task_escrow -= task.reward * len(assignee_ids)
         task.status = "待结算"
         task.verifier_id = user.id
         task.verified_at = datetime.utcnow().isoformat()
@@ -496,14 +506,15 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
         if poster:
             await _adjust_trust(poster, 3)
 
-        # 部分领取：未领份额 (slots - 实领人数) × reward 退还发布者
+        # 部分领取：未领份额 (slots - 实领人数) × reward 退还
         unclaimed = task.reward * ((task.slots or 1) - len(assignee_ids))
         if unclaimed > 0:
             if poster:
                 poster.nt_balance += unclaimed
+            elif is_camp:
+                pool.camp_balance += unclaimed  # 营地任务回流 camp_balance
             else:
                 pool.balance += unclaimed  # 发布者不存在时回流社区池
-            pool.task_escrow -= unclaimed
             lid_u = _ledger_id() + "-u"
             await _add_ledger(db, lid_u, "escrow", task.poster, unclaimed, "task_refund",
                               f"未领份额退还({(task.slots or 1) - len(assignee_ids)}个名额): {task.title}", task_id)
@@ -883,7 +894,7 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     tenancies_r = await db.execute(
         select(Tenancy).where(Tenancy.status == "active")
     )
-    NIGHTLY_RATE = int(os.environ.get("NIGHTLY_RATE", "10"))
+    NIGHTLY_RATE = int(os.environ.get("NIGHTLY_RATE", "28"))  # 公约定价均价：20-60NT/床，默认28
     for t in tenancies_r.scalars():
         if t.last_deducted == today:
             continue

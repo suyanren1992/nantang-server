@@ -72,10 +72,11 @@ systemctl enable nantang
 systemctl restart nantang
 systemctl restart nginx
 
-# 8. 设置 JWT 密钥
+# 8. 设置 JWT 密钥（通过环境变量注入，不修改源码）
 JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 echo "export JWT_SECRET=$JWT_SECRET" >> /etc/environment
-sed -i "s/SECRET_KEY = .*/SECRET_KEY = \"$JWT_SECRET\"/" $APP_DIR/server/auth_utils.py
+# systemd unit 中已配置 Environment=JWT_SECRET 从 /etc/environment 读取
+# 不再 sed 修改源码文件，避免重新部署时覆盖导致所有 token 失效
 
 echo ""
 echo "=== 部署完成 ==="
