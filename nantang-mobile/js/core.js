@@ -667,18 +667,32 @@ function publishDraft(name){
   if (_publishing) return; _publishing = true;
   var t=TASKS[name];if(!t){_publishing=false;return}
   var ntD=t.nt||0;
-  t.status='进行中';t.action='claim';
-  AppData.updateTask(name, {status:'进行中', action:'claim'});
+  // C2: HTTP 模式先调服务端创建任务（服务端做余额检查+冻结）
+  var isOffline = (typeof API === 'undefined' || !API.token);
+  if (!isOffline && ntD > 0) {
+    API.syncTask(t, function(srvId) {
+      if (!srvId) { showToast('发布失败，请检查余额或重试', 'error'); _publishing = false; return; }
+      t._ntTaskId = srvId; t._srvId = srvId;
+      AppData.updateTask(name, {_ntTaskId: srvId, _srvId: srvId});
+      _finalizePublish(name);
+    });
+    return;  // 等回调
+  }
   if(!t._ntTaskId&&window.NT&&ntD>0){
-    var isOffline = (typeof API === 'undefined' || !API.token);
     if (isOffline) {
       var ntR=NT.createTask(CURRENT_USER, name, ntD, 'other', null, t.slots||1);
-      if(!ntR){showToast('NT 余额不足（需 '+ntD+' NT）','error');return}
-      if(!ntR.taskId){showToast('NT 系统异常，请重试','error');return}
+      if(!ntR){showToast('NT 余额不足（需 '+ntD+' NT）','error');_publishing=false;return}
+      if(!ntR.taskId){showToast('NT 系统异常，请重试','error');_publishing=false;return}
       t._ntTaskId=ntR.taskId;
       AppData.updateTask(name, {_ntTaskId: ntR.taskId});
     }
   }
+  _finalizePublish(name);
+}
+function _finalizePublish(name) {
+  var t = TASKS[name]; if (!t) { _publishing = false; return; }
+  t.status='进行中';t.action='claim';
+  AppData.updateTask(name, {status:'进行中', action:'claim'});
   document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});
   filterQuests();renderDrafts();renderMyTasks();refreshUserUI();
   _publishing = false;
@@ -878,13 +892,20 @@ function enterVillage(){
     if (!seed && typeof API !== 'undefined' && API.user && API.user.avatar_seed) seed = API.user.avatar_seed;
     if (!seed) { try { var _lu2 = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); if (_lu2[name]) seed = _lu2[name]; } catch(e) {} }
     if (!isHTTP) _saveLocalUser(name, seed);
-    // 同时写 nt_local_roles，确保 HTTP 模式 getUsers() fallback 可用
-    if (isHTTP && typeof API !== 'undefined' && API.user && API.user.role) {
+    // HTTP 模式：写 nt_local_users + nt_local_roles 确保 getUsers() fallback 可用
+    if (isHTTP && typeof API !== 'undefined' && API.user) {
       try {
+        var _role = API.user.role || 'visitor';
+        var _seed = seed || (API.user.avatar_seed || name);
+        // nt_local_users: {name: seed} ——供 getUsers() fallback 遍历
+        var _lu = JSON.parse(localStorage.getItem('nt_local_users')||'{}');
+        _lu[name] = _seed;
+        localStorage.setItem('nt_local_users', JSON.stringify(_lu));
+        // nt_local_roles: {name: role} ——供 getUsers() fallback 取角色
         var _lr = JSON.parse(localStorage.getItem('nt_local_roles')||'{}');
-        _lr[name] = API.user.role;
+        _lr[name] = _role;
         localStorage.setItem('nt_local_roles', JSON.stringify(_lr));
-      } catch(e) {}
+      } catch(e) { console.warn('_finishEnter persist failed', e); }
     }
     document.getElementById('myPage').classList.add('hidden');
     document.getElementById('overlayCommunity').classList.remove('open');

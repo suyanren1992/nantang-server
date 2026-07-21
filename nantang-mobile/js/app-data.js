@@ -123,7 +123,8 @@ window.AppData = {
     if (typeof API !== 'undefined' && API.token) {
       var self = this;
       API.syncTask(task, function(srvId) {  // syncTask 是回调风格，无返回值
-        if (srvId && typeof srvId === 'string') { task._srvId = srvId; task._ntTaskId = srvId; self._data.tasks[srvId] = task; self._saveShared(); }  // 双向索引 + C2.0: 桥接 _ntTaskId
+        if (srvId && typeof srvId === 'string') { task._srvId = srvId; task._ntTaskId = srvId; self._data.tasks[srvId] = task; self._saveShared(); }
+        else { delete self._data.tasks[task.name]; self._saveShared(); if (typeof showToast === 'function') showToast('发布失败：服务端拒绝（余额不足或参数无效）', 'error'); }  // 服务端拒绝→回滚本地
       });
     }
     return { ok: true };
@@ -254,15 +255,14 @@ window.AppData = {
       this._data.map_locations.config = this._data.map_locations.config || {};
       // 住宿
       this._data.map_locations.accommodations = {
-        dorm101: { type:'triple_bunk', label:'A室·三人大通铺', ac:'无', tenant:'王五', rentNT:150, checkIn:'7/15', checkOut:'7/20', status:'occupied', _seed:true },
-        dorm102: { type:'quad_bunk', label:'B室·四人大通铺', ac:'有', tenant:null, rentNT:120, checkIn:null, checkOut:null, status:'vacant' },
-        dorm103: { type:'bunk_double', label:'C室·上下床+大床', ac:'有', tenant:'李四', rentNT:90, checkIn:'7/15', checkOut:'7/18', status:'occupied', _seed:true },
-        dorm104: { type:'single', label:'D室·单间大床房', ac:'有', tenant:null, rentNT:100, checkIn:null, checkOut:null, status:'vacant' },
-        dorm105: { type:'quad_bunk2', label:'E室·两个上下床', ac:'有', tenant:null, rentNT:80, checkIn:null, checkOut:null, status:'vacant' },
-        dorm106: { type:'bunk', label:'F室·两人间上下床', ac:'有', tenant:null, rentNT:100, checkIn:null, checkOut:null, status:'vacant' }
+        dorm101: { beds:3, pricePerBed:20, label:'A室·三人大通铺', ac:'无', tenants:[{name:'王五',bed:1,checkIn:'7/15',checkOut:'7/20'}], status:'occupied', _seed:true },
+        dorm102: { beds:4, pricePerBed:30, label:'B室·四人大通铺', ac:'有', tenants:[], status:'vacant' },
+        dorm103: { beds:3, pricePerBed:30, label:'C室·上下床+大床', ac:'有', tenants:[{name:'李四',bed:1,checkIn:'7/15',checkOut:'7/18'}], status:'occupied', _seed:true },
+        dorm104: { beds:1, pricePerBed:60, label:'D室·单间大床房', ac:'有', tenants:[], status:'vacant' },
+        dorm105: { beds:4, pricePerBed:30, label:'E室·两个上下床', ac:'有', tenants:[], status:'vacant' },
+        dorm106: { beds:4, pricePerBed:35, label:'F室·四人间上下床', ac:'有', tenants:[], status:'vacant' }
       };
-      // 在场人员
-      this._data.map_locations.people_on_site = [
+this._data.map_locations.people_on_site = [
         { name:'小杨', location:'kitchen', building:'office', activity:'🍳厨房做饭', _seed:true },
         { name:'朝林', location:'reading', building:'study', activity:'📖大书房看书', _seed:true },
         { name:'若曦', location:'studio', building:'office', activity:'🎨画室画画', _seed:true }
