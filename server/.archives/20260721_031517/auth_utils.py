@@ -1,17 +1,13 @@
 """Authentication: bcrypt + JWT access/refresh token (industry standard)."""
-import os
 import bcrypt
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import uuid
 
-SECRET_KEY = os.environ.get("JWT_SECRET")
-if not SECRET_KEY:
-    raise RuntimeError("JWT_SECRET 环境变量未设置")
+SECRET_KEY = "nantang-cloud-village-secret-key-change-in-production"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60       # 1 hour (short-lived, in JS memory)
 REFRESH_TOKEN_EXPIRE_DAYS = 7           # 7 days (httpOnly cookie)
-ABSOLUTE_MAX_DAYS = 30                  # R14-3 M47: refresh session 最大年龄
 
 
 def hash_password(password: str) -> str:
@@ -22,15 +18,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
-def create_access_token(user_id: str, role: str, token_version: int = 0) -> str:
+def create_access_token(user_id: str, role: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": user_id, "role": role, "jti": str(uuid.uuid4()), "type": "access", "version": token_version, "exp": expire}
+    to_encode = {"sub": user_id, "role": role, "jti": str(uuid.uuid4()), "type": "access", "exp": expire}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_refresh_token(user_id: str, token_version: int = 0) -> str:
+def create_refresh_token(user_id: str) -> str:
     expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode = {"sub": user_id, "jti": str(uuid.uuid4()), "type": "refresh", "version": token_version, "exp": expire}
+    to_encode = {"sub": user_id, "jti": str(uuid.uuid4()), "type": "refresh", "exp": expire}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 

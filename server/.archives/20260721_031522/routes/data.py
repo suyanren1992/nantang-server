@@ -7,7 +7,7 @@ import json
 from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
                     CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp)
-from routes.auth import get_current_user, require_admin
+from routes.auth import get_current_user
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -16,6 +16,8 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 @router.get("/journal")
 async def get_journal(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                       limit: int = 50):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(Journal).where(Journal.user == user.id).order_by(Journal.id.desc()).limit(limit))
     return [{"type": j.type, "content": j.content, "time": j.time,
              "space_id": j.space_id, "discovery_id": j.discovery_id} for j in result.scalars()]
@@ -23,6 +25,8 @@ async def get_journal(user: User = Depends(get_current_user), db: AsyncSession =
 
 @router.post("/journal")
 async def add_journal(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     j = Journal(user=user.id, type=req.get("type", "daily"), content=req.get("content", ""),
                 time=datetime.utcnow().isoformat(), space_id=req.get("space_id"),
                 discovery_id=req.get("discovery_id"))
@@ -33,13 +37,15 @@ async def add_journal(req: dict, user: User = Depends(get_current_user), db: Asy
 
 # ── Activity Log ──
 @router.get("/activity_log")
-async def get_activity_log(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), limit: int = 20):
+async def get_activity_log(db: AsyncSession = Depends(get_db), limit: int = 20):
     result = await db.execute(select(ActivityLog).order_by(ActivityLog.id.desc()).limit(limit))
     return [{"time": a.time, "type": a.type, "text": a.text} for a in result.scalars()]
 
 
 @router.post("/activity_log")
 async def add_activity_log(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     a = ActivityLog(time=datetime.utcnow().isoformat(), type=req.get("type", ""),
                     text=req.get("text", ""))
     db.add(a)
@@ -50,6 +56,8 @@ async def add_activity_log(req: dict, user: User = Depends(get_current_user), db
 # ── Card Discoveries ──
 @router.get("/card_discoveries")
 async def get_card_discoveries(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(CardDiscovery).order_by(CardDiscovery.created_at.desc()).limit(100))
     return [{"id": d.id, "space_id": d.space_id, "description": d.description,
              "guesser": d.guesser, "guessed_person": d.guessed_person,
@@ -59,10 +67,12 @@ async def get_card_discoveries(user: User = Depends(get_current_user), db: Async
 
 @router.post("/card_discoveries")
 async def add_card_discovery(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     d = CardDiscovery(
         id=req.get("id", f"disc_{datetime.utcnow().timestamp()}"),
         space_id=req.get("space_id"), description=req.get("description"),
-        guesser=user.id, guessed_person=req.get("guessed_person"),
+        guesser=req.get("guesser"), guessed_person=req.get("guessed_person"),
         guessed_at=req.get("guessed_at"), status=req.get("status", "pending"),
         nt_guesser=req.get("nt_guesser", 5), nt_doer=req.get("nt_doer", 10),
         created_at=datetime.utcnow().isoformat(),
@@ -75,6 +85,8 @@ async def add_card_discovery(req: dict, user: User = Depends(get_current_user), 
 @router.put("/card_discoveries/{disc_id}")
 async def update_card_discovery(disc_id: str, req: dict, user: User = Depends(get_current_user),
                                 db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(CardDiscovery).where(CardDiscovery.id == disc_id))
     d = result.scalar_one_or_none()
     if not d:
@@ -91,21 +103,18 @@ async def update_card_discovery(disc_id: str, req: dict, user: User = Depends(ge
 # ── Verifications ──
 @router.get("/verifications")
 async def get_verifications(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    q = select(Verification).order_by(Verification.created_at.desc()).limit(50)
-    if user.role != "admin":
-        q = q.where(Verification.doer == user.id)
-    result = await db.execute(q)
+    if not user:
+        raise HTTPException(status_code=401)
+    result = await db.execute(select(Verification).order_by(Verification.created_at.desc()).limit(50))
     return [{"id": v.id, "type": v.type, "doer": v.doer, "action": v.action,
-             "detail": json.loads(v.detail) if v.detail else {},
-             "nt_amount": v.nt_amount, "verifier_reward": v.verifier_reward,
-             "status": v.status, "verifier": v.verifier, "verified_at": v.verified_at,
-             "reject_reason": v.reject_reason, "retry_count": v.retry_count,
-             "created_at": v.created_at}
+             "nt_amount": v.nt_amount, "status": v.status, "created_at": v.created_at}
             for v in result.scalars()]
 
 
 @router.post("/verifications")
 async def add_verification(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     v = Verification(
         id=req.get("id", f"vfy_{datetime.utcnow().timestamp()}"),
         type=req.get("type", ""), doer=req.get("doer", user.id),
@@ -121,6 +130,8 @@ async def add_verification(req: dict, user: User = Depends(get_current_user), db
 @router.put("/verifications/{vfy_id}")
 async def update_verification(vfy_id: str, req: dict, user: User = Depends(get_current_user),
                               db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(Verification).where(Verification.id == vfy_id))
     v = result.scalar_one_or_none()
     if not v:
@@ -137,6 +148,8 @@ async def update_verification(vfy_id: str, req: dict, user: User = Depends(get_c
 # ── Newbie Quests ──
 @router.get("/newbie_quests")
 async def get_newbie_quests(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(NewbieQuest).where(NewbieQuest.user == user.id))
     return [{"quest_id": q.quest_id, "name": q.name, "desc": q.desc,
              "nt": q.nt, "done": bool(q.done), "done_at": q.done_at} for q in result.scalars()]
@@ -144,6 +157,8 @@ async def get_newbie_quests(user: User = Depends(get_current_user), db: AsyncSes
 
 @router.post("/newbie_quests")
 async def init_newbie_quests(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     quests = req.get("quests", [])
     for q in quests:
         db.add(NewbieQuest(user=user.id, quest_id=q.get("id"), name=q.get("name"),
@@ -155,6 +170,8 @@ async def init_newbie_quests(req: dict, user: User = Depends(get_current_user), 
 @router.put("/newbie_quests/{quest_id}")
 async def complete_newbie_quest(quest_id: str, user: User = Depends(get_current_user),
                                 db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(NewbieQuest).where(
         NewbieQuest.user == user.id, NewbieQuest.quest_id == quest_id))
     q = result.scalar_one_or_none()
@@ -173,14 +190,8 @@ async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db))
     if date:
         q = q.where(CanteenMenu.date == date)
     result = await db.execute(q.order_by(CanteenMenu.date.desc()))
-    items = []
-    for m in result.scalars():
-        try: lunch = json.loads(m.lunch) if m.lunch else []
-        except: lunch = []
-        try: dinner = json.loads(m.dinner) if m.dinner else []
-        except: dinner = []
-        items.append({"date": m.date, "lunch": lunch, "dinner": dinner})
-    return items
+    return [{"date": m.date, "lunch": json.loads(m.lunch) if m.lunch else [],
+             "dinner": json.loads(m.dinner) if m.dinner else []} for m in result.scalars()]
 
 
 @router.post("/canteen_menu")
@@ -196,6 +207,8 @@ async def set_canteen_menu(req: dict, user: User = Depends(get_current_user), db
 
 @router.get("/meal_orders")
 async def get_meal_orders(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(MealOrder).where(MealOrder.user == user.id).order_by(MealOrder.date.desc()))
     return [{"date": o.date, "meal": o.meal, "status": o.status,
              "ordered_at": o.ordered_at} for o in result.scalars()]
@@ -203,6 +216,8 @@ async def get_meal_orders(user: User = Depends(get_current_user), db: AsyncSessi
 
 @router.post("/meal_orders")
 async def add_meal_order(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     o = MealOrder(user=user.id, date=req.get("date", ""), meal=req.get("meal", "lunch"),
                   status="ordered", ordered_at=datetime.utcnow().isoformat())
     db.add(o)
@@ -217,8 +232,7 @@ async def get_map_locations(db: AsyncSession = Depends(get_db)):
     ml = result.scalar_one_or_none()
     if not ml:
         return {"buildings": [], "plots": [], "accommodations": {}, "people_on_site": [], "state": {}, "config": {}}
-    try: return json.loads(ml.data) if ml.data else {}
-    except: return {}
+    return json.loads(ml.data) if ml.data else {}
 
 
 @router.post("/map_locations")
@@ -244,7 +258,9 @@ async def get_announcements(db: AsyncSession = Depends(get_db), limit: int = 20)
 
 
 @router.post("/announcements")
-async def add_announcement(req: dict, user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+async def add_announcement(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     a = Announcement(type=req.get("type", ""), doer=req.get("doer", ""),
                      verifier=req.get("verifier", ""), action=req.get("action", ""),
                      nt_amount=req.get("nt_amount", 0), created_at=datetime.utcnow().isoformat())
@@ -256,6 +272,8 @@ async def add_announcement(req: dict, user: User = Depends(require_admin), db: A
 # ── Inventory ──
 @router.get("/inventory")
 async def get_inventory(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(InventoryItem).where(InventoryItem.user == user.id))
     return [{"id": i.id, "name": i.name, "cat": i.cat, "status": i.status,
              "price": i.price, "location": i.location, "desc": i.desc, "date": i.date}
@@ -264,6 +282,8 @@ async def get_inventory(user: User = Depends(get_current_user), db: AsyncSession
 
 @router.post("/inventory")
 async def add_inventory(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     i = InventoryItem(id=req.get("id", f"i{datetime.utcnow().timestamp()}"), user=user.id,
                       name=req.get("name", ""), cat=req.get("cat", "其他"),
                       status=req.get("status", "storage"), price=req.get("price", 0),
@@ -276,8 +296,9 @@ async def add_inventory(req: dict, user: User = Depends(get_current_user), db: A
 # ══ 统一共享数据推送 ══
 @router.post("/sync_shared")
 async def sync_shared(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user: raise HTTPException(status_code=401)
     # 营地
-    if req.get("camps") and isinstance(req.get("camps"), dict):
+    if req.get("camps"):
         for camp_id, camp_data in req["camps"].items():
             existing = (await db.execute(select(Camp).where(Camp.id == camp_id))).scalar_one_or_none()
             if not existing:
@@ -302,12 +323,9 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
 # ══ 全量同步：登录时客户端拉取所有数据 ══
 @router.get("/sync_all")
 async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user: raise HTTPException(status_code=401)
     # 我的任务
-    tasks_r = await db.execute(
-        select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id)
-        ).order_by(NTTask.created_at.desc())
-    )
+    tasks_r = await db.execute(select(NTTask).order_by(NTTask.created_at.desc()))
     my_tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
                  "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
                  "slots": t.slots, "deadline": t.deadline, "reviewer": t.reviewer,

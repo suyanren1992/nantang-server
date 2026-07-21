@@ -2,9 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import datetime
-import secrets
 from database import get_db
 from models import NTTask, User
 from routes.auth import get_current_user, require_admin
@@ -14,12 +13,12 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
 
 class TaskCreate(BaseModel):
-    title: str = Field(..., min_length=1, max_length=200)
+    title: str
     reward: int = 5
     category: str = "other"
     scope: str = "社区"
     note: str = ""
-    slots: int = Field(1, ge=1, le=1)  # 多槽实现前上限=1
+    slots: int = 1
     deadline: str = ""
     reviewer: str = ""
     location_id: str = ""
@@ -37,17 +36,15 @@ class TaskUpdate(BaseModel):
 
 
 def _task_id():
-    return f"T{datetime.utcnow().strftime('%y%m%d%H%M%S')}-{secrets.token_hex(3)}"
+    return f"T{datetime.utcnow().strftime('%y%m%d')}-{datetime.utcnow().strftime('%f')}"
 
 
 @router.get("")
 async def list_tasks(scope: str = None, status: str = None, user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id)
-        ).order_by(NTTask.created_at.desc())
-    )
+    if not user:
+        raise HTTPException(status_code=401)
+    result = await db.execute(select(NTTask).order_by(NTTask.created_at.desc()))
     tasks = list(result.scalars())
     if scope:
         tasks = [t for t in tasks if t.scope == scope]
@@ -58,21 +55,18 @@ async def list_tasks(scope: str = None, status: str = None, user: User = Depends
              "slots": t.slots, "deadline": t.deadline, "reviewer": t.reviewer,
              "location_id": t.location_id, "note": t.note, "evidence": t.evidence,
              "reject_reason": t.reject_reason, "settler_id": t.settler_id,
-             "created_at": t.created_at, "accepted_at": t.accepted_at, "completed_at": t.completed_at,
-             "settled_at": t.settled_at} for t in tasks]
+             "created_at": t.created_at, "settled_at": t.settled_at} for t in tasks]
 
 
 @router.post("")
 async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     if req.reward <= 0:
         raise HTTPException(status_code=400, detail="奖励必须大于0")
     if user.nt_balance < req.reward:
         raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward} NT，当前 {user.nt_balance}）")
-
-    if req.reviewer and req.reviewer.strip():
-        rv = (await db.execute(select(User).where(User.id == req.reviewer.strip()))).scalar_one_or_none()
-        if not rv: raise HTTPException(status_code=400, detail="审核人不存在")
 
     task_id = _task_id()
     task = NTTask(
@@ -95,6 +89,8 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
 @router.put("/{task_id}")
 async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(NTTask).where(NTTask.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
@@ -103,7 +99,7 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
         raise HTTPException(status_code=403, detail="只能修改自己的任务")
     old_status = task.status  # 保存旧状态
     if req.status:
-        raise HTTPException(status_code=400, detail="状态请通过专用端点变更: /api/nt/tasks/{id}/cancel|submit|verify")
+        task.status = req.status
     if req.assignee:
         task.assignee = req.assignee
     if req.note:
@@ -118,8 +114,6 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
         task.settled_at = datetime.utcnow().isoformat()
     if req.status == "待审核" and old_status != "待审核":
         task.completed_at = datetime.utcnow().isoformat()
-    if req.status == "退回修改":
-        task.completed_at = None
     await db.commit()
     return {"ok": True, "status": task.status}
 
@@ -127,11 +121,13 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    if not user:
+        raise HTTPException(status_code=401)
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404)
-    if task.status in ("待结算", "已结算", "已取消"):
+    if task.status in ("待结算", "已结算"):
         raise HTTPException(status_code=400, detail=f"不可删除状态: {task.status}")
     if task.poster != user.id and user.role != "admin":
         raise HTTPException(status_code=403, detail="只能删除自己的任务")

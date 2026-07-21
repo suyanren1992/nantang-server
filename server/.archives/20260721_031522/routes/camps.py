@@ -19,25 +19,24 @@ def _camp_id():
 
 @router.get("")
 async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(Camp).order_by(Camp.created_at.desc()))
     camps = list(result.scalars())
-    items = []
-    for c in camps:
-        try: highlights = json.loads(c.highlights) if c.highlights else []
-        except: highlights = []
-        items.append({
-            "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
-            "date": c.date, "status": c.status, "people": c.people, "max": c.max,
-            "location": c.location, "desc": c.desc,
-            "highlights": highlights,
-            "created_by": c.created_by, "launched_at": c.launched_at,
-        })
-    return items
+    return [{
+        "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
+        "date": c.date, "status": c.status, "people": c.people, "max": c.max,
+        "location": c.location, "desc": c.desc,
+        "highlights": json.loads(c.highlights) if c.highlights else [],
+        "created_by": c.created_by, "launched_at": c.launched_at,
+    } for c in camps]
 
 
 @router.post("")
 async def create_camp(req: dict, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     camp = Camp(
         id=req.get("id") or _camp_id(),
         name=req.get("name", ""), emoji=req.get("emoji", "🏕️"),
@@ -84,7 +83,6 @@ async def create_camp(req: dict, user: User = Depends(get_current_user),
         if camp_total > 0:
             pool = await _get_pool(db)
             pool.total_issued += camp_total
-            pool.camp_balance += camp_total
             lid = _ledger_id()
             await _add_ledger(db, lid, None, "camp_pool", camp_total, "topup", f"营队注资: {camp.name}")
 
@@ -95,6 +93,8 @@ async def create_camp(req: dict, user: User = Depends(get_current_user),
 @router.put("/{camp_id}")
 async def update_camp(camp_id: str, req: dict, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(Camp).where(Camp.id == camp_id))
     camp = result.scalar_one_or_none()
     if not camp:
@@ -116,6 +116,8 @@ async def update_camp(camp_id: str, req: dict, user: User = Depends(get_current_
 @router.post("/{camp_id}/settle")
 async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(Camp).where(Camp.id == camp_id))
     camp = result.scalar_one_or_none()
     if not camp:
@@ -137,6 +139,8 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
 @router.get("/{camp_id}/report")
 async def camp_report(camp_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     result = await db.execute(select(Camp).where(Camp.id == camp_id))
     camp = result.scalar_one_or_none()
     if not camp:
@@ -160,6 +164,8 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
 @router.delete("/{camp_id}")
 async def delete_camp(camp_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
+    if not user:
+        raise HTTPException(status_code=401)
     if user.role != "admin":
         raise HTTPException(status_code=403)
     result = await db.execute(select(Camp).where(Camp.id == camp_id))

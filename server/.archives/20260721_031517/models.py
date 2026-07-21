@@ -20,7 +20,6 @@ class User(Base):
     avatar_seed = Column(String, nullable=True)
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
-    token_version = Column(Integer, default=0)
 
 
 class NTLedger(Base):
@@ -51,7 +50,7 @@ class NTTask(Base):
     category = Column(String, default="other")
     scope = Column(String, default="社区")
     note = Column(Text, nullable=True)
-    slots = Column(Integer, default=1)  # ponytail: 当前仅支持单 assignee，DB/NT 层均为单 assignee 模型，UI 的 claimants[] 多槽交互为视觉假象。trigger: 多槽需求确认后改为 JSON list 列 + 更新所有端点
+    slots = Column(Integer, default=1)
     deadline = Column(String, nullable=True)
     reviewer = Column(String, nullable=True)
     evidence = Column(Text, nullable=True)
@@ -65,7 +64,6 @@ class NTTask(Base):
     verifier_id = Column(String, nullable=True)
     settler_id = Column(String, nullable=True)
     reject_reason = Column(String, nullable=True)
-    reject_count = Column(Integer, default=0)
     tx_hash = Column(String, nullable=True)
     batch_id = Column(String, nullable=True)
 
@@ -76,8 +74,6 @@ class CommunityPool(Base):
     balance = Column(Integer, default=2000)
     total_issued = Column(Integer, default=2000)
     task_escrow = Column(Integer, default=0)
-    contribution_pool = Column(Integer, default=0)
-    camp_balance = Column(Integer, default=0)
     updated_at = Column(String, nullable=True)
 
 

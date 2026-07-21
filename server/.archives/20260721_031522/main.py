@@ -29,11 +29,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        os.environ.get("FRONTEND_ORIGIN", "http://localhost:8000"),
-    ],
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,13 +41,6 @@ app.include_router(nt.router)
 app.include_router(tasks.router)
 app.include_router(camps.router)
 app.include_router(data.router)
-
-
-@app.middleware("http")
-async def add_security_headers(request, call_next):
-    response = await call_next(request)
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    return response
 
 
 @app.get("/api/health")
