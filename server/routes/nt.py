@@ -8,7 +8,7 @@ from datetime import datetime
 import secrets
 import json
 from database import get_db
-from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification
+from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification, TASK_STATUSES
 from routes.auth import get_current_user, require_admin
 from nt_helpers import _ledger_id, _add_ledger, _get_pool, _safe_assignees
 
@@ -101,7 +101,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
     frozen_statuses = ("进行中", "待审核", "待结算", "已争议")
     for t in all_tasks:
         if t.poster == user.id and t.status in frozen_statuses:
-            frozen += t.escrow_amount or (t.reward * (t.slots or 1))
+            frozen += t.escrow_amount if t.escrow_amount is not None else (t.reward * (t.slots or 1))
 
     # 近期流水（50 条）
     ledger_r = await db.execute(
@@ -139,6 +139,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
         "trust_score": user.trust_score, "frozen_balance": frozen,
         "wallet_address": user.wallet_address,
         "ledger": ledger, "tasks": tasks, "deposit_intents": deposit_intents,
+        "task_statuses": TASK_STATUSES,
         # ponytail: C2/C2.5 就位后补 accommodation + pending_verifications
         "accommodation": await _get_accommodation_status(db, user.id),
         "pending_verifications": [
@@ -227,6 +228,8 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
 async def spend(req: EarnSpendRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于0")
+    if req.scope not in ("personal", "camp"):
+        raise HTTPException(status_code=400, detail=f"无效 scope: {req.scope}")
     if user.nt_balance < req.amount:
         raise HTTPException(status_code=400, detail=f"余额不足（当前 {user.nt_balance} NT）")
 
@@ -498,9 +501,10 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
             await _add_ledger(db, lid_u, "escrow", task.poster, unclaimed, "task_refund",
                               f"未领份额退还({(task.slots or 1) - len(assignee_ids)}个名额): {task.title}", task_id)
 
-        lid = _ledger_id()
-        await _add_ledger(db, lid, "escrow", assignee_ids[0], task.reward, "task_reward",
-                          f"任务完成({len(assignee_ids)}人): {task.title}", task_id)
+        for aid in assignee_ids:
+            lid = _ledger_id()
+            await _add_ledger(db, lid, "escrow", aid, task.reward, "task_reward",
+                             f"任务完成: {task.title}", task_id)
     else:
         # 退回修改 — escrow 保持冻结，允许修改后重新提交
         task.status = "退回修改"
@@ -851,7 +855,7 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     tenancies_r = await db.execute(
         select(Tenancy).where(Tenancy.status == "active")
     )
-    NIGHTLY_RATE = 10  # ponytail: 硬编码，后续从 accommodation_pricing 配置读取
+    NIGHTLY_RATE = int(os.environ.get("NIGHTLY_RATE", "10"))
     for t in tenancies_r.scalars():
         if t.last_deducted == today:
             continue

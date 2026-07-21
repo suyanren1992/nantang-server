@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
-                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp)
+                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, TASK_STATUSES)
 from routes.auth import get_current_user, require_admin
 from nt_helpers import _safe_assignees
 
@@ -185,9 +185,9 @@ async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db))
     items = []
     for m in result.scalars():
         try: lunch = json.loads(m.lunch) if m.lunch else []
-        except: lunch = []
+        except (json.JSONDecodeError, TypeError): lunch = []
         try: dinner = json.loads(m.dinner) if m.dinner else []
-        except: dinner = []
+        except (json.JSONDecodeError, TypeError): dinner = []
         items.append({"date": m.date, "lunch": lunch, "dinner": dinner})
     return items
 
@@ -227,7 +227,7 @@ async def get_map_locations(db: AsyncSession = Depends(get_db)):
     if not ml:
         return {"buildings": [], "plots": [], "accommodations": {}, "people_on_site": [], "state": {}, "config": {}}
     try: return json.loads(ml.data) if ml.data else {}
-    except: return {}
+    except (json.JSONDecodeError, TypeError): return {}
 
 
 @router.post("/map_locations")
@@ -355,4 +355,5 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
                      for v in v_r.scalars()]
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
             "activity": activity, "items": items, "newbie": newbie,
-            "verifications": verifications, "cron_active": True}
+            "verifications": verifications, "cron_active": True,
+            "task_statuses": TASK_STATUSES}

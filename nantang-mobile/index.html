@@ -165,12 +165,12 @@ if (window.location.protocol !== 'file:') {
   </div>
 </div>
 <div id="overlayCampWindow" class="overlay">
-  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayCampWindow')">←</button><span class="overlay-title" id="campWindowTitle">营地详情</span></div>
+  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayCampWindow')">✕</button><span class="overlay-title" id="campWindowTitle">营地详情</span></div>
   <div class="overlay-body" id="campWindowBody"></div>
 </div>
 <div id="overlayCampHome" class="overlay">
   <div class="overlay-top" id="campHomeHeader">
-    <button class="overlay-close" onclick="closeOverlay('overlayCampHome')">←</button>
+    <button class="overlay-close" onclick="closeOverlay('overlayCampHome')">✕</button>
     <span class="overlay-title" id="campHomeTitle">营地</span>
   </div>
   <div class="camp-tabbar" id="campTabBar">
@@ -187,13 +187,13 @@ if (window.location.protocol !== 'file:') {
     <div class="cb-btn" onclick="closeOverlay('overlayCampHome');showMy()"><img id="cbAvatar" src="" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.display='none'"></div>
     <div class="cb-btn" onclick="switchCampTab('schedule');scrollCampToToday()">📅<span class="cb-label">今日</span></div>
     <div class="cb-btn" id="cbBtnInbox" onclick="openCampInbox()">📬<span class="cb-label">消息</span></div>
-    <div class="cb-btn" id="cbBtnPlus" onclick="showToast('即将上线','warn')">＋<span class="cb-label">更多</span></div>
+    <div class="cb-btn" id="cbBtnPlus" onclick="showToast('即将上线','warn')" style="display:none">＋<span class="cb-label">更多</span></div>
   </div>
 </div>
 <!-- ══ 阶段4: 食堂 overlay ══ -->
 <div id="overlayCanteen" class="overlay">
   <div class="overlay-top">
-    <button class="overlay-close" onclick="closeCanteen()">←</button>
+    <button class="overlay-close" onclick="closeCanteen()">✕</button>
     <span class="overlay-title">食堂</span>
   </div>
   <div class="overlay-body" id="canteenBody"></div>
@@ -201,7 +201,7 @@ if (window.location.protocol !== 'file:') {
 <!-- ══ 阶段4: 客栈 overlay ══ -->
 <div id="overlayInn" class="overlay">
   <div class="overlay-top">
-    <button class="overlay-close" onclick="closeInn()">←</button>
+    <button class="overlay-close" onclick="closeInn()">✕</button>
     <span class="overlay-title">客栈</span>
   </div>
   <div class="overlay-body" id="innBody"></div>
@@ -210,7 +210,7 @@ if (window.location.protocol !== 'file:') {
 <!-- ══ 卡片室 ══ -->
 <div id="overlayCardRoom" class="overlay" style="z-index:110">
   <div class="overlay-top">
-    <button class="overlay-close" onclick="closeCardRoom()">←</button>
+    <button class="overlay-close" onclick="closeCardRoom()">✕</button>
     <span class="overlay-title">🃏 卡片室</span>
     <button class="overlay-close" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()" style="font-size:.65rem">🔍</button>
   </div>
@@ -244,7 +244,7 @@ if (window.location.protocol !== 'file:') {
 </div>
 <div id="overlayArchive" class="overlay">
   <div class="overlay-top">
-    <button class="overlay-close" onclick="closeOverlay('overlayArchive')">←</button>
+    <button class="overlay-close" onclick="closeOverlay('overlayArchive')">✕</button>
     <span class="overlay-title">📚 档案室</span>
   </div>
   <div class="archive-tabbar" id="archiveTabBar">
@@ -265,7 +265,7 @@ if (window.location.protocol !== 'file:') {
 <!-- ═══ 阶段6: 结营报告 overlay ═══ -->
 <div id="overlayCampReport" class="overlay">
   <div class="overlay-top">
-    <button class="overlay-close" onclick="closeOverlay('overlayCampReport')">←</button>
+    <button class="overlay-close" onclick="closeOverlay('overlayCampReport')">✕</button>
     <span class="overlay-title" id="campReportTitle">结营报告</span>
   </div>
   <div class="overlay-body" id="campReportBody"></div>
@@ -485,7 +485,7 @@ if (window.location.protocol !== 'file:') {
   </div>
 </div>
 <div id="subPage" class="sub-page">
-  <div class="sub-top"><button class="sub-back" onclick="closeSub()">←</button><span class="sub-title" id="subTitle">详情</span></div>
+  <div class="sub-top"><button class="sub-back" onclick="closeSub()">✕</button><span class="sub-title" id="subTitle">详情</span></div>
   <div class="sub-body" id="subBody"></div>
   <div class="sub-bar hidden" id="subBar"></div>
 </div>

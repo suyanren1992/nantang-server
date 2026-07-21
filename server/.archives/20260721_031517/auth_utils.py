@@ -4,7 +4,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import uuid
 
-SECRET_KEY = "nantang-cloud-village-secret-key-change-in-production"
+SECRET_KEY = "REDACTED"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60       # 1 hour (short-lived, in JS memory)
 REFRESH_TOKEN_EXPIRE_DAYS = 7           # 7 days (httpOnly cookie)

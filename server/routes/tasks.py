@@ -130,7 +130,6 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
         raise HTTPException(status_code=404, detail="任务不存在")
     if task.poster != user.id and user.role != "admin":
         raise HTTPException(status_code=403, detail="只能修改自己的任务")
-    old_status = task.status  # 保存旧状态
     if req.status:
         raise HTTPException(status_code=400, detail="状态请通过专用端点变更: /api/nt/tasks/{id}/cancel|submit|verify")
     if req.assignee:
@@ -143,12 +142,6 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
         task.reject_reason = req.reject_reason
     if req.settler_id:
         task.settler_id = req.settler_id
-    if req.status == "已结算" and old_status != "已结算":
-        task.settled_at = datetime.utcnow().isoformat()
-    if req.status == "待审核" and old_status != "待审核":
-        task.completed_at = datetime.utcnow().isoformat()
-    if req.status == "退回修改":
-        task.completed_at = None
     await db.commit()
     return {"ok": True, "status": task.status}
 
@@ -160,7 +153,7 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404)
-    if task.status in ("待结算", "已结算", "已取消"):
+    if task.status in ("待结算", "已结算", "已取消", "已争议"):
         raise HTTPException(status_code=400, detail=f"不可删除状态: {task.status}")
     if task.poster != user.id and user.role != "admin":
         raise HTTPException(status_code=403, detail="只能删除自己的任务")

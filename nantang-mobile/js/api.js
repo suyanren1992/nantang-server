@@ -49,7 +49,7 @@ var API = {
           if (callback) callback(d.user);
         } else { if (callback) callback(d); }
       })
-      .catch(function() { if (callback) callback(null); });
+      .catch(function(e) { console.warn('[API] request failed', e); if (callback) callback(null); });
   },
   silentRefresh: function(callback) {
     if (window.location.protocol === 'file:' && !this.base) { if (callback) callback(null, 'offline'); return; }

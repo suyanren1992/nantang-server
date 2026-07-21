@@ -2,6 +2,19 @@
 from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float, Boolean
 from database import Base
 
+# D1: 任务状态统一词汇表
+TASK_STATUSES = {
+    "open": "进行中",
+    "submitted": "待审核",
+    "rejected": "退回修改",
+    "verified": "待结算",
+    "settled": "已结算",
+    "cancelled": "已取消",
+    "disputed": "已争议",
+}
+TASK_STATUS_LIST = list(TASK_STATUSES.values())
+TASK_STATUS_DEFAULT = TASK_STATUSES["open"]
+
 
 class User(Base):
     __tablename__ = "users"
@@ -48,7 +61,7 @@ class NTTask(Base):
     assignees = Column(Text, nullable=True)  # JSON 数组，多 assignee。ponytail: 过渡期与 assignee 列共存
     title = Column(String, nullable=False)
     reward = Column(Integer, default=0)
-    status = Column(String, default="pending")
+    status = Column(String, default=TASK_STATUS_DEFAULT)
     category = Column(String, default="other")
     scope = Column(String, default="社区")
     note = Column(Text, nullable=True)

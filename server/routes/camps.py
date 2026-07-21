@@ -24,7 +24,7 @@ async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = 
     items = []
     for c in camps:
         try: highlights = json.loads(c.highlights) if c.highlights else []
-        except: highlights = []
+        except (json.JSONDecodeError, TypeError): highlights = []
         items.append({
             "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
             "date": c.date, "status": c.status, "people": c.people, "max": c.max,

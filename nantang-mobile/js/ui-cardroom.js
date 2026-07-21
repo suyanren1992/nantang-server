@@ -1121,6 +1121,10 @@ function confirmDiscovery(discId) {
   // NT: 做事者按公约定价，猜对者每人 +1 NT
   if (window.NT) {
     NT.earn(d.guessedPerson, d.ntDoer, '被发现: ' + (d.actionLabel||d.description), 'personal');
+    // HTTP 模式：转账到 doer
+    if (typeof API !== 'undefined' && API.token) {
+      API.request('POST', '/api/nt/transfer', {to: d.guessedPerson, amount: d.ntDoer, reason: '卡片室发现: ' + (d.actionLabel||d.description)}).catch(function(e){console.warn('[cardroom] transfer failed',e)});
+    }
     // 所有猜对的人 +1 NT
     (d.guesses || []).forEach(function(g) {
       if (g.guessedPerson === d.guessedPerson) {

@@ -269,7 +269,7 @@ function _startPolling() {
     API.request('GET', '/api/nt/sync').then(function(srv) {
       if (srv && srv.detail === 'unauthorized') { _stopPolling(); return; }
       if (srv && !srv.detail) _mergeNTSyncData(srv);
-    }).catch(function(){});
+    }).catch(function(e){console.warn('[poll] sync failed',e)});
     // 退避
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
     _pollInterval = (typeof API !== 'undefined' && API._serverOnline === false)
@@ -427,7 +427,7 @@ function toggleQuestCard(el,name){
   else if(t.status==='待审核') h+='<div>🔍 等待审核…</div>';
   if(t.completedAt) h+='<div>'+t.completedAt+' ✅ 完成</div>';
   if(t.status==='待结算') h+='<div style=color:#c8892e>🧾 待结算</div>';
-  else if(t.status==='已结算') h+='<div style=color:#5d8c52>🧾 已结算 · '+esc(t.settler||t.publisher||'')+'</div>';
+  else if(t.status==='已结算') h+='<div style=color:#5d8c52>🧾 已结算 · '+esc(t.settler||t.settler_id||t.publisher||'')+'</div>';
   h+='</div></div>';
   // 谁会领了+空位
   if(cs.length>0){
@@ -444,7 +444,7 @@ function toggleQuestCard(el,name){
   var isMyClaim=cs.some(function(c){return c.name===CURRENT_USER});
   var isReviewer=t.reviewer===CURRENT_USER;
   var isPublisher=t.publisher===CURRENT_USER;
-  var isSettler=(t.settler||t.publisher)===CURRENT_USER;
+  var isSettler=(t.settler||t.settler_id||t.publisher)===CURRENT_USER;
   if(t.status==='draft') btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="publishDraft(\''+esc(t.name)+'\')">✅ 发布草稿</button><button class="btn-sm danger" onclick="deleteDraft(\''+esc(t.name)+'\')">🗑️ 删除</button></div>';
   else if(t.status==='进行中'||t.status==='待提交'){
     if(isPublisher&&cs.length===0) btns='<button class="btn-sm pri" style=margin-right:6px onclick="editTask(\''+esc(t.name)+'\')">✏️ 编辑</button><button class="btn-sm danger" onclick="withdrawTask(\''+esc(t.name)+'\')">🗑️ 撤回</button>';
@@ -887,10 +887,10 @@ function enterVillage(){
       API.request('GET', '/api/nt/sync').then(function(srv) {
         if (srv && !srv.detail) _mergeNTSyncData(srv);
         // C2.6: tick 在 sync 之后，幂等，服务端同一天不重复执行
-        if (typeof API !== 'undefined' && API.token) API.request('POST', '/api/system/daily-tick').catch(function(){});
+        if (typeof API !== 'undefined' && API.token) API.request('POST', '/api/system/daily-tick').catch(function(e){console.warn('[daily-tick] failed',e)});
         // F16: 离线 earn 队列同步
         if (window.AppData && typeof AppData._drainPendingEarns === 'function') AppData._drainPendingEarns();
-      }).catch(function(){});
+      }).catch(function(e){console.warn('[sync] NT sync failed',e)});
     }
     _startPolling();
     // B10: 预创建信箱面板 DOM（创建后立刻隐藏），首次点击不再 createElement
@@ -924,6 +924,7 @@ function enterVillage(){
       safeStorage.setItem('nt_remembered_user', JSON.stringify({name:n}));
     }
     if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
+    _saveLocalUser(n, _profileSeed);
     _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
   }else if(isLogin){
     var ln=document.getElementById('loginName').value.trim();var lp=document.getElementById('loginPwd').value;

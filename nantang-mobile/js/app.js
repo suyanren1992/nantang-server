@@ -1141,7 +1141,7 @@ function _checkoutBed() {
   if (!hasOther && typeof changeUserRole === 'function') { changeUserRole(me, 'visitor'); }
   // 服务端同步退房
   if (typeof API !== 'undefined' && API.token) {
-    API.request('POST', '/api/accommodation/checkout').catch(function(){});
+    API.request('POST', '/api/accommodation/checkout').catch(function(e){console.warn('[checkout] sync failed',e)});
   }
   if (window.Game&&Game.toast) Game.toast('已退房 · 状态已切为云在线');
   _expandedRoom = null; _selectedBed = null;
@@ -1167,7 +1167,7 @@ function _applyStay() {
     if (window.AppData) AppData._saveShared(true);
     // 服务端同步
     if (typeof API !== 'undefined' && API.token) {
-      API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(){});
+      API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(e){console.warn('[checkin] sync failed',e)});
     }
     if (window.Game&&Game.toast) Game.toast('已入住 '+room.label+' 床位'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
     // 新手引导
@@ -1906,6 +1906,9 @@ function _showFlipOther(targetName) {
 }
 // ═══ 铃铛面板（校核 + 新手 + 整洁度）═══
 function _openVerificationPanel() {
+  if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
+    showToast('入住后可用', 'warn'); return;
+  }
   var me = _me();
   var h = '';
   // ── 新手引导 ──
@@ -2035,6 +2038,9 @@ function _doKitchenAction(action, label, nt) {
   }
 }
 function _submitKitchenEntry() {
+  if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
+    showToast('入住后可用', 'warn'); return;
+  }
   var sel = window._qkSelected;
   var act = window._qkAction;
   if (!sel) { showToast('请先选一个物品','warn'); return; }

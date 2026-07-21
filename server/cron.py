@@ -15,6 +15,16 @@ from nt_helpers import _ledger_id, _add_ledger, _get_pool
 logger = logging.getLogger("cron")
 
 TEMPLATES_PATH = os.path.join(os.path.dirname(__file__), "config", "periodic_tasks.json")
+_TEMPLATES_CACHE = None
+
+
+def _load_templates():
+    """模块级 JSON 缓存——避免每次 tick 重新读盘+解析。"""
+    global _TEMPLATES_CACHE
+    if _TEMPLATES_CACHE is None:
+        with open(TEMPLATES_PATH, encoding="utf-8") as f:
+            _TEMPLATES_CACHE = json.load(f)["templates"]
+    return _TEMPLATES_CACHE
 
 
 def _task_id():
@@ -48,7 +58,7 @@ async def tick_daily():
     weekday = datetime.utcnow().weekday()  # 0=Monday, 6=Sunday
 
     try:
-        templates = json.load(open(TEMPLATES_PATH, encoding="utf-8"))["templates"]
+        templates = _load_templates()
     except Exception as e:
         logger.error(f"cron: failed to load templates: {e}")
         return
