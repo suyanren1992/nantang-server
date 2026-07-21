@@ -244,14 +244,17 @@ function verifyTask(taskId, verifierId, approved, reason) {
     _adjustTrust(poster, +3);
 
   } else {
-    t.status = 'disputed';
+    // 对齐服务端：reject 保持 escrow 冻结，第 3 次才退款
+    t.reject_count = (t.reject_count || 0) + 1;
+    t.status = t.reject_count >= 3 ? 'cancelled' : 'disputed';
     t.disputeReason = reason || '';
 
-    // 退还托管 NT 给发布者（多槽按 reward × slots）
-    TASK_ESCROW -= t.reward * (t.slots || 1);
-    poster.ntBalance += t.reward * (t.slots || 1);
-
-    _addLedger('escrow', t.poster, t.reward * (t.slots || 1), 'refund', '任务退回: '+t.title, taskId);
+    if (t.reject_count >= 3) {
+      var escrowRefund = t.escrow_amount || (t.reward * (t.slots || 1));
+      TASK_ESCROW -= escrowRefund;
+      poster.ntBalance += escrowRefund;
+      _addLedger('escrow', t.poster, escrowRefund, 'refund', '任务3次退回自动取消: '+t.title, taskId);
+    }
     if (assignee) _adjustTrust(assignee, -15);
   }
 
@@ -265,14 +268,15 @@ function cancelTask(taskId, reason) {
 
   var poster = _getUser(t.poster);
 
-  // 退还托管 NT（多槽按 reward × slots）
-  TASK_ESCROW -= t.reward * (t.slots || 1);
-  poster.ntBalance += t.reward * (t.slots || 1);
+  // 退还托管 NT——以 escrow_amount 为准（对齐服务端）
+  var escrowRefund = t.escrow_amount || (t.reward * (t.slots || 1));
+  TASK_ESCROW -= escrowRefund;
+  poster.ntBalance += escrowRefund;
 
   t.status = 'cancelled';
   t.disputeReason = reason || '';
 
-  _addLedger('escrow', t.poster, t.reward * (t.slots || 1), 'refund', '取消任务: '+t.title, t.taskId);
+  _addLedger('escrow', t.poster, escrowRefund, 'refund', '取消任务: '+t.title, t.taskId);
   if (t.assignee) {
     var assignee = _getUser(t.assignee);
     if (assignee) _adjustTrust(assignee, -5);

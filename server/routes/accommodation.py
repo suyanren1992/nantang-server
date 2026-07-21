@@ -72,14 +72,19 @@ async def checkout(user: User = Depends(get_current_user),
 
     t.status = "checked_out"
     # 结算欠费：从余额扣，回流社区池
-    if t.debt > 0 and user.nt_balance >= t.debt:
-        user.nt_balance -= t.debt
-        pool = await _get_pool(db)
-        pool.balance += t.debt
-        lid = _ledger_id()
-        await _add_ledger(db, lid, user.id, "community_pool", t.debt, "debt_settlement",
-                         f"退房欠费结算: {t.debt} NT")
-        t.debt = 0
+    if t.debt > 0:
+        if user.nt_balance >= t.debt:
+            user.nt_balance -= t.debt
+            pool = await _get_pool(db)
+            pool.balance += t.debt
+            lid = _ledger_id()
+            await _add_ledger(db, lid, user.id, "community_pool", t.debt, "debt_settlement",
+                             f"退房欠费结算: {t.debt} NT")
+            t.debt = 0
+        else:
+            lid = _ledger_id()
+            await _add_ledger(db, lid, user.id, "community_pool", t.debt, "debt_unpaid",
+                             f"退房欠费未结: {t.debt} NT（余额不足）")
     # 角色降级：检查是否还有其他 active tenancy
     other = await db.execute(
         select(func.count(Tenancy.id)).where(
