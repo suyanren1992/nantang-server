@@ -218,7 +218,7 @@ function verifyTask(taskId, verifierId, approved, reason) {
       assignee.contributionValue = (assignee.contributionValue||0) + t.reward;
       assignee.experienceValue = (assignee.experienceValue||0) + t.reward;
     }
-    poster.totalPaid += t.reward;
+    if (poster) poster.totalPaid += t.reward;
 
     _addLedger(t.poster, t.assignee, t.reward, 'task_reward', '任务验证通过: '+t.title, taskId);
 
@@ -227,14 +227,9 @@ function verifyTask(taskId, verifierId, approved, reason) {
     _adjustTrust(poster, +3);
 
   } else {
-    t.status = 'disputed';
+    t.status = 'active';  // 允许修改后重新提交。disputeTask() 是独立的争议入口。
     t.disputeReason = reason || '';
-
-    // 退还托管 NT 给发布者
-    TASK_ESCROW -= t.reward;
-    poster.ntBalance += t.reward;
-
-    _addLedger('escrow', t.poster, t.reward, 'refund', '任务退回: '+t.title, taskId);
+    // escrow 保持冻结 — 服务端负责 reject_count 和自动取消逻辑
     if (assignee) _adjustTrust(assignee, -15);
   }
 
@@ -250,7 +245,7 @@ function cancelTask(taskId, reason) {
 
   // 退还托管 NT
   TASK_ESCROW -= t.reward;
-  poster.ntBalance += t.reward;
+  if (poster) poster.ntBalance += t.reward;
 
   t.status = 'cancelled';
   t.disputeReason = reason || '';
@@ -274,9 +269,7 @@ function unclaimTask(taskId, assigneeId) {
   var t = _getTask(taskId); if (!t) return null;
   if (t.assignee !== assigneeId) return _err('你不是此任务的认领者');
   if (t.status !== 'active' && t.status !== 'pending') return _err('任务状态不允许放弃');
-  TASK_ESCROW -= t.reward;
-  var poster = _getUser(t.poster);
-  if (poster) poster.ntBalance += t.reward;
+  // 仅清空 assignee，escrow 保持冻结，不退款 — 防双花
   t.assignee = null; t.status = 'pending'; t.acceptedAt = null;
   _saveState(true); return t;
 }
@@ -383,8 +376,7 @@ var _batchSettle_dead = function() {
 //  简化操作（地图端/UI层调用）
 // ═══════════════════════════════════════════════
 
-// 向后兼容：路由到 COMMUNITY_POOL
-// ponytail: 三池支持前，earn/spend wrapper 固定走 community pool，scope 仅影响 ledger type 标签
+// ponytail: camp scope 应路由到 camp:{campId}，但客户端当前无 active camp 上下文。暂时从 community pool 出，scope 仅影响 type 标签。trigger: 接入 campId 上下文后改 pool 参数。
 function earn(userId, amount, reason, scope) {
   return earnFromPool(userId, amount, reason, 'community', scope);
 }
@@ -424,6 +416,7 @@ function cashOut(userId, amount, reason, txId) {
 // ══ 章1: 三池 API ══
 function earnFromPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
+  if (!Number.isInteger(amount)) { console.error('[NT] amount must be integer, got', amount); return null; }
   if (amount <= 0) { console.error('[NT] amount must be > 0, got', amount); return null; }
   scope = scope || 'personal';
   if (pool !== 'community' && (!pool || pool.indexOf('camp:') !== 0)) {
@@ -452,6 +445,7 @@ function earnFromPool(userId, amount, reason, pool, scope) {
 
 function spendToPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
+  if (!Number.isInteger(amount)) { console.error('[NT] amount must be integer, got', amount); return null; }
   if (amount <= 0) { console.error('[NT] amount must be > 0, got', amount); return null; }
   if (u.ntBalance < amount) return _err('NT 余额不足');
   scope = scope || 'personal';
@@ -632,7 +626,7 @@ function userTasks(userId) {
 //  内部辅助
 // ═══════════════════════════════════════════════
 
-function _getUser(id) { if (!id) return null; if (!USERS[id]) { console.warn('[NT] 自动注册未知用户: '+id); USERS[id] = registerUser(id); } return USERS[id]; }
+function _getUser(id) { if (!id) return null; if (!USERS[id]) { console.warn('[NT] 自动注册未知用户: '+id, new Error().stack); USERS[id] = registerUser(id); } return USERS[id]; }
 function _getTask(id) { return TASKS[id] || null; }
 
 function _addLedger(from, to, amount, type, reason, taskId) {

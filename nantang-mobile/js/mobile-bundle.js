@@ -14,7 +14,7 @@ var CHARACTER_SEEDS = [
   'Robin','Jade','Cody','Erin','Liam','Noah','Emma','Ava','Sophia','Jackson',
   'Aiden','Lucas','Lily','Grace','Chloe','Penelope','Riley','Zion','Mateo','Nora'
 ];
-var AVATAR_STYLE = 'avataaars';
+var AVATAR_STYLE = 'avataaars'; var DICEBEAR_VER = '9.x';
 var NT_USERS_KEY = 'nt_users';
 // Phase 0: NT_INVITE_KEY 已废弃，邀请码统一存储到 AppData._data.inviteCodes
 var NT_SESSION_KEY = 'nt_session';

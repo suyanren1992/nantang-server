@@ -215,7 +215,7 @@ window.AppData = {
   _timerS: null, _timerP: null,
   _saveShared: function(immediate) {
     clearTimeout(this._timerS);
-    var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, _lastAccommodationDeduction: this._data._lastAccommodationDeduction };
+    var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, _lastAccommodationDeduction: this._data._lastAccommodationDeduction, _lastPoolRefill: this._data._lastPoolRefill };
     if (immediate) { this._saveKey('nt_app_v2_shared', data); return; }
     // 服务器同步：在 _saveShared 末尾统一推送
     if (typeof API !== 'undefined' && API.token) {
@@ -429,7 +429,7 @@ window.AppData = {
           }
           var unpaid = totalDue - affordable;
           if (unpaid > 0) {
-            user.overdueNT = (user.overdueNT || 0) + unpaid;
+            user.overdueNT = unpaid;
             if (typeof showToast === 'function') showToast(room.tenant+' 住宿欠费 '+unpaid+' NT', 'warn');
           }
         }
@@ -569,6 +569,7 @@ window.AppData = {
       NT.depositToCommunityPool(50);
       if (typeof logActivity === 'function') logActivity('pool_refill', '社区池自动补充 +50 NT（余额 '+pool+' → '+(pool+50)+'）');
     }
+    this._saveShared();
   },
 
   reset: function() {

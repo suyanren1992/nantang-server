@@ -259,7 +259,7 @@ function filterQuests(){
   // sections
   var claimable=items.filter(function(t){return t.status==='进行中'&&(t.claimants||[]).length===0});
   var active=items.filter(function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'||(t.status==='进行中'&&(t.claimants||[]).length>0)});
-  var done=items.filter(function(t){return t.status==='待结算'||t.status==='已结算'});
+  var done=items.filter(function(t){return t.status==='待结算'||t.status==='已结算'||t.status==='已完成'});
   function typedColor(t){return t==='主线'?{c:'var(--green-primary)',b:'#e8f0e8',icon:'🎯'}:t==='支线'?{c:'#c8892e',b:'#fef8e8',icon:'📋'}:{c:'#4a7a82',b:'#e0eaee',icon:'🧹'}}
   // section renderer
   function renderSection(label,emoji,arr,key){
@@ -271,7 +271,7 @@ function filterQuests(){
   }
   var h='';
   h+=renderSection('待领取','🟢',claimable,'claimable');
-  if(!claimable.length) h+='<div style="font-size:.65rem;color:#5a5a5a;padding:0 0 8px">暂无待领取任务，「+ 发布委托」创建新任务</div>';
+  if(!claimable.length) h+='<div style="font-size:.65rem;color:#5a5a5a;padding:0 0 8px">暂无待领取任务，<span style="color:var(--green-primary);cursor:pointer;text-decoration:underline" onclick="openPublishTask()">+ 发布委托</span> 创建新任务</div>';
   h+=renderSection('进行中','📋',active,'active');
   h+=renderSection('最近完成','✅',done,'done');
   var list=document.getElementById('questList');if(list)list.innerHTML=h||'<div style="text-align:center;padding:40px;color:#5a6e5c">🏛️<br><br>没有匹配的任务</div>';
@@ -550,6 +550,7 @@ function doPublish(){
   var target=document.getElementById('pubTarget');var scope=document.getElementById('pubScope').value;
   if(scope==='specific'&&target)scope=target.value;
   var nt=parseInt(document.getElementById('pubNT').value,10)||5;
+  if (nt <= 0) { showToast('奖励必须大于0', 'error'); _publishing = false; return; }
   var data={name:name,type:document.getElementById('pubType').value,nt:nt,scope:scope==='all'?'社区':(scope==='specific'?'个人':scope),slots:parseInt(document.getElementById('pubSlots').value,10)||1,deadline:document.getElementById('pubDeadline').value,reviewer:document.getElementById('pubReviewer').value.trim(),note:document.getElementById('pubNote').value.trim(),publisher:CURRENT_USER,status:'进行中',action:'claim',reqPhoto:document.getElementById('pubReqPhoto').checked?parseInt(document.getElementById('pubReqPhotoCount').value,10)||1:0,reqFile:document.getElementById('pubReqFile').checked?parseInt(document.getElementById('pubReqFileCount').value,10)||1:0,locationId:document.getElementById('pubLocation').value||'',_ntTaskId:null};
   // Preserve existing claimants if editing
   if(TASKS[name]){var old=TASKS[name];data.claimants=old.claimants||[];data.claimedAt=old.claimedAt||'';data._ntTaskId=old._ntTaskId||null;}
@@ -699,8 +700,16 @@ function _mergeSyncData(data) {
   if (data.tasks) { data.tasks.forEach(function(t) {
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
     if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:[], action:'' };
+    else Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id });
   });}
-  if (data.journal) { AppData._data.journal = []; data.journal.forEach(function(j) { AppData._data.journal.push({type:j.type, content:j.content, time:j.time, space_id:j.space_id}); }); }
+  if (data.journal) {
+    AppData._data.journal = AppData._data.journal || [];
+    var _jExisting = new Set(AppData._data.journal.map(function(j){return j.time+j.type+(j.content||'');}));
+    data.journal.forEach(function(j) {
+      var key = j.time + j.type + (j.content||'');
+      if (!_jExisting.has(key)) { AppData._data.journal.push({type:j.type, content:j.content, time:j.time, space_id:j.space_id}); _jExisting.add(key); }
+    });
+  }
   if (data.activity) { AppData._data.activity_log = data.activity; }
   if (data.items && Array.isArray(data.items)) {
     if (!AppData._data.items[AppData._currentUser]) AppData._data.items[AppData._currentUser] = [];
@@ -734,8 +743,12 @@ function enterVillage(){
     document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
     if(typeof _completeNewbieQuest==='function')_completeNewbieQuest(CURRENT_USER,'sign_covenant');
     setTimeout(function(){ if(typeof showNewbieOnEntry==='function')showNewbieOnEntry(); },600);
-    if(typeof API!=='undefined'&&API.token){API.syncAll(_mergeSyncData);}
-    if(typeof API!=='undefined'&&API.token){fetch('/api/nt/balance',{headers:{'Authorization':'Bearer '+API.token}}).then(function(r){return r.json();}).then(function(srv){if(srv&&!srv.detail&&!srv._offline){var ntUser=window.NT?NT.getUser(CURRENT_USER):null;if(ntUser){ntUser.ntBalance=srv.balance;ntUser.contributionValue=srv.cv;ntUser.experienceValue=srv.xp;}}}).catch(function(){});}
+    if(typeof API!=='undefined'&&API.token){
+      API.syncAll(function(data) {
+        if (data && !data.detail && !data._offline && data.ok !== false) _mergeSyncData(data);
+      });
+    }
+    if(typeof API!=='undefined'&&API.token){fetch('/api/nt/balance',{headers:{'Authorization':'Bearer '+API.token}}).then(function(r){return r.json();}).then(function(srv){if(srv&&!srv.detail&&!srv._offline){var ntUser=window.NT?NT.getUser(CURRENT_USER):null;if(ntUser){ntUser.ntBalance=Math.max(ntUser.ntBalance||0,srv.balance||0);ntUser.contributionValue=Math.max(ntUser.contributionValue||0,srv.cv||0);ntUser.experienceValue=Math.max(ntUser.experienceValue||0,srv.xp||0);}}}).catch(function(){});}
     _startPolling();
   }
   if(isReg){
@@ -746,7 +759,8 @@ function enterVillage(){
     if(errors.length){showToast(errors.join('；'),'error');return}
     if(!_profileSeed)_profileSeed=_avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
     if (isHTTP) {
-      API.asyncAuth('register', n, p, 'visitor', _profileSeed, function(result) {
+      var inviteCode = (document.getElementById('regInviteCode')||{}).value || '';
+      API.asyncAuth('register', n, p, 'visitor', _profileSeed, inviteCode, function(result) {
         if (result && result.name) {
           if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
           _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');

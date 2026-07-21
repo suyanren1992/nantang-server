@@ -146,19 +146,33 @@ var U='砚仁'; // current user (demo: switchable)
 var ALL_USERS=['砚仁','淑惠','朝林','大飞','小云'];
 var ON_SITE=['砚仁','淑惠','朝林','大飞','小云']; // 在地≥1周
 
+// 对齐 map-app.js HARDCODED_BUILDINGS 全部可打扫空间（不含卧室）
 var PROJECT_SPACES=[
-  {id:'kitchen',name:'厨房',icon:'🍳',bld:'大地书房',rate:15},
-  {id:'toilet_r',name:'卫生间',icon:'🚽',bld:'大地书房',rate:15},
-  {id:'studio',name:'画室',icon:'🎨',bld:'大地书房',rate:8},
-  {id:'study_r',name:'大书房',icon:'📚',bld:'大地书房',rate:5},
-  {id:'reading',name:'阅览室',icon:'📖',bld:'大地书房',rate:5},
-  {id:'office_r',name:'办公室',icon:'💻',bld:'大地书房',rate:5},
-  {id:'storage',name:'储物间',icon:'📦',bld:'大地书房',rate:3},
-  {id:'courtyard',name:'院子',icon:'🌿',bld:'户外',rate:2},
-  {id:'corridor',name:'走廊',icon:'🚶',bld:'大地书房',rate:8},
-  {id:'laundry',name:'洗衣房',icon:'🧺',bld:'大地书房',rate:5},
-  {id:'dorm101',name:'A室',icon:'🛏',bld:'宿舍',rate:5},
-  {id:'dorm104',name:'D室',icon:'🛏',bld:'宿舍',rate:5}
+  // ══ 社区办公楼 1F ══
+  {id:'kitchen',name:'厨房',icon:'🍳',bld:'办公楼1F',rate:15},
+  {id:'storage',name:'小仓库',icon:'📦',bld:'办公楼1F',rate:3},
+  {id:'office_r',name:'办公室',icon:'💼',bld:'办公楼1F',rate:5},
+  {id:'toilet_r',name:'公共厕所',icon:'🚻',bld:'办公楼1F',rate:15},
+  // ══ 社区办公楼 2F ══
+  {id:'studio',name:'画室',icon:'🎨',bld:'办公楼2F',rate:8},
+  {id:'study_r',name:'书房',icon:'📚',bld:'办公楼2F',rate:5},
+  // ══ 大地书房 1F ══
+  {id:'mahjong',name:'麻将室',icon:'🀄',bld:'大地书房1F',rate:5},
+  {id:'reading',name:'大书房',icon:'📚',bld:'大地书房1F',rate:5},
+  // ══ 大地书房 阁楼 ══
+  {id:'attic',name:'阁楼储物',icon:'📦',bld:'大地书房阁楼',rate:3},
+  // ══ 独立建筑 ══
+  {id:'toilet_b',name:'公共厕所',icon:'🚻',bld:'独立',rate:15},
+  {id:'parking',name:'B门·停车',icon:'🅿️',bld:'独立',rate:2},
+  {id:'gate_a',name:'A门',icon:'🚪',bld:'独立',rate:2},
+  {id:'stage',name:'戏台·花坛',icon:'🎭',bld:'独立',rate:2},
+  {id:'plaza',name:'硕区广场',icon:'🏛️',bld:'独立',rate:2},
+  // ══ 田地 ══
+  {id:'field_a',name:'田地A区',icon:'🥬',bld:'田地',rate:2},
+  {id:'field_b',name:'田地B区',icon:'🌽',bld:'田地',rate:2},
+  {id:'field_c',name:'田地C区',icon:'🍠',bld:'田地',rate:2},
+  {id:'field_d',name:'田地D区',icon:'🌳',bld:'田地',rate:0},
+  {id:'field_e',name:'田地E区',icon:'🍂',bld:'田地',rate:0}
 ];
 
 var CONFIG={cleaning_pricing:{dirty:20,warning:15,clean:5}};
@@ -167,16 +181,15 @@ function calcNT(sid){var s=PROJECT_SPACES.find(function(x){return x.id===sid;});
 // events: { ..., picks: { spaceId: { by:'砚仁', status:'picked'|'cleaned'|'verified', verifiedBy:'淑惠' } } }
 var EVENTS=[
   {id:'dc1',title:'周末例行大扫除',date:'2026-07-26',time:'09:00-12:00',
-   spaces:['kitchen','toilet_r','studio','courtyard','corridor','storage'],
-   picks:{kitchen:{by:'砚仁',status:'verified',verifiedBy:'淑惠'},toilet_r:{by:'淑惠',status:'verified',verifiedBy:'朝林'},studio:{by:'朝林',status:'cleaned'},courtyard:{by:'大飞',status:'picked'},corridor:{by:'小云',status:'picked'},storage:{by:'',status:'open'}},
+   spaces:['kitchen','toilet_r','studio','reading','mahjong','storage','office_r','study_r','toilet_b','parking','stage','plaza'],
+   picks:{kitchen:{by:'砚仁',status:'verified',verifiedBy:'淑惠'},toilet_r:{by:'淑惠',status:'verified',verifiedBy:'朝林'},studio:{by:'朝林',status:'cleaned'},reading:{by:'大飞',status:'picked'},mahjong:{by:'小云',status:'picked'},storage:{by:'',status:'open'},office_r:{by:'',status:'open'},study_r:{by:'',status:'open'},toilet_b:{by:'',status:'open'},parking:{by:'',status:'open'},stage:{by:'',status:'open'},plaza:{by:'',status:'open'}},
    createdBy:'砚仁',createdAt:'2026-07-20T14:00',status:'active'},
   {id:'dc2',title:'迎接新营员大扫除',date:'2026-07-28',time:'14:00-17:00',
-   spaces:['kitchen','toilet_r','studio','courtyard','corridor','laundry','dorm101'],
-   picks:{},
-   createdBy:'砚仁',createdAt:'2026-07-21T09:00',status:'upcoming'},
+   spaces:['kitchen','toilet_r','studio','reading','mahjong','storage','toilet_b','stage','plaza','attic'],
+   picks:{},createdBy:'砚仁',createdAt:'2026-07-21T09:00',status:'upcoming'},
   {id:'dc3',title:'节前大扫除',date:'2026-07-14',time:'全天',
-   spaces:['kitchen','toilet_r','studio','courtyard','storage'],
-   picks:{kitchen:{by:'砚仁',status:'verified',verifiedBy:'淑惠'},toilet_r:{by:'淑惠',status:'verified',verifiedBy:'砚仁'},studio:{by:'朝林',status:'verified',verifiedBy:'大飞'},courtyard:{by:'大飞',status:'verified',verifiedBy:'小云'},storage:{by:'小云',status:'verified',verifiedBy:'砚仁'}},
+   spaces:['kitchen','toilet_r','studio','reading','storage','stage','plaza'],
+   picks:{kitchen:{by:'砚仁',status:'verified',verifiedBy:'淑惠'},toilet_r:{by:'淑惠',status:'verified',verifiedBy:'砚仁'},studio:{by:'朝林',status:'verified',verifiedBy:'大飞'},reading:{by:'大飞',status:'verified',verifiedBy:'小云'},storage:{by:'小云',status:'verified',verifiedBy:'砚仁'},stage:{by:'淑惠',status:'verified',verifiedBy:'朝林'},plaza:{by:'朝林',status:'verified',verifiedBy:'砚仁'}},
    createdBy:'砚仁',createdAt:'2026-07-10T10:00',status:'completed',completedAt:'2026-07-14T17:00'}
 ];
 
@@ -185,7 +198,7 @@ var _tab='active',_evt=null,_crSpaces=[];
 // ══ HELPERS ══
 function T(){return new Date().toISOString().slice(0,10)}function N(){return new Date().toISOString()}function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 var _tt;function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},1800);}
-function sid(id){var s=PROJECT_SPACES.find(function(x){return x.id===id;});return s||{name:id,icon:'📍',bld:'',rate:5};}
+function sp(id){var s=PROJECT_SPACES.find(function(x){return x.id===id;});return s||{name:id,icon:'📍',bld:'',rate:5};}
 
 // ══ USER SWITCHER (demo) ══
 function renderUserBar(){
@@ -212,7 +225,7 @@ function renderList(){
   if(_tab==='verify'){
     var h='<div class="sec-label">⏳ 待校核 ('+pendingVerify+'项) · 任何人可校核（不能校核自己）</div>';
     EVENTS.filter(function(e){return e.status==='active';}).forEach(function(e){
-      (e.spaces||[]).forEach(function(sid){var p=e.picks[sid]||{};if(p.status!=='cleaned')return;var s=sid(sid);
+      (e.spaces||[]).forEach(function(sid){var p=e.picks[sid]||{};if(p.status!=='cleaned')return;var s=sp(sid);
       h+='<div class="verify-item"><span class="v-icon">'+s.icon+'</span><div class="v-info"><span class="v-who">'+s.name+'</span> · '+e.title+' · 打扫人：'+p.by+' · +'+calcNT(sid)+' NT</div>';
       if(p.by!==U)h+='<button class="inline-btn pri" onclick="doVerify(\''+e.id+'\',\''+sid+'\')">✅ 校核</button>';
       else h+='<span style="font-size:.5rem;color:var(--t3)">⚠ 自己</span>';
@@ -256,7 +269,7 @@ function renderEventView(){
   h+='<div class="sheet-section"><div class="sheet-section-title">🙋 我（'+U+'）选的区域</div>';
   if(myPicks.length){
     h+='<div class="my-picks"><div class="my-picks-row">';
-    myPicks.forEach(function(sid){var s=sid(sid),p=e.picks[sid]||{};h+='<span class="tag '+(p.status==='verified'?'g':p.status==='cleaned'?'y':'g')+'">'+s.icon+' '+s.name+(p.status==='verified'?' ✓':'')+'</span>';});
+    myPicks.forEach(function(sid){var s=sp(sid),p=e.picks[sid]||{};h+='<span class="tag '+(p.status==='verified'?'g':p.status==='cleaned'?'y':'g')+'">'+s.icon+' '+s.name+(p.status==='verified'?' ✓':'')+'</span>';});
     h+='</div></div>';
     // Action buttons for my picks
     var toClean=myPicks.filter(function(sid){return(e.picks[sid]||{}).status==='picked';});
@@ -277,7 +290,7 @@ function renderEventView(){
   h+='<div class="sheet-section"><div class="sheet-section-title">🗺️ 选择打扫区域 '+(isActive?'('+(e.spaces||[]).length+'个)':'')+'</div>';
   h+='<div class="pick-grid">';
   (e.spaces||[]).forEach(function(sid){
-    var s=sid(sid),p=e.picks[sid]||{},nt=calcNT(sid);
+    var s=sp(sid),p=e.picks[sid]||{},nt=calcNT(sid);
     var isMine=p.by===U,isTaken=!!p.by&&!isMine,isCleaned=p.status==='cleaned',isVerified=p.status==='verified';
     var cls='',badge='',who='';
 
@@ -314,7 +327,7 @@ function pickArea(eid,sid){
   e.picks=e.picks||{};
   if(e.picks[sid]&&e.picks[sid].by){toast('已被 '+e.picks[sid].by+' 选了','warn');return;}
   e.picks[sid]={by:U,status:'picked'};
-  toast('已选 '+sid(sid).name+' ✓','ok');renderEventView();
+  toast('已选 '+sp(sid).name+' ✓','ok');renderEventView();
 }
 
 function unpickArea(eid,sid){
@@ -323,7 +336,7 @@ function unpickArea(eid,sid){
   var p=e.picks[sid];if(!p||p.by!==U)return;
   if(p.status!=='picked'){toast('已经开始打扫了，不能撤销','warn');return;}
   e.picks[sid]={by:'',status:'open'};
-  toast('已取消 '+sid(sid).name,'warn');renderEventView();
+  toast('已取消 '+sp(sid).name,'warn');renderEventView();
 }
 
 function markCleaned(eid){
@@ -340,7 +353,7 @@ function doVerify(eid,sid){
   var p=e.picks[sid];if(!p||p.status!=='cleaned')return;
   if(p.by===U){toast('不能校核自己','warn');return;}
   p.status='verified';p.verifiedBy=U;
-  toast('已校核 '+sid(sid).name+' ✓ +'+calcNT(sid)+' NT 给 '+p.by,'ok');
+  toast('已校核 '+sp(sid).name+' ✓ +'+calcNT(sid)+' NT 给 '+p.by,'ok');
   if(_tab==='verify')refresh();else renderEventView();
 }
 
