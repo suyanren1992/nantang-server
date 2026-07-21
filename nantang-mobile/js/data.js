@@ -538,7 +538,7 @@ function getCamps(){ return (window.AppData&&AppData._data.camps) ? Object.value
 function renderCommunityHub() {
   var el = document.getElementById('communityHubContent'); if (!el) return;
   var role = (typeof getUsers==='function'?getUsers():{})[CURRENT_USER]||{};
-  var isMember = role.role==='admin'||role.role==='builder'||role.role==='adventurer'||role.role==='npc';
+  var isMember = isMemberByRole(role.role);
   var isAdmin = role.role==='admin';
   var active = getCamps().filter(function(c){ return c.status==='active'; });
   var upcoming = getCamps().filter(function(c){ return c.status==='upcoming'; });
