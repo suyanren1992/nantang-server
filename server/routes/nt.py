@@ -43,7 +43,7 @@ class CreateTaskRequest(BaseModel):
 
 def _ledger_id():
     now = datetime.utcnow()
-    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}"
+    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}-{secrets.token_hex(3)}"
 
 
 async def _add_ledger(db: AsyncSession, entry_id: str, from_user: str | None, to_user: str | None,
@@ -606,7 +606,7 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
 
 @router.post("/tasks/{task_id}/submit")
 async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
     a_ids = json.loads(task.assignees or "[]") or ([task.assignee] if task.assignee else [])
@@ -657,7 +657,7 @@ async def settle_task(task_id: str, user: User = Depends(get_current_user),
 
 @router.post("/tasks/{task_id}/dispute")
 async def dispute_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
     a_ids = json.loads(task.assignees or "[]") or ([task.assignee] if task.assignee else [])
@@ -756,7 +756,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     """Peer 校核通过——从社区池发放 NT 给 doer + verifier。ponytail: 最小实现，完整校核规则在 Phase D2。"""
     # 从 Verification 表获取权威金额（不信任客户端传入值）
     from models import Verification as VfyModel
-    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id))
+    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update())
     vfy = vfy_r.scalar_one_or_none()
     if not vfy:
         raise HTTPException(status_code=404, detail="校核记录不存在")
@@ -826,7 +826,7 @@ async def reject_verification(vfy_id: str, user: User = Depends(get_current_user
                                db: AsyncSession = Depends(get_db)):
     """Peer 驳回校核——写 DB，3 次驳回后永久拒绝。"""
     from models import Verification as VfyModel
-    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id))
+    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update())
     vfy = vfy_r.scalar_one_or_none()
     if not vfy:
         raise HTTPException(status_code=404, detail="校核记录不存在")

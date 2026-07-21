@@ -282,7 +282,7 @@ async def add_inventory(req: dict, user: User = Depends(get_current_user), db: A
 
 # ══ 统一共享数据推送 ══
 @router.post("/sync_shared")
-async def sync_shared(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def sync_shared(req: dict, user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     # 营地
     if req.get("camps") and isinstance(req.get("camps"), dict):
         for camp_id, camp_data in req["camps"].items():

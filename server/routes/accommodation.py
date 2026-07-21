@@ -8,6 +8,7 @@ from database import get_db
 from models import User, Tenancy, NTTask
 import json
 from routes.auth import get_current_user, require_admin
+from routes.nt import _ledger_id, _add_ledger, _get_pool
 
 router = APIRouter(prefix="/api/accommodation", tags=["accommodation"])
 
@@ -69,9 +70,14 @@ async def checkout(user: User = Depends(get_current_user),
         raise HTTPException(status_code=400, detail="没有活跃的入住记录")
 
     t.status = "checked_out"
-    # 结算欠费：从余额扣
+    # 结算欠费：从余额扣，回流社区池
     if t.debt > 0 and user.nt_balance >= t.debt:
         user.nt_balance -= t.debt
+        pool = await _get_pool(db)
+        pool.balance += t.debt
+        lid = _ledger_id()
+        await _add_ledger(db, lid, user.id, "community_pool", t.debt, "debt_settlement",
+                         f"退房欠费结算: {t.debt} NT")
         t.debt = 0
     # 角色降级：检查是否还有其他 active tenancy
     other = await db.execute(

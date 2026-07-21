@@ -7,7 +7,7 @@ from datetime import datetime
 import json
 from database import get_db
 from models import Camp, CampBuilder, CampTask, User
-from routes.auth import get_current_user
+from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
 
 router = APIRouter(prefix="/api/camps", tags=["camps"])
@@ -36,7 +36,7 @@ async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = 
 
 
 @router.post("")
-async def create_camp(req: dict, user: User = Depends(get_current_user),
+async def create_camp(req: dict, user: User = Depends(require_admin),
                       db: AsyncSession = Depends(get_db)):
     camp = Camp(
         id=req.get("id") or _camp_id(),

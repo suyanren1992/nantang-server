@@ -16,9 +16,11 @@ TEMPLATES_PATH = os.path.join(os.path.dirname(__file__), "config", "periodic_tas
 
 
 # ponytail: inline helpers to avoid circular import from routes.nt
+import secrets as _secrets
+
 def _ledger_id():
     now = datetime.utcnow()
-    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}"
+    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}-{_secrets.token_hex(3)}"
 
 
 def _task_id():
@@ -26,8 +28,9 @@ def _task_id():
     return f"T{datetime.utcnow().strftime('%y%m%d%H%M%S')}-{secrets.token_hex(3)}"
 
 
-async def _get_pool(db):
+async def _get_pool(db, lock: bool = False):
     q = select(CommunityPool).limit(1)
+    if lock: q = q.with_for_update()
     result = await db.execute(q)
     pool = result.scalar_one_or_none()
     if not pool:

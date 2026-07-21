@@ -65,7 +65,7 @@ function _defaultConfig() { return {
     dorm103:{ perBed:30, ac:true }, dorm104:{ perRoom:60, ac:true },
     dorm105:{ perBed:30, ac:true }, dorm106:{ perBed:35, ac:true }
   },
-  // E3.4: System B newbie_quest_steps 已删除，不再从 _mlConfig 读取
+  // E3.4: System B 已删除——新手引导统一走 data.js NEWBIE_QUESTS
   dirtiness_rates: { bathroom:15, kitchen:10, hallway:8, studio:8, bedroom:5, laundry:5, storage:3, outdoor:2, field:0 },
   dirtiness_thresholds: { green:30, yellow:60, red:80 },
   item_expiry_days: 5,
@@ -234,7 +234,8 @@ function _renderStatusPills() {
 
 function _renderNewbieCard() {
   var me = _me(); if (!me) return '';
-  var steps = (_mlConfig().newbie_quest_steps) || [];
+  // E3.4: System B 已删除
+  var steps = [];
   if (!steps.length) return '';
   var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || {};
   // 初始化
@@ -1164,8 +1165,6 @@ function _applyStay() {
   var doCheckin = function() {
     room.tenants.push({ name:_me(), bed:_selectedBed.bed, checkIn:checkIn, checkOut:checkOut });
     if (window.AppData) AppData._saveShared(true);
-    // 角色变更：visitor → npc
-    if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
     // 服务端同步
     if (typeof API !== 'undefined' && API.token) {
       API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(){});
@@ -1180,7 +1179,7 @@ function _applyStay() {
 
   // 弹出公约确认
   if (!confirm('📜 南塘社区公约\n\n入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费\n\n点击「确定」签署公约并入住')) return;
-  // CR3: quest 完成移到 confirm 之后
+  // CR3: quest + 角色变更在 confirm 之后执行
   if (typeof _completeNewbieQuest === 'function') { _completeNewbieQuest(_me(), 'sign_covenant'); }
   if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
   doCheckin();
@@ -1910,7 +1909,8 @@ function _openVerificationPanel() {
   var me = _me();
   var h = '';
   // ── 新手引导 ──
-  var steps = (_mlConfig().newbie_quest_steps) || [];
+  // E3.4: System B 已删除
+  var steps = [];
   var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || {};
   var doneCount = steps.filter(function(s){ return quests[s.id] && quests[s.id].done; }).length;
   if (steps.length && doneCount < steps.length) {
