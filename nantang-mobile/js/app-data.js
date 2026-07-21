@@ -120,8 +120,10 @@ window.AppData = {
     this._data.tasks[task.name] = task;
     this._saveShared();
     if (typeof API !== 'undefined' && API.token) {
-      var srvId = API.syncTask(task);
-      if (srvId && typeof srvId === 'string') { task._srvId = srvId; this._data.tasks[srvId] = task; }  // 双向索引
+      var self = this;
+      API.syncTask(task, function(srvId) {  // syncTask 是回调风格，无返回值
+        if (srvId && typeof srvId === 'string') { task._srvId = srvId; task._ntTaskId = srvId; self._data.tasks[srvId] = task; self._saveShared(); }  // 双向索引 + C2.0: 桥接 _ntTaskId
+      });
     }
     return { ok: true };
   },
@@ -132,14 +134,11 @@ window.AppData = {
     if (typeof API !== 'undefined' && API.token) API.syncTaskUpdate(srvId, updates);
   },
   deleteTask: function(name) {
+    var srvId = (this._data.tasks[name] && this._data.tasks[name]._srvId) || name;
     delete this._data.tasks[name];
+    delete this._data.tasks[srvId];  // 双向索引的 srvId key 一并删，防僵尸条目
     this._saveShared();
-    if (typeof API !== 'undefined' && API.token) {
-      var xhr = new XMLHttpRequest();
-      xhr.open('DELETE', '/api/tasks/' + name, true);
-      xhr.setRequestHeader('Authorization', 'Bearer ' + API.token);
-      try { xhr.send(); } catch(e) {}
-    }
+    if (typeof API !== 'undefined' && API.token) { API.deleteTask(srvId); }  // 服务端主键是 srvId
   },
 
   // ══ 物品（私有）══
@@ -226,11 +225,7 @@ window.AppData = {
         inventory: this._data.inventory,
         canteenMenu: this._data.canteenMenu
       };
-      fetch('/api/data/sync_shared', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API.token },
-        body: JSON.stringify(payload)
-      }).catch(function(){});
+      API.request('POST', '/api/data/sync_shared', payload);
     }
     var self = this;
     this._timerS = setTimeout(function() { self._saveKey('nt_app_v2_shared', data); }, 200);
@@ -258,18 +253,18 @@ window.AppData = {
       this._data.map_locations.config = this._data.map_locations.config || {};
       // 住宿
       this._data.map_locations.accommodations = {
-        dorm101: { type:'triple_bunk', label:'A室·三人大通铺', ac:'无', tenant:'王五', rentNT:150, checkIn:'7/15', checkOut:'7/20', status:'occupied' },
+        dorm101: { type:'triple_bunk', label:'A室·三人大通铺', ac:'无', tenant:'王五', rentNT:150, checkIn:'7/15', checkOut:'7/20', status:'occupied', _seed:true },
         dorm102: { type:'quad_bunk', label:'B室·四人大通铺', ac:'有', tenant:null, rentNT:120, checkIn:null, checkOut:null, status:'vacant' },
-        dorm103: { type:'bunk_double', label:'C室·上下床+大床', ac:'有', tenant:'李四', rentNT:90, checkIn:'7/15', checkOut:'7/18', status:'occupied' },
+        dorm103: { type:'bunk_double', label:'C室·上下床+大床', ac:'有', tenant:'李四', rentNT:90, checkIn:'7/15', checkOut:'7/18', status:'occupied', _seed:true },
         dorm104: { type:'single', label:'D室·单间大床房', ac:'有', tenant:null, rentNT:100, checkIn:null, checkOut:null, status:'vacant' },
         dorm105: { type:'quad_bunk2', label:'E室·两个上下床', ac:'有', tenant:null, rentNT:80, checkIn:null, checkOut:null, status:'vacant' },
         dorm106: { type:'bunk', label:'F室·两人间上下床', ac:'有', tenant:null, rentNT:100, checkIn:null, checkOut:null, status:'vacant' }
       };
       // 在场人员
       this._data.map_locations.people_on_site = [
-        { name:'小杨', location:'kitchen', building:'office', activity:'🍳厨房做饭' },
-        { name:'朝林', location:'reading', building:'study', activity:'📖大书房看书' },
-        { name:'若曦', location:'studio', building:'office', activity:'🎨画室画画' }
+        { name:'小杨', location:'kitchen', building:'office', activity:'🍳厨房做饭', _seed:true },
+        { name:'朝林', location:'reading', building:'study', activity:'📖大书房看书', _seed:true },
+        { name:'若曦', location:'studio', building:'office', activity:'🎨画室画画', _seed:true }
       ];
       // 田地
       this._data.map_locations.plots = [
@@ -295,8 +290,8 @@ window.AppData = {
         { room:'study_r', icon:'📚', text:'藏书·200册', sub:'', status:'clean' },
         { room:'reading', icon:'📚', text:'藏书·200册', sub:'', status:'clean' },
         { room:'mahjong', icon:'🀄', text:'麻将桌×2', sub:'', status:'clean' },
-        { room:'dorm101', icon:'🛏', text:'王五入住', sub:'5天·150NT待付', status:'clean' },
-        { room:'dorm103', icon:'🛏', text:'李四入住', sub:'3天·90NT待付', status:'clean' }
+        { room:'dorm101', icon:'🛏', text:'王五入住', sub:'5天·150NT待付', status:'clean', _seed:true },
+        { room:'dorm103', icon:'🛏', text:'李四入住', sub:'3天·90NT待付', status:'clean', _seed:true }
       ];
       // 停车
       this._data.map_locations.state.parking = { vehicle:'🛵三轮车', status:'在库', key:'🔑钥匙在门卫处', user:'无人取用' };
@@ -313,9 +308,9 @@ window.AppData = {
     }
     if (!this._data.camps || Object.keys(this._data.camps).length === 0) {
       this._data.camps = {
-        camp4:{id:'camp4',name:'第四期共创营',emoji:'🏕️',theme:'南塘有风，共创有光',date:'7/20 — 7/27',status:'active',people:12,max:16,location:'南塘合作社大院',desc:'七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。适合所有对传统文化感兴趣的朋友。',highlights:['7/20 开营仪式 + 欢迎晚餐','7/22 工笔画大师课','7/25 作品展览日','7/27 结营仪式 + 敬字亭']},
-        camp5:{id:'camp5',name:'工笔画写生营',emoji:'🎨',theme:'五天集中写生，导师一对一点评',date:'8/1 — 8/5',status:'upcoming',people:5,max:10,location:'大地书房',desc:'五天集中写生，导师一对一点评。适合有基础的同学。',highlights:['8/1 开营','8/2-4 写生+点评','8/5 作品展']},
-        camp1:{id:'camp1',name:'春季写生周',emoji:'🌸',theme:'春季户外写生',date:'4/10 — 4/17',status:'archived',people:8,max:12,location:'南塘周边',desc:'春季户外写生。',highlights:['已结束']}
+        camp4:{id:'camp4',name:'第四期共创营',emoji:'🏕️',theme:'南塘有风，共创有光',date:'7/20 — 7/27',status:'active',people:12,max:16,location:'南塘合作社大院',desc:'七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。适合所有对传统文化感兴趣的朋友。',highlights:['7/20 开营仪式 + 欢迎晚餐','7/22 工笔画大师课','7/25 作品展览日','7/27 结营仪式 + 敬字亭'],_seed:true},
+        camp5:{id:'camp5',name:'工笔画写生营',emoji:'🎨',theme:'五天集中写生，导师一对一点评',date:'8/1 — 8/5',status:'upcoming',people:5,max:10,location:'大地书房',desc:'五天集中写生，导师一对一点评。适合有基础的同学。',highlights:['8/1 开营','8/2-4 写生+点评','8/5 作品展'],_seed:true},
+        camp1:{id:'camp1',name:'春季写生周',emoji:'🌸',theme:'春季户外写生',date:'4/10 — 4/17',status:'archived',people:8,max:12,location:'南塘周边',desc:'春季户外写生。',highlights:['已结束'],_seed:true}
       };
     }
     this._saveShared();
@@ -336,6 +331,10 @@ window.AppData = {
     if (!this._data.pendingVerifications) this._data.pendingVerifications = [];
     this._data.pendingVerifications.push(vfy);
     this._saveShared(true);
+    // R2.3: HTTP 模式同步写服务端
+    if (typeof API !== 'undefined' && API.token) {
+      API.request('POST', '/api/data/verifications', vfy).catch(function(){});
+    }
     return vfy;
   },
   verifyAction: function(vfyId, verifierName, approved, rejectReason) {
@@ -377,12 +376,23 @@ window.AppData = {
     }
     // 通过模式
     vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
-    // 发放 NT
+    // C2: HTTP 模式走服务端 earn，客户端不再直接操作 NT
     if (window.NT && vfy.ntAmount > 0) {
-      try { NT.earn(vfy.doer, vfy.ntAmount, vfy.action, 'camp'); } catch(e) {}
+      var isOffline = (typeof API === 'undefined' || !API.token);
+      if (isOffline) {
+        try { NT.earn(vfy.doer, vfy.ntAmount, vfy.action, 'camp'); } catch(e) {}
+      } else {
+        API.request('POST', '/api/nt/verifications/' + vfy.id + '/approve',
+          {doer: vfy.doer, action: vfy.action, nt_amount: vfy.ntAmount, verifier_reward: vfy.verifierReward}
+        ).catch(function(){});
+      }
     }
     if (window.NT && vfy.verifierReward > 0) {
-      try { NT.earn(verifierName, vfy.verifierReward, '校核: '+vfy.action, 'personal'); } catch(e) {}
+      var isOffline2 = (typeof API === 'undefined' || !API.token);
+      if (isOffline2) {
+        try { NT.earn(verifierName, vfy.verifierReward, '校核: '+vfy.action, 'personal'); } catch(e) {}
+      }
+      // ponytail: verifier reward 合并到 approve 端点中处理，不单独调 API
     }
     // 写入公告栏
     this.addAnnouncement(vfy.type, vfy.doer, verifierName, vfy.action, vfy.ntAmount);
@@ -405,6 +415,7 @@ window.AppData = {
   },
   // ══ 章2: 住宿费日扣 ══
   _deductAccommodation: function() {
+    // E3.1: 遍历 room.tenants[] 数组（替代旧的 room.tenant 字符串）
     var accs = (this._data.map_locations && this._data.map_locations.accommodations) || {};
     var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
     var lastDeduction = this._data._lastAccommodationDeduction || '';
@@ -413,27 +424,25 @@ window.AppData = {
     var todayDate = new Date(today + 'T00:00:00');
     var daysPassed = Math.max(1, Math.floor((todayDate - lastDate) / 86400000));
     if (daysPassed <= 0) { this._data._lastAccommodationDeduction = today; return; }
-    // 对每个已入住房间扣除房费
     Object.keys(accs).forEach(function(roomId) {
       var room = accs[roomId];
-      if (room.status !== 'occupied' || !room.tenant) return;
-      var roomPrice = room.rentNT || 30;
-      if (window.NT) {
-        var user = NT.getUser(room.tenant);
-        var userOverdue = user ? (user.overdueNT || 0) : 0;
-        var totalDue = roomPrice * daysPassed + (room.overdueNT || 0) + userOverdue;
-        if (user) {
-          var affordable = Math.min(user.ntBalance, totalDue);
-          if (affordable > 0) {
-            try { NT.spend(room.tenant, affordable, '住宿费: '+roomId+' ×'+daysPassed+'天', 'personal'); } catch(e) {}
-          }
-          var unpaid = totalDue - affordable;
-          if (unpaid > 0) {
-            user.overdueNT = unpaid;
-            if (typeof showToast === 'function') showToast(room.tenant+' 住宿欠费 '+unpaid+' NT', 'warn');
-          }
+      if (!room.tenants || !room.tenants.length) return;
+      var roomPrice = room.pricePerBed || room.rentNT || 30;
+      room.tenants.forEach(function(t) {
+        if (!t.name) return;
+        var user = window.NT ? NT.getUser(t.name) : null;
+        if (!user) return;
+        var totalDue = roomPrice * daysPassed;
+        var affordable = Math.min(user.ntBalance, totalDue);
+        if (affordable > 0) {
+          try { NT.spend(t.name, affordable, '住宿费: '+roomId+' ×'+daysPassed+'天', 'personal'); } catch(e) {}
         }
-      }
+        var unpaid = totalDue - affordable;
+        if (unpaid > 0) {
+          user.overdueNT = (user.overdueNT || 0) + unpaid;
+          if (typeof showToast === 'function') showToast(t.name+' 住宿欠费 '+unpaid+' NT', 'warn');
+        }
+      });
     }.bind(this));
     this._data._lastAccommodationDeduction = today;
     this._saveShared(true);
@@ -560,6 +569,8 @@ window.AppData = {
   },
 
   _dailyPoolRefill: function() {
+    // E3.7: HTTP 模式由服务端 daily_tick 处理，客户端不再独立执行
+    if (typeof API !== 'undefined' && API.token) return;
     if (!window.NT) return;
     var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
     if (this._data._lastPoolRefill === today) return;
