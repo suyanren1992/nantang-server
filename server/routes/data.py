@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
-                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask)
+                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp)
 from routes.auth import get_current_user
 
 router = APIRouter(prefix="/api/data", tags=["data"])
@@ -190,8 +190,14 @@ async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db))
     if date:
         q = q.where(CanteenMenu.date == date)
     result = await db.execute(q.order_by(CanteenMenu.date.desc()))
-    return [{"date": m.date, "lunch": json.loads(m.lunch) if m.lunch else [],
-             "dinner": json.loads(m.dinner) if m.dinner else []} for m in result.scalars()]
+    items = []
+    for m in result.scalars():
+        try: lunch = json.loads(m.lunch) if m.lunch else []
+        except: lunch = []
+        try: dinner = json.loads(m.dinner) if m.dinner else []
+        except: dinner = []
+        items.append({"date": m.date, "lunch": lunch, "dinner": dinner})
+    return items
 
 
 @router.post("/canteen_menu")
@@ -232,7 +238,8 @@ async def get_map_locations(db: AsyncSession = Depends(get_db)):
     ml = result.scalar_one_or_none()
     if not ml:
         return {"buildings": [], "plots": [], "accommodations": {}, "people_on_site": [], "state": {}, "config": {}}
-    return json.loads(ml.data) if ml.data else {}
+    try: return json.loads(ml.data) if ml.data else {}
+    except: return {}
 
 
 @router.post("/map_locations")
@@ -290,6 +297,33 @@ async def add_inventory(req: dict, user: User = Depends(get_current_user), db: A
                       location=req.get("location", ""), desc=req.get("desc", ""),
                       date=req.get("date", ""))
     db.add(i)
+    await db.commit()
+    return {"ok": True}
+
+# ══ 统一共享数据推送 ══
+@router.post("/sync_shared")
+async def sync_shared(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if not user: raise HTTPException(status_code=401)
+    # 营地
+    if req.get("camps") and isinstance(req.get("camps"), dict):
+        for camp_id, camp_data in req["camps"].items():
+            existing = (await db.execute(select(Camp).where(Camp.id == camp_id))).scalar_one_or_none()
+            if not existing:
+                db.add(Camp(id=camp_id, name=camp_data.get("name",""), created_by=user.id,
+                           created_at=datetime.utcnow().isoformat()))
+    # 地图
+    if req.get("map_locations"):
+        ml = (await db.execute(select(MapLocation).where(MapLocation.key == "shared"))).scalar_one_or_none()
+        if not ml:
+            ml = MapLocation(key="shared"); db.add(ml)
+        ml.data = json.dumps(req["map_locations"], ensure_ascii=False)
+    # 食堂菜单
+    if req.get("canteenMenu"):
+        for date, menu in req["canteenMenu"].items():
+            existing = (await db.execute(select(CanteenMenu).where(CanteenMenu.date == date))).scalar_one_or_none()
+            if not existing:
+                db.add(CanteenMenu(date=date, lunch=json.dumps(menu.get("lunch",[]), ensure_ascii=False),
+                                   dinner=json.dumps(menu.get("dinner",[]), ensure_ascii=False)))
     await db.commit()
     return {"ok": True}
 

@@ -29,10 +29,8 @@ def _user_json(u):
             "created_at": u.created_at}
 
 
-def _set_refresh_cookie(response: Response, user_id: str):
-    refresh = create_refresh_token(user_id)
-    response.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="lax",
-                        max_age=7*86400, path="/api/auth")
+def _set_rt_cookie(response: Response, token: str):
+    response.set_cookie("nt_rt", token, httponly=False, samesite="lax", max_age=7*86400, path="/")
 
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)) -> User | None:
@@ -50,6 +48,7 @@ async def require_admin(user: User = Depends(get_current_user)):
 
 @router.post("/register")
 async def register(req: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
+    if not req.name or len(req.name) > 64: return JSONResponse({"ok": False, "error": "用户名需为1-64字符"})
     if len(req.password) < 6: return JSONResponse({"ok": False, "error": "密码至少6位"})
     ex = await db.execute(select(User).where(User.id == req.name))
     if ex.scalar_one_or_none(): return JSONResponse({"ok": False, "error": "用户名已存在"})
@@ -65,8 +64,9 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
     if not pool: pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0); db.add(pool)
     pool.total_issued += (200 if is_first else 50)
     await db.commit()
-    _set_refresh_cookie(response, u.id)
-    return {"ok": True, "token": create_access_token(u.id, u.role), "user": _user_json(u)}
+    _rt = create_refresh_token(u.id)
+    _set_rt_cookie(response, _rt)
+    return {"ok": True, "token": create_access_token(u.id, u.role), "refresh_token": _rt, "user": _user_json(u)}
 
 
 @router.post("/login")
@@ -74,25 +74,28 @@ async def login(req: LoginRequest, response: Response, db: AsyncSession = Depend
     u = (await db.execute(select(User).where(User.id == req.name))).scalar_one_or_none()
     if not u: return JSONResponse({"ok": False, "error": "用户不存在"})
     if not verify_password(req.password, u.password_hash): return JSONResponse({"ok": False, "error": "密码错误"})
-    _set_refresh_cookie(response, u.id)
-    return {"ok": True, "token": create_access_token(u.id, u.role), "user": _user_json(u)}
+    _rt = create_refresh_token(u.id)
+    _set_rt_cookie(response, _rt)
+    return {"ok": True, "token": create_access_token(u.id, u.role), "refresh_token": _rt, "user": _user_json(u)}
 
 
 @router.post("/refresh")
 async def refresh(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    rt = request.cookies.get("refresh_token")
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    rt = body.get("refresh_token") or request.cookies.get("nt_rt")
     if not rt: return JSONResponse({"ok": False, "error": "无 refresh token"}, status_code=401)
     payload = decode_token(rt)
     if not payload or payload.get("type") != "refresh": return JSONResponse({"ok": False, "error": "token 无效"}, status_code=401)
     u = (await db.execute(select(User).where(User.id == payload["sub"]))).scalar_one_or_none()
     if not u: return JSONResponse({"ok": False, "error": "用户不存在"}, status_code=401)
-    _set_refresh_cookie(response, u.id)  # rotate refresh token
-    return {"ok": True, "token": create_access_token(u.id, u.role), "user": _user_json(u)}
+    _rt = create_refresh_token(u.id)
+    _set_rt_cookie(response, _rt)
+    return {"ok": True, "token": create_access_token(u.id, u.role), "refresh_token": _rt, "user": _user_json(u)}
 
 
 @router.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie("refresh_token", path="/api/auth")
+    response.delete_cookie("nt_rt", path="/")
     return {"ok": True}
 
 
@@ -106,6 +109,4 @@ async def me(user: User = Depends(get_current_user)):
 async def list_users(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user: raise HTTPException(status_code=401)
     result = await db.execute(select(User))
-    return [{"name": u.id, "role": u.role, "nt_balance": u.nt_balance,
-             "trust_score": u.trust_score, "trust_level": u.trust_level,
-             "avatar_seed": u.avatar_seed, "bio": u.bio} for u in result.scalars()]
+    return [{"name": u.id, "avatar_seed": u.avatar_seed} for u in result.scalars()]

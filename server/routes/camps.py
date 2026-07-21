@@ -6,9 +6,9 @@ from pydantic import BaseModel
 from datetime import datetime
 import json
 from database import get_db
-from models import Camp, CampBuilder, CampTask, User, CommunityPool
+from models import Camp, CampBuilder, CampTask, User
 from routes.auth import get_current_user
-from routes.nt import _ledger_id, _add_ledger
+from routes.nt import _ledger_id, _add_ledger, _get_pool
 
 router = APIRouter(prefix="/api/camps", tags=["camps"])
 
@@ -23,13 +23,18 @@ async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = 
         raise HTTPException(status_code=401)
     result = await db.execute(select(Camp).order_by(Camp.created_at.desc()))
     camps = list(result.scalars())
-    return [{
-        "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
-        "date": c.date, "status": c.status, "people": c.people, "max": c.max,
-        "location": c.location, "desc": c.desc,
-        "highlights": json.loads(c.highlights) if c.highlights else [],
-        "created_by": c.created_by, "launched_at": c.launched_at,
-    } for c in camps]
+    items = []
+    for c in camps:
+        try: highlights = json.loads(c.highlights) if c.highlights else []
+        except: highlights = []
+        items.append({
+            "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
+            "date": c.date, "status": c.status, "people": c.people, "max": c.max,
+            "location": c.location, "desc": c.desc,
+            "highlights": highlights,
+            "created_by": c.created_by, "launched_at": c.launched_at,
+        })
+    return items
 
 
 @router.post("")
@@ -81,10 +86,8 @@ async def create_camp(req: dict, user: User = Depends(get_current_user),
         meal = budget.get("mealNT", 0)
         camp_total = lodging * people * days + meal * people * days
         if camp_total > 0:
-            pool_result = await db.execute(select(CommunityPool).limit(1))
-            pool = pool_result.scalar_one_or_none()
-            if pool:
-                pool.total_issued += camp_total
+            pool = await _get_pool(db)
+            pool.total_issued += camp_total
             lid = _ledger_id()
             await _add_ledger(db, lid, None, "camp_pool", camp_total, "topup", f"营队注资: {camp.name}")
 
