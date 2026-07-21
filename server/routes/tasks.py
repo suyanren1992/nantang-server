@@ -116,7 +116,8 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         pool.task_escrow += req.reward * req.slots
     db.add(task)
     lid = _ledger_id()
-    await _add_ledger(db, lid, user.id, "escrow", req.reward * req.slots, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
+    freeze_from = "community_pool" if req.poster == "社区" else user.id
+    await _add_ledger(db, lid, freeze_from, "escrow", req.reward * req.slots, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
     await db.commit()
     return {"ok": True, "task_id": task_id}
 

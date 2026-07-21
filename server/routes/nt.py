@@ -437,9 +437,10 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
+    if task.poster == user.id:
+        raise HTTPException(status_code=400, detail="不能认领自己发布的任务")
     if task.status != "进行中":
         raise HTTPException(status_code=400, detail=f"任务状态不可接取: {task.status}")
-    import json
     assignees = _safe_assignees(task)
     if len(assignees) >= task.slots:
         raise HTTPException(status_code=409, detail=f"任务已满员（{task.slots}/{task.slots}）")
@@ -513,6 +514,8 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
         task.reject_count = (task.reject_count or 0) + 1
         if task.reject_count >= 3:
             # 超 3 次 → 释放 escrow，自动取消
+            if not task.escrow_amount or task.escrow_amount <= 0:
+                raise HTTPException(status_code=409, detail="任务无托管金额，无法自动取消")
             poster = await db.execute(select(User).where(User.id == task.poster))
             poster = poster.scalar_one_or_none()
             if poster:
@@ -521,7 +524,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
                 pool.balance += task.escrow_amount
             pool.task_escrow -= task.escrow_amount
             lid = _ledger_id()
-            await _add_ledger(db, lid, "community_pool", task.poster or "community_pool",
+            await _add_ledger(db, lid, "escrow", task.poster or "community_pool",
                               task.escrow_amount, "task_auto_cancelled", f"3次退回自动取消: {task.title}", task_id)
             task.status = "已取消"
             task.escrow_amount = 0
@@ -562,7 +565,7 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
         pool.task_escrow -= task.escrow_amount
         lid = _ledger_id()
         refund_target = task.poster if poster else "community_pool"
-        await _add_ledger(db, lid, "community_pool", refund_target, task.escrow_amount,
+        await _add_ledger(db, lid, "escrow", refund_target, task.escrow_amount,
                           "task_cancelled", f"取消任务: {task.title}", task_id)
         task.escrow_amount = 0
     task.status = "已取消"
@@ -897,6 +900,9 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     if pool.balance < 500:
         pool.balance += 50
         pool.total_issued += 50
+        lid_r = _ledger_id()
+        await _add_ledger(db, lid_r, None, "community_pool", 50, "pool_refill",
+                         f"每日补填 {today}", status="settled")
         results["pool_refill"] = 50
 
     pool.last_tick_date = today
