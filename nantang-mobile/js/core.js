@@ -109,6 +109,70 @@ window.Game = {
 // NT 用户注册已在 AppData._seedIfEmpty() 中处理
 // A2 过渡：TASKS 别名指向 AppData
 // A2 过渡完成：TASKS 直接指向 AppData。旧种子数据 _OLD_TASKS 已废弃。
+// R9: 社区管理面板
+function openAdminPanel() {
+  var users = typeof getUsers==='function'?getUsers():{};
+  if ((users[CURRENT_USER]||{}).role !== 'admin') { showToast('仅管理员可访问', 'error'); return; }
+  var h = '<div style="background:#fff;border-radius:16px;width:360px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)">';
+  h += '<div style="padding:16px;border-bottom:1px solid #f0f0f0"><span style="font-weight:700;font-size:.82rem">⚙️ 社区管理</span></div>';
+  h += '<div style="padding:12px 16px">';
+
+  // 待审核新人
+  h += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📋 待审核</div>';
+  h += '<div id="adminPendingList" style="margin-bottom:12px;font-size:.65rem;color:#aaa">加载中…</div>';
+
+  // 发布社区任务
+  h += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📝 发布社区任务</div>';
+  h += '<input id="adminTaskTitle" placeholder="任务标题" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.7rem;margin-bottom:6px;box-sizing:border-box">';
+  h += '<div style="display:flex;gap:6px;margin-bottom:6px">';
+  h += '<input id="adminTaskReward" type="number" value="5" min="1" placeholder="NT" style="flex:1;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.7rem">';
+  h += '<input id="adminTaskSlots" type="number" value="1" min="1" placeholder="人数" style="flex:1;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.7rem">';
+  h += '</div>';
+  h += '<button class="btn-pri" style="width:100%;font-size:.7rem;padding:8px" onclick="_adminPublishTask()">✅ 发布（从社区池扣款）</button>';
+
+  h += '</div>';
+  h += '<button class="btn-sm sec" style="width:calc(100% - 32px);margin:0 16px 16px;font-size:.62rem" onclick="closeDiscoveryForm()">关闭</button>';
+  h += '</div>';
+  _showModal ? _showModal(h) : (function(){ var o=document.createElement('div'); o.className='disc-modal-overlay'; o.style.cssText='position:fixed;inset:0;z-index:350;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5)'; o.innerHTML=h; o.onclick=function(e){if(e.target===o)o.remove()}; document.body.appendChild(o); })();
+
+  // 异步加载待审核列表
+  if (typeof API !== 'undefined' && API.token) {
+    API.request('GET', '/api/admin/pending-newbie').then(function(data) {
+      var el = document.getElementById('adminPendingList');
+      if (!el) return;
+      if (Array.isArray(data) && data.length) {
+        el.innerHTML = data.map(function(v) {
+          return '<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.62rem">' +
+            '👤 ' + esc(v.doer) + ' · ' + esc(v.action) + ' · +' + v.nt_amount + 'NT ' +
+            '<span style="color:var(--green-primary);cursor:pointer" onclick="AppData.verifyAction(\''+v.id+'\',CURRENT_USER,true);setTimeout(function(){openAdminPanel()},500)">[通过]</span> ' +
+            '<span style="color:var(--red);cursor:pointer" onclick="AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);setTimeout(function(){openAdminPanel()},500)">[退回]</span></div>';
+        }).join('');
+      } else {
+        el.innerHTML = '✅ 暂无待审核';
+      }
+    }).catch(function() { el.innerHTML = '加载失败'; });
+  }
+}
+
+function _adminPublishTask() {
+  var title = document.getElementById('adminTaskTitle').value.trim();
+  if (!title) { showToast('请输入任务标题', 'warn'); return; }
+  var reward = parseInt(document.getElementById('adminTaskReward').value, 10) || 5;
+  var slots = parseInt(document.getElementById('adminTaskSlots').value, 10) || 1;
+  if (typeof API !== 'undefined' && API.token) {
+    API.request('POST', '/api/tasks', {title:title, reward:reward, slots:slots, scope:'社区', poster:'社区'}).then(function(r) {
+      if (r.ok) { showToast('社区任务已发布', 'ok'); closeDiscoveryForm(); }
+      else { showToast(r.detail||'发布失败', 'error'); }
+    }).catch(function() { showToast('网络错误', 'error'); });
+  } else {
+    // offline fallback
+    var t = { name: 'T_'+Date.now().toString(36), title:title, type:'other', nt:reward, scope:'社区', status:'进行中', publisher:'社区', slots:slots, note:'', claimants:[], action:'' };
+    AppData._data.tasks[t.name] = t;
+    showToast('社区任务已发布（离线）', 'ok');
+    closeDiscoveryForm();
+  }
+}
+
 // ── 管理员配置 ──
 function openAdminConfig(){
   var cfg = (window.AppData&&AppData._data.map_locations&&AppData._data.map_locations.config) ? AppData._data.map_locations.config : {};
