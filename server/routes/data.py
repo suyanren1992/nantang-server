@@ -12,6 +12,11 @@ from routes.auth import get_current_user, require_admin
 router = APIRouter(prefix="/api/data", tags=["data"])
 
 
+def _safe_json(s):
+    try: return json.loads(s) if s else {}
+    except (json.JSONDecodeError, TypeError): return {}
+
+
 # ── Journal ──
 @router.get("/journal")
 async def get_journal(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
@@ -23,6 +28,8 @@ async def get_journal(user: User = Depends(get_current_user), db: AsyncSession =
 
 @router.post("/journal")
 async def add_journal(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if len(req.get("content", "")) > 10000: raise HTTPException(status_code=400, detail="内容过长")
+    if not req.get("type"): raise HTTPException(status_code=400, detail="类型不能为空")
     j = Journal(user=user.id, type=req.get("type", "daily"), content=req.get("content", ""),
                 time=datetime.utcnow().isoformat(), space_id=req.get("space_id"),
                 discovery_id=req.get("discovery_id"))
@@ -96,7 +103,7 @@ async def get_verifications(user: User = Depends(get_current_user), db: AsyncSes
         q = q.where(Verification.doer == user.id)
     result = await db.execute(q)
     return [{"id": v.id, "type": v.type, "doer": v.doer, "action": v.action,
-             "detail": json.loads(v.detail) if v.detail else {},
+             "detail": _safe_json(v.detail),
              "nt_amount": v.nt_amount, "verifier_reward": v.verifier_reward,
              "status": v.status, "verifier": v.verifier, "verified_at": v.verified_at,
              "reject_reason": v.reject_reason, "retry_count": v.retry_count,
@@ -332,5 +339,16 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
     # 我的新手任务
     n_r = await db.execute(select(NewbieQuest).where(NewbieQuest.user == user.id))
     newbie = [{"quest_id": q.quest_id, "name": q.name, "nt": q.nt, "done": bool(q.done)} for q in n_r.scalars()]
+    # P2: 待校核记录（全社区 pending 状态）
+    v_r = await db.execute(
+        select(Verification).where(Verification.status == "pending")
+        .order_by(Verification.created_at.desc()).limit(50)
+    )
+    verifications = [{"id": v.id, "type": v.type, "doer": v.doer, "action": v.action,
+                      "detail": _safe_json(v.detail), "nt_amount": v.nt_amount,
+                      "verifier_reward": v.verifier_reward, "status": v.status,
+                      "retry_count": v.retry_count, "created_at": v.created_at}
+                     for v in v_r.scalars()]
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
-            "activity": activity, "items": items, "newbie": newbie}
+            "activity": activity, "items": items, "newbie": newbie,
+            "verifications": verifications}

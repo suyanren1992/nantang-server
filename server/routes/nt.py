@@ -1,15 +1,19 @@
 """NT economy routes: transfer, earn, spend, topup, verify."""
-from fastapi import APIRouter, Depends, HTTPException
+import os
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from datetime import datetime
 import secrets
+import json
 from database import get_db
-from models import User, NTLedger, NTTask, CommunityPool
+from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification
 from routes.auth import get_current_user, require_admin
 
 router = APIRouter(prefix="/api/nt", tags=["nt"])
+
+PLATFORM_WALLET = os.environ.get("PLATFORM_WALLET_ADDRESS", "")
 
 
 class TransferRequest(BaseModel):
@@ -43,7 +47,8 @@ def _ledger_id():
 
 
 async def _add_ledger(db: AsyncSession, entry_id: str, from_user: str | None, to_user: str | None,
-                      amount: int, type_: str, reason: str = "", task_id: str = None, status: str = "settled"):
+                      amount: int, type_: str, reason: str = "", task_id: str = None, status: str = "settled",
+                      tx_hash: str = None):
     entry = NTLedger(
         entry_id=entry_id,
         task_id=task_id,
@@ -54,6 +59,7 @@ async def _add_ledger(db: AsyncSession, entry_id: str, from_user: str | None, to
         reason=reason,
         status=status,
         created_at=datetime.utcnow().isoformat(),
+        tx_hash=tx_hash,
     )
     db.add(entry)
 
@@ -76,15 +82,112 @@ async def _get_pool(db: AsyncSession, lock: bool = False) -> CommunityPool:
     result = await db.execute(q)
     pool = result.scalar_one_or_none()
     if not pool:
-        pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0, contribution_pool=0, camp_balance=0, updated_at=datetime.utcnow().isoformat())
+        pool = CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0, updated_at=datetime.utcnow().isoformat())
         db.add(pool)
         await db.flush()
+    # R7 migration guard: 已有数据库的 camp_balance 列可能为 NULL
+    if pool.camp_balance is None:
+        pool.camp_balance = 0
     return pool
+
+
+async def _get_accommodation_status(db: AsyncSession, user_id: str):
+    """查询用户的活跃入住状态。ponytail: 复用已有 Tenancy 模型。"""
+    from models import Tenancy
+    r = await db.execute(
+        select(Tenancy).where(Tenancy.user_id == user_id, Tenancy.status == "active")
+    )
+    t = r.scalar_one_or_none()
+    if not t:
+        return None
+    return {"room_id": t.room_id, "bed_num": t.bed_num,
+            "checkin_date": t.checkin_date, "debt": t.debt,
+            "last_deducted": t.last_deducted}
+
+
+async def _is_onsite(db: AsyncSession, user: User) -> bool:
+    """在地成员判断：admin/builder 始终在地，或有活跃入住记录。
+    ponytail: 过渡期方案，Phase E 完整就位后改用 resident role。"""
+    if user.role in ("admin", "builder"):
+        return True
+    from models import Tenancy
+    r = await db.execute(
+        select(Tenancy).where(Tenancy.user_id == user.id, Tenancy.status == "active")
+    )
+    return r.scalar_one_or_none() is not None
 
 
 @router.get("/balance")
 async def get_balance(user: User = Depends(get_current_user)):
     return {"balance": user.nt_balance, "cv": user.contribution_value, "xp": user.experience_value}
+
+
+@router.get("/sync")
+async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """全量同步：余额/CV/XP/角色/流水/任务/充值意图/冻结余额。Phase C0。"""
+    # 用户的任务（发布或认领）
+    tasks_r = await db.execute(
+        select(NTTask).where(
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id)
+        ).order_by(NTTask.created_at.desc())
+    )
+    all_tasks = list(tasks_r.scalars())
+
+    # 冻结余额：本人发布且 escrow 未释放的任务的 escrow_amount
+    frozen = 0
+    frozen_statuses = ("进行中", "待审核", "待结算", "已争议")
+    for t in all_tasks:
+        if t.poster == user.id and t.status in frozen_statuses:
+            frozen += t.escrow_amount or (t.reward * (t.slots or 1))
+
+    # 近期流水（50 条）
+    ledger_r = await db.execute(
+        select(NTLedger).where(
+            (NTLedger.from_user == user.id) | (NTLedger.to_user == user.id)
+        ).order_by(NTLedger.created_at.desc()).limit(50)
+    )
+    ledger = [{"entry_id": e.entry_id, "from": e.from_user, "to": e.to_user,
+               "amount": e.amount, "type": e.type, "reason": e.reason,
+               "status": e.status, "created_at": e.created_at, "tx_hash": e.tx_hash}
+              for e in ledger_r.scalars()]
+
+    # 充值意图（20 条）
+    di_r = await db.execute(
+        select(DepositIntent).where(DepositIntent.user_id == user.id)
+        .order_by(DepositIntent.created_at.desc()).limit(20)
+    )
+    deposit_intents = [{"id": d.id, "amount": d.amount, "from_address": d.from_address,
+                        "status": d.status, "created_at": d.created_at, "tx_hash": d.tx_hash}
+                       for d in di_r.scalars()]
+
+    # 任务
+    tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
+              "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
+              "assignees": json.loads(t.assignees or "[]"), "slots": t.slots,
+              "deadline": t.deadline, "reviewer": t.reviewer, "note": t.note,
+              "evidence": t.evidence, "escrow_amount": t.escrow_amount,
+              "created_at": t.created_at, "verified_at": t.verified_at,
+              "verifier_id": t.verifier_id} for t in all_tasks]
+
+    return {
+        "balance": user.nt_balance, "cv": user.contribution_value,
+        "xp": user.experience_value, "role": user.role,
+        "trust_score": user.trust_score, "frozen_balance": frozen,
+        "wallet_address": user.wallet_address,
+        "ledger": ledger, "tasks": tasks, "deposit_intents": deposit_intents,
+        # ponytail: C2/C2.5 就位后补 accommodation + pending_verifications
+        "accommodation": await _get_accommodation_status(db, user.id),
+        "pending_verifications": [
+            {"id": v.id, "type": v.type, "doer": v.doer, "action": v.action,
+             "nt_amount": v.nt_amount, "verifier_reward": v.verifier_reward,
+             "status": v.status, "retry_count": v.retry_count,
+             "verifier": v.verifier, "created_at": v.created_at}
+            for v in (await db.execute(
+                select(Verification).where(Verification.status == "pending")
+                .order_by(Verification.created_at.desc()).limit(30)
+            )).scalars()
+        ],
+    }
 
 
 @router.get("/ledger")
@@ -180,6 +283,7 @@ async def spend(req: EarnSpendRequest, user: User = Depends(get_current_user), d
     return {"ok": True, "entry_id": lid, "balance": user.nt_balance}
 
 
+# ponytail: chain_scanner 已接管自动化充值。此端点仅用于例外处理（补账/纠错/线下收款）。
 @router.post("/topup")
 async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     if req.amount <= 0:
@@ -226,26 +330,115 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
     total_user_balance = sum(u.nt_balance for u in users)
 
     pool = await _get_pool(db)
-    # 营队池：从账本统计 camp_pool 净额
+    # 营队池：账本推导值 vs 池表真实值交叉校验
     camp_result = await db.execute(select(NTLedger).where(NTLedger.to_user == "camp_pool"))
     camp_in = sum(e.amount for e in camp_result.scalars())
     camp_out_result = await db.execute(select(NTLedger).where(NTLedger.from_user == "camp_pool"))
     camp_out = sum(e.amount for e in camp_out_result.scalars())
-    camp_pool_balance = camp_in - camp_out
-    total_system = total_user_balance + pool.balance + pool.task_escrow + camp_pool_balance
+    camp_pool_ledger = camp_in - camp_out
+    camp_pool_drift = pool.camp_balance - camp_pool_ledger
+    total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance
 
     return {
-        "pass": abs(total_system - pool.total_issued) <= 1,
+        "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0,
         "checks": {
             "total_user_balance": total_user_balance,
             "community_pool": pool.balance,
             "task_escrow": pool.task_escrow,
-            "camp_pools": camp_pool_balance,
+            "camp_balance": pool.camp_balance,
+            "camp_pool_ledger": camp_pool_ledger,
+            "camp_pool_drift": camp_pool_drift,
             "total_system": total_system,
             "total_issued": pool.total_issued,
             "diff": total_system - pool.total_issued,
         }
     }
+
+
+# ══ 充值意向（链上自动化）══
+
+class DepositIntentRequest(BaseModel):
+    amount: int
+    from_address: str = ""
+
+
+@router.post("/deposit-intent")
+async def create_deposit_intent(req: DepositIntentRequest, user: User = Depends(get_current_user),
+                                db: AsyncSession = Depends(get_db)):
+    if not PLATFORM_WALLET:
+        raise HTTPException(status_code=503, detail="平台钱包未配置")
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="金额必须大于0")
+    from_addr = req.from_address or user.wallet_address
+    if not from_addr:
+        raise HTTPException(status_code=400, detail="请先在个人资料中设置钱包地址")
+
+    # 有进行中的意向时复用，不重复创建
+    existing = (await db.execute(
+        select(DepositIntent).where(
+            DepositIntent.user_id == user.id,
+            DepositIntent.status == "pending"
+        )
+    )).scalar_one_or_none()
+    if existing:
+        return {"ok": True, "intent_id": existing.id, "to_address": PLATFORM_WALLET,
+                "amount": existing.amount, "reuse": True}
+
+    intent_id = f"intent_{datetime.utcnow().strftime('%y%m%d%H%M%S')}_{secrets.token_hex(4)}"
+    intent = DepositIntent(
+        id=intent_id, user_id=user.id, amount=req.amount,
+        from_address=from_addr, to_address=PLATFORM_WALLET,
+        status="pending", created_at=datetime.utcnow().isoformat()
+    )
+    db.add(intent)
+    await db.commit()
+    return {"ok": True, "intent_id": intent_id, "to_address": PLATFORM_WALLET, "amount": req.amount}
+
+
+@router.get("/deposit-intents")
+async def list_deposit_intents(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(DepositIntent).where(DepositIntent.user_id == user.id).order_by(DepositIntent.created_at.desc()).limit(20)
+    )
+    return [{"id": i.id, "amount": i.amount, "from_address": i.from_address,
+             "to_address": i.to_address, "tx_hash": i.tx_hash, "status": i.status,
+             "created_at": i.created_at, "detected_at": i.detected_at}
+            for i in result.scalars()]
+
+
+@router.get("/deposit-intents/admin")
+async def admin_deposit_intents(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db),
+                                limit: int = 50):
+    result = await db.execute(
+        select(DepositIntent).order_by(DepositIntent.created_at.desc()).limit(limit)
+    )
+    return [{"id": i.id, "user_id": i.user_id, "amount": i.amount,
+             "from_address": i.from_address, "to_address": i.to_address,
+             "tx_hash": i.tx_hash, "status": i.status,
+             "created_at": i.created_at, "detected_at": i.detected_at}
+            for i in result.scalars()]
+
+
+@router.get("/chain-balance")
+async def chain_balance():
+    """读取多签钱包在链上的实际 NT 余额。"""
+    if not PLATFORM_WALLET:
+        return {"ok": False, "error": "平台钱包未配置"}
+    try:
+        from web3 import Web3
+        import os
+        rpc = os.environ.get("OP_RPC_URL", "https://mainnet.optimism.io")
+        token_addr = os.environ.get("NT_TOKEN_CONTRACT", "")
+        if not token_addr:
+            return {"ok": False, "error": "NT_TOKEN_CONTRACT 未配置"}
+        w3 = Web3(Web3.HTTPProvider(rpc))
+        abi = '[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"}]'
+        c = w3.eth.contract(address=w3.to_checksum_address(token_addr), abi=abi)
+        decimals = c.functions.decimals().call()
+        raw = c.functions.balanceOf(w3.to_checksum_address(PLATFORM_WALLET)).call()
+        return {"ok": True, "balance": raw // 10**decimals, "balance_raw": raw, "decimals": decimals, "wallet": PLATFORM_WALLET}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 @router.get("/pools")
@@ -268,8 +461,17 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
         raise HTTPException(status_code=404, detail="任务不存在")
     if task.status != "进行中":
         raise HTTPException(status_code=400, detail=f"任务状态不可接取: {task.status}")
-    if task.assignee: raise HTTPException(status_code=409, detail="任务已被接取")
-    task.assignee = user.id
+    import json
+    assignees = json.loads(task.assignees or "[]")
+    if not assignees and task.assignee:
+        assignees = [task.assignee]  # fallback 旧格式
+    if len(assignees) >= task.slots:
+        raise HTTPException(status_code=409, detail=f"任务已满员（{task.slots}/{task.slots}）")
+    if user.id in assignees:
+        raise HTTPException(status_code=409, detail="你已接取此任务")
+    assignees.append(user.id)
+    task.assignees = json.dumps(assignees)
+    task.assignee = assignees[0]  # 向后兼容旧列
     task.status = "进行中"
     task.accepted_at = datetime.utcnow().isoformat()
     await _adjust_trust(user, 2)
@@ -278,7 +480,7 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
 
 
 @router.post("/tasks/{task_id}/verify")
-async def verify_task(task_id: str, approved: bool = True, reject_reason: str = "",
+async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: str = Body(""),
                       user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
     task = result.scalar_one_or_none()
@@ -291,15 +493,19 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
 
     pool = await _get_pool(db)
     if approved:
-        assignee = await db.execute(select(User).where(User.id == task.assignee))
-        assignee = assignee.scalar_one_or_none()
-        if not assignee:
+        import json
+        assignee_ids = json.loads(task.assignees or "[]")
+        if not assignee_ids and task.assignee:
+            assignee_ids = [task.assignee]  # fallback 旧格式
+        if not assignee_ids:
             raise HTTPException(status_code=400, detail="任务执行者不存在")
-        assignee.nt_balance += task.reward
-        assignee.experience_value += task.reward
-        assignee.contribution_value += task.reward
-        await _adjust_trust(assignee, 5)
-        pool.task_escrow -= task.reward
+        for aid in assignee_ids:
+            a = (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
+            if a:
+                a.nt_balance += task.reward
+                a.experience_value += task.reward
+                await _adjust_trust(a, 5)
+        pool.task_escrow -= task.reward * len(assignee_ids)
         task.status = "待结算"
         task.verifier_id = user.id
         task.verified_at = datetime.utcnow().isoformat()
@@ -310,9 +516,21 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
         if poster:
             await _adjust_trust(poster, 3)
 
+        # 部分领取：未领份额 (slots - 实领人数) × reward 退还发布者
+        unclaimed = task.reward * ((task.slots or 1) - len(assignee_ids))
+        if unclaimed > 0:
+            if poster:
+                poster.nt_balance += unclaimed
+            else:
+                pool.balance += unclaimed  # 发布者不存在时回流社区池
+            pool.task_escrow -= unclaimed
+            lid_u = _ledger_id() + "-u"
+            await _add_ledger(db, lid_u, "escrow", task.poster, unclaimed, "task_refund",
+                              f"未领份额退还({(task.slots or 1) - len(assignee_ids)}个名额): {task.title}", task_id)
+
         lid = _ledger_id()
-        await _add_ledger(db, lid, "escrow", task.assignee, task.reward, "task_reward",
-                          f"任务完成: {task.title}", task_id)
+        await _add_ledger(db, lid, "escrow", assignee_ids[0], task.reward, "task_reward",
+                          f"任务完成({len(assignee_ids)}人): {task.title}", task_id)
     else:
         # 退回修改 — escrow 保持冻结，允许修改后重新提交
         task.status = "退回修改"
@@ -323,13 +541,13 @@ async def verify_task(task_id: str, approved: bool = True, reject_reason: str = 
             poster = await db.execute(select(User).where(User.id == task.poster))
             poster = poster.scalar_one_or_none()
             if poster:
-                poster.nt_balance += task.reward
+                poster.nt_balance += task.escrow_amount
             else:
-                pool.balance += task.reward
-            pool.task_escrow -= task.reward
+                pool.balance += task.escrow_amount
+            pool.task_escrow -= task.escrow_amount
             lid = _ledger_id()
             await _add_ledger(db, lid, "community_pool", task.poster or "community_pool",
-                              task.reward, "task_auto_cancelled", f"3次退回自动取消: {task.title}", task_id)
+                              task.escrow_amount, "task_auto_cancelled", f"3次退回自动取消: {task.title}", task_id)
             task.status = "已取消"
             task.escrow_amount = 0
 
@@ -344,8 +562,8 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
     if not task: raise HTTPException(status_code=404)
     if task.poster != user.id and user.role != "admin":
         raise HTTPException(status_code=403)
-    if task.status in ("已结算", "待结算", "已取消"):
-        raise HTTPException(status_code=400, detail="不可取消已结算/已取消任务")
+    if task.status in ("已结算", "待结算", "已取消", "已争议"):
+        raise HTTPException(status_code=400, detail="不可取消已结算/已取消/已争议任务")
     if task.escrow_amount > 0:
         pool = await _get_pool(db)
         poster = (await db.execute(select(User).where(User.id == task.poster))).scalar_one_or_none()
@@ -366,7 +584,8 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
     result = await db.execute(select(NTTask).where(NTTask.id == task_id))
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
-    if task.assignee != user.id: raise HTTPException(status_code=403, detail="只有认领者可以提交")
+    a_ids = json.loads(task.assignees or "[]") or ([task.assignee] if task.assignee else [])
+    if user.id not in a_ids: raise HTTPException(status_code=403, detail="只有认领者可以提交")
     if task.status not in ("进行中", "待提交", "退回修改"):
         raise HTTPException(status_code=400, detail=f"任务状态不可提交: {task.status}")
     task.evidence = evidence
@@ -375,13 +594,219 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
     await db.commit()
     return {"ok": True}
 
+
+@router.post("/tasks/{task_id}/settle")
+async def settle_task(task_id: str, user: User = Depends(get_current_user),
+                      db: AsyncSession = Depends(get_db)):
+    """结算任务——仅任务发布者或管理员可操作。ponytail: 最小实现。"""
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id))
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.poster != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="仅发布者或管理员可结算")
+    if task.status != "待结算":
+        raise HTTPException(status_code=400, detail=f"任务状态不可结算: {task.status}")
+    task.status = "已结算"
+    task.settled_at = datetime.utcnow().isoformat()
+    task.settler_id = user.id
+    lid = _ledger_id()
+    await _add_ledger(db, lid, task.poster, "system", 0, "task_settled",
+                      f"任务结算: {task.title}", task_id, status="settled")
+    await db.commit()
+    return {"ok": True, "status": "已结算"}
+
+
 @router.post("/tasks/{task_id}/dispute")
 async def dispute_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(NTTask).where(NTTask.id == task_id))
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
-    if task.poster != user.id and task.assignee != user.id:
+    a_ids = json.loads(task.assignees or "[]") or ([task.assignee] if task.assignee else [])
+    if task.poster != user.id and user.id not in a_ids:
         raise HTTPException(status_code=403, detail="只有任务参与者可以发起争议")
+    # 状态白名单：已结算/待结算/已取消/已争议的任务不可再争议（防争议→仲裁双重赔付）
+    if task.status not in ("进行中", "待提交", "待审核", "退回修改"):
+        raise HTTPException(status_code=400, detail=f"任务状态不可争议: {task.status}")
     task.status = "已争议"
     await db.commit()
     return {"ok": True}
+
+
+class ResolveTaskRequest(BaseModel):
+    action: str  # refund_poster | release_assignee | split_5050
+
+
+# B2b: 争议仲裁 — 仅管理员，仅允许「已争议」状态
+@router.post("/tasks/{task_id}/resolve")
+async def resolve_task(task_id: str, req: ResolveTaskRequest, admin: User = Depends(require_admin),
+                       db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status != "已争议":
+        raise HTTPException(status_code=400, detail=f"仅已争议任务可仲裁: {task.status}")
+    if req.action not in ("refund_poster", "release_assignee", "split_5050"):
+        raise HTTPException(status_code=400, detail=f"无效的仲裁动作: {req.action}")
+
+    import json
+    assignee_ids = json.loads(task.assignees or "[]")
+    if not assignee_ids and task.assignee:
+        assignee_ids = [task.assignee]  # fallback 旧格式
+    if req.action in ("release_assignee", "split_5050") and not assignee_ids:
+        raise HTTPException(status_code=400, detail="任务执行者不存在")
+
+    pool = await _get_pool(db)
+    # 以实际托管金额为准（非 reward×slots 重算），防 dispute 守卫漏洞导致重复赔付
+    escrow = task.escrow_amount or 0
+    if escrow <= 0:
+        raise HTTPException(status_code=400, detail="任务无托管金额，无法仲裁")
+    pool.task_escrow -= escrow
+    task.escrow_amount = 0
+    ledger_entries = []
+
+    # 发布者份额：refund_poster 全额 / split_5050 一半
+    if req.action in ("refund_poster", "split_5050"):
+        poster_share = escrow if req.action == "refund_poster" else escrow // 2
+        poster = (await db.execute(select(User).where(User.id == task.poster))).scalar_one_or_none()
+        if poster:
+            poster.nt_balance += poster_share
+            poster.updated_at = datetime.utcnow().isoformat()
+        else:
+            pool.balance += poster_share  # 发布者账户不存在时回流社区池，防 NT 蒸发
+        lid = f"{_ledger_id()}-{len(ledger_entries)}"  # 同请求内防 entry_id 撞唯一键
+        await _add_ledger(db, lid, "escrow", task.poster, poster_share, "task_refund",
+                          f"争议仲裁退回发布者: {task.title}", task_id)
+        ledger_entries.append(lid)
+
+    # 执行者份额：release_assignee 全额平分 / split_5050 剩余一半平分（余数归第一人）
+    if req.action in ("release_assignee", "split_5050"):
+        assignee_total = escrow if req.action == "release_assignee" else escrow - escrow // 2
+        per = assignee_total // len(assignee_ids)
+        for i, aid in enumerate(assignee_ids):
+            share = per + (assignee_total - per * len(assignee_ids)) if i == 0 else per
+            a = (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
+            if a:
+                a.nt_balance += share
+                a.updated_at = datetime.utcnow().isoformat()
+            else:
+                pool.balance += share  # 执行者账户不存在时回流社区池，防 NT 蒸发
+            lid = f"{_ledger_id()}-{len(ledger_entries)}"
+            await _add_ledger(db, lid, "escrow", aid, share, "task_reward",
+                              f"争议仲裁释放({len(assignee_ids)}人): {task.title}", task_id)
+            ledger_entries.append(lid)
+
+    task.status = "已取消" if req.action == "refund_poster" else "待结算"
+    await db.commit()
+    return {"ok": True, "task_id": task_id, "new_status": task.status, "ledger_entries": ledger_entries}
+
+
+# ══ 校核制端点（C2：第四条资金路径）══
+
+class VerificationApproveRequest(BaseModel):
+    doer: str
+    action: str
+    nt_amount: int = 0
+    verifier_reward: int = 0
+
+
+@router.post("/verifications/{vfy_id}/approve")
+async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
+                                user: User = Depends(get_current_user),
+                                db: AsyncSession = Depends(get_db)):
+    """Peer 校核通过——从社区池发放 NT 给 doer + verifier。ponytail: 最小实现，完整校核规则在 Phase D2。"""
+    # 从 Verification 表获取权威金额（不信任客户端传入值）
+    from models import Verification as VfyModel
+    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id))
+    vfy = vfy_r.scalar_one_or_none()
+    if not vfy:
+        raise HTTPException(status_code=404, detail="校核记录不存在")
+    if vfy.status != "pending":
+        raise HTTPException(status_code=400, detail="校核已处理")
+    # 非自校核
+    if vfy.doer == user.id:
+        raise HTTPException(status_code=400, detail="不能校核自己的操作")
+    # 校核 NT 走服务端先：扣社区池 → earn（金额从 Verification 表取，不信任客户端）
+    pool = await _get_pool(db)
+    nt_amount = vfy.nt_amount or 0
+    verifier_reward = vfy.verifier_reward or 0
+    total_payout = nt_amount + verifier_reward
+    if pool.balance < total_payout:
+        raise HTTPException(status_code=400, detail="社区池余额不足")
+    pool.balance -= total_payout
+    # 更新校核状态
+    vfy.status = "verified"
+    vfy.verifier = user.id
+    vfy.verified_at = datetime.utcnow().isoformat()
+    # 发放 NT 给 doer
+    doer = (await db.execute(select(User).where(User.id == vfy.doer))).scalar_one_or_none()
+    if doer and nt_amount > 0:
+        doer.nt_balance += nt_amount
+        lid = _ledger_id()
+        await _add_ledger(db, lid, "community_pool", vfy.doer, nt_amount, "earn",
+                          f"校核通过: {vfy.action}", status="settled")
+    # 发放 verifier 奖励
+    if verifier_reward > 0:
+        user.nt_balance += verifier_reward
+        lid2 = _ledger_id() + "-v"
+        await _add_ledger(db, lid2, "community_pool", user.id, verifier_reward, "earn",
+                          f"校核奖励: {vfy.action}", status="settled")
+    await db.commit()
+    return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
+            "verifier_balance": user.nt_balance}
+
+
+@router.post("/verifications/{vfy_id}/reject")
+async def reject_verification(vfy_id: str, user: User = Depends(get_current_user)):
+    """Peer 驳回校核——仅记录，不涉及 NT。ponytail: 最小实现。"""
+    return {"ok": True, "rejected": True}
+
+
+# ══ 每日 tick（C2.6：替代客户端 _dailyTick）══
+system_router = APIRouter(prefix="/api/system", tags=["system"])
+
+
+@system_router.post("/daily-tick")
+async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """客户端登录时触发——幂等：同一天不重复执行。"""
+    from models import Tenancy
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+
+    pool = await _get_pool(db, lock=True)
+    if pool.last_tick_date == today:
+        return {"ok": True, "skipped": True, "date": today}
+
+    results = {"date": today, "accommodation_fees": 0, "pool_refill": 0}
+
+    # 1. 住宿费扣款
+    tenancies_r = await db.execute(
+        select(Tenancy).where(Tenancy.status == "active")
+    )
+    NIGHTLY_RATE = 10  # ponytail: 硬编码，后续从 accommodation_pricing 配置读取
+    for t in tenancies_r.scalars():
+        if t.last_deducted == today:
+            continue
+        tenant_user = (await db.execute(select(User).where(User.id == t.user_id))).scalar_one_or_none()
+        if not tenant_user:
+            continue
+        if tenant_user.nt_balance >= NIGHTLY_RATE:
+            tenant_user.nt_balance -= NIGHTLY_RATE
+            pool.balance += NIGHTLY_RATE
+            lid = _ledger_id()
+            await _add_ledger(db, lid, tenant_user.id, "community_pool", NIGHTLY_RATE,
+                              "accommodation_fee", f"住宿费 {today}", status="settled")
+            results["accommodation_fees"] += NIGHTLY_RATE
+        else:
+            t.debt += NIGHTLY_RATE
+        t.last_deducted = today
+
+    # 2. 社区池补填
+    if pool.balance < 500:
+        pool.balance += 50
+        pool.total_issued += 50
+        results["pool_refill"] = 50
+
+    pool.last_tick_date = today
+    await db.commit()
+    return {"ok": True, **results}
