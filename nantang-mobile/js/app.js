@@ -65,16 +65,7 @@ function _defaultConfig() { return {
     dorm103:{ perBed:30, ac:true }, dorm104:{ perRoom:60, ac:true },
     dorm105:{ perBed:30, ac:true }, dorm106:{ perBed:35, ac:true }
   },
-  newbie_quest_steps: [
-    { id:'register', title:'注册+设置头像', nt:5 },
-    { id:'tour', title:'参观社区（引导者接待）', nt:5 },
-    { id:'photo', title:'拍照打卡', nt:5 },
-    { id:'clean', title:'第一次打扫', nt:10 },
-    { id:'cook', title:'第一次帮厨', nt:10 },
-    { id:'meet', title:'认识一位伙伴', nt:5 },
-    { id:'morning', title:'完成晨练', xp:5 },
-    { id:'bonus', title:'全部完成奖励', nt:10 }
-  ],
+  // E3.4: System B newbie_quest_steps 已删除，不再从 _mlConfig 读取
   dirtiness_rates: { bathroom:15, kitchen:10, hallway:8, studio:8, bedroom:5, laundry:5, storage:3, outdoor:2, field:0 },
   dirtiness_thresholds: { green:30, yellow:60, red:80 },
   item_expiry_days: 5,
@@ -99,6 +90,8 @@ function _deepMerge(def, cfg) { var r = {}; Object.keys(def).forEach(function(k)
 function _mlConfig() { return _deepMerge(_defaultConfig(), _ml().config||{}); }
 function _todayStr() { var ct = (typeof Clock !== 'undefined' && Clock.today) ? Clock.today() : null; return ct ? ct.slice(5,10) : new Date().toISOString().slice(5,10); }
 function _roomItems(roomId) { return (_mlState().room_items||[]).filter(function(i){return i.room===roomId;}); }
+// 种子数据灰显：_seed 标记的示例数据用虚线灰显
+function _seedStyle(o) { return (o && o._seed) ? 'opacity:.5;outline:1px dashed #999;' : ''; }
 // 统一数据：住宿房间从 AppData accommodations 读真实入住
 function _getRoomLiveData(roomId) { var accs=(window.AppData&&AppData._data.map_locations&&AppData._data.map_locations.accommodations)||{}; var a=accs[roomId]; if(!a)return null; if(!a.tenants)a.tenants=[]; return {tenants:a.tenants,price:a.pricePerBed||30,beds:a.beds||1,label:a.label||'',ac:a.ac||''}; }
 
@@ -463,7 +456,7 @@ function _renderCampSection() {
   var camps = (window.AppData && AppData._data.camps) ? Object.values(AppData._data.camps).filter(function(c){return c.status==='active';}) : [];
   if (!camps.length) return null;
   return camps.map(function(c){
-    return '<div class="camp-card" style="padding:8px 0;border-bottom:1px dotted #f0f0f0;cursor:pointer" onclick="if(window.Game&&Game.openCamp)Game.openCamp(\''+c.id+'\')">'+
+    return '<div class="camp-card" style="padding:8px 0;border-bottom:1px dotted #f0f0f0;cursor:pointer;'+_seedStyle(c)+'" onclick="if(window.Game&&Game.openCamp)Game.openCamp(\''+c.id+'\')">'+
       '<span style="font-weight:700;font-size:.68rem">'+c.emoji+' '+c.name+'</span> <span style="color:#999;font-size:.6rem">👥'+c.people+'/'+c.max+'人 · '+c.date+'</span> <span style="color:var(--green-primary);font-size:.6rem;float:right">进入 ▸</span></div>';
   }).join('');
 }
@@ -706,7 +699,7 @@ function buildRoomDetail(room) {
     allItems.forEach(function(it, idx){
       var statusLabel = it.status==='warn'?'注意':it.status==='expired'?'过期':'正常';
       var statusClass = it.status==='warn'?'is-warn':it.status==='expired'?'is-bad':'is-clean';
-      body += '<div class="item-row"><div class="ir-icon">'+it.icon+'</div><div class="ir-text">'+it.text+'<div class="ir-sub">'+(it.sub||'')+'</div></div><div class="item-status '+statusClass+'">'+statusLabel+'</div></div>';
+      body += '<div class="item-row" style="'+_seedStyle(it)+'"><div class="ir-icon">'+it.icon+'</div><div class="ir-text">'+it.text+'<div class="ir-sub">'+(it.sub||'')+'</div></div><div class="item-status '+statusClass+'">'+statusLabel+'</div></div>';
     });
   }
 
@@ -745,6 +738,17 @@ function goTo(i) {
   currentIdx = i; selectedRoomId = null; currentFloor = 0; overviewOpen = false;
   var bld = getBuildings()[i];
   if (bld && window.Game && window.Game.setMemberLocation) { window.Game.setMemberLocation(bld.id); }
+  // E3.4: checkin_5 quest hook — 进入社区空间
+  if (bld && bld.id && window.AppData) {
+    if (!AppData._data.visitedSpaces) AppData._data.visitedSpaces = [];
+    if (AppData._data.visitedSpaces.indexOf(bld.id) === -1) {
+      AppData._data.visitedSpaces.push(bld.id);
+      if (AppData._data.visitedSpaces.length >= 5 && typeof _completeNewbieQuest === 'function') {
+        _completeNewbieQuest(CURRENT_USER, 'checkin_5');
+      }
+      AppData._save();
+    }
+  }
   render();
   var track = _q('bcTrack'); if (!track) return;
   var cards = track.querySelectorAll('.bc-card');
@@ -1085,7 +1089,7 @@ function _showStaySheet() {
     var full = occupiedBeds >= (r.beds||1);
     var price = r.pricePerBed || 30;
     var expanded = _expandedRoom === r._id || myBed;
-    h += '<div style="border:1px solid '+(myBed?'var(--green-primary)':'#e0e0e0')+';border-radius:10px;padding:10px;margin-bottom:6px;'+(myBed?'background:#f5faf5':'')+'">'+
+    h += '<div style="border:1px solid '+(myBed?'var(--green-primary)':'#e0e0e0')+';border-radius:10px;padding:10px;margin-bottom:6px;'+(myBed?'background:#f5faf5':'')+_seedStyle(r)+'">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="_expandRoom(\''+r._id+'\')"><b style="font-size:.7rem">'+r.label+'</b><span style="font-size:.6rem;color:#999">'+price+'NT/床/天 · '+r.ac+' · '+occupiedBeds+'/'+r.beds+'床 <span style="font-size:.55rem">'+(expanded?'▾':'▸')+'</span></span></div>';
     if (expanded) {
       var beds = '';
@@ -1126,6 +1130,18 @@ function _checkoutBed() {
   if (!confirm('确认退房？\n'+found.room.label+' 床位'+found.t.bed+'\n入住 '+found.t.checkIn+' → 离店 '+found.t.checkOut)) return;
   found.room.tenants.splice(found.idx, 1);
   if (window.AppData) { AppData._saveShared(true); AppData.flipPresence(me, 'cloud', null); }
+  // E3.3: 检查是否还有其他房间的 tenant，没有则降级为 visitor
+  var hasOther = false;
+  Object.keys(accs).forEach(function(rid2){
+    if (rid2 === found.id) return;
+    var rr = accs[rid2];
+    if (rr.tenants && rr.tenants.find(function(t){return t.name===me;})) hasOther = true;
+  });
+  if (!hasOther && typeof changeUserRole === 'function') { changeUserRole(me, 'visitor'); }
+  // 服务端同步退房
+  if (typeof API !== 'undefined' && API.token) {
+    API.request('POST', '/api/accommodation/checkout').catch(function(){});
+  }
   if (window.Game&&Game.toast) Game.toast('已退房 · 状态已切为云在线');
   _expandedRoom = null; _selectedBed = null;
   var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
@@ -1143,12 +1159,31 @@ function _applyStay() {
   if (!room) return;
   if (!room.tenants) room.tenants = [];
   if (room.tenants.find(function(t){return t.bed===_selectedBed.bed;})) { if (window.Game&&Game.toast) Game.toast('该床位已被占用'); return; }
-  room.tenants.push({ name:_me(), bed:_selectedBed.bed, checkIn:checkIn, checkOut:checkOut });
-  if (window.AppData) AppData._saveShared(true);
-  if (window.Game&&Game.toast) Game.toast('已入住 '+room.label+' 床位'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
-  _selectedBed = null; _expandedRoom = null;
-  var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
-  render();
+
+  // E3.2: 签署公约确认
+  var doCheckin = function() {
+    room.tenants.push({ name:_me(), bed:_selectedBed.bed, checkIn:checkIn, checkOut:checkOut });
+    if (window.AppData) AppData._saveShared(true);
+    // 角色变更：visitor → npc
+    if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
+    // 服务端同步
+    if (typeof API !== 'undefined' && API.token) {
+      API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(){});
+    }
+    if (window.Game&&Game.toast) Game.toast('已入住 '+room.label+' 床位'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
+    // 新手引导
+    if (typeof showNewbieOnEntry === 'function') setTimeout(function(){ showNewbieOnEntry(); }, 400);
+    _selectedBed = null; _expandedRoom = null;
+    var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
+    render();
+  };
+
+  // 弹出公约确认
+  if (!confirm('📜 南塘社区公约\n\n入住即表示你同意遵守社区公约：\n• 尊重在地伙伴，友善相处\n• 保持空间整洁，参与大扫除\n• 物品取用登记，不私占公共资源\n• 按床位付费，不拖欠住宿费\n\n点击「确定」签署公约并入住')) return;
+  // CR3: quest 完成移到 confirm 之后
+  if (typeof _completeNewbieQuest === 'function') { _completeNewbieQuest(_me(), 'sign_covenant'); }
+  if (typeof changeUserRole === 'function') { changeUserRole(_me(), 'npc'); }
+  doCheckin();
 }
 
 function _toggleForm(type) {
@@ -1511,6 +1546,17 @@ function renderKitchenPanel() {
       h += '<div class="item-row" style="font-size:.62rem"><span>📦</span> '+it.name+' · '+it.putBy+expireWarn+'</div>';
     });
   });
+  // 其他空间的库存（快捷录入按建筑 id 归集；office 已在上面的冰箱分区展示）
+  var invAll = (window.AppData && AppData._data.inventory) ? AppData._data.inventory : {};
+  Object.keys(invAll).forEach(function(sid) {
+    if (sid === 'office') return;
+    var list = (invAll[sid]||[]).filter(function(it){ return it.status === 'fresh'; });
+    if (!list.length) return;
+    h += '<div style="font-size:.62rem;font-weight:600;color:#5a6e5c;margin:4px 0 2px">📍 '+sid+' ('+list.length+'件)</div>';
+    list.forEach(function(it) {
+      h += '<div class="item-row" style="font-size:.62rem"><span>📦</span> '+it.name+' · '+(it.putBy||'')+' · '+(it.location||'')+'</div>';
+    });
+  });
   // ═══ 物品卡片 ═══
   h += '<div class="mgmt-card-grid">';
   items.forEach(function(it) {
@@ -1549,8 +1595,8 @@ function _submitKitchenLog() {
   _syncItemToAppData(action, item, location);
   renderMgmtPanel('kitchen');
 }
-// Step 2: 物品操作同步到 AppData + NT 奖励
-function _syncItemToAppData(action, itemName, location) {
+// Step 2: 物品操作同步到 AppData + NT 奖励（skipVerify=true 时只同步库存，校核记录由调用方写）
+function _syncItemToAppData(action, itemName, location, skipVerify) {
   if (!window.AppData) return;
   var inv = AppData._data.inventory;
   var spaceId = (curBuilding()||{}).id || 'unknown';
@@ -1568,15 +1614,15 @@ function _syncItemToAppData(action, itemName, location) {
     if (!found) inv[spaceId].push({ name: itemName, location: location, putBy: _me(), putDate: (typeof Clock!=='undefined'?Clock.today():''), status: 'consumed', consumedBy: _me() });
   }
   AppData._save(true);
-  // 校核制：物品操作进入待校核队列
+  // 校核制：物品操作进入待校核队列（skipVerify 时跳过，由调用方自行记录，避免一次动作双记）
   if (action === '放入物品') {
     var cfg2 = _mlConfig();
     var stockInNT = (cfg2.nt_rewards&&cfg2.nt_rewards.stock_in) ? cfg2.nt_rewards.stock_in : 2;
-    if (window.AppData) AppData.addVerification('stock_in', _me(), '放入 '+itemName, { space: spaceId, item: itemName }, stockInNT, 1);
+    if (!skipVerify && window.AppData) AppData.addVerification('stock_in', _me(), '放入 '+itemName, { space: spaceId, item: itemName }, stockInNT, 1);
     if (typeof addJournal === 'function') addJournal(_me(), 'stock_in', '放入 '+itemName, { space: spaceId, linkedItems: [itemName] });
   } else if (action === '取出/消耗') {
     var stockOutNT = (_mlConfig().nt_rewards&&_mlConfig().nt_rewards.stock_out) ? _mlConfig().nt_rewards.stock_out : 1;
-    if (window.AppData) AppData.addVerification('stock_out', _me(), '消耗 '+itemName, { space: spaceId, item: itemName }, stockOutNT, 1);
+    if (!skipVerify && window.AppData) AppData.addVerification('stock_out', _me(), '消耗 '+itemName, { space: spaceId, item: itemName }, stockOutNT, 1);
   }
 }
 
@@ -1893,7 +1939,7 @@ function _openVerificationPanel() {
   h += '<div style="font-weight:700;font-size:.72rem;margin-bottom:6px">📋 待校核 ('+pending.length+')</div>';
   if (!pending.length) { h += '<div style="text-align:center;color:#999;padding:8px;font-size:.62rem">暂无</div>'; }
   else pending.slice(0,5).forEach(function(v){
-    var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', field_harvest:'🌿', field_action:'🌿', daily_container:'🗑️', quest:'📋', stay:'🛏️', other:'⭐' };
+    var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', store_in:'🏬', field_harvest:'🌿', field_action:'🌿', daily_container:'🗑️', quest:'📋', stay:'🛏️', labor_report:'📝', other:'⭐' };
     var isMe = v.doer === me || v.doer === null;
     h += '<div style="background:#fafaf5;border:1px solid #e0e0e0;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:.62rem">';
     h += '<div style="display:flex;justify-content:space-between"><b>'+icons[v.type]+' '+(v.doer||'系统')+'</b><span style="color:var(--green-primary)">+'+v.ntAmount+' NT</span></div>';
@@ -1928,6 +1974,10 @@ function _openQuickSheet(title, bodyHTML) {
 
 // ── 厨房 ──
 function _openKitchenQuick() {
+  // E3.7: 权限门 — visitor 不能存取物品
+  if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
+    if (window.Game&&Game.toast) Game.toast('入住后可用'); return;
+  }
   var presets = [
     {n:'白菜',i:'🥬'},{n:'鸡蛋',i:'🥚'},{n:'猪肉',i:'🥩'},{n:'牛奶',i:'🥛'},
     {n:'大米',i:'🍚'},{n:'豆腐',i:'🫘'},{n:'调料',i:'🧂'},{n:'纸巾',i:'🧻'},
@@ -1993,7 +2043,11 @@ function _submitKitchenEntry() {
   var name = sel.icon + ' ' + sel.name;
   var fullNote = act.label + ' ' + name + (note ? ' · ' + note : '');
   if (window.AppData) {
-    AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action }, act.nt, 1);
+    // act.action 是英文（stock_in/stock_out/store_in），_syncItemToAppData 吃中文
+    var actionMap = { stock_in: '放入物品', stock_out: '取出/消耗', store_in: '放入物品' };
+    // skipVerify=true：校核记录只由下面这条写，避免一次动作两条记录
+    _syncItemToAppData(actionMap[act.action] || act.action, sel.name, (curBuilding()||{}).id || '', true);
+    AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: (curBuilding()||{}).id || '' }, act.nt, 1);
   }
   _closeQuickSheet();
   showToast('✅ '+act.label+' '+name, 'ok');
@@ -2039,7 +2093,7 @@ function _openCleanQuick() {
   });
   spaces.sort(function(a,b){ return b.dirtiness - a.dirtiness; });
   var body = '<div class="quick-sheet__card-grid" style="display:flex;flex-wrap:wrap;gap:4px">'+spaces.map(function(s){
-    return '<div class="quick-sheet__preset-btn" data-dirtiness="'+s.dirtiness+'" style="flex:0 0 calc(33%-4px);padding:8px 6px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;text-align:center;font-size:.6rem;min-height:44px" onclick="var ss=this;var p=this.parentElement;var prev=p.querySelector(\'[data-selected]\');if(prev&&prev!==ss){prev.removeAttribute(\'data-selected\');prev.style.border=\'1px solid #d0d9ce\'}if(ss.hasAttribute(\'data-selected\')){ss.removeAttribute(\'data-selected\');ss.style.border=\'1px solid #d0d9ce\'}else{ss.setAttribute(\'data-selected\',\'1\');ss.style.border=\'2px solid var(--green-primary)\'}">'+
+    return '<div class="quick-sheet__preset-btn" data-id="'+s.id+'" data-dirtiness="'+s.dirtiness+'" style="flex:0 0 calc(33%-4px);padding:8px 6px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;text-align:center;font-size:.6rem;min-height:44px" onclick="var ss=this;var p=this.parentElement;var prev=p.querySelector(\'[data-selected]\');if(prev&&prev!==ss){prev.removeAttribute(\'data-selected\');prev.style.border=\'1px solid #d0d9ce\'}if(ss.hasAttribute(\'data-selected\')){ss.removeAttribute(\'data-selected\');ss.style.border=\'1px solid #d0d9ce\'}else{ss.setAttribute(\'data-selected\',\'1\');ss.style.border=\'2px solid var(--green-primary)\'}">'+
       '<div>'+s.icon+'</div><div style="font-weight:600">'+s.name+'</div>'+
       '<div style="color:'+(s.dirtiness>=60?'var(--g-red)':s.dirtiness>=30?'#c8892e':'var(--green-primary)')+'">'+s.statusIcon+' '+s.status+' · +'+s.nt+' NT</div></div>';
   }).join('')+'</div>'+
@@ -2048,13 +2102,40 @@ function _openCleanQuick() {
   _openQuickSheet('🧹 快速打扫', body);
 }
 function _submitCleanEntry() {
+  // E3.7: 权限门 — visitor 不能参与大扫除
+  if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
+    showToast('入住后可用', 'warn'); return;
+  }
   var selected = document.querySelector('.quick-sheet__card-grid .quick-sheet__preset-btn[data-selected]');
   var spaceName = selected ? (selected.querySelector('div:nth-child(2)')||{}).textContent : '未知空间';
+  var spaceId = selected ? (selected.getAttribute('data-id')||'') : '';
   var dirtiness = parseInt(selected ? (selected.getAttribute('data-dirtiness')||'0') : '0', 10);
   var st = dirtiness >= 60 ? 'red' : dirtiness >= 30 ? 'yellow' : 'green';
   var prices = _cleaningPricing();
   var reward = st === 'red' ? prices.dirty : st === 'yellow' ? prices.warning : prices.clean;
-  if (window.AppData) AppData.addVerification('cleaning', _me(), '打扫了 '+spaceName, { space: spaceName }, reward, Math.ceil(reward/5));
+  if (window.AppData) {
+    // 防刷：每 3 天最多 N 次快速打扫（N = 在地成员数，至少 1）
+    var _users = AppData._data.users || {};
+    var onsiteN = Object.keys(_users).filter(function(un){ var r = (_users[un]||{}).role; return r==='npc'||r==='admin'||r==='builder'||r==='adventurer'; }).length;
+    var maxPer3d = Math.max(1, onsiteN);
+    var _today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
+    var _winStart = new Date(_today + 'T00:00:00').getTime() - 2*86400000;  // 3 天窗口（含今天）
+    var recentN = ((AppData._data.cleaning||{}).log||[]).filter(function(l){ return l.cleanedBy === _me() && l.date && new Date(l.date + 'T00:00:00').getTime() >= _winStart; }).length;
+    if (recentN >= maxPer3d) { showToast('打扫太频繁了：每 3 天最多 '+maxPer3d+' 次（按在地 '+maxPer3d+' 人计）','warn'); return; }
+    AppData.addVerification('cleaning', _me(), '打扫了 '+spaceName, { space: spaceName }, reward, Math.ceil(reward/5));
+    // 持久化：与 _doCleaning 一致的字段
+    var cl = AppData._data.cleaning;
+    var sp = (cl && cl.spaces) ? cl.spaces[spaceId] : null;
+    if (sp) {
+      var me = _me();
+      sp.dirtiness = 0;
+      sp.lastCleaned = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
+      sp.cleanedBy = me;
+      (cl.log = cl.log || []).push({ space: spaceId, cleanedBy: me, date: sp.lastCleaned, reviewedBy: '', note: '' });
+      AppData._save();
+      if (typeof render === 'function') render();
+    }
+  }
   _closeQuickSheet();
   _undoToast('cleaning');
 }

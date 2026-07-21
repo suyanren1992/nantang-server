@@ -200,17 +200,13 @@ function canUserSee(user, task) {
 function canUserClaim(user, task) {
   if (!user)                return { ok: false, reason: '请先登录' };
   if (!task)                return { ok: false, reason: '任务不存在' };
-  if (task.status !== 'active') return { ok: false, reason: '任务当前不可领取' };
-
-  // 管理员豁免全部限制
+  // CR1: 字段名修正——服务端用 进行中/publisher/slots
+  if (task.status !== '进行中') return { ok: false, reason: '任务当前不可领取' };
   if (hasRole(user, 'admin')) return { ok: true };
-
-  // 禁止领取自己发布的任务
-  if (task.poster === user.name) return { ok: false, reason: '不能领取自己发布的任务' };
-
-  // 名额检查
+  if ((task.publisher||task.poster) === user.name) return { ok: false, reason: '不能领取自己发布的任务' };
   var activeC = (task.claimants || []).filter(function(c) { return c.status !== 'dropped'; });
-  if (task.max_slots > 0 && activeC.length >= task.max_slots) return { ok: false, reason: '名额已满' };
+  var maxSlots = task.slots || task.max_slots || 1;
+  if (maxSlots > 0 && activeC.length >= maxSlots) return { ok: false, reason: '名额已满' };
 
   // 已领取检查
   var myClaim = activeC.find(function(c) { return c.name === user.name; });

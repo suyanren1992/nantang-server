@@ -880,12 +880,12 @@ function enterVillage(){
       API.syncAll(function(data) {
         if (data && !data.detail && !data._offline && data.ok !== false) _mergeSyncData(data);
       });
-      // C1: /api/nt/sync 为权威数据源，覆盖本地 NT 状态
+      // CR2: 先 sync 后 tick——避免 tick 余额变更被 sync 旧数据覆盖
       API.request('GET', '/api/nt/sync').then(function(srv) {
         if (srv && !srv.detail) _mergeNTSyncData(srv);
+        // C2.6: tick 在 sync 之后，幂等，服务端同一天不重复执行
+        if (typeof API !== 'undefined' && API.token) API.request('POST', '/api/system/daily-tick').catch(function(){});
       }).catch(function(){});
-      // C2.6: 触发每日 tick（幂等，服务端同一天不重复执行）
-      API.request('POST', '/api/system/daily-tick').catch(function(){});
     }
     _startPolling();
     // B10: 预创建信箱面板 DOM（创建后立刻隐藏），首次点击不再 createElement

@@ -327,6 +327,13 @@ window.AppData = {
 
   // ══ 校核制 ══
   addVerification: function(type, doer, action, detail, ntAmount, verifierReward) {
+    // CR5: 仅在地成员（非 visitor）可发起校核
+    var users = typeof getUsers === 'function' ? getUsers() : {};
+    var userRole = (users[doer || this._currentUser] || {}).role || 'visitor';
+    if (userRole === 'visitor') {
+      if (typeof showToast === 'function') showToast('🏕️ 入住后可使用校核功能', 'warn');
+      return null;
+    }
     var vfy = { id: 'vfy_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), type: type, doer: doer, action: action, detail: detail||{}, ntAmount: ntAmount||0, verifierReward: verifierReward||Math.ceil(ntAmount/5)||1, createdAt: new Date().toISOString(), verifier: null, verifiedAt: null, status: 'pending' };
     if (!this._data.pendingVerifications) this._data.pendingVerifications = [];
     this._data.pendingVerifications.push(vfy);
@@ -415,6 +422,8 @@ window.AppData = {
   },
   // ══ 章2: 住宿费日扣 ══
   _deductAccommodation: function() {
+    // CR6: HTTP 模式由服务端 daily_tick 处理，客户端跳过防双重扣费
+    if (typeof API !== 'undefined' && API.token) return;
     // E3.1: 遍历 room.tenants[] 数组（替代旧的 room.tenant 字符串）
     var accs = (this._data.map_locations && this._data.map_locations.accommodations) || {};
     var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
