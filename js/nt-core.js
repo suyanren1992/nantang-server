@@ -385,6 +385,7 @@ function cashOut(userId, amount, reason, txId) {
 
 // ══ 章1: 三池 API ══
 function earnFromPool(userId, amount, reason, pool, scope) {
+	if (!Number.isInteger(amount)) { console.error('[NT] amount must be integer, got', amount); return null; }
   var u = _getUser(userId); if (!u) return null;
   scope = scope || 'personal';
   // 检查池子余额
@@ -408,6 +409,7 @@ function earnFromPool(userId, amount, reason, pool, scope) {
 }
 
 function spendToPool(userId, amount, reason, pool, scope) {
+	if (!Number.isInteger(amount)) { console.error('[NT] amount must be integer, got', amount); return null; }
   var u = _getUser(userId); if (!u) return null;
   if (u.ntBalance < amount) return _err('NT 余额不足');
   scope = scope || 'personal';

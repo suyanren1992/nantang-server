@@ -20,6 +20,11 @@ class LoginRequest(BaseModel):
     name: str; password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
 def _user_json(u):
     return {"name": u.id, "role": u.role, "nt_balance": u.nt_balance,
             "contribution_value": u.contribution_value, "experience_value": u.experience_value,
@@ -62,13 +67,13 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
     is_first = c.scalar() == 0
     u = User(id=req.name, password_hash=hash_password(req.password),
              role="admin" if is_first else "visitor",
-             nt_balance=200 if is_first else 50,
+             nt_balance=0,
              avatar_seed=req.avatar_seed or req.name,
              created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
     db.add(u)
     pool = await db.execute(select(CommunityPool).limit(1)); pool = pool.scalar_one_or_none()
-    if not pool: pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0, contribution_pool=0, camp_balance=0); db.add(pool)
-    pool.total_issued += (200 if is_first else 50)
+    if not pool: pool = CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0); db.add(pool)
+    # ponytail: NT 仅来自链上充值，注册不再赠送
     await db.commit()
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
@@ -116,13 +121,57 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
     return {"ok": True}
 
 
+@router.post("/change-password")
+async def change_password(req: ChangePasswordRequest, user: User = Depends(get_current_user),
+                           db: AsyncSession = Depends(get_db)):
+    if len(req.new_password) < 8:
+        return JSONResponse({"ok": False, "error": "密码至少8位"})
+    if not verify_password(req.old_password, user.password_hash):
+        return JSONResponse({"ok": False, "error": "当前密码错误"})
+    user.password_hash = hash_password(req.new_password)
+    user.token_version += 1  # 踢掉所有旧登录
+    user.updated_at = datetime.utcnow().isoformat()
+    await db.commit()
+    return {"ok": True}
+
+
+class UpdateProfileRequest(BaseModel):
+    wallet_address: str | None = None
+    bio: str | None = None
+    location: str | None = None
+
+
+@router.put("/profile")
+async def update_profile(req: UpdateProfileRequest, user: User = Depends(get_current_user),
+                         db: AsyncSession = Depends(get_db)):
+    if req.wallet_address is not None:
+        addr = req.wallet_address.strip()
+        if addr:
+            if not addr.startswith("0x") or len(addr) != 42:
+                raise HTTPException(status_code=400, detail="无效的钱包地址格式（应为 0x 开头的 42 位地址）")
+            # 检查地址未被其他用户占用（大小写不敏感）
+            from sqlalchemy import func
+            dup = (await db.execute(
+                select(User).where(func.lower(User.wallet_address) == addr.lower(), User.id != user.id)
+            )).scalar_one_or_none()
+            if dup: raise HTTPException(status_code=409, detail="该钱包地址已被其他用户绑定")
+        user.wallet_address = addr or None
+    if req.bio is not None:
+        user.bio = req.bio
+    if req.location is not None:
+        user.location = req.location
+    user.updated_at = datetime.utcnow().isoformat()
+    await db.commit()
+    return {"ok": True, "wallet_address": user.wallet_address}
+
+
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)):
     return _user_json(user)
 
 
 @router.get("/users")
-async def list_users(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
-                     limit: int = 50, offset: int = 0):
+async def list_users(db: AsyncSession = Depends(get_db), limit: int = 50, offset: int = 0):
+    # 公开端点：登录页账号列表用。只返回名字+头像种子，不含任何敏感字段
     result = await db.execute(select(User).limit(limit).offset(offset))
     return [{"name": u.id, "avatar_seed": u.avatar_seed} for u in result.scalars()]

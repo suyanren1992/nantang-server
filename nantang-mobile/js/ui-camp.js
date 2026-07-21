@@ -602,6 +602,17 @@ function toggleCampMemberGroup(el) {
 function toggleCampMemberDetail(el, name) {
   var existing = el.nextElementSibling;
   if (existing && existing.className === 'camp-member-detail') { existing.remove(); return; }
+  // E3.4: meet_3 quest hook — 查看其他成员 profile
+  if (name !== CURRENT_USER && window.AppData) {
+    if (!AppData._data.viewedMembers) AppData._data.viewedMembers = [];
+    if (AppData._data.viewedMembers.indexOf(name) === -1) {
+      AppData._data.viewedMembers.push(name);
+      if (AppData._data.viewedMembers.length >= 3 && typeof _completeNewbieQuest === 'function') {
+        _completeNewbieQuest(CURRENT_USER, 'meet_3');
+      }
+      AppData._save();
+    }
+  }
   var c = getCampData();
   var b = (c.builders||[]).find(function(x){return x.name===name;});
   var taskNames = b ? b.taskNames : [];

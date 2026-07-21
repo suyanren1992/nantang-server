@@ -1,7 +1,9 @@
 // ══ API 适配层 — 行业标准：access token 存内存，refresh token httpOnly cookie ══
 var API = {
   base: '',
-  token: null,  // access token，仅存 JS 内存，不落 localStorage
+  token: null,
+  _consecutiveFailures: 0,
+  _serverOnline: true,  // access token，仅存 JS 内存，不落 localStorage
   user: null,   // 当前用户信息
   init: function(baseUrl) {
     if (window.location.protocol !== 'file:') { this.base = ''; }
@@ -17,9 +19,16 @@ var API = {
     if (body) opts.body = JSON.stringify(body);
     try {
       var resp = await fetch(url, opts);
+      this._consecutiveFailures = 0;
+      if (!this._serverOnline) { this._serverOnline = true; if (typeof showToast === 'function') showToast('已重新连接', 'ok'); }
       if (resp.status === 401) { this.token = null; return { ok: false, error: '登录过期', _offline: false }; }
       return await resp.json();
     } catch(e) {
+      this._consecutiveFailures++;
+      if (this._consecutiveFailures >= 3 && this._serverOnline) {
+        this._serverOnline = false;
+        if (typeof showToast === 'function') showToast('服务器连接断开，离线模式', 'warn');
+      }
       if (e.name === 'TypeError') return {ok:false, error:'网络不通', _offline:true};
       if (e.name === 'AbortError') return {ok:false, error:'请求超时', _offline:true};
       return {ok:false, error:'网络异常', _offline:true};
@@ -58,7 +67,7 @@ var API = {
           if (callback) callback(null, 'server_error');
         }
       })
-      .catch(function(e) { if (callback) callback(null, 'network'); });
+      .catch(function(e) { self._consecutiveFailures++; if (self._consecutiveFailures >= 3 && self._serverOnline) { self._serverOnline = false; if (typeof showToast === 'function') showToast('服务器连接断开，离线模式', 'warn'); } if (callback) callback(null, 'network'); });
   },
   logout: function(callback) {
     this.token = null; this.user = null;
@@ -66,7 +75,19 @@ var API = {
     fetch((this.base||'') + '/api/auth/logout', { method: 'POST', credentials: 'include' })
       .finally(function() { if (callback) callback(); });
   },
+  changePassword: function(oldPwd, newPwd) {
+    return this.request('POST', '/api/auth/change-password', {old_password: oldPwd, new_password: newPwd});
+  },
+  updateProfile: function(data) {
+    return this.request('PUT', '/api/auth/profile', data);
+  },
   // ── NT 操作 ──
+  createDepositIntent: function(amount, fromAddress) {
+    return this.request('POST', '/api/nt/deposit-intent', {amount: amount, from_address: fromAddress||''});
+  },
+  getDepositIntents: function() {
+    return this.request('GET', '/api/nt/deposit-intents');
+  },
   getBalance: function(callback) {
     this.request('GET', '/api/nt/balance').then(function(r) { if (callback) callback(r && !r.detail && !r._offline ? r : null); });
   },
@@ -93,6 +114,7 @@ var API = {
     });
   },
   syncTaskUpdate: function(taskId, updates) { return this.request('PUT', '/api/tasks/' + taskId, updates); },
+  deleteTask: function(name) { return this.request('DELETE', '/api/tasks/' + name); },
   fetchTasks: function(callback) {
     this.request('GET', '/api/tasks').then(function(tasks) {
       if (callback) callback(Array.isArray(tasks) ? tasks : null);

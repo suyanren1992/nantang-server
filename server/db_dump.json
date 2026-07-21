@@ -1,0 +1,24 @@
+{
+  "users": [
+    {
+      "id": "砚仁",
+      "balance": 50
+    },
+    {
+      "id": "富章",
+      "balance": 50
+    },
+    {
+      "id": "石头",
+      "balance": 51
+    }
+  ],
+  "ledger": [
+    {
+      "to": "石头",
+      "amount": 1,
+      "type": "deposit_onchain",
+      "tx": "0x1b0a693e3cb9449a79430a4773a22252b1df71"
+    }
+  ]
+}

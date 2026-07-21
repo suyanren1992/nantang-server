@@ -26,7 +26,7 @@ var ROLE_CAPABILITIES = {
     tabs: ['workspace','questboard','taskhall','ntadmin','timeline','budget','settlement','members','leaderboard','treasury','settings'] },
   adventurer: { isMember: true,  canClaimCamp: true,
     tabs: ['workspace','questboard','timeline','leaderboard'] },
-  npc:        { isMember: false, canClaimCamp: false,
+  npc:        { isMember: true,  canClaimCamp: true,
     tabs: ['workspace','questboard','timeline','leaderboard'] },
   visitor:    { isMember: false, canClaimCamp: false,
     tabs: ['workspace','timeline','leaderboard'] }

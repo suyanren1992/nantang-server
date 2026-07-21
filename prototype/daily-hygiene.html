@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
+<title>日常卫生 · 南塘云村</title>
+<style>
+:root{--gp:#3d6b52;--ga:#c8892e;--rd:#b84c38;--tx:#1d2e24;--t2:#5a6e5c;--t3:#8a8a8a;--bg:#e8ede6;--bd:#d0d9ce;--wh:#fff;--rs:8px;--rm:12px;--rl:16px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:100%;overflow:hidden;background:#1d2e24;font-size:16px;user-select:none;-webkit-user-select:none}
+.app{max-width:430px;margin:0 auto;height:100%;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--bd);flex-shrink:0}
+.topbar-title{font-weight:700;font-size:.85rem;color:var(--tx);flex:1}
+.body-scroll{flex:1;overflow-y:auto;padding:0 14px 80px;-webkit-overflow-scrolling:touch}
+
+/* space card */
+.space-card{background:var(--wh);border:1px solid var(--bd);border-radius:var(--rm);padding:14px;margin-bottom:6px;cursor:pointer;transition:.1s;display:flex;align-items:center;gap:10px}
+.space-card:active{transform:scale(.99)}
+.space-card.red{border-left:4px solid var(--rd);background:#fff8f8}
+.space-card.yellow{border-left:4px solid var(--ga);background:#fffdf5}
+.space-card.green{border-left:4px solid var(--gp)}
+.space-card.cleaning{border-left:4px solid #4a7ab8;background:#f0f4fa}
+.space-card.pending{border-left:4px dashed var(--ga);background:#fffef8}
+.space-icon{font-size:1.3rem;width:30px;text-align:center;flex-shrink:0}
+.space-info{flex:1;min-width:0}
+.space-name{font-weight:600;font-size:.72rem;color:var(--tx)}
+.space-sub{font-size:.52rem;color:var(--t3);margin-top:2px}
+.space-bar{height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden;margin-top:4px}
+.space-bar-fill{height:100%;border-radius:3px;transition:width .3s}
+.space-bar-fill.g{background:var(--gp)}.space-bar-fill.y{background:var(--ga)}.space-bar-fill.r{background:var(--rd)}
+.space-dirt{font-size:.65rem;font-weight:700;flex-shrink:0;text-align:right;min-width:52px}
+.space-dirt.low{color:var(--gp)}.space-dirt.mid{color:var(--ga)}.space-dirt.high{color:var(--rd)}.space-dirt.clean{color:#4a7ab8}
+
+.user-bar{display:flex;gap:4px;padding:6px 14px;overflow-x:auto;background:var(--bg);border-bottom:1px solid var(--bd);flex-shrink:0}
+.user-bar::-webkit-scrollbar{display:none}
+.user-chip{flex:none;padding:4px 10px;border-radius:12px;border:1.5px solid var(--bd);font-size:.55rem;font-weight:600;color:var(--t2);cursor:pointer;background:var(--wh);transition:.1s}
+.user-chip.me{border-color:var(--gp);background:var(--gp);color:#fff}
+
+.sheet-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.35);display:none;align-items:flex-end;justify-content:center}
+.sheet-overlay.open{display:flex}
+.sheet-card{width:100%;max-width:430px;background:var(--wh);border-radius:var(--rl) var(--rl) 0 0;padding:20px 16px 24px;max-height:85vh;overflow-y:auto;animation:slideUp .2s}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sheet-title{font-size:.8rem;font-weight:700;color:var(--tx);flex:1}
+.sheet-close{font-size:1.1rem;cursor:pointer;color:var(--t3);background:none;border:none;padding:4px 8px}
+.sheet-info{background:#f8faf8;border-radius:var(--rs);padding:10px 12px;margin-bottom:12px;font-size:.62rem;color:var(--t2);line-height:1.6}
+.sheet-section{margin-bottom:12px}
+.sheet-section-title{font-size:.63rem;font-weight:700;color:var(--t2);margin-bottom:6px}
+.sheet-actions{display:flex;gap:8px;margin-top:12px}
+.sheet-actions button{flex:1;padding:11px;border-radius:var(--rs);font-size:.7rem;font-weight:700;cursor:pointer;border:none;min-height:44px}
+.sbtn-pri{background:var(--gp);color:#fff}.sbtn-sec{background:#f0f0f0;color:var(--t2)}.sbtn-warn{background:var(--ga);color:#fff}
+
+.verify-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f5f5f5;font-size:.6rem}
+.verify-row .v-icon{font-size:1rem;width:22px;text-align:center}
+.verify-row .v-info{flex:1;color:var(--t2)}
+.verify-row .v-who{font-weight:600;color:var(--tx)}
+
+.tabbar{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0;background:var(--bg)}
+.tab{flex:1;text-align:center;padding:9px;font-size:.65rem;font-weight:700;color:var(--t2);cursor:pointer;border-bottom:2px solid transparent;transition:.12s;position:relative}
+.tab.on{color:var(--gp);border-bottom-color:var(--gp)}
+.tab-dot{position:absolute;top:4px;right:calc(50% - 24px);width:7px;height:7px;border-radius:50%;background:var(--rd);display:none}
+.tab-dot.show{display:block}
+
+.toast{position:fixed;top:50px;left:50%;transform:translateX(-50%);z-index:999;padding:10px 22px;border-radius:20px;font-size:.72rem;font-weight:600;color:#fff;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;max-width:90%}
+.toast.show{opacity:1}.toast.ok{background:var(--gp)}.toast.warn{background:var(--ga)}.toast.error{background:var(--rd)}
+.sec-label{font-size:.63rem;font-weight:700;color:var(--t2);padding:8px 0 6px;display:flex;align-items:center;gap:4px}
+.empty{text-align:center;padding:36px 16px;color:var(--t3);font-size:.63rem}.empty-icon{font-size:2.2rem;margin-bottom:4px;opacity:.4}
+.inline-btn{padding:5px 12px;border-radius:12px;font-size:.56rem;font-weight:600;cursor:pointer;border:none;min-height:32px}
+.inline-btn.pri{background:var(--gp);color:#fff}.inline-btn.sec{background:#f0f0f0;color:var(--t2)}.inline-btn.warn{background:var(--ga);color:#fff}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"><span style="font-size:1.2rem">🧼</span><span class="topbar-title">日常卫生</span><span style="font-size:.5rem;color:var(--t3)" id="topWho"></span></div>
+  <div class="user-bar" id="userBar"></div>
+  <div class="tabbar">
+    <div class="tab on" data-tab="spaces" onclick="switchTab('spaces')">🏠 空间</div>
+    <div class="tab" data-tab="verify" onclick="switchTab('verify')">⏳ 待校核<span class="tab-dot" id="dotVerify"></span></div>
+    <div class="tab" data-tab="log" onclick="switchTab('log')">📜 记录</div>
+  </div>
+  <div class="body-scroll" id="bodyContent"></div>
+</div>
+
+<!-- SPACE DETAIL SHEET -->
+<div class="sheet-overlay" id="spSheet" onclick="if(event.target===this)closeSpSheet()">
+  <div class="sheet-card">
+    <div class="sheet-head"><span class="sheet-title" id="spTitle"></span><button class="sheet-close" onclick="closeSpSheet()">✕</button></div>
+    <div id="spBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+//  日常卫生 — 脏污度追踪 · 拍照校核 · 对齐Step3
+// ═══════════════════════════════════════════
+var U='砚仁',ALL_USERS=['砚仁','淑惠','朝林','大飞','小云'];
+var TODAY='2026-07-21';
+var NT_CLEAN=10; // 公约 nt_rewards.cleaning
+
+var SPACES=[
+  {id:'kitchen',name:'厨房',icon:'🍳',bld:'办公楼1F',rate:10,dirt:58,lastCleaned:'2026-07-16',cleanedBy:'朝林'},
+  {id:'toilet_r',name:'公共厕所',icon:'🚻',bld:'办公楼1F',rate:15,dirt:75,lastCleaned:'2026-07-14',cleanedBy:''},
+  {id:'storage',name:'小仓库',icon:'📦',bld:'办公楼1F',rate:3,dirt:15,lastCleaned:'2026-07-18',cleanedBy:'砚仁'},
+  {id:'office_r',name:'办公室',icon:'💼',bld:'办公楼1F',rate:5,dirt:25,lastCleaned:'2026-07-17',cleanedBy:'淑惠'},
+  {id:'studio',name:'画室',icon:'🎨',bld:'办公楼2F',rate:8,dirt:40,lastCleaned:'2026-07-15',cleanedBy:'大飞'},
+  {id:'study_r',name:'书房',icon:'📚',bld:'办公楼2F',rate:5,dirt:22,lastCleaned:'2026-07-19',cleanedBy:'小云'},
+  {id:'mahjong',name:'麻将室',icon:'🀄',bld:'大地书房1F',rate:5,dirt:18,lastCleaned:'2026-07-19',cleanedBy:'朝林'},
+  {id:'reading',name:'大书房',icon:'📚',bld:'大地书房1F',rate:5,dirt:30,lastCleaned:'2026-07-17',cleanedBy:'砚仁'},
+  {id:'attic',name:'阁楼储物',icon:'📦',bld:'大地书房阁楼',rate:3,dirt:12,lastCleaned:'2026-07-20',cleanedBy:'淑惠'},
+  {id:'toilet_b',name:'公共厕所',icon:'🚻',bld:'独立',rate:15,dirt:88,lastCleaned:'2026-07-13',cleanedBy:''},
+  {id:'parking',name:'B门·停车',icon:'🅿️',bld:'独立',rate:2,dirt:8,lastCleaned:'2026-07-20',cleanedBy:'大飞'},
+  {id:'gate_a',name:'A门',icon:'🚪',bld:'独立',rate:2,dirt:10,lastCleaned:'2026-07-20',cleanedBy:''},
+  {id:'stage',name:'戏台·花坛',icon:'🎭',bld:'独立',rate:2,dirt:14,lastCleaned:'2026-07-18',cleanedBy:'小云'},
+  {id:'plaza',name:'硕区广场',icon:'🏛️',bld:'独立',rate:2,dirt:20,lastCleaned:'2026-07-17',cleanedBy:''}
+];
+
+// pending verifications: { spaceId, cleanedBy, submittedAt, status:'pending'|'verified', verifiedBy }
+var PENDING=[{spaceId:'toilet_r',cleanedBy:'淑惠',submittedAt:'2026-07-21T10:00',status:'pending'}];
+
+var LOGS=[{tp:'clean',space:'厨房',by:'朝林',dt:'脏污度 55→0 · +10 NT · 砚仁校核',tm:'2026-07-16T15:00'},
+{tp:'clean',space:'公共厕所(办公楼)',by:'淑惠',dt:'脏污度 60→0 · +10 NT · 砚仁校核',tm:'2026-07-14T16:00'},
+{tp:'clean',space:'画室',by:'大飞',dt:'脏污度 48→0 · +10 NT · 淑惠校核',tm:'2026-07-15T14:00'},
+{tp:'clean',space:'小仓库',by:'砚仁',dt:'脏污度 18→0 · +10 NT · 朝林校核',tm:'2026-07-18T11:00'},
+{tp:'clean',space:'书房',by:'小云',dt:'脏污度 27→0 · +10 NT · 大飞校核',tm:'2026-07-19T10:00'}];
+
+var _tab='spaces',_sp=null;
+
+// ══ HELPERS ══
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+var _tt;function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},1800);}
+function spById(id){return SPACES.find(function(s){return s.id===id;});}
+function dirtyLevel(d){if(d>80)return{cls:'red',dot:'🚨',bar:'r',txt:'high',label:'严重脏污'};if(d>60)return{cls:'red',dot:'🔴',bar:'r',txt:'high',label:'需要打扫'};if(d>30)return{cls:'yellow',dot:'🟡',bar:'y',txt:'mid',label:'轻度脏污'};return{cls:'green',dot:'🟢',bar:'g',txt:'low',label:'干净'};}
+
+// ══ USER SWITCHER ══
+function renderUserBar(){
+  var h='';ALL_USERS.forEach(function(u){h+='<span class="user-chip'+(u===U?' me':'')+'" onclick="switchUser(\''+u+'\')">'+u+'</span>';});
+  document.getElementById('userBar').innerHTML=h;document.getElementById('topWho').textContent='👤 '+U;
+}
+function switchUser(u){U=u;renderUserBar();refresh();}
+
+// ══ TABS ══
+function switchTab(t){_tab=t;document.querySelectorAll('.tab').forEach(function(x){x.classList.toggle('on',x.dataset.tab===t);});refresh();}
+
+// ══ SPACE LIST ══
+function renderSpaces(){
+  var el=document.getElementById('bodyContent'),h='';
+  // Recalc dirtiness (simulate: last check date vs today)
+  SPACES.forEach(function(s){
+    var daysSince=0;if(s.lastChecked)s.dirt=Math.min(100,s.dirt+s.rate*1); // +1 day growth
+    s.lastChecked=TODAY;
+  });
+
+  // Sort dirtiest first
+  var sorted=SPACES.slice().sort(function(a,b){return b.dirt-a.dirt;});
+
+  // Is this space currently being cleaned / pending
+  var cleaningSpaces=PENDING.filter(function(p){return p.status==='pending';}).map(function(p){return p.spaceId;});
+
+  h+='<div class="sec-label">🏠 空间脏污度 · 每天自动增长 · '+(new Date(TODAY+'T00:00:00').getMonth()+1)+'月'+new Date(TODAY+'T00:00:00').getDate()+'日更新</div>';
+
+  sorted.forEach(function(s){
+    var lv=dirtyLevel(s.dirt),isCleaning=cleaningSpaces.indexOf(s.id)>=0;
+    var cardCls=isCleaning?'pending':lv.cls,statusText=isCleaning?'⏳ 待校核':lv.dot+' '+lv.label;
+
+    h+='<div class="space-card '+cardCls+'" onclick="openSpace(\''+s.id+'\')">';
+    h+='<span class="space-icon">'+s.icon+'</span>';
+    h+='<div class="space-info"><div class="space-name">'+s.name+' <span style="font-size:.5rem;color:var(--t3);font-weight:400">'+s.bld+'</span></div>';
+    h+='<div class="space-sub">'+statusText+(s.lastCleaned?' · '+s.lastCleaned+' '+s.cleanedBy+'打扫':' · 从未打扫')+' · +'+s.rate+'/天</div>';
+    h+='<div class="space-bar"><div class="space-bar-fill '+lv.bar+'" style="width:'+s.dirt+'%"></div></div></div>';
+    h+='<div class="space-dirt '+lv.txt+'">'+s.dirt+'%</div>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+// ══ SPACE DETAIL ══
+function openSpace(sid){
+  var s=spById(sid);if(!s)return;_sp=s;
+  var lv=dirtyLevel(s.dirt);
+  var isCleaning=PENDING.find(function(p){return p.spaceId===sid&&p.status==='pending';});
+  var isMyCleaning=isCleaning&&isCleaning.cleanedBy===U;
+
+  document.getElementById('spTitle').textContent=s.icon+' '+s.name;
+  var h='<div class="sheet-info"><strong>'+s.bld+'</strong> · 脏污度 <strong style="color:'+(lv.txt==='high'?'var(--rd)':lv.txt==='mid'?'var(--ga)':'var(--gp)')+'">'+s.dirt+'%</strong> · '+lv.dot+' '+lv.label+'<br>每日增长：+'+s.rate+' · 上次打扫：'+(s.lastCleaned?s.lastCleaned+' · '+s.cleanedBy:'从未')+'</div>';
+
+  if(isCleaning){
+    if(isMyCleaning){
+      h+='<div class="sheet-info" style="background:#fffdf5;border:1px dashed var(--ga)"><strong>⏳ 等待他人校核…</strong><br>你打扫了 '+s.name+'，等待任意在地成员确认</div>';
+    }else{
+      h+='<div class="sheet-info" style="background:#fffdf5;border:1px dashed var(--ga)"><strong>⏳ '+isCleaning.cleanedBy+' 打扫了 '+s.name+'</strong><br>等待校核中…</div>';
+      if(isCleaning.cleanedBy!==U){
+        h+='<button class="sbtn-pri" onclick="verifySpace(\''+sid+'\')" style="width:100%;margin-top:8px">✅ 校核确认 — 发放 '+NT_CLEAN+' NT 给 '+isCleaning.cleanedBy+'</button>';
+      }else{
+        h+='<div style="font-size:.55rem;color:var(--t3);margin-top:8px">⚠ 不能校核自己打扫的区域</div>';
+      }
+    }
+  }else{
+    if(s.dirt>=30){
+      h+='<div class="sheet-actions"><button class="sbtn-pri" onclick="startClean(\''+sid+'\')">🧹 我来打扫</button></div>';
+    }else{
+      h+='<div style="font-size:.58rem;color:var(--t3);text-align:center;padding:12px">脏污度 < 30%，暂时不需要打扫</div>';
+    }
+  }
+
+  if(s.cleanedBy){
+    h+='<div class="sheet-section" style="margin-top:12px"><div class="sheet-section-title">📜 上次打扫</div><div style="font-size:.58rem;color:var(--t2)">'+s.lastCleaned+' · '+s.cleanedBy+' · 脏污度归零 · +'+NT_CLEAN+' NT</div></div>';
+  }
+
+  document.getElementById('spBody').innerHTML=h;
+  document.getElementById('spSheet').classList.add('open');
+}
+function closeSpSheet(){document.getElementById('spSheet').classList.remove('open');_sp=null;refresh();}
+
+// ══ CLEAN + VERIFY ══
+function startClean(sid){
+  var s=spById(sid);if(!s)return;
+  if(!confirm('开始打扫 '+s.name+'？\n（模拟：拍照前→打扫→拍照后→提交校核）'))return;
+  PENDING.push({spaceId:sid,cleanedBy:U,submittedAt:new Date().toISOString(),status:'pending'});
+  closeSpSheet();toast('打扫完成！等待他人校核 ⏳','ok');refresh();
+}
+
+function verifySpace(sid){
+  var p=PENDING.find(function(x){return x.spaceId===sid&&x.status==='pending';});
+  if(!p)return;if(p.cleanedBy===U){toast('不能校核自己','warn');return;}
+  p.status='verified';p.verifiedBy=U;
+  var s=spById(sid);s.dirt=0;s.lastCleaned=TODAY;s.cleanedBy=p.cleanedBy;
+  LOGS.unshift({tp:'clean',space:s.name,by:p.cleanedBy,dt:'脏污度→0 · +'+NT_CLEAN+' NT · '+U+'校核',tm:new Date().toISOString()});
+  PENDING=PENDING.filter(function(x){return x.status==='pending';});
+  closeSpSheet();toast('已校核 ✓ +'+NT_CLEAN+' NT 给 '+p.cleanedBy,'ok');refresh();
+}
+
+// ══ VERIFY TAB ══
+function renderVerify(){
+  var el=document.getElementById('bodyContent');
+  var pending=PENDING.filter(function(p){return p.status==='pending';});
+  document.getElementById('dotVerify').classList.toggle('show',pending.length>0);
+
+  if(!pending.length){el.innerHTML='<div class="empty"><div class="empty-icon">✅</div>暂无待校核项</div>';return;}
+
+  var h='<div class="sec-label">⏳ 待校核 ('+pending.length+'项) · 任何人可校核（除打扫者本人）</div>';
+  pending.forEach(function(p){
+    var s=spById(p.spaceId);
+    h+='<div class="verify-row"><span class="v-icon">'+(s?s.icon:'📍')+'</span><div class="v-info"><span class="v-who">'+(s?s.name:p.spaceId)+'</span> · '+p.cleanedBy+' 打扫 · +'+NT_CLEAN+' NT</div>';
+    if(p.cleanedBy!==U)h+='<button class="inline-btn pri" onclick="verifySpace(\''+p.spaceId+'\')">✅ 校核</button>';
+    else h+='<span style="font-size:.5rem;color:var(--t3)">⚠ 自己</span>';
+    h+='</div>';
+  });
+  el.innerHTML=h;
+}
+
+// ══ LOG ══
+function renderLog(){
+  var el=document.getElementById('bodyContent'),h='';
+  LOGS.forEach(function(l){h+='<div style="display:flex;gap:8px;padding:7px 0;font-size:.6rem;border-bottom:1px dotted #f0f0f0"><span style="width:20px;text-align:center;font-size:.7rem;flex-shrink:0">🧹</span><div style="flex:1;color:var(--t2);line-height:1.5"><strong style="color:var(--tx)">'+esc(l.by)+'</strong> 打扫 '+esc(l.space)+' <span style="font-size:.52rem;color:var(--t3)">'+esc(l.dt)+'</span></div><span style="font-size:.5rem;color:var(--t3);flex-shrink:0;white-space:nowrap">'+l.tm.slice(5,16)+'</span></div>';});
+  if(!h)h='<div class="empty"><div class="empty-icon">📜</div>暂无记录</div>';
+  el.innerHTML=h;
+}
+
+function refresh(){
+  if(_tab==='spaces')renderSpaces();
+  else if(_tab==='verify')renderVerify();
+  else if(_tab==='log')renderLog();
+}
+renderUserBar();refresh();
+</script>
+</body>
+</html>

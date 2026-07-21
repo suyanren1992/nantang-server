@@ -326,10 +326,15 @@ function doSubmit(name){
   t.status='待审核';t.action='';
   // A2: 通过 AppData 更新
   AppData.updateTask(name, {claimants: t.claimants, status: '待审核', action: ''});
-  // FIX-01: 同步 NT 核心状态 — submitTask 让任务进入 completed 态，verifyTask 可释放托管 NT
+  // C2: HTTP 模式走服务端，离线走本地 NT
   if(t._ntTaskId&&window.NT){
-    var subResult=NT.submitTask(t._ntTaskId,{note:sub,user:CURRENT_USER});
-    if(!subResult){showToast('操作失败，请刷新后重试','error');return;}
+    var isOffline=(typeof API==='undefined'||!API.token);
+    if(isOffline){
+      var subResult=NT.submitTask(t._ntTaskId,{note:sub,user:CURRENT_USER});
+      if(!subResult){showToast('操作失败，请刷新后重试','error');return;}
+    }else{
+      API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId)+'/submit',{evidence:sub}).catch(function(){showToast('服务端同步失败','error')});
+    }
   }
   document.querySelectorAll('.submit-expand,.card-expand,.submission-sub').forEach(function(c){c.remove()});
   filterQuests();renderMyTasks();refreshUserUI();
@@ -343,10 +348,15 @@ function claimTask(name){
   t.claimants.push({name:CURRENT_USER,status:'in_progress'});
   t.claimedAt=t.claimedAt||today();
   AppData.updateTask(name, {claimants: t.claimants, claimedAt: t.claimedAt});
-  // FIX-02: 同步 NT 核心状态 — acceptTask 将任务从 pending 变为 active，分配 assignee
+  // C2: HTTP 模式走服务端，离线走本地 NT
   if(t._ntTaskId&&window.NT){
-    var accResult=NT.acceptTask(t._ntTaskId,CURRENT_USER);
-    if(!accResult){showToast('操作失败，请刷新后重试','error');return;}
+    var isOffline=(typeof API==='undefined'||!API.token);
+    if(isOffline){
+      var accResult=NT.acceptTask(t._ntTaskId,CURRENT_USER);
+      if(!accResult){showToast('操作失败，请刷新后重试','error');return;}
+    }else{
+      API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId)+'/accept').catch(function(){showToast('服务端同步失败','error')});
+    }
   }
   filterQuests();renderMyTasks();refreshUserUI();
 }
@@ -369,7 +379,7 @@ function reviewTask(name,action){
     _t.status='待结算';_t.completedAt=today();_t.reviewedAt=today();
     _t.claimants.forEach(function(c){if(c.status==='submitted')c.status='completed'});
     AppData.updateTask(_name, {status:'待结算', completedAt:_t.completedAt, reviewedAt:_t.reviewedAt, claimants:_t.claimants});
-    if(_t._ntTaskId&&window.NT){var vr=NT.verifyTask(_t._ntTaskId, CURRENT_USER, true);if(!vr){showToast('审核失败，请刷新后重试','error');return;}}
+    if(_t._ntTaskId&&window.NT){var isOffline=(typeof API==='undefined'||!API.token);if(isOffline){var vr=NT.verifyTask(_t._ntTaskId, CURRENT_USER, true);if(!vr){showToast('审核失败，请刷新后重试','error');return;}}else{API.request('POST','/api/nt/tasks/'+(_t._srvId||_t._ntTaskId)+'/verify',{approved:true}).catch(function(){showToast('服务端审核失败','error')});}}
     document.querySelectorAll('.card-expand,.review-expand,.submission-sub').forEach(function(c){c.remove()});
     filterQuests();renderMyTasks();refreshUserUI();
     });
@@ -385,14 +395,14 @@ function confirmReject(name){
   if (t.rejectCount >= 3) {
     t.status = '已取消'; t.reviewNote = reason + '（已打回3次，自动关闭）'; t.reviewedAt = today();
     showToast('已打回3次，任务自动关闭', 'warn');
-    if(t._ntTaskId&&window.NT){NT.verifyTask(t._ntTaskId, CURRENT_USER, false, reason+' | 第'+t.rejectCount+'次打回，自动关闭');}
+    if(t._ntTaskId&&window.NT){var isOffline=(typeof API==='undefined'||!API.token);if(isOffline){NT.verifyTask(t._ntTaskId, CURRENT_USER, false, reason+' | 第'+t.rejectCount+'次打回，自动关闭');}else{API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId)+'/verify',{approved:false,reject_reason:reason+' | 第'+t.rejectCount+'次打回，自动关闭'}).catch(function(){});}}
     document.querySelectorAll('.review-expand,.card-expand,.submission-sub').forEach(function(c){c.remove()});
     filterQuests();renderMyTasks();refreshUserUI(); return;
   }
   t.reviewNote=reason;t.status='退回修改';t.reviewedAt=today();t.action='edit';
   AppData.updateTask(name, {reviewNote:reason, status:'退回修改', reviewedAt:t.reviewedAt, action:'edit'});
   // NT 系统：退还托管 NT 给发布者
-  if(t._ntTaskId&&window.NT){var vr=NT.verifyTask(t._ntTaskId, CURRENT_USER, false, reason);if(!vr){showToast('退回失败，请刷新后重试','error');return;}}
+  if(t._ntTaskId&&window.NT){var isOffline=(typeof API==='undefined'||!API.token);if(isOffline){var vr=NT.verifyTask(t._ntTaskId, CURRENT_USER, false, reason);if(!vr){showToast('退回失败，请刷新后重试','error');return;}}else{API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId)+'/verify',{approved:false,reject_reason:reason}).catch(function(){showToast('服务端退回失败','error')});}}
   document.querySelectorAll('.review-expand,.card-expand,.submission-sub').forEach(function(c){c.remove()});
   filterQuests();renderMyTasks();refreshUserUI();
 }
@@ -421,15 +431,22 @@ function withdrawTask(name){
     var names=submitters.map(function(c){return c.name}).join('、');
     showConfirm('⚠️ '+names+' 已提交成果。撤回将扣除 '+penalty+' NT（50%）作为补偿。确认？',function(){
       if(t._ntTaskId&&window.NT){
-        NT.cancelTask(t._ntTaskId,'发布者撤回（已提交，罚50%）');
-        submitters.forEach(function(c){NT.transfer(CURRENT_USER,c.name,each,'撤回补偿: '+t.name)});
+        var isOffline=(typeof API==='undefined'||!API.token);
+        if(isOffline){
+          NT.cancelTask(t._ntTaskId,'发布者撤回（已提交，罚50%）');
+          submitters.forEach(function(c){NT.transfer(CURRENT_USER,c.name,each,'撤回补偿: '+t.name)});
+        }else{
+          API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId)+'/cancel').catch(function(){});
+          submitters.forEach(function(c){API.request('POST','/api/nt/transfer',{to:c.name,amount:each,reason:'撤回补偿: '+t.name}).catch(function(){})});
+        }
       }
-      delete TASKS[name];AppData.deleteTask(name);filterQuests();renderMyTasks();refreshUserUI();
+      // 标记已取消保留记录（大厅/工作台「已取消/已争议」分组可见），不再直接删除
+      t.status='已取消';AppData.updateTask(name,{status:'已取消'});filterQuests();renderMyTasks();refreshUserUI();
     });
   }else{
     showConfirm('确认撤回任务「'+name+'」？',function(){
       if(t._ntTaskId&&window.NT){NT.cancelTask(t._ntTaskId,'发布者撤回');}
-      delete TASKS[name];AppData.deleteTask(name);filterQuests();renderMyTasks();refreshUserUI();
+      t.status='已取消';AppData.updateTask(name,{status:'已取消'});filterQuests();renderMyTasks();refreshUserUI();
     });
   }
 }
@@ -464,6 +481,10 @@ function confirmSettle(name){
   if(t.status!=='待结算'&&t.status!=='已完成'){showToast('任务状态('+t.status+')不可结算','error');return}
   // A2: 通过 AppData 更新任务状态（自动存盘）
   AppData.updateTask(name, {status:'已结算', settler:CURRENT_USER, completedAt:t.completedAt||today()});
+  // C2.6: HTTP 模式同步服务端结算
+  if(typeof API!=='undefined'&&API.token){
+    API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId||name)+'/settle').catch(function(){});
+  }
   // 营队任务完成后，认领者自动升级为共建者
   if(t.scope==='营队'){(t.claimants||[]).forEach(function(c){var u=getUsers()[c.name];if(u&&u.role==='visitor'&&c.status==='completed')upgradeRole(c.name,'builder','')})}
   // NT 已在 verifyTask 时完成转帐，结算仅更新任务状态，不重复记账
@@ -523,7 +544,7 @@ function getCamps(){ return (window.AppData&&AppData._data.camps&&Object.keys(Ap
 function renderCommunityHub() {
   var el = document.getElementById('communityHubContent'); if (!el) return;
   var role = (typeof getUsers==='function'?getUsers():{})[CURRENT_USER]||{};
-  var isMember = role.role==='admin'||role.role==='builder'||role.role==='adventurer';
+  var isMember = role.role==='admin'||role.role==='builder'||role.role==='adventurer'||role.role==='npc';
   var isAdmin = role.role==='admin';
   var active = getCamps().filter(function(c){ return c.status==='active'; });
   var upcoming = getCamps().filter(function(c){ return c.status==='upcoming'; });
