@@ -295,6 +295,7 @@ function openQuestHallPage(){
   if(typeof API!=='undefined'&&API.token){
     API.fetchTasks(function(tasks){
       if(tasks){tasks.forEach(function(t){
+        t.publisher = t.poster || t.publisher;
         // 按 ID 或标题去重
         var exists = AppData._data.tasks[t.id];
         if(!exists){
@@ -806,11 +807,12 @@ function _mergeNTSyncData(data) {
   if (data.role && window.AppData) {
     var users = (typeof getUsers === 'function') ? getUsers() : {};
     if (users[me]) users[me].role = data.role;
-    try { localStorage.setItem('nt_users', JSON.stringify(users)); } catch(e) {}
+    if (window.location.protocol === 'file:') { try { localStorage.setItem('nt_users', JSON.stringify(users)); } catch(e) {} }
   }
   // 任务合并
   if (data.tasks && window.AppData) {
     data.tasks.forEach(function(t) {
+      t.publisher = t.poster || t.publisher;
       var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
       if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:[], action:'', is_system_generated:t.is_system_generated||false };
       else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false });
@@ -831,6 +833,7 @@ function _mergeSyncData(data) {
   // R7: 读取 cron_active 标志，服务端已接管则客户端降级
   if (data.cron_active) window._cronActive = true;
   if (data.tasks) { data.tasks.forEach(function(t) {
+    t.publisher = t.poster || t.publisher;
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
     if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:[], action:'' };
     else Object.assign(dup, { status:t.status, assignee:t.assignee, assignees:t.assignees, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id });
@@ -866,7 +869,7 @@ function enterVillage(){
     var seed = _profileSeed;
     if (!seed && typeof API !== 'undefined' && API.user && API.user.avatar_seed) seed = API.user.avatar_seed;
     if (!seed) { try { var _lu2 = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); if (_lu2[name]) seed = _lu2[name]; } catch(e) {} }
-    _saveLocalUser(name, seed);
+    if (!isHTTP) _saveLocalUser(name, seed);
     document.getElementById('myPage').classList.add('hidden');
     document.getElementById('overlayCommunity').classList.remove('open');
     document.getElementById('overlayQuestHall').classList.remove('open');
@@ -885,6 +888,8 @@ function enterVillage(){
         if (srv && !srv.detail) _mergeNTSyncData(srv);
         // C2.6: tick 在 sync 之后，幂等，服务端同一天不重复执行
         if (typeof API !== 'undefined' && API.token) API.request('POST', '/api/system/daily-tick').catch(function(){});
+        // F16: 离线 earn 队列同步
+        if (window.AppData && typeof AppData._drainPendingEarns === 'function') AppData._drainPendingEarns();
       }).catch(function(){});
     }
     _startPolling();

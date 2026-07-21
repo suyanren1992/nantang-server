@@ -39,6 +39,11 @@ var TASK_ESCROW = 0;
 var NT_STORE_KEY = 'nt_core_v1';
 var _saveTimer = null;
 function _loadState() {
+  // HTTP 模式：不从 localStorage 加载旧数据，避免服务端数据被覆盖
+  if (window.location.protocol !== 'file:') {
+    try { localStorage.removeItem(NT_STORE_KEY); } catch(e) {}
+    return;
+  }
   try {
     var raw = localStorage.getItem(NT_STORE_KEY);
     if (!raw) return;

@@ -19,6 +19,7 @@ window.AppData = {
     if (!this._data.inventory) this._data.inventory = {};
     if (!this._data.pendingTransactions) this._data.pendingTransactions = [];
     if (!this._data.pendingVerifications) this._data.pendingVerifications = [];
+    if (!this._data._pendingEarnQueue) this._data._pendingEarnQueue = [];
     if (!this._data.announcements) this._data.announcements = [];
     if (!this._data.presence) this._data.presence = {};
     if (!this._data.discoveries) this._data.discoveries = [];           // 校核制记录（verification）
@@ -388,6 +389,8 @@ window.AppData = {
       var isOffline = (typeof API === 'undefined' || !API.token);
       if (isOffline) {
         try { NT.earn(vfy.doer, vfy.ntAmount, vfy.action, 'camp'); } catch(e) {}
+        this._data._pendingEarnQueue.push({doer: vfy.doer, amount: vfy.ntAmount, action: vfy.action, scope: 'camp', ts: Date.now()});
+        this._saveShared(true);
       } else {
         API.request('POST', '/api/nt/verifications/' + vfy.id + '/approve',
           {doer: vfy.doer, action: vfy.action, nt_amount: vfy.ntAmount, verifier_reward: vfy.verifierReward}
@@ -398,6 +401,8 @@ window.AppData = {
       var isOffline2 = (typeof API === 'undefined' || !API.token);
       if (isOffline2) {
         try { NT.earn(verifierName, vfy.verifierReward, '校核: '+vfy.action, 'personal'); } catch(e) {}
+        this._data._pendingEarnQueue.push({doer: verifierName, amount: vfy.verifierReward, action: '校核: '+vfy.action, scope: 'personal', ts: Date.now()});
+        this._saveShared(true);
       }
       // ponytail: verifier reward 合并到 approve 端点中处理，不单独调 API
     }
@@ -410,6 +415,23 @@ window.AppData = {
     this._data.discoveries.unshift({ id: vfy.id, type: vfy.type, doer: vfy.doer, verifier: verifierName, action: vfy.action, ntAmount: vfy.ntAmount, verifiedAt: vfy.verifiedAt, status: 'active' });
     this._saveShared(true);
     return { ok: true };
+  },
+  // ══ 离线 earn 队列同步 ══
+  _drainPendingEarns: function() {
+    var queue = this._data._pendingEarnQueue;
+    if (!queue || !queue.length) return;
+    if (typeof API === 'undefined' || !API.token) return;
+    var self = this;
+    var copy = queue.slice();
+    this._data._pendingEarnQueue = [];
+    this._saveShared(true);
+    API.request('POST', '/api/nt/earn-sync', {items: copy})
+      .then(function() { console.log('[AppData] pending earns synced: ' + copy.length); })
+      .catch(function() {
+        // 失败时恢复队列
+        self._data._pendingEarnQueue = copy.concat(self._data._pendingEarnQueue);
+        self._saveShared(true);
+      });
   },
   // ══ 公告栏 ══
   addAnnouncement: function(type, doer, verifier, action, ntAmount) {

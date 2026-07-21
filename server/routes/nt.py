@@ -129,6 +129,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
               "assignees": _safe_assignees(t), "slots": t.slots,
               "deadline": t.deadline, "reviewer": t.reviewer, "note": t.note,
               "evidence": t.evidence, "escrow_amount": t.escrow_amount,
+              "is_system_generated": t.is_system_generated or False,
               "created_at": t.created_at, "verified_at": t.verified_at,
               "verifier_id": t.verifier_id} for t in all_tasks]
 
@@ -800,6 +801,34 @@ async def reject_verification(vfy_id: str, user: User = Depends(get_current_user
         vfy.status = "rejected"
     await db.commit()
     return {"ok": True, "rejected": True, "retry_count": vfy.retry_count}
+
+
+# ══ F16: 离线 earn 队列同步 ══
+
+class EarnSyncRequest(BaseModel):
+    items: list = []
+
+@router.post("/earn-sync")
+async def earn_sync(req: EarnSyncRequest, user: User = Depends(get_current_user),
+                    db: AsyncSession = Depends(get_db)):
+    """客户端离线 earn 队列同步——仅允许同步本人的 earn。ponytail: 无验证逻辑，信任离线 peer 校核。"""
+    synced = 0
+    pool = await _get_pool(db, lock=True)
+    for item in req.items:
+        doer = item.get("doer", "")
+        amount = min(int(item.get("amount", 0)), 1000)
+        if doer != user.id or amount <= 0:
+            continue
+        if pool.balance < amount:
+            break
+        pool.balance -= amount
+        user.nt_balance += amount
+        lid = _ledger_id()
+        await _add_ledger(db, lid, "community_pool", user.id, amount, "earn",
+                         f"离线同步: {item.get('action', '')}", status="settled")
+        synced += 1
+    await db.commit()
+    return {"ok": True, "synced": synced, "balance": user.nt_balance}
 
 
 # ══ 每日 tick（C2.6：替代客户端 _dailyTick）══

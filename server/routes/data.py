@@ -8,6 +8,7 @@ from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
                     CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp)
 from routes.auth import get_current_user, require_admin
+from nt_helpers import _safe_assignees
 
 router = APIRouter(prefix="/api/data", tags=["data"])
 
@@ -318,8 +319,10 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
     )
     my_tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
                  "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
-                 "slots": t.slots, "deadline": t.deadline, "reviewer": t.reviewer,
+                 "assignees": _safe_assignees(t), "slots": t.slots,
+                 "deadline": t.deadline, "reviewer": t.reviewer,
                  "note": t.note, "evidence": t.evidence, "settler_id": t.settler_id,
+                 "is_system_generated": t.is_system_generated or False,
                  "created_at": t.created_at} for t in tasks_r.scalars()]
     # 我的日记
     j_r = await db.execute(select(Journal).where(Journal.user == user.id).order_by(Journal.id.desc()).limit(200))
