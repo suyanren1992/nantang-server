@@ -38,6 +38,9 @@ function hasNTRole() {
 function userCan(user, cap) { if (!user) return false; var c = ROLE_CAPABILITIES[user.role]; return c ? !!c[cap] : false; }
 function userTabs(user) { if (!user) return []; var c = ROLE_CAPABILITIES[user.role]; return c ? c.tabs : []; }
 function hasRole(user, roles) { if (!user) return false; if (typeof roles === 'string') return user.role === roles; return roles.indexOf(user.role) >= 0; }
+// D12: 便捷 helper——替代分散的 role==='admin'||role==='builder'||...
+function isMemberByName(name) { var u = getUsers()[name]; return u ? userCan({name:name,role:u.role||'visitor'}, 'isMember') : false; }
+function isMemberByRole(role) { return !!((ROLE_CAPABILITIES[role] || {}).isMember); }
 function getActiveClaimant(t, name) { return (t.claimants || []).find(function(c) { return c.name === name && c.status !== 'dropped'; }); }
 
 // ═══════════════════════════════════════════════════════════════════

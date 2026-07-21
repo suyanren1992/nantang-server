@@ -2116,7 +2116,7 @@ function _submitCleanEntry() {
   if (window.AppData) {
     // 防刷：每 3 天最多 N 次快速打扫（N = 在地成员数，至少 1）
     var _users = AppData._data.users || {};
-    var onsiteN = Object.keys(_users).filter(function(un){ var r = (_users[un]||{}).role; return r==='npc'||r==='admin'||r==='builder'||r==='adventurer'; }).length;
+    var onsiteN = Object.keys(_users).filter(function(un){ return isMemberByRole((_users[un]||{}).role); }).length;
     var maxPer3d = Math.max(1, onsiteN);
     var _today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
     var _winStart = new Date(_today + 'T00:00:00').getTime() - 2*86400000;  // 3 天窗口（含今天）

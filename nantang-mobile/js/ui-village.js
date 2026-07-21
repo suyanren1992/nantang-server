@@ -3,8 +3,7 @@ function enterCamp(campId) {
   if (!CURRENT_USER) { showToast('请先登录','error'); return; }
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role;
-  if (role==='admin'||role==='builder'||role==='adventurer') {
-    openCampHome(campId); return;
+  if (isMemberByRole(role)) { openCampHome(campId); return;
   }
   // npc 或 visitor → 邀请码弹窗
   showInviteModal(campId);
@@ -53,7 +52,7 @@ function showCampWindow(campId) {
 
   var users = typeof getUsers === 'function' ? getUsers() : {};
   var role = (users[CURRENT_USER] || {}).role || 'visitor';
-  var isMember = role === 'admin' || role === 'builder' || role === 'adventurer';
+  var isMember = isMemberByRole(role);
 
   document.getElementById('campWindowTitle').textContent = c.name;
   document.getElementById('campWindowTitle').setAttribute('data-camp-id', campId);

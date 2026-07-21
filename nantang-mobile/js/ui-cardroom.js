@@ -373,7 +373,7 @@ function _renderVerifyTab() {
   // R4.4: 云村民只读——非在地成员隐藏操作按钮
   var users = typeof getUsers === 'function' ? getUsers() : {};
   var role = (users[CURRENT_USER] || {}).role || 'visitor';
-  var isOnsite = role === 'admin' || role === 'builder' || role === 'npc' || role === 'adventurer';
+  var isOnsite = isMemberByRole(role);
 
   var h = '';
 

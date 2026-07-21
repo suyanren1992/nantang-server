@@ -284,8 +284,8 @@ function _stopPolling() {
 function openQuestHallPage(){
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role||'visitor';
-  var isCampMember = role==='admin'||role==='builder'||role==='adventurer'||role==='npc';
-  var isOnsite = role==='admin'||role==='builder'||role==='npc'||role==='adventurer';
+  var isCampMember = isMemberByRole(role);
+  var isOnsite = isMemberByRole(role);
   var campChip = document.querySelector('#questHallBody .my-fchip[onclick*="营队"]');
   if (campChip) campChip.style.display = isCampMember ? '' : 'none';
   // R8.2: 非在地成员隐藏二级chip + 恢复一级chip全选
@@ -1129,7 +1129,7 @@ function showMy(opts){document.getElementById('villagePage').classList.add('hidd
   // 任务可见性：非营地成员隐藏 [营队] chip
   var users = typeof getUsers==='function'?getUsers():{};
   var role = (users[CURRENT_USER]||{}).role||'visitor';
-  var isCampMember = role==='admin'||role==='builder'||role==='adventurer'||role==='npc';
+  var isCampMember = isMemberByRole(role);
   if (!isCampMember) {
     var campChip = document.querySelector('#myChipRow .my-fchip[onclick*="营队"]');
     if (campChip) campChip.style.display = 'none';
