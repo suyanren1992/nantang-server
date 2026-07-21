@@ -1,12 +1,13 @@
 """FastAPI application entry point — serves API + frontend static files."""
 import os
+import asyncio
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from database import init_db
-from routes import auth, nt, tasks, camps, data
+from database import init_db, async_session
+from routes import auth, nt, tasks, camps, data, accommodation
 
 # 前端文件目录（nantang-mobile）
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "nantang-mobile"
@@ -17,7 +18,37 @@ if not FRONTEND_DIR.exists():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # 启动链扫描器（RPC 未配则跳过）
+    scanner_task = None
+    try:
+        from chain_scanner import _scanner_singleton
+        scanner = _scanner_singleton(async_session)
+        if scanner:
+            scanner_task = asyncio.create_task(scanner.start())
+            app.state.chain_scanner = scanner
+    except Exception as e:
+        print(f"[scanner] 初始化失败: {e}")
+    # P5: 启动 cron（每日 00:05 触发，asyncio sleep loop）
+    cron_task = None
+    try:
+        from cron import run_cron
+        cron_task = asyncio.create_task(run_cron())
+        app.state.cron_task = cron_task
+    except Exception as e:
+        print(f"[cron] 初始化失败: {e}")
     yield
+    if scanner_task:
+        scanner_task.cancel()
+        try:
+            await scanner_task
+        except (asyncio.CancelledError, Exception):
+            pass
+    if cron_task:
+        cron_task.cancel()
+        try:
+            await cron_task
+        except (asyncio.CancelledError, Exception):
+            pass
 
 
 app = FastAPI(
@@ -45,6 +76,9 @@ app.include_router(nt.router)
 app.include_router(tasks.router)
 app.include_router(camps.router)
 app.include_router(data.router)
+app.include_router(accommodation.router)
+app.include_router(accommodation.role_router)
+app.include_router(nt.system_router)
 
 
 @app.middleware("http")

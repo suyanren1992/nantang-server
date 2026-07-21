@@ -289,6 +289,16 @@ async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: Asy
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于0")
 
+    # P0': 支持社区池直接注资
+    if req.user == "community_pool":
+        pool = await _get_pool(db)
+        pool.balance += req.amount
+        pool.total_issued += req.amount
+        lid = _ledger_id()
+        await _add_ledger(db, lid, None, "community_pool", req.amount, "topup", req.reason)
+        await db.commit()
+        return {"ok": True, "entry_id": lid, "pool_balance": pool.balance}
+
     target = await db.execute(select(User).where(User.id == req.user))
     target = target.scalar_one_or_none()
     if not target:
