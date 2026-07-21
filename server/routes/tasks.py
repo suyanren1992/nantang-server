@@ -10,6 +10,7 @@ from database import get_db
 from models import NTTask, User
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _adjust_trust, _get_pool
+from nt_helpers import _safe_assignees
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -61,7 +62,7 @@ async def list_tasks(scope: str = None, status: str = None, mode: str = Query(No
         tasks = [t for t in result.scalars()
                  if t.poster == user.id
                  or t.assignee == user.id
-                 or user.id in json.loads(t.assignees or "[]")]
+                 or user.id in _safe_assignees(t)]
     if scope:
         tasks = [t for t in tasks if t.scope == scope]
     if status:
@@ -173,6 +174,10 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
         else:
             pool.balance += task.escrow_amount
         pool.task_escrow -= task.escrow_amount
+        lid = _ledger_id()
+        refund_target = task.poster if poster else "community_pool"
+        await _add_ledger(db, lid, "escrow", refund_target, task.escrow_amount,
+                         "task_cancelled", f"删除任务: {task.title}", task_id, status="settled")
     await db.delete(task)
     await db.commit()
     return {"ok": True}

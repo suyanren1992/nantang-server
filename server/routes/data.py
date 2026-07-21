@@ -115,9 +115,10 @@ async def get_verifications(user: User = Depends(get_current_user), db: AsyncSes
 async def add_verification(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     v = Verification(
         id=req.get("id", f"vfy_{datetime.utcnow().timestamp()}"),
-        type=req.get("type", ""), doer=req.get("doer", user.id),
+        type=req.get("type", ""), doer=user.id,
         action=req.get("action", ""), detail=json.dumps(req.get("detail", {}), ensure_ascii=False),
-        nt_amount=req.get("nt_amount", 0), verifier_reward=req.get("verifier_reward", 1),
+        nt_amount=min(int(req.get("nt_amount", 0)), 1000),
+        verifier_reward=min(int(req.get("verifier_reward", 1)), 1000),
         status="pending", created_at=datetime.utcnow().isoformat(),
     )
     db.add(v)

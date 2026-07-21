@@ -10,6 +10,7 @@ import json
 from database import get_db
 from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification
 from routes.auth import get_current_user, require_admin
+from nt_helpers import _ledger_id, _add_ledger, _get_pool, _safe_assignees
 
 router = APIRouter(prefix="/api/nt", tags=["nt"])
 
@@ -41,29 +42,6 @@ class CreateTaskRequest(BaseModel):
     category: str = "other"
 
 
-def _ledger_id():
-    now = datetime.utcnow()
-    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}-{secrets.token_hex(3)}"
-
-
-async def _add_ledger(db: AsyncSession, entry_id: str, from_user: str | None, to_user: str | None,
-                      amount: int, type_: str, reason: str = "", task_id: str = None, status: str = "settled",
-                      tx_hash: str = None):
-    entry = NTLedger(
-        entry_id=entry_id,
-        task_id=task_id,
-        from_user=from_user,
-        to_user=to_user,
-        amount=amount,
-        type=type_,
-        reason=reason,
-        status=status,
-        created_at=datetime.utcnow().isoformat(),
-        tx_hash=tx_hash,
-    )
-    db.add(entry)
-
-
 async def _adjust_trust(user: User, delta: int):
     user.trust_score = max(0, min(100, user.trust_score + delta))
     if user.trust_score >= 80:
@@ -74,21 +52,6 @@ async def _adjust_trust(user: User, delta: int):
         user.trust_level = "受限"
     else:
         user.trust_level = "冻结"
-
-
-async def _get_pool(db: AsyncSession, lock: bool = False) -> CommunityPool:
-    q = select(CommunityPool).limit(1)
-    if lock: q = q.with_for_update()
-    result = await db.execute(q)
-    pool = result.scalar_one_or_none()
-    if not pool:
-        pool = CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0, updated_at=datetime.utcnow().isoformat())
-        db.add(pool)
-        await db.flush()
-    # R7 migration guard: 已有数据库的 camp_balance 列可能为 NULL
-    if pool.camp_balance is None:
-        pool.camp_balance = 0
-    return pool
 
 
 async def _get_accommodation_status(db: AsyncSession, user_id: str):
@@ -163,7 +126,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
     # 任务
     tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
               "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
-              "assignees": json.loads(t.assignees or "[]"), "slots": t.slots,
+              "assignees": _safe_assignees(t), "slots": t.slots,
               "deadline": t.deadline, "reviewer": t.reviewer, "note": t.note,
               "evidence": t.evidence, "escrow_amount": t.escrow_amount,
               "created_at": t.created_at, "verified_at": t.verified_at,
@@ -472,9 +435,7 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
     if task.status != "进行中":
         raise HTTPException(status_code=400, detail=f"任务状态不可接取: {task.status}")
     import json
-    assignees = json.loads(task.assignees or "[]")
-    if not assignees and task.assignee:
-        assignees = [task.assignee]  # fallback 旧格式
+    assignees = _safe_assignees(task)
     if len(assignees) >= task.slots:
         raise HTTPException(status_code=409, detail=f"任务已满员（{task.slots}/{task.slots}）")
     if user.id in assignees:
@@ -504,9 +465,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
     pool = await _get_pool(db)
     if approved:
         import json
-        assignee_ids = json.loads(task.assignees or "[]")
-        if not assignee_ids and task.assignee:
-            assignee_ids = [task.assignee]  # fallback 旧格式
+        assignee_ids = _safe_assignees(task)
         if not assignee_ids:
             raise HTTPException(status_code=400, detail="任务执行者不存在")
         for aid in assignee_ids:
@@ -609,7 +568,7 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
     result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
-    a_ids = json.loads(task.assignees or "[]") or ([task.assignee] if task.assignee else [])
+    a_ids = _safe_assignees(task)
     if user.id not in a_ids: raise HTTPException(status_code=403, detail="只有认领者可以提交")
     if task.status not in ("进行中", "待提交", "退回修改"):
         raise HTTPException(status_code=400, detail=f"任务状态不可提交: {task.status}")
@@ -660,7 +619,7 @@ async def dispute_task(task_id: str, user: User = Depends(get_current_user), db:
     result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
-    a_ids = json.loads(task.assignees or "[]") or ([task.assignee] if task.assignee else [])
+    a_ids = _safe_assignees(task)
     if task.poster != user.id and user.id not in a_ids:
         raise HTTPException(status_code=403, detail="只有任务参与者可以发起争议")
     # 状态白名单：已结算/待结算/已取消/已争议的任务不可再争议（防争议→仲裁双重赔付）
@@ -688,10 +647,7 @@ async def resolve_task(task_id: str, req: ResolveTaskRequest, admin: User = Depe
     if req.action not in ("refund_poster", "release_assignee", "split_5050"):
         raise HTTPException(status_code=400, detail=f"无效的仲裁动作: {req.action}")
 
-    import json
-    assignee_ids = json.loads(task.assignees or "[]")
-    if not assignee_ids and task.assignee:
-        assignee_ids = [task.assignee]  # fallback 旧格式
+    assignee_ids = _safe_assignees(task)
     if req.action in ("release_assignee", "split_5050") and not assignee_ids:
         raise HTTPException(status_code=400, detail="任务执行者不存在")
 

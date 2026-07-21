@@ -9,7 +9,7 @@ from models import User, Tenancy, NTTask
 import json
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
-
+from nt_helpers import _safe_assignees
 router = APIRouter(prefix="/api/accommodation", tags=["accommodation"])
 
 
@@ -97,7 +97,7 @@ async def checkout(user: User = Depends(get_current_user),
         )
     )
     for task in sys_tasks.scalars():
-        a_ids = json.loads(task.assignees or "[]")
+        a_ids = _safe_assignees(task)
         if user.id in a_ids:
             a_ids.remove(user.id)
             task.assignees = json.dumps(a_ids, ensure_ascii=False)

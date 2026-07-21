@@ -6,50 +6,19 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 from datetime import datetime, timedelta
 from sqlalchemy import select
 from database import async_session
-from models import NTTask, CommunityPool, NTLedger
+from models import NTTask
+from nt_helpers import _ledger_id, _add_ledger, _get_pool
 logger = logging.getLogger("cron")
 
 TEMPLATES_PATH = os.path.join(os.path.dirname(__file__), "config", "periodic_tasks.json")
 
 
-# ponytail: inline helpers to avoid circular import from routes.nt
-import secrets as _secrets
-
-def _ledger_id():
-    now = datetime.utcnow()
-    return f"L{now.strftime('%y%m%d')}-{now.strftime('%f')}-{_secrets.token_hex(3)}"
-
-
 def _task_id():
-    import secrets
     return f"T{datetime.utcnow().strftime('%y%m%d%H%M%S')}-{secrets.token_hex(3)}"
-
-
-async def _get_pool(db, lock: bool = False):
-    q = select(CommunityPool).limit(1)
-    if lock: q = q.with_for_update()
-    result = await db.execute(q)
-    pool = result.scalar_one_or_none()
-    if not pool:
-        pool = CommunityPool(balance=0, total_issued=0, task_escrow=0,
-                             contribution_pool=0, camp_balance=0,
-                             updated_at=datetime.utcnow().isoformat())
-        db.add(pool)
-        await db.flush()
-    return pool
-
-
-async def _add_ledger(db, entry_id, from_user, to_user, amount, type_, reason="", task_id=None, status="settled"):
-    entry = NTLedger(
-        entry_id=entry_id, task_id=task_id,
-        from_user=from_user, to_user=to_user,
-        amount=amount, type=type_, reason=reason,
-        status=status, created_at=datetime.utcnow().isoformat(),
-    )
-    db.add(entry)
 
 
 async def _wait_until(target_hour=0, target_minute=5):
