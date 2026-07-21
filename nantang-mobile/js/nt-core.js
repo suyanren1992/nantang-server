@@ -57,7 +57,7 @@ function _saveState(immediate) {
         u: USERS, t: TASKS, l: LEDGER, st: SETTLEMENTS,
         ti: _totalIssued, cmp: COMMUNITY_POOL, cps: CAMP_POOLS, te: TASK_ESCROW, cvp: PUBLIC_CV_POOL, pt: _processedTxIds, sq: _seq
       }));
-    } catch(e) { console.warn('[NT] 存档失败', e); }
+    } catch(e) { console.warn('[NT] 存档失败', e); if (typeof showToast === 'function') showToast('NT 存档失败，请清理浏览器存储空间', 'warn'); }
   };
   if (immediate) { doWrite(); return; }
   clearTimeout(_saveTimer);
@@ -68,10 +68,11 @@ function _saveState(immediate) {
 //  用户管理
 // ═══════════════════════════════════════════════
 
-function registerUser(userId, initialDeposit) {
+function registerUser(userId, initialDeposit, role) {
   if (USERS[userId]) return USERS[userId];
   USERS[userId] = {
     userId: userId,
+    role: role || 'visitor',
     walletAddress: null,           // 钱包未接入时为 null
     ntBalance: initialDeposit || 0,
     contributionValue: 0,
@@ -487,8 +488,8 @@ function depositToCommunityPool(amount, reason) {
   _saveState(true); return COMMUNITY_POOL;
 }
 
-function transfer(fromId, toId, amount, reason) {
-  var caller = (typeof CURRENT_USER !== 'undefined') ? CURRENT_USER : '';
+function transfer(fromId, toId, amount, reason, caller) {
+  caller = caller || ((typeof CURRENT_USER !== 'undefined') ? CURRENT_USER : '');
   var callerRole = ((typeof getUsers === 'function' ? getUsers() : {})[caller] || {}).role || '';
   if (caller !== fromId && callerRole !== 'admin') return _err('无权转账');
   var from = _getUser(fromId), to = _getUser(toId);
@@ -512,6 +513,14 @@ var PUBLIC_CV_POOL = 0;
 // FIX-06: 防重放 — 已处理的 txId 集合
 // ponytail: 无过期机制。当审批数 >1000 时改为 LRU Map 或加 TTL 自动清理。
 var _processedTxIds = {};
+// 每 10 分钟清理 7 天前的 txId
+setInterval(function() {
+  var cutoff = Date.now() - 7 * 86400000;
+  Object.keys(_processedTxIds).forEach(function(k) {
+    var ts = parseInt(k.split('_')[0], 36);
+    if (!isNaN(ts) && ts < cutoff) delete _processedTxIds[k];
+  });
+}, 600000);
 function _addToPublicPool(cv, source) {
   // ponytail: PUBLIC_CV_POOL 单向积累无出口。当 >10000 时需实现分配机制（如按周活跃度分发给成员）
   PUBLIC_CV_POOL += cv;

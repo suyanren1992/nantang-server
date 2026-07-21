@@ -1282,6 +1282,7 @@ window.addEventListener('message',function(e){
         if (typeof refreshUserUI==='function') refreshUserUI();
         if (typeof _mergeSyncData==='function') API.syncAll(_mergeSyncData);
         if (typeof _startPolling === 'function') _startPolling();
+        if (typeof _processOverdueTasks === 'function') _processOverdueTasks();
         // 恢复到刷新前位置，然后显示页面
         var hash = window.location.hash;
         if (hash === '#map' && typeof openMapPage === 'function') openMapPage();

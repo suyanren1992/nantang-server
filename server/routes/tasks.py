@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
 from datetime import datetime
+import secrets
 from database import get_db
 from models import NTTask, User
 from routes.auth import get_current_user, require_admin
@@ -36,7 +37,7 @@ class TaskUpdate(BaseModel):
 
 
 def _task_id():
-    return f"T{datetime.utcnow().strftime('%y%m%d')}-{datetime.utcnow().strftime('%f')}"
+    return f"T{datetime.utcnow().strftime('%y%m%d%H%M%S')}-{secrets.token_hex(3)}"
 
 
 @router.get("")
@@ -55,7 +56,8 @@ async def list_tasks(scope: str = None, status: str = None, user: User = Depends
              "slots": t.slots, "deadline": t.deadline, "reviewer": t.reviewer,
              "location_id": t.location_id, "note": t.note, "evidence": t.evidence,
              "reject_reason": t.reject_reason, "settler_id": t.settler_id,
-             "created_at": t.created_at, "settled_at": t.settled_at} for t in tasks]
+             "created_at": t.created_at, "accepted_at": t.accepted_at, "completed_at": t.completed_at,
+             "settled_at": t.settled_at} for t in tasks]
 
 
 @router.post("")

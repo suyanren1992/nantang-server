@@ -37,7 +37,8 @@ async def add_journal(req: dict, user: User = Depends(get_current_user), db: Asy
 
 # ── Activity Log ──
 @router.get("/activity_log")
-async def get_activity_log(db: AsyncSession = Depends(get_db), limit: int = 20):
+async def get_activity_log(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), limit: int = 20):
+    if not user: raise HTTPException(status_code=401)
     result = await db.execute(select(ActivityLog).order_by(ActivityLog.id.desc()).limit(limit))
     return [{"time": a.time, "type": a.type, "text": a.text} for a in result.scalars()]
 
@@ -105,9 +106,16 @@ async def update_card_discovery(disc_id: str, req: dict, user: User = Depends(ge
 async def get_verifications(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401)
-    result = await db.execute(select(Verification).order_by(Verification.created_at.desc()).limit(50))
+    q = select(Verification).order_by(Verification.created_at.desc()).limit(50)
+    if user.role != "admin":
+        q = q.where(Verification.doer == user.id)
+    result = await db.execute(q)
     return [{"id": v.id, "type": v.type, "doer": v.doer, "action": v.action,
-             "nt_amount": v.nt_amount, "status": v.status, "created_at": v.created_at}
+             "detail": json.loads(v.detail) if v.detail else {},
+             "nt_amount": v.nt_amount, "verifier_reward": v.verifier_reward,
+             "status": v.status, "verifier": v.verifier, "verified_at": v.verified_at,
+             "reject_reason": v.reject_reason, "retry_count": v.retry_count,
+             "created_at": v.created_at}
             for v in result.scalars()]
 
 
@@ -332,7 +340,11 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
 async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     if not user: raise HTTPException(status_code=401)
     # 我的任务
-    tasks_r = await db.execute(select(NTTask).order_by(NTTask.created_at.desc()))
+    tasks_r = await db.execute(
+        select(NTTask).where(
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id)
+        ).order_by(NTTask.created_at.desc())
+    )
     my_tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
                  "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee,
                  "slots": t.slots, "deadline": t.deadline, "reviewer": t.reviewer,

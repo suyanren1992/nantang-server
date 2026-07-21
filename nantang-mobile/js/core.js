@@ -5,6 +5,7 @@ function roleName(r){return r==='admin'?'管理员':r==='builder'?'共建者':r=
 // ═══ 公共工具函数 ═══
 function closeAllExpands(){document.querySelectorAll('.card-expand,.submit-expand,.settle-expand,.withdraw-expand,.review-expand,.unclaim-expand,.submission-sub,.ledger-expand,.archive-detail,.confirm-card,.toast-card,.avatar-picker').forEach(function(c){c.remove()})}
 function isTaskOverdue(t){return t.deadline&&t.deadline<today()&&t.status!=='已结算'&&t.status!=='待结算'}
+function _processOverdueTasks(){Object.values(TASKS).forEach(function(t){if(isTaskOverdue(t)){t.action='overdue';AppData.updateTask(t.name,{action:'overdue'});}})}
 function NT_ICON(s){s=s||14;return'<img src=豆子.png alt=NT onerror="this.outerHTML=\'🌱\'" style=width:'+s+'px;height:'+s+'px;vertical-align:middle;margin-right:2px>'}
 // FIX-15: LEDGER 已废弃。RMB 金库迁移到 AppData._data.campRmb。
 function openLedger(type){
@@ -205,7 +206,7 @@ function _startPolling() {
       if (tasks && tasks.detail === 'unauthorized') { _stopPolling(); return; }
       if (tasks && window.AppData) { tasks.forEach(function(t) {
         var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
-        if (!dup) { AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, locationId: t.location_id || '', claimants:[], action:'' }; }
+        if (!dup) { AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category||'其他', nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee||'', deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence||'', locationId: t.location_id || '', claimants:[], action:'' }; }
       });}
     });
     API.fetchDiscoveries(function(discs) {
@@ -488,7 +489,7 @@ function openPublishTask(){
     if(Array.isArray(locs)){locs.forEach(function(b){opts+='<option value="'+b.id+'">'+b.icon+' '+b.name+'</option>';});}
     locSel.innerHTML=opts;
   }
-  onPubTypeChange();renderDrafts();document.getElementById('pubReviewer').value=CURRENT_USER;
+  onPubTypeChange();renderDrafts();document.getElementById('pubReviewer').value='';
 }
 function saveDraft(){
   var name=document.getElementById('pubName').value.trim();if(!name)return;
@@ -898,9 +899,9 @@ function refreshUserUI(){
     var ntCard=document.getElementById('myNtBalance');if(ntCard)ntCard.textContent=b;
     var ntBar=document.getElementById('myNtBar');if(ntBar)ntBar.style.width=Math.min(100,Math.round(b/1250*100))+'%';
   }
-  // 营队 NT = 已结算营队任务中用户是完成者的 NT 之和
+  // 营队 NT = 从 NT Ledger 汇总 camp_earn 类型的收入
   var campNt=0;
-  Object.values(TASKS).forEach(function(t){if(t.scope==='营队'&&t.status==='已结算'){(t.claimants||[]).forEach(function(c){if(c.name===u&&c.status==='completed')campNt+=t.nt||0})}});
+  if(window.NT){ NT.getLedger({userId:u}).filter(function(e){return e.type==='camp_earn'||(e.type||'').indexOf('camp:')===0;}).forEach(function(e){campNt+=e.amount||0}); }
   var campCard=document.getElementById('myCampNtBalance');if(campCard)campCard.textContent=campNt;
   var campBar=document.getElementById('myCampNtBar');if(campBar)campBar.style.width=(campNt>0?Math.min(100,Math.round(campNt/1250*100)):0)+'%';
   // 刷新账本卡片

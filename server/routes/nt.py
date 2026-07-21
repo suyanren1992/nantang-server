@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from datetime import datetime
+import secrets
 from database import get_db
 from models import User, NTLedger, NTTask, CommunityPool
 from routes.auth import get_current_user, require_admin
@@ -68,8 +69,10 @@ async def _adjust_trust(user: User, delta: int):
         user.trust_level = "冻结"
 
 
-async def _get_pool(db: AsyncSession) -> CommunityPool:
-    result = await db.execute(select(CommunityPool).limit(1))
+async def _get_pool(db: AsyncSession, lock: bool = False) -> CommunityPool:
+    q = select(CommunityPool).limit(1)
+    if lock: q = q.with_for_update()
+    result = await db.execute(q)
     pool = result.scalar_one_or_none()
     if not pool:
         pool = CommunityPool(balance=2000, total_issued=2000, task_escrow=0, contribution_pool=0, camp_balance=0, updated_at=datetime.utcnow().isoformat())
@@ -143,8 +146,10 @@ async def earn(req: EarnSpendRequest, user: User = Depends(get_current_user), db
         raise HTTPException(status_code=401)
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于0")
+    if req.amount > 10000:
+        raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
 
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)
     if req.scope == "camp" or (hasattr(req, 'pool') and req.pool and req.pool.startswith('camp:')):
         if pool.camp_balance < req.amount:
             raise HTTPException(status_code=400, detail=f"营队池余额不足（当前 {pool.camp_balance} NT）")
@@ -276,7 +281,7 @@ async def create_task(req: CreateTaskRequest, user: User = Depends(get_current_u
     if user.nt_balance < req.reward:
         raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward} NT，当前 {user.nt_balance}）")
 
-    task_id = f"T{datetime.utcnow().strftime('%y%m%d')}-{datetime.utcnow().strftime('%f')}"
+    task_id = f"T{datetime.utcnow().strftime('%y%m%d%H%M%S')}-{secrets.token_hex(3)}"
     user.nt_balance -= req.reward
 
     pool = await _get_pool(db)

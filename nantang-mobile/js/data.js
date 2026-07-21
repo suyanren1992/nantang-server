@@ -381,6 +381,14 @@ function reviewTask(name,action){
 function confirmReject(name){
   var reason=document.getElementById('reviewReason').value.trim();if(!reason){showToast('请填写退回理由','error');return}
   var t=TASKS[name];if(!t)return;
+  t.rejectCount = (t.rejectCount || 0) + 1;
+  if (t.rejectCount >= 3) {
+    t.status = '已取消'; t.reviewNote = reason + '（已打回3次，自动关闭）'; t.reviewedAt = today();
+    showToast('已打回3次，任务自动关闭', 'warn');
+    if(t._ntTaskId&&window.NT){NT.verifyTask(t._ntTaskId, CURRENT_USER, false, reason+' | 第'+t.rejectCount+'次打回，自动关闭');}
+    document.querySelectorAll('.review-expand,.card-expand,.submission-sub').forEach(function(c){c.remove()});
+    filterQuests();renderMyTasks();refreshUserUI(); return;
+  }
   t.reviewNote=reason;t.status='退回修改';t.reviewedAt=today();t.action='edit';
   AppData.updateTask(name, {reviewNote:reason, status:'退回修改', reviewedAt:t.reviewedAt, action:'edit'});
   // NT 系统：退还托管 NT 给发布者

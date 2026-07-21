@@ -102,7 +102,8 @@ var API = {
     var data = { title: task.name || task.title, reward: task.nt || task.reward || 5,
       category: task.type || task.category || 'other', scope: task.scope || '社区',
       note: task.note || '', slots: task.slots || 1, deadline: task.deadline || '',
-      reviewer: task.reviewer || '', location_id: task.locationId || '' };
+      reviewer: task.reviewer || '', location_id: task.locationId || '',
+      req_photo: task.reqPhoto || 0, req_file: task.reqFile || 0 };
     this.request('POST', '/api/tasks', data).then(function(r) {
       if (callback) callback(r && r.task_id ? r.task_id : null);
     });
