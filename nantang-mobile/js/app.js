@@ -290,8 +290,10 @@ function _renderMgmtCards() {
   }).join('');
   h += '<div class="ic-card" onclick="_openMgmtSheet(\'field\')"><div class="ic-head">🌿 田地</div>'+
     '<div class="ic-body">'+(cropLines||'<div class="ic-muted">暂无种植信息</div>')+'</div></div>';
-  // 厨房·冰箱
-  var inv = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
+  // 厨房·冰箱——读两个厨房（社区大楼 office + 大地书房 study）
+  var invOffice = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
+  var invStudy = (window.AppData && AppData._data.inventory && AppData._data.inventory.study) ? AppData._data.inventory.study : [];
+  var inv = invOffice.concat(invStudy);
   var freshItems = inv.filter(function(it){ return it.status === 'fresh'; });
   var kitchenLines = freshItems.length ? freshItems.slice(0,3).map(function(it){
     var d = it.expiryDays && it.putDate ? it.expiryDays - Math.floor((Date.now()-new Date(it.putDate+'T00:00:00'))/86400000) : null;
@@ -2054,8 +2056,8 @@ function _submitKitchenEntry() {
     // act.action 是英文（stock_in/stock_out/store_in），_syncItemToAppData 吃中文
     var actionMap = { stock_in: '放入物品', stock_out: '取出/消耗', store_in: '放入物品' };
     // skipVerify=true：校核记录只由下面这条写，避免一次动作两条记录
-    _syncItemToAppData(actionMap[act.action] || act.action, sel.name, (curBuilding()||{}).id || '', true);
-    AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: (curBuilding()||{}).id || '' }, act.nt, 1);
+    _syncItemToAppData(actionMap[act.action] || act.action, sel.name, ((curBuilding()||{}).id === 'study' ? 'study' : 'office'), true);
+    AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: ((curBuilding()||{}).id === 'study' ? 'study' : 'office') }, act.nt, 1);
   }
   _closeQuickSheet();
   showToast('✅ '+act.label+' '+name, 'ok');
