@@ -434,7 +434,7 @@ function toggleQuestCard(el,name){
   var t=TASKS[name];if(!t)return;
   // Collapse: find any expand right after this card and remove it
   var nxt=el.nextElementSibling;
-  if(nxt&&(nxt.classList.contains('card-expand')||nxt.classList.contains('submit-expand')||nxt.classList.contains('settle-expand')||nxt.classList.contains('withdraw-expand')||nxt.classList.contains('review-expand')||nxt.classList.contains('unclaim-expand'))){nxt.remove();el.scrollIntoView({behavior:'smooth',block:'nearest'});return}
+  if(nxt&&(nxt.classList.contains('card-expand')||nxt.classList.contains('submit-expand')||nxt.classList.contains('settle-expand')||nxt.classList.contains('withdraw-expand')||nxt.classList.contains('review-expand')||nxt.classList.contains('unclaim-expand'))){nxt.style.maxHeight=nxt.scrollHeight+'px';nxt.style.transition='max-height .2s ease-out,opacity .2s ease-out';nxt.style.overflow='hidden';requestAnimationFrame(function(){nxt.style.maxHeight='0';nxt.style.opacity='0'});setTimeout(function(){nxt.remove()},200);el.scrollIntoView({behavior:'smooth',block:'nearest'});return}
   // Remove all other floating expands EXCEPT cards themselves
   document.querySelectorAll('.card-expand,.submission-sub,.submit-expand,.withdraw-expand,.settle-expand,.review-expand,.unclaim-expand').forEach(function(c){c.remove()});
   var d=document.createElement('div');d.className='card-expand';

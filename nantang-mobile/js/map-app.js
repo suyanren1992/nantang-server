@@ -917,7 +917,10 @@ window.Map = {
 };
 
 // ═══ 自动初始化 ═══
+// F32: 防御重复定义——如果主框架已定义 _initMap，则跳过
+if (typeof _initMap !== 'undefined') { console.warn('[map-app] _initMap already defined, skipping'); } else {
 function _initMap(){
   try{if(!_mapContainer){currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false;_bindEvents();render()}}catch(e){console.error('[Map] init failed:',e)}
+}
 }
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',_initMap)}else{_initMap()}

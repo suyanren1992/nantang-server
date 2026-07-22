@@ -111,7 +111,7 @@ function renderContent(idx) {
 
   var fKeys = Object.keys(b.floors || {}), rooms = curRooms(), isField = !!(b.plots && b.plots.length > 0);
 
-  var cp = _q('crumbPath'); if (cp) cp.innerHTML = '🗺️ 实景地图 › <span>' + b.name + '</span>' + (selectedRoomId ? ' › <span>' + (rooms.find(function(r){return r.id===selectedRoomId})||{}).name + '</span>' : '');
+  var cp = _q('crumbPath'); if (cp) cp.innerHTML = '🗺️ <span style="cursor:pointer;color:var(--g-accent);text-decoration:underline" onclick="renderOverview()">实景地图</span> › <span style="cursor:pointer" onclick="renderOverview()">' + b.name + '</span>' + (selectedRoomId ? ' › <span>' + (rooms.find(function(r){return r.id===selectedRoomId})||{}).name + '</span>' : '');
 
   _q('photoImg').style.height = ''; // 重置全貌页压缩的高度
   _q('photoImg').style.background = b.photoBg;
@@ -513,7 +513,8 @@ function _yesterday() { var d = new Date(); d.setDate(d.getDate()-1); return d.t
 
 // ── 退回辅助 ──
 function _doReject(vfyId, reason) {
-  if (!window.AppData || !reason) return;
+  if (!reason) { showToast('请填写退回原因', 'warn'); return; }
+  if (!window.AppData) return;
   var result = AppData.verifyAction(vfyId, _me(), false, reason);
   if (result && result.ok) {
     if (window.Game&&Game.toast) Game.toast('已退回');
@@ -1089,8 +1090,9 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
   var old = document.querySelector('.mgmt-sheet'); if (old) old.remove();
   var el = document.createElement('div'); el.className = 'mgmt-sheet';
   el.style.cssText = 'position:fixed;inset:0;z-index:260;display:flex;align-items:flex-end;justify-content:center';
-  el.innerHTML = '<div style="position:absolute;inset:0;background:rgba(0,0,0,.45)" onclick="this.parentElement.remove()"></div>'+
-    '<div style="position:relative;background:#fff;border-radius:'+(fullscreen?'0':'16px 16px 0 0')+';width:100%;max-width:'+(fullscreen?'100%':'500px')+';height:'+(fullscreen?'100vh':'auto')+';max-height:'+(fullscreen?'100vh':'72vh')+';overflow-y:auto;padding:'+(fullscreen?'20px 16px 80px':'20px 16px')+';padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 24px rgba(0,0,0,.15)">'+
+  // F23: 入场动画 — 遮罩 fadeIn + 卡片 slideUp
+  el.innerHTML = '<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out" onclick="this.parentElement.remove()"></div>'+
+    '<div style="position:relative;background:#fff;border-radius:'+(fullscreen?'0':'16px 16px 0 0')+';width:100%;max-width:'+(fullscreen?'100%':'500px')+';height:'+(fullscreen?'100vh':'auto')+';max-height:'+(fullscreen?'100vh':'72vh')+';overflow-y:auto;padding:'+(fullscreen?'20px 16px 80px':'20px 16px')+';padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 24px rgba(0,0,0,.15);animation:spcPop .2s ease-out">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:1.2rem">'+title+'</span></div>'+
     bodyHTML+(actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button></div>';
   document.body.appendChild(el);
@@ -1630,67 +1632,6 @@ function _submitMyCleaning() {
 
 /* ══════════════════════════════════════
    🛏️ 住宿管理（我的视角）
-   ══════════════════════════════════════ */
-// ponytail: deprecated 2026-07-22，路由已切到 _showStaySheet。旧 MGMT_DATA.stay 系统待 Phase E 移除
-function renderStayPanel() { console.warn('[deprecated] renderStayPanel, use _showStaySheet');
-  var dormRooms = _getDormRooms();
-  var me = _me();
-  var myRoom = MGMT_DATA.stay.myRoom;
-  var h = '';
-
-  // ═══ 提醒 ═══
-  h += '<div class="mgmt-reminders">';
-  if (myRoom) {
-    h += '<div class="mr-item ok">🛏️ 我当前入住：<b>'+myRoom.replace('dorm','')+'室</b> · '+MGMT_DATA.stay.myCheckIn+'→'+MGMT_DATA.stay.myCheckOut+'</div>';
-  } else {
-    h += '<div class="mr-item info">我尚未入住 · 下方有空房可选</div>';
-  }
-  h += '<div class="mr-item ok">✓ 4间空房可入住 · 待收 <b style="color:var(--g-gold)">240 NT</b></div>';
-  h += '</div>';
-
-  // ═══ 操作按钮 ═══
-  h += '<div class="mgmt-actions">';
-  if (myRoom) {
-    h += '<button class="ma-btn primary" onclick="_checkoutStay()">🚪 退房</button>';
-  } else {
-    h += '<button class="ma-btn primary" onclick="_toggleForm(\'stay\')">＋ 登记入住</button>';
-  }
-  h += '</div>';
-
-  // ── 登记表单（未入住时） ──
-  h += '<div class="mgmt-quick-form' + (_mgmtFormType==='stay'?' open':'') + '">';
-  h += '<div class="qf-title">✏️ 我（'+me+'）登记入住</div>';
-  h += '<div class="qf-row">入住 <select id="srRoom">'+dormRooms.filter(function(r){return !r.sub||r.sub==='空房';}).map(function(r){return '<option value="'+r.id+'">'+r.name+'</option>';}).join('')+'</select>';
-  h += ' <input id="srIn" placeholder="入住日" value="7/17"> → <input id="srOut" placeholder="离店日" value="7/20">';
-  h += ' <button class="qf-submit" onclick="_submitMyStay()">✓ 登记</button></div>';
-  h += '</div>';
-
-  // ═══ 房间卡片 ═══
-  h += '<div class="mgmt-card-grid">';
-  dormRooms.forEach(function(r) {
-    var occupied = r.sub && r.sub !== '空房';
-    var isMine = myRoom === r.id;
-    h += '<div class="mgmt-card'+(isMine?' selected':'')+(occupied&&!isMine?' vacant':'')+'" onclick="'+(!myRoom&&!occupied?'_toggleForm(\'stay\')':'')+'">';
-    h += '<span class="mc-icon">🛏️</span>';
-    h += '<div class="mc-name">'+r.name+(isMine?' ← 我':'')+'</div>';
-    if (occupied) {
-      h += '<div class="mc-occupant">👤 '+(r.sub||'')+'</div>';
-    } else {
-      h += '<div class="mc-vacant-label">'+(myRoom?'空房':'空房 · 点此入住')+'</div>';
-    }
-    h += '</div>';
-  });
-  h += '</div>';
-
-  // ═══ 历史 ═══
-  h += '<div class="mgmt-history"><div class="mas-title" style="margin-bottom:4px">📜 入住记录</div>';
-  MGMT_DATA.stay.history.forEach(function(hi) {
-    h += '<div class="mh-item">'+hi.date+' · '+hi.person+' · '+hi.room+'室 · '+hi.detail+'</div>';
-  });
-  h += '</div>';
-
-  return h;
-}
 
 function _submitMyStay() {
   var roomId = (_d('srRoom')||{}).value;

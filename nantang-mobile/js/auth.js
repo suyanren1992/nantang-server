@@ -348,8 +348,7 @@ function changeUserRole(name, newRole, opts) {
     currentUser.role = newRole;
     safeStorage.setItem(NT_SESSION_KEY, JSON.stringify(currentUser)); // 同步 session，防止刷新后回退
     if (typeof refreshUserUI === 'function') refreshUserUI();
-    var newId = getIdentity(currentUser);
-    showMainInterface(newId, 'workspace');
+    if (typeof render === 'function') render();
   }
 
   // Step 5: 消耗邀请码（校验已在 Step 0 完成，这里只消费）
