@@ -355,6 +355,21 @@ function openCardRoom() {
   el.classList.add('open');
   renderCardRoom();
 }
+function openVerifyRoom() {
+  var el = document.getElementById('overlayVerifyRoom');
+  if (!el) { showToast('校核室模块未加载', 'error'); return; }
+  el.classList.add('open');
+  renderVerifyRoom();
+}
+function renderVerifyRoom() {
+  var el = document.getElementById('verifyRoomBody');
+  if (!el) return;
+  el.innerHTML = _renderVerifyTab();
+}
+function closeVerifyRoom() {
+  var el = document.getElementById('overlayVerifyRoom');
+  if (el) el.classList.remove('open');
+}
 
 function closeCardRoom() {
   var el = document.getElementById('overlayCardRoom');
@@ -362,9 +377,7 @@ function closeCardRoom() {
 }
 
 var _cardFilter = '全部';
-var _cardroomTab = _cardroomTab || 'guess';
-
-// R4.2: 校核 tab 渲染
+// 校核室独立渲染（overlayVerifyRoom）
 function _renderVerifyTab() {
   var vfys = (window.AppData && AppData._data.pendingVerifications) ? AppData._data.pendingVerifications : [];
   var pending = vfys.filter(function(v) { return v.status === 'pending'; });
@@ -441,27 +454,7 @@ function _renderVerifyTab() {
 function renderCardRoom() {
   var el = document.getElementById('cardRoomBody');
   if (!el) return;
-
-  // R4.1: Tab 切换栏
   var h = '';
-  h += '<div class="my-tabbar" style="margin-bottom:8px">';
-  h += '<div class="my-tab ' + (_cardroomTab === 'guess' ? 'on' : '') + '" onclick="_cardroomTab=\'guess\';renderCardRoom()">🃏 匿名好事</div>';
-  h += '<div class="my-tab ' + (_cardroomTab === 'verify' ? 'on' : '') + '" onclick="_cardroomTab=\'verify\';renderCardRoom()">✓ 待验证</div>';
-  h += '</div>';
-
-  // 副标题
-  if (_cardroomTab === 'guess') {
-    h += '<div style="font-size:.6rem;color:#aaa;margin-bottom:8px">谁做了这件事？猜对有奖</div>';
-  } else {
-    h += '<div style="font-size:.6rem;color:#aaa;margin-bottom:8px">确认社区成员的劳动</div>';
-  }
-
-  // 校核 tab 走独立渲染
-  if (_cardroomTab === 'verify') {
-    el.innerHTML = h + _renderVerifyTab();
-    return;
-  }
-
   var discs = _getDiscoveries();
   var sevenDaysAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
   var recentDiscs = discs.filter(function(d) { return d.createdAt.slice(0, 10) >= sevenDaysAgo; });

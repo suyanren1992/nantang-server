@@ -385,31 +385,8 @@ function _renderCardVerifyRow() {
   return h;
 }
 
-// ── 全貌页内嵌校核室：与卡片室对称 ──
-function _renderVerifyRoomSection() {
-  var vfys = (window.AppData && AppData._data.pendingVerifications) || [];
-  var pending = vfys.filter(function(v){ return v.status === 'pending'; });
-  var today = new Date().toISOString().slice(0,10);
-  var todayVerified = vfys.filter(function(v){ return v.status === 'verified' && v.verifiedAt && v.verifiedAt.slice(0,10) === today; }).length;
-
-  var h = '<div onclick="if(typeof openVerifyRoom===\'function\')openVerifyRoom()" style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 14px;margin:4px 0;cursor:pointer">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center">';
-  h += '<div style="flex:1">';
-  h += '<div style="font-weight:700;font-size:.75rem;color:#1d2e24;margin-bottom:4px">✓ 校核室</div>';
-  h += '<div style="font-size:.6rem;color:#5a6e5c">' + pending.length + ' 条待确认 · 今日已验证 ' + todayVerified + ' 次</div>';
-  h += '</div>';
-  h += '<span style="font-size:1.5rem;flex-shrink:0">✓</span>';
-  h += '</div>';
-  h += '</div>';
-  return h;
-}
-function openVerifyRoom() {
-  if (typeof _cardroomTab !== 'undefined') _cardroomTab = 'verify';
-  if (typeof openCardRoom === 'function') openCardRoom();
-}
-
-// ── 全貌页内嵌卡片室：可点击整卡进入 ──
-function _renderRecentCardRoomCards() {
+// openVerifyRoom 在 ui-cardroom.js（独立 overlay）
+function _renderRecentCardRoomCards_OLD() {
   var discs = (window.AppData && AppData._data.cardDiscoveries) ? AppData._data.cardDiscoveries : [];
   var sevenDaysAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
   var recent = discs.filter(function(d){ return d.createdAt.slice(0,10) >= sevenDaysAgo; });
