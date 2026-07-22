@@ -347,7 +347,7 @@ function changeUserRole(name, newRole, opts) {
   if (currentUser && currentUser.name === name && !opts.skipUI) {
     currentUser.role = newRole;
     safeStorage.setItem(NT_SESSION_KEY, JSON.stringify(currentUser)); // 同步 session，防止刷新后回退
-    refreshUserHUD();
+    if (typeof refreshUserUI === 'function') refreshUserUI();
     var newId = getIdentity(currentUser);
     showMainInterface(newId, 'workspace');
   }

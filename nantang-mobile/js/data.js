@@ -534,7 +534,7 @@ function upgradeRole(name,newRole,code){
   return r||{ok:false,error:'升级失败'};
 }
 function scrollToSection(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
-function closeOverlay(id,showVillage){document.getElementById(id).classList.remove('open');if(showVillage!==false){var anyOpen=document.querySelector('.overlay.open');if(!anyOpen)document.getElementById('villagePage').classList.remove('hidden')}}
+function closeOverlay(id,showVillage){var el=document.getElementById(id);if(el)el.classList.remove('open');if(showVillage!==false){var anyOpen=document.querySelector('.overlay.open');if(!anyOpen)document.getElementById('villagePage').classList.remove('hidden')}}
 function openCommunityPage(){document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub();renderTimeline()}
 // 营地数据——从 AppData 读取，服务端同步
 function getCamps(){ return (window.AppData&&AppData._data.camps) ? Object.values(AppData._data.camps) : []; }
