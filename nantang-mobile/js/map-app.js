@@ -140,7 +140,27 @@ function renderInfoPage() {
 
   h += '</div>'; // info-cards
 
-  // ═══ 待处理 ═══
+  // ═══ 卡片室 + 校核室（对称入口）═══
+  h += '<div class="section-label">🃏 社区互动</div>';
+  h += '<div class="info-cards">';
+
+  // 卡片室
+  var discs = (window.AppData && AppData._data.cardDiscoveries) || [];
+  var sevenDaysAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+  var recentDiscs = discs.filter(function(d){ return d.createdAt && d.createdAt.slice(0,10) >= sevenDaysAgo; });
+  var discPending = recentDiscs.filter(function(d){ return d.status === 'pending'; }).length;
+  h += '<div class="ic-card" onclick="if(typeof openCardRoom===\'function\')openCardRoom()"><div class="ic-head">🃏 卡片室</div>';
+  h += '<div class="ic-body"><div>近7天 <b>' + recentDiscs.length + '</b> 张牌</div><div><b>' + discPending + '</b> 张待揭</div></div></div>';
+
+  // 校核室
+  var vfys = (window.AppData && AppData._data.pendingVerifications) || [];
+  var vfyPending = vfys.filter(function(v){ return v.status === 'pending'; }).length;
+  var today = new Date().toISOString().slice(0,10);
+  var vfyToday = vfys.filter(function(v){ return v.status === 'verified' && v.verifiedAt && v.verifiedAt.slice(0,10) === today; }).length;
+  h += '<div class="ic-card" onclick="if(typeof openVerifyRoom===\'function\')openVerifyRoom()"><div class="ic-head">✓ 校核室</div>';
+  h += '<div class="ic-body"><div><b>' + vfyPending + '</b> 条待确认</div><div>今日已验证 <b>' + vfyToday + '</b> 次</div></div></div>';
+
+  h += '</div>'; // info-cards
   h += '<div class="section-label">⚠ 需要关注</div>';
   h += '<div class="alert-row" onclick="jumpTo(\'toilet_b\')"><span>🔴</span> 公共厕所 · 打扫超时2天 · 小红轮值</div>';
   h += '<div class="alert-row" onclick="jumpToRoom(\'office\',\'kitchen\',\'1F\')"><span>⚠</span> 厨房 · 白菜3天后过期</div>';
