@@ -790,6 +790,7 @@ function _pickBuilding(bldId) {
 }
 
 function _pickSpace(id, name) {
+  id = decodeURIComponent(id); name = decodeURIComponent(name);
   var d = _draft();
   d.spaceId = id;
   d.spaceName = name;
@@ -871,6 +872,7 @@ function _submitDiscDesc() {
 }
 
 function _pickAction(id, label, icon, nt, isCustom) {
+  id = decodeURIComponent(id); label = decodeURIComponent(label);
   var d = _draft();
   d.actionId = id;
   d.actionLabel = label;
@@ -998,6 +1000,7 @@ function closeDiscoveryForm() {
 
 // ── 提交发现 ──
 function _submitDiscGuess(name) {
+  name = decodeURIComponent(name);
   if (!name || !CURRENT_USER) { showToast('请先登录', 'error'); return; }
   if (name === CURRENT_USER) { showToast('不能猜自己', 'warn'); return; }
 
@@ -1238,6 +1241,7 @@ function _openCardRules() {
 
 // 猜现有卡片
 function _guessExistingCard(discId, name) {
+  discId = decodeURIComponent(discId); name = decodeURIComponent(name);
   _discDraft.existingDiscId = discId;
   closeDiscoveryForm();
   _submitDiscGuess(name);

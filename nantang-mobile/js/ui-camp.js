@@ -1136,6 +1136,7 @@ function mgmtConfirmSubmit(taskName, person) {
 }
 
 function mgmtRejectSubmit(taskName, person) {
+  taskName = decodeURIComponent(taskName); person = decodeURIComponent(person);
   var c = getCampData(); if (!c) return;
   var t = (c.tasks||[]).find(function(x){return x.name===taskName;});
   if (!t) { showToast('任务不存在','error'); return; }
