@@ -171,7 +171,7 @@ async def me(user: User = Depends(get_current_user)):
 
 
 @router.get("/users")
-async def list_users(db: AsyncSession = Depends(get_db), limit: int = 50, offset: int = 0):
-    # 公开端点：登录页账号列表用。只返回名字+头像种子，不含任何敏感字段
+async def list_users(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), limit: int = 50, offset: int = 0):
+    # 只返回名字+头像种子，不含任何敏感字段
     result = await db.execute(select(User).limit(limit).offset(offset))
     return [{"name": u.id, "avatar_seed": u.avatar_seed} for u in result.scalars()]

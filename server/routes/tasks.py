@@ -85,6 +85,8 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     if req.reward <= 0:
         raise HTTPException(status_code=400, detail="奖励必须大于0")
 
+    user_locked = None  # X2: 行锁引用，personal 分支内赋值
+
     # R1.4: poster='社区' 分支——从社区池扣款
     if req.poster == "社区":
         if user.role not in ("admin", "builder"):
@@ -98,8 +100,9 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         # F14: 营地任务预算走 camp_balance，不设 escrow
         pass
     else:
-        if user.nt_balance < req.reward * req.slots:
-            raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward * req.slots} NT，当前 {user.nt_balance}）")
+        user_locked = (await db.execute(select(User).where(User.id == user.id).with_for_update())).scalar_one_or_none()
+        if not user_locked or user_locked.nt_balance < req.reward * req.slots:
+            raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward * req.slots} NT，当前 {user_locked.nt_balance if user_locked else 0}）")
 
     if req.reviewer and req.reviewer.strip():
         rv = (await db.execute(select(User).where(User.id == req.reviewer.strip()))).scalar_one_or_none()
@@ -116,7 +119,7 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     )
     # 仅个人发布时从用户余额扣款（社区任务已在上面从池扣款）
     if req.poster != "社区":
-        user.nt_balance -= req.reward * req.slots
+        (user_locked if user_locked is not None else user).nt_balance -= req.reward * req.slots
         pool = await _get_pool(db)
         pool.task_escrow += req.reward * req.slots
     db.add(task)
