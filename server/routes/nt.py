@@ -2,7 +2,7 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from datetime import datetime
 import secrets
@@ -554,8 +554,9 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
             if pool.camp_balance < total_payout:
                 raise HTTPException(status_code=400, detail="营地余额不足")
             pool.camp_balance -= total_payout
+            pool.task_escrow -= task.escrow_amount
         else:
-            pool.task_escrow -= total_payout
+            pool.task_escrow -= task.escrow_amount
         for aid in assignee_ids:
             a = (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
             if a:

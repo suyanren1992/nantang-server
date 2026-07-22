@@ -105,7 +105,6 @@ async def create_camp(req: CampCreateRequest, user: User = Depends(require_admin
     camp_total = lodging * people * days + meal * people * days
     if camp_total > 0:
         pool = await _get_pool(db, lock=True)
-        pool.total_issued += camp_total
         pool.camp_balance += camp_total
         lid = _ledger_id()
         await _add_ledger(db, lid, None, "camp_pool", camp_total, "topup", f"营队注资: {camp.name}")
