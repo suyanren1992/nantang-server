@@ -357,9 +357,9 @@ function openCardRoom() {
 }
 function openVerifyRoom() {
   var el = document.getElementById('overlayVerifyRoom');
-  if (!el) { showToast('校核室模块未加载', 'error'); return; }
+  if (!el) { console.error('[VerifyRoom] overlay not found'); return; }
   el.classList.add('open');
-  renderVerifyRoom();
+  try { renderVerifyRoom(); } catch(e) { console.error('[VerifyRoom] render failed', e); }
 }
 function renderVerifyRoom() {
   var el = document.getElementById('verifyRoomBody');
