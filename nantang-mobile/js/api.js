@@ -7,8 +7,9 @@ var API = {
   _refreshInProgress: null,  // Promise|null — 防并发重入
   user: null,   // 当前用户信息
   init: function(baseUrl) {
-    // 外网模式：指向服务器公网地址
-    this.base = 'https://nantang-api.imeeting.club';
+    // 同源模式：API 请求发给当前页面所在的服务器（部署自包含）。
+    // 只有前后端分离部署时（如纯静态前端 + 独立后端）才需要传入 baseUrl。
+    this.base = baseUrl || '';
   },
   // ── 底层请求 ──
   request: async function(method, path, body) {
