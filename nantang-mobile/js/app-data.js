@@ -36,7 +36,7 @@ window.AppData = {
     this._seedIfEmpty();
     this._archiveOldDiscoveries(); // 章0.4: 启动时归档超过24h的发现
     this._deductAccommodation();   // 章2: 住宿费每日自动扣
-    this._tickDirtiness();         // 脏污度每日自动增长
+    if (typeof _growDirtiness === 'function') _growDirtiness();
     this._dailyPoolRefill();       // 社区池每日自动补充
     // 私有字段（每用户覆盖），初始化为空
     this._data.myItems = {};

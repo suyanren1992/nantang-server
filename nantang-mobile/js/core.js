@@ -334,7 +334,8 @@ function openQuestHallPage(){
       filterQuests();
     });
   } else { filterQuests(); }
-  _pushOverlay('overlayQuestHall'); document.getElementById('overlayQuestHall').classList.add('open');
+  if (typeof _pushOverlay === 'function') _pushOverlay('overlayQuestHall');
+  document.getElementById('overlayQuestHall').classList.add('open');
 }
 function filterQuests(){
   // R8: 一级chip限定 primary-filters 作用域
@@ -744,7 +745,7 @@ function editDraft(name){
   renderDrafts();
 }
 function openMapPage(){
-  _pushOverlay('overlayMap'); document.getElementById('overlayMap').classList.add('open');
+  document.getElementById('overlayMap').classList.add('open');
   if(typeof _initMap==='function'){_initMap()}
 }
 // Item system
