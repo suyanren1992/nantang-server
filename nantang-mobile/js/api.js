@@ -7,8 +7,8 @@ var API = {
   _refreshInProgress: null,  // Promise|null — 防并发重入
   user: null,   // 当前用户信息
   init: function(baseUrl) {
-    if (window.location.protocol !== 'file:') { this.base = ''; }
-    else if (baseUrl) { this.base = baseUrl; }
+    // 外网模式：指向服务器公网地址
+    this.base = 'https://reached-linda-participant-learners.trycloudflare.com';
   },
   // ── 底层请求 ──
   request: async function(method, path, body) {
