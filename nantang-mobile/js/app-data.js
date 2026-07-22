@@ -363,20 +363,23 @@ this._data.map_locations.people_on_site = [];
       return { ok: true, rejected: true, retryCount: vfy.retryCount };
     }
     // 通过模式——HTTP 先调 API，成功回调中更新本地状态（悲观更新）
+    // 兼容服务端 snake_case 和客户端 camelCase
+    var ntAmt = vfy.ntAmount || vfy.nt_amount || 0;
+    var vfyReward = vfy.verifierReward || vfy.verifier_reward || 0;
     var isOffline = (typeof API === 'undefined' || !API.token);
     if (isOffline) {
       // 离线：直接本地 earn + 入队
       vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
-      if (window.NT && vfy.ntAmount > 0) {
-        try { NT.earn(vfy.doer, vfy.ntAmount, vfy.action, 'camp'); } catch(e) {}
-        this._data._pendingEarnQueue.push({vfyId: vfy.id, doer: vfy.doer, amount: vfy.ntAmount, action: vfy.action, reward: vfy.verifierReward || 0, ts: Date.now()});
+      if (window.NT && ntAmt > 0) {
+        try { NT.earn(vfy.doer, ntAmt, vfy.action, 'camp'); } catch(e) {}
+        this._data._pendingEarnQueue.push({vfyId: vfy.id, doer: vfy.doer, amount: ntAmt, action: vfy.action, reward: vfyReward, ts: Date.now()});
         this._saveShared(true);
       }
     } else {
       // HTTP：异步调用API，成功/失败在回调中处理
       var self = this;
       API.request('POST', '/api/nt/verifications/' + vfy.id + '/approve',
-        {doer: vfy.doer, action: vfy.action, nt_amount: vfy.ntAmount, verifier_reward: vfy.verifierReward}
+        {doer: vfy.doer, action: vfy.action, nt_amount: ntAmt, verifier_reward: vfyReward}
       ).then(function() {
         vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
         self.addAnnouncement(vfy.type, vfy.doer, verifierName, vfy.action, vfy.ntAmount);

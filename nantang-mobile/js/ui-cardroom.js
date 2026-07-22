@@ -390,13 +390,13 @@ function _renderVerifyTab() {
       h += '<div style="background:#fffdf9;border:1.5px solid #c8c0b0;border-radius:10px;padding:10px 12px;margin-bottom:6px">';
       h += '<div style="display:flex;justify-content:space-between;align-items:flex-start">';
       h += '<div style="flex:1"><span>' + icon + '</span> <b style="font-size:.72rem">' + esc(v.doer||'') + '</b> · ' + esc(v.action||'') + '</div>';
-      h += '<span style="font-size:.65rem;font-weight:700;color:#8a6a20">+' + (v.ntAmount||0) + ' NT</span></div>';
+      h += '<span style="font-size:.65rem;font-weight:700;color:#8a6a20">+' + (v.ntAmount||v.nt_amount||0) + ' NT</span></div>';
       if (v.detail && v.detail.spaceId) h += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">📍 ' + esc(v.detail.spaceId||'') + '</div>';
       h += '<div style="font-size:.55rem;color:#aaa;margin-top:4px">' + (v.createdAt||'').slice(0,16).replace('T',' ') + '</div>';
       if (isOnsite) {
         h += '<div style="display:flex;gap:6px;margin-top:8px">';
         h += '<button class="btn-sm danger" style="flex:1;font-size:.6rem;padding:6px" onclick="if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\'))AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, false)">🙅 不是</button>';
-        h += '<button class="btn-sm pri" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, true)">✅ 确认 +' + (v.ntAmount||0) + 'NT</button>';
+        h += '<button class="btn-sm pri" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, true)">✅ 确认 +' + (v.ntAmount||v.nt_amount||0) + 'NT</button>';
         h += '</div>';
       } else {
         h += '<div style="font-size:.55rem;color:#aaa;margin-top:6px;background:#f5f5f5;padding:4px 8px;border-radius:6px" title="仅在地成员可校核">☁️ 云村民只读</div>';
