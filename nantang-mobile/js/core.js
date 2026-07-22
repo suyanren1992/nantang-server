@@ -821,7 +821,7 @@ function renderLoginAvatar(){
   try { var lu = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); if (lu[name]) seed = lu[name]; } catch(e) {}
   // 其次从 nt_users 查
   if (seed === name) { var users=getUsers(); if (users[name]&&users[name].avatar_seed!=null) seed = users[name].avatar_seed; }
-  if (seed == null) seed = _avatarSeedPool[Math.floor(Math.random()*_avatarSeedPool.length)];
+  if (seed == null) seed = name || _avatarSeedPool[0];  // ponytail: 登录页用名字当种子，登录后API.user.avatar_seed覆盖
   var url=avatarURL(seed,96);
   var initial = name ? name.charAt(0) : '?';
   document.getElementById('loginAvatar').innerHTML='<img src="'+url+'" width="96" height="96" style="border-radius:50%;object-fit:cover;background:#c8d8c8" alt="'+initial+'" onerror="this.outerHTML=&#39;<div style=width:96px;height:96px;border-radius:50%;background:#c8d8c8;display:flex;align-items:center;justify-content:center;font-size:2rem;color:#5a6e5c;margin:0 auto>&#39;+initial+&#39;</div>&#39;">'
@@ -1470,7 +1470,7 @@ function saveProfileEdits(){
   saveUsers(users);
   if(window.AppData){var me=AppData.me();if(me){me.wallet=wallet;me.bio=bio;me.location=loc;me.avatar_seed=u.avatar_seed;AppData._save();}}
   // 同步钱包地址到服务端
-  if(wallet&&typeof API!=='undefined'&&API.token){API.updateProfile({wallet_address:wallet}).catch(function(){});}
+  if(typeof API!=='undefined'&&API.token){API.updateProfile({wallet_address:wallet,bio:bio,location:loc}).catch(function(){});}
   if(window.AppData){var me=AppData.me();if(me){me.avatar_seed=u.avatar_seed;AppData._save();}}
   refreshUserUI();
 }

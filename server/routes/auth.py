@@ -26,7 +26,7 @@ class ChangePasswordRequest(BaseModel):
 
 
 def _user_json(u):
-    return {"name": u.id, "role": u.role, "nt_balance": u.nt_balance,
+    return {"name": u.id, "uid": u.id, "role": u.role, "nt_balance": u.nt_balance,
             "contribution_value": u.contribution_value, "experience_value": u.experience_value,
             "trust_score": u.trust_score, "trust_level": u.trust_level,
             "frozen_cv": u.frozen_cv, "avatar_seed": u.avatar_seed,
