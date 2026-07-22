@@ -1306,7 +1306,7 @@ function renderProfile(mode){
   var el=document.getElementById('profileInner');if(!el)return;
   var h='<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a;z-index:1" onclick="document.getElementById(\'profileCard\').remove()">✕</button>';
   var pu=getUsers()[CURRENT_USER]||{};var pr=pu.role||'visitor';var pRole=roleName(pr);var pIcon=roleIcon(pr);var pCreated=pu.created||'';var au=window.AppData?AppData.me():null;if(!pCreated&&au&&au.created)pCreated=au.created;if(!pCreated)pCreated=today();
-  h+='<div style="text-align:center;margin-bottom:14px"><img src="'+profileSrc(_profileSeed)+'" width="56" height="56" style="border-radius:50%;border:2.5px solid var(--green-primary);cursor:'+(mode==='edit'?'pointer':'default')+'" alt="" id="profileAvatarImg" '+(mode==='edit'?'onclick="pickAvatar()"':'')+'><div style="font-weight:700;font-size:.9rem;margin-top:6px">'+encodeURIComponent(CURRENT_USER)+'</div><div style="font-size:.65rem;color:#5a6e5c">'+pIcon+' '+pRole+' · '+pCreated+'</div></div>';
+  h+='<div style="text-align:center;margin-bottom:14px"><img src="'+profileSrc(_profileSeed)+'" width="56" height="56" style="border-radius:50%;border:2.5px solid var(--green-primary);cursor:'+(mode==='edit'?'pointer':'default')+'" alt="" id="profileAvatarImg" '+(mode==='edit'?'onclick="pickAvatar()"':'')+'><div style="font-weight:700;font-size:.9rem;margin-top:6px">'+CURRENT_USER+'</div><div style="font-size:.65rem;color:#5a6e5c">'+pIcon+' '+pRole+' · '+pCreated+'</div></div>';
   if(mode==='view'){
     var u=getUsers()[CURRENT_USER]||{};var rl=u.role||'visitor';var rn=roleName(rl);
     // NT 余额 + 充值/提现
