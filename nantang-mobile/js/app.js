@@ -773,8 +773,8 @@ function goTo(i) {
   var cards = track.querySelectorAll('.bc-card');
   if (cards[i]) {
     _progScroll = true;
-    cards[i].scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
-    setTimeout(function(){ _progScroll = false; }, 400);
+    cards[i].scrollIntoView({behavior:'instant', block:'nearest', inline:'center'});
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ _progScroll = false; }); });
   }
 }
 function setFloor(f) { currentFloor = f; selectedRoomId = null; render(); }
@@ -798,7 +798,8 @@ function _bindEvents() {
       _bcSnap = setTimeout(function() {
         var blds = getBuildings();
         var cardW2 = self.children[0] ? self.children[0].offsetWidth : 60;
-        var idx = Math.round(self.scrollLeft / Math.max(1, cardW2));
+        var snapStep = cardW2 + 6; // 6px = CSS gap
+        var idx = Math.round(self.scrollLeft / Math.max(1, snapStep));
         if (idx >= 0 && idx < blds.length && idx !== currentIdx) {
           currentIdx = idx; selectedRoomId = null; currentFloor = 0; overviewOpen = false;
           render();
