@@ -974,8 +974,8 @@ function enterVillage(){
     var pc=document.getElementById('profileCard');if(pc)pc.remove();
     _fromQuestHall=false;
     document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
-    // E3.4: sign_covenant 已移至 _applyStay() 签署公约时触发
-    setTimeout(function(){ if(typeof showNewbieOnEntry==='function')showNewbieOnEntry(); },600);
+    // 新手引导不再弹窗，静默初始化，签约后在信箱通知
+    setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600);
     if(typeof API!=='undefined'&&API.token){
       API.syncAll(function(data) {
         if (data && !data.detail && !data._offline && data.ok !== false) _mergeSyncData(data);
@@ -1053,8 +1053,8 @@ function enterVillage(){
   var pc=document.getElementById('profileCard');if(pc)pc.remove();
   _fromQuestHall=false;
   document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
-// E3.4: sign_covenant 已移至 _applyStay()
-setTimeout(function(){ if(typeof showNewbieOnEntry==='function')showNewbieOnEntry(); },600)
+// E3.4: sign_covenant 已移至 _applyStay()，新手引导静默初始化
+setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600)
 // 从 API 拉取其他用户的数据
 if(typeof API!=='undefined'&&API.token){
   API.fetchTasks(function(tasks){if(tasks&&window.AppData){tasks.forEach(function(t){if(!AppData._data.tasks[t.id]){AppData._data.tasks[t.id]={name:t.id,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:''}}})}});
