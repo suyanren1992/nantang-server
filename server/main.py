@@ -64,6 +64,7 @@ app.add_middleware(
         "http://localhost:8000",
         "http://127.0.0.1:8000",
         "https://nantang-server.pages.dev",
+        "https://nantang-api.imeeting.club",
         "https://*.trycloudflare.com",
         "https://*.pages.dev",
         os.environ.get("FRONTEND_ORIGIN", "http://localhost:8000"),
