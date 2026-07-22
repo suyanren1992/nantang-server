@@ -35,7 +35,7 @@ def _user_json(u):
 
 
 def _set_rt_cookie(response: Response, token: str):
-    response.set_cookie("nt_rt", token, httponly=True, samesite="lax", max_age=7*86400, path="/")
+    response.set_cookie("nt_rt", token, httponly=True, secure=True, samesite="lax", max_age=7*86400, path="/")
 
 
 async def get_current_user(authorization: str = Header(None), db: AsyncSession = Depends(get_db)) -> User:
