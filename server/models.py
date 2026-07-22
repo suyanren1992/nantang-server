@@ -6,6 +6,7 @@ from database import Base
 TASK_STATUSES = {
     "open": "进行中",
     "submitted": "待审核",
+    "pending_submit": "待提交",
     "rejected": "退回修改",
     "verified": "待结算",
     "settled": "已结算",

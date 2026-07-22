@@ -3,6 +3,27 @@
 //
 // 对齐「平台结算系统整体方案 v1.0」
 // 数据结构：nt_users / nt_tasks / nt_ledger / nt_settlement
+
+// W2: 状态映射表 — 桥接英文内部状态与中文UI状态
+var STATUS_MAP = {
+  'pending': '待提交',
+  'active': '进行中',
+  'completed': '待结算',
+  'verified': '待结算',
+  'settled': '已结算',
+  'cancelled': '已取消',
+  'disputed': '已争议',
+};
+var STATUS_REVERSE = {
+  '待提交': 'pending_submit',
+  '进行中': 'open',
+  '待审核': 'submitted',
+  '退回修改': 'rejected',
+  '待结算': 'verified',
+  '已结算': 'settled',
+  '已取消': 'cancelled',
+  '已争议': 'disputed',
+};
 // 核心流程：发布→冻结→接取→完成→验证→释放→结算
 //
 // MVP 阶段：全内存操作。未来接合约/后端时换内部实现，调用方不动。

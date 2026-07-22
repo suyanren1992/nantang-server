@@ -268,8 +268,8 @@ function _renderPersonalBlockBody(c, bid) {
       pending.slice(0,2).forEach(function(item){
         h += '<div class="personal-block-item">';
         h += '<span style="flex:1">'+esc(item.task.publisher||'共创营')+' · '+esc(item.task.name)+' · NT '+item.task.nt+'</span>';
-        h += '<button class="mgmt-btn ok" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();mgmtApproveTask(\''+esc(item.task.name)+'\')">通过</button>';
-        h += '<button class="mgmt-btn no" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();mgmtRejectTask(\''+esc(item.task.name)+'\')">退回</button>';
+        h += '<button class="mgmt-btn ok" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();mgmtApproveTask(\''+encodeURIComponent(item.task.name)+'\')">通过</button>';
+        h += '<button class="mgmt-btn no" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();mgmtRejectTask(\''+encodeURIComponent(item.task.name)+'\')">退回</button>';
         h += '</div>';
       });
       if (pending.length>2) h += '<div style="font-size:.6rem;color:#aaa;text-align:center">还有 '+(pending.length-2)+' 项…</div>';
@@ -278,7 +278,7 @@ function _renderPersonalBlockBody(c, bid) {
     var unpaid = _getUnpaidList(c);
     if (unpaid.length) {
       unpaid.slice(0,2).forEach(function(item){
-        h += '<div class="personal-block-item"><span style="flex:1">'+esc(item.person)+' · '+esc(item.taskName)+' · NT '+item.nt+'</span><button class="mgmt-btn settle" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();mgmtSettleOne(\''+esc(item.taskName)+'\',\''+esc(item.person)+'\')">结算</button></div>';
+        h += '<div class="personal-block-item"><span style="flex:1">'+encodeURIComponent(item.person)+' · '+encodeURIComponent(item.taskName)+' · NT '+item.nt+'</span><button class="mgmt-btn settle" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();mgmtSettleOne(\''+encodeURIComponent(item.taskName)+'\',\''+encodeURIComponent(item.person)+'\')">结算</button></div>';
       });
       if (unpaid.length>2) h += '<div style="font-size:.6rem;color:#aaa;text-align:center">还有 '+(unpaid.length-2)+' 笔…</div>';
     } else { h += '<div style="font-size:.62rem;color:#aaa;text-align:center">暂无待结算</div>'; }
@@ -742,7 +742,7 @@ function renderSettleDetail(c, member, users) {
   h += '<div class="settle-calc-detail" style="display:none;font-size:.62rem;color:#5a6e5c;padding:4px 12px 8px;line-height:1.7">';
   if (memberTasks.length) {
     memberTasks.forEach(function(t) {
-      var icon = t.status==='已结算'?'✅':(t.status==='已完成'||t.status==='待结算'?'◷':'☐');
+      var icon = t.status==='已结算'?'✅':(t.status==='待结算'?'◷':'☐');
       h += '<div>'+icon+' '+t.name+' · '+(t.type||'支线')+' · '+t.nt+' NT</div>';
     });
   } else { h += '<div style="color:#8a8a8a">暂无任务</div>'; }
@@ -856,8 +856,8 @@ function renderCampManage(el) {
       h += '<div class="mgmt-item-meta">发出者：'+esc(item.task.publisher||'共创营')+' · 审核人：'+esc(item.task.reviewer||'')+'</div>';
       h += '</div>';
       h += '<div class="mgmt-actions">';
-      h += '<button class="mgmt-btn ok" onclick="event.stopPropagation();mgmtApproveTask(\''+esc(item.task.name)+'\')">✅ 通过</button>';
-      h += '<button class="mgmt-btn no" onclick="event.stopPropagation();mgmtRejectTask(\''+esc(item.task.name)+'\')">❌ 退回</button>';
+      h += '<button class="mgmt-btn ok" onclick="event.stopPropagation();mgmtApproveTask(\''+encodeURIComponent(item.task.name)+'\')">✅ 通过</button>';
+      h += '<button class="mgmt-btn no" onclick="event.stopPropagation();mgmtRejectTask(\''+encodeURIComponent(item.task.name)+'\')">❌ 退回</button>';
       h += '</div></div>';
     });
     h += '</div>';
@@ -883,7 +883,7 @@ function renderCampManage(el) {
       h += '<td>'+claimed+'/'+(slots||'不限')+'</td>';
       h += '<td style="color:'+(t.status==='active'?'#3d6b52':'#5a6e5c')+'">'+(t.status||'active')+'</td>';
       h += '<td>';
-      if (t.type==='隐藏') h += '<button class="mgmt-btn settle" onclick="event.stopPropagation();mgmtRevealTask(\''+esc(t.name)+'\')">🔓触发</button>';
+      if (t.type==='隐藏') h += '<button class="mgmt-btn settle" onclick="event.stopPropagation();mgmtRevealTask(\''+encodeURIComponent(t.name)+'\')">🔓触发</button>';
       else h += '<span style="color:#aaa;font-size:.6rem">—</span>';
       h += '</td></tr>';
     });
@@ -906,9 +906,9 @@ function renderCampManage(el) {
       h += '<div class="mgmt-item-meta">提交于 '+sub.date+' · "'+esc(sub.note||'')+'"</div>';
       h += '</div>';
       h += '<div class="mgmt-actions">';
-      h += '<button class="mgmt-btn ok" onclick="event.stopPropagation();mgmtConfirmSubmit(\''+esc(sub.taskName)+'\',\''+esc(sub.person)+'\')">✅ 确认通过</button>';
+      h += '<button class="mgmt-btn ok" onclick="event.stopPropagation();mgmtConfirmSubmit(\''+encodeURIComponent(sub.taskName)+'\',\''+encodeURIComponent(sub.person)+'\')">✅ 确认通过</button>';
       h += '<input id="rejectReason_'+esc(sub.person)+'_'+esc(sub.taskName).replace(/\s/g,'_')+'" placeholder="退回原因" style="width:70px;padding:3px 6px;border:1px solid #d0d9ce;border-radius:4px;font-size:.6rem" onkeydown="if(event.key===\'Enter\')mgmtRejectSubmit(\''+esc(sub.taskName)+'\',\''+esc(sub.person)+'\')">';
-      h += '<button class="mgmt-btn no" onclick="event.stopPropagation();mgmtRejectSubmit(\''+esc(sub.taskName)+'\',\''+esc(sub.person)+'\')">❌ 退回</button>';
+      h += '<button class="mgmt-btn no" onclick="event.stopPropagation();mgmtRejectSubmit(\''+encodeURIComponent(sub.taskName)+'\',\''+encodeURIComponent(sub.person)+'\')">❌ 退回</button>';
       h += '</div></div>';
     });
     h += '</div>';
@@ -930,7 +930,7 @@ function renderCampManage(el) {
       h += '<span class="mgmt-item-name">'+esc(item.person)+' · '+esc(item.taskName)+' · NT '+item.nt+'</span>';
       h += '<div class="mgmt-item-meta">审核于 '+item.date+'</div>';
       h += '</div>';
-      h += '<button class="mgmt-btn settle" onclick="event.stopPropagation();mgmtSettleOne(\''+esc(item.taskName)+'\',\''+esc(item.person)+'\')">🔓 结算</button>';
+      h += '<button class="mgmt-btn settle" onclick="event.stopPropagation();mgmtSettleOne(\''+encodeURIComponent(item.taskName)+'\',\''+encodeURIComponent(item.person)+'\')">🔓 结算</button>';
       h += '</div>';
     });
     h += '<div style="text-align:center;margin-top:10px">';
@@ -1067,6 +1067,7 @@ function mgmtScrollToBlock(blockNum) {
 
 // ══ 管理操作：审批/退回/发布/结算/完结 ══
 function mgmtApproveTask(taskName) {
+  taskName = decodeURIComponent(taskName);
   var c = getCampData(); if (!c) return;
   var t = (c.tasks||[]).find(function(x){return x.name===taskName;});
   if (!t) { showToast('任务不存在','error'); return; }
@@ -1078,6 +1079,7 @@ function mgmtApproveTask(taskName) {
 }
 
 function mgmtRejectTask(taskName) {
+  taskName = decodeURIComponent(taskName);
   var c = getCampData(); if (!c) return;
   var t = (c.tasks||[]).find(function(x){return x.name===taskName;});
   if (!t) { showToast('任务不存在','error'); return; }
@@ -1119,6 +1121,7 @@ function _openRejectSheet(actionKey, context, callback) {
 }
 
 function mgmtConfirmSubmit(taskName, person) {
+  taskName = decodeURIComponent(taskName); person = decodeURIComponent(person);
   var c = getCampData(); if (!c) return;
   var t = (c.tasks||[]).find(function(x){return x.name===taskName;});
   if (!t) { showToast('任务不存在','error'); return; }
@@ -1150,6 +1153,7 @@ function mgmtRejectSubmit(taskName, person) {
 }
 
 function mgmtRevealTask(taskName) {
+  taskName = decodeURIComponent(taskName);
   var c = getCampData(); if (!c) return;
   var t = (c.tasks||[]).find(function(x){return x.name===taskName;});
   if (!t) return;
@@ -1161,6 +1165,7 @@ function mgmtRevealTask(taskName) {
 }
 
 function mgmtSettleOne(taskName, person) {
+  taskName = decodeURIComponent(taskName); person = decodeURIComponent(person);
   var c = getCampData(); if (!c) return;
   var t = (c.tasks||[]).find(function(x){return x.name===taskName;});
   if (!t) { showToast('任务不存在','error'); return; }
@@ -1292,7 +1297,7 @@ function closePeriod() {
   AppData._saveShared();
 
   (c.tasks||[]).forEach(function(t) {
-    if (t.status !== '已结算' && t.status !== '已完成') {
+    if (t.status !== '已结算' && t.status !== '待结算') {
       t.status = '已过期';
       t.closedAt = new Date().toISOString();
     }

@@ -363,7 +363,7 @@ function filterQuests(){
   // sections
   var claimable=items.filter(function(t){return t.status==='进行中'&&(t.claimants||[]).length===0});
   var active=items.filter(function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'||(t.status==='进行中'&&(t.claimants||[]).length>0)});
-  var done=items.filter(function(t){return t.status==='待结算'||t.status==='已结算'||t.status==='已完成'});
+  var done=items.filter(function(t){return t.status==='待结算'||t.status==='已结算'});
   // B3: 已取消/已争议任务不再从大厅消失
   var closed=items.filter(function(t){return t.status==='已取消'||t.status==='已争议'});
   function typedColor(t){return t==='主线'?{c:'var(--green-primary)',b:'#e8f0e8',icon:'🎯'}:t==='支线'?{c:'#c8892e',b:'#fef8e8',icon:'📋'}:{c:'#4a7a82',b:'#e0eaee',icon:'🧹'}}
@@ -403,19 +403,19 @@ function renderTaskCard(t, opts) {
   var cardCls = '';
   if(t.status==='待审核'||t.status==='退回修改') cardCls=' warn';
   else if(t.status==='待提交') cardCls=' urgent';
-  else if(t.status==='已完成'||t.status==='已结算'||t.status==='待结算') cardCls=' done';
+  else if(t.status==='待结算'||t.status==='已结算') cardCls=' done';
   else if(t.status==='已取消'||t.status==='已争议') cardCls=' closed';
   var isMyClaim = claimed.some(function(c){return c.name===CURRENT_USER});
   var isPublisher = t.publisher===CURRENT_USER;
   var rightEl = '';
   if(ctx==='my'&&opts.showReviewBtn&&t.reviewer===CURRENT_USER&&t.status==='待审核'){
-    rightEl = '<div class="task-review"><span class="rv-ok" onclick="event.stopPropagation();reviewTask(\''+esc(t.name)+'\',\'approve\')">✓</span><span class="rv-no" onclick="event.stopPropagation();reviewTask(\''+esc(t.name)+'\',\'reject\')">✕</span></div>';
+    rightEl = '<div class="task-review"><span class="rv-ok" onclick="event.stopPropagation();reviewTask(\''+encodeURIComponent(t.name)+'\',\'approve\')">✓</span><span class="rv-no" onclick="event.stopPropagation();reviewTask(\''+encodeURIComponent(t.name)+'\',\'reject\')">✕</span></div>';
   }
   var quickBtn = '';
   if(t.status==='进行中'&&!isMyClaim&&!isPublisher){
-    quickBtn = '<button class=btn-pri style=padding:2px 8px;font-size:.68rem;border-radius:4px;white-space:nowrap" onclick="event.stopPropagation();claimTask(\''+esc(t.name)+'\')">🎯认领</button>';
+    quickBtn = '<button class=btn-pri style=padding:2px 8px;font-size:.68rem;border-radius:4px;white-space:nowrap" onclick="event.stopPropagation();claimTask(\''+encodeURIComponent(t.name)+'\')">🎯认领</button>';
   }
-  var h = '<div class="task-card'+cardCls+'" style="border-left:3px solid '+tc.c+'" onclick="event.stopPropagation();toggleQuestCard(this,\''+esc(t.name)+'\')">';
+  var h = '<div class="task-card'+cardCls+'" style="border-left:3px solid '+tc.c+'" onclick="event.stopPropagation();toggleQuestCard(this,\''+encodeURIComponent(t.name)+'\')">';
   h += '<div class="task-left '+cls+'">'+tc.icon+'</div><div class="task-body">';
   h += '<div class="task-row1"><span class="task-name">'+esc(t.name)+'</span><span class="task-nt"><img src=豆子.png alt=NT onerror="this.outerHTML=\'🌱\'" style=width:18px;height:18px;vertical-align:middle;margin-right:3px>'+t.nt+' NT</span></div>';
   h += '<div class="task-row2">';
@@ -432,6 +432,7 @@ function renderTaskCard(t, opts) {
 }
 function questCard(t,color,bg,icon){return renderTaskCard(t,{context:'hall'});}
 function toggleQuestCard(el,name){
+  name = decodeURIComponent(name);
   if(!el)return;
   if(!el.classList.contains('task-card')) el=el.closest('.task-card');
   if(!el)return;
@@ -480,27 +481,27 @@ function toggleQuestCard(el,name){
   var isReviewer=t.reviewer===CURRENT_USER||(!t.reviewer&&t.publisher===CURRENT_USER);
   var isPublisher=t.publisher===CURRENT_USER;
   var isSettler=(t.settler||t.settler_id||t.publisher)===CURRENT_USER;
-  if(t.status==='draft') btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="publishDraft(\''+esc(t.name)+'\')">✅ 发布草稿</button><button class="btn-sm danger" onclick="deleteDraft(\''+esc(t.name)+'\')">🗑️ 删除</button></div>';
+  if(t.status==='draft') btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="publishDraft(\''+encodeURIComponent(t.name)+'\')">✅ 发布草稿</button><button class="btn-sm danger" onclick="deleteDraft(\''+encodeURIComponent(t.name)+'\')">🗑️ 删除</button></div>';
   else if(t.status==='进行中'||t.status==='待提交'){
-    if(isPublisher&&cs.length===0) btns='<button class="btn-sm pri" style=margin-right:6px onclick="editTask(\''+esc(t.name)+'\')">✏️ 编辑</button><button class="btn-sm danger" onclick="withdrawTask(\''+esc(t.name)+'\')">🗑️ 撤回</button>';
-    else if(isPublisher&&cs.length>0&&!inHall) btns='<button class="btn-sm danger" onclick="requestWithdraw(\''+esc(t.name)+'\')">📩 申请撤回</button>';
+    if(isPublisher&&cs.length===0) btns='<button class="btn-sm pri" style=margin-right:6px onclick="editTask(\''+encodeURIComponent(t.name)+'\')">✏️ 编辑</button><button class="btn-sm danger" onclick="withdrawTask(\''+encodeURIComponent(t.name)+'\')">🗑️ 撤回</button>';
+    else if(isPublisher&&cs.length>0&&!inHall) btns='<button class="btn-sm danger" onclick="requestWithdraw(\''+encodeURIComponent(t.name)+'\')">📩 申请撤回</button>';
     else if(isMyClaim&&!cs.some(function(c){return c.name===CURRENT_USER&&c.submission})){
       if(isTaskOverdue(t)) btns='<span style=font-size:.62rem;color:var(--red);background:#fde8e8;padding:4px 10px;border-radius:8px">⏰ 已逾期，无法提交</span>';
-      else btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="openSubmit(this,\''+esc(t.name)+'\')">📤 提交</button><button class="btn-sm sec" onclick="unclaimTask(\''+esc(t.name)+'\')">📩 取消认领</button></div>';
+      else btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="openSubmit(this,\''+encodeURIComponent(t.name)+'\')">📤 提交</button><button class="btn-sm sec" onclick="unclaimTask(\''+encodeURIComponent(t.name)+'\')">📩 取消认领</button></div>';
     }
-    else if(!isMyClaim&&!isPublisher) btns='<button class="btn-sm pri" onclick="claimTask(\''+esc(t.name)+'\')">🎯 认领</button>';
+    else if(!isMyClaim&&!isPublisher) btns='<button class="btn-sm pri" onclick="claimTask(\''+encodeURIComponent(t.name)+'\')">🎯 认领</button>';
     else if(isPublisher&&!isMyClaim) btns='<span style=font-size:.62rem;color:#5a5a5a;background:#f0f0f0;padding:4px 10px;border-radius:8px">⏳ 自己的任务</span>';
     else btns='<span style=font-size:.62rem;color:#5a6e5c;background:#f0f0f0;padding:4px 10px;border-radius:8px">⏳ 等待中</span>';
   }else if(t.status==='待审核'){
-    if(isReviewer) btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="reviewTask(\''+esc(t.name)+'\',\'approve\')">✓ 通过</button><button class="btn-sm danger" onclick="reviewTask(\''+esc(t.name)+'\',\'reject\')">✕ 打回</button></div>';
+    if(isReviewer) btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="reviewTask(\''+encodeURIComponent(t.name)+'\',\'approve\')">✓ 通过</button><button class="btn-sm danger" onclick="reviewTask(\''+encodeURIComponent(t.name)+'\',\'reject\')">✕ 打回</button></div>';
     else if(isMyClaim) btns='<span style=font-size:.62rem;color:#c8892e;background:#fff8e8;padding:4px 10px;border-radius:8px">🔍 等待审核</span>';
   }else if(t.status==='退回修改'){
     if(isMyClaim){
       if(isTaskOverdue(t)) btns='<span style=font-size:.62rem;color:var(--red);background:#fde8e8;padding:4px 10px;border-radius:8px">⏰ 已逾期，无法重新提交</span>';
-      else btns='<button class="btn-sm pri" onclick="openSubmit(this,\''+esc(t.name)+'\')">📤 重新提交</button>';
+      else btns='<button class="btn-sm pri" onclick="openSubmit(this,\''+encodeURIComponent(t.name)+'\')">📤 重新提交</button>';
     }
-  }else if(t.status==='待结算'||t.status==='已完成'){
-    if(isSettler&&!inHall&&t.status==='待结算') btns='<button class="btn-sm pri" onclick="settleTask(\''+esc(t.name)+'\')">🧾 确认结算</button>';
+  }else if(t.status==='待结算'){
+    if(isSettler&&!inHall&&t.status==='待结算') btns='<button class="btn-sm pri" onclick="settleTask(\''+encodeURIComponent(t.name)+'\')">🧾 确认结算</button>';
     else btns='<span style=font-size:.62rem;color:#c8892e;background:#fff8e8;padding:4px 10px;border-radius:8px">🧾 待结算</span>';
   }else if(t.status==='已结算') btns='<span style=font-size:.62rem;color:#5d8c52;background:#e0ece0;padding:4px 10px;border-radius:8px">✅ 已结算</span>';
   if(btns) h+='<div style=margin-bottom:6px>'+btns+'</div>';
@@ -511,7 +512,7 @@ function toggleQuestCard(el,name){
     done.forEach(function(c){
       var cu=getUsers()[c.name];var cs=(cu&&cu.avatar_seed!==undefined)?cu.avatar_seed:c.name;
       var url=avatarURL(cs,48);
-      h+='<div style=text-align:center;cursor:pointer;width:52px" onclick="event.stopPropagation();toggleClaimantSub(this,\''+esc(t.name)+'\',\''+esc(c.name)+'\')">';
+      h+='<div style=text-align:center;cursor:pointer;width:52px" onclick="event.stopPropagation();toggleClaimantSub(this,\''+encodeURIComponent(t.name)+'\',\''+encodeURIComponent(c.name)+'\')">';
       h+='<img src="'+url+'" width="36" height="36" style="border-radius:50%;object-fit:cover;border:2px solid var(--green-primary)" alt="" onerror="this.style.opacity=\'0\'">';
       h+='<div style=font-size:.55rem;font-weight:600;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap>'+esc(c.name)+'</div></div>';
     });
@@ -520,6 +521,7 @@ function toggleQuestCard(el,name){
   d.innerHTML=h;el.parentElement.insertBefore(d,el.nextSibling)
 }
 function toggleClaimantSub(el,name,cname){
+  name = decodeURIComponent(name); cname = decodeURIComponent(cname);
   var cardExpand=el.closest('.card-expand');if(!cardExpand)return;
   var sub=cardExpand.nextElementSibling;
   if(sub&&sub.classList.contains('submission-sub')){
@@ -558,15 +560,17 @@ function filterPubTargets(){
   var kw=(document.getElementById('pubTargetSearch')||{}).value||'';
   var list=document.getElementById('pubTargetList');if(!list)return;
   var filtered=Object.keys(getUsers()).filter(function(u){return!kw||u.indexOf(kw)!==-1});
-  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectPubTarget(\''+esc(u)+'\')">👤 '+u+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
+  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectPubTarget(\''+encodeURIComponent(u)+'\')">👤 '+u+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
   list.style.display='block';
 }
 function selectPubTarget(name){
+  name = decodeURIComponent(name);
   document.getElementById('pubTarget').value=name;
   var inp=document.getElementById('pubTargetSearch');if(inp)inp.value=name;
   document.getElementById('pubTargetList').style.display='none';
 }
 function selectReviewer(name){
+  name = decodeURIComponent(name);
   document.getElementById('pubReviewer').value=name;
   document.getElementById('pubReviewerList').style.display='none';
 }
@@ -575,7 +579,7 @@ function filterReviewers(){
   var kw=el.value||'';
   var list=document.getElementById('pubReviewerList');if(!list)return;
   var filtered=Object.keys(getUsers()).filter(function(u){return!kw||u.indexOf(kw)!==-1});
-  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectReviewer(\''+esc(u)+'\')">👤 '+u+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
+  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectReviewer(\''+encodeURIComponent(u)+'\')">👤 '+u+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
   list.style.display='block';
 }
 function onPubTypeChange(){
@@ -693,6 +697,7 @@ function doPublish(){
   _publishing = false;
 }
 function publishDraft(name){
+  name = decodeURIComponent(name);
   if (_publishing) return; _publishing = true;
   var t=TASKS[name];if(!t){_publishing=false;return}
   var ntD=t.nt||0;
@@ -726,17 +731,18 @@ function _finalizePublish(name) {
   filterQuests();renderDrafts();renderMyTasks();refreshUserUI();
   _publishing = false;
 }
-function deleteDraft(name){showConfirm('确定删除草稿「'+name+'」？',function(){AppData.deleteTask(name);document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});filterQuests();renderDrafts()})}
+function deleteDraft(name){name = decodeURIComponent(name);showConfirm('确定删除草稿「'+name+'」？',function(){AppData.deleteTask(name);document.querySelectorAll('.card-expand').forEach(function(c){c.remove()});filterQuests();renderDrafts()})}
 function clearPubForm(){['pubName','pubNT','pubSlots','pubDeadline','pubReviewer','pubNote'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('pubNT').value='5';document.getElementById('pubSlots').value='1'}
 function renderDrafts(){
   var el=document.getElementById('draftList');if(!el)return;
   var drafts=Object.values(TASKS).filter(function(t){return t.status==='draft'});
   if(!drafts.length){el.innerHTML='';return}
   var h='<div style="font-size:.65rem;font-weight:700;color:#c8892e;margin-bottom:4px">💾 草稿箱 ('+drafts.length+')</div>';
-  drafts.forEach(function(t){h+='<div style="font-size:.7rem;padding:4px 0;cursor:pointer;color:var(--green-primary)" onclick="editDraft(\''+esc(t.name)+'\')">📝 '+t.name+(t.nt?' · NT'+t.nt:'')+'</div>'});
+  drafts.forEach(function(t){h+='<div style="font-size:.7rem;padding:4px 0;cursor:pointer;color:var(--green-primary)" onclick="editDraft(\''+encodeURIComponent(t.name)+'\')">📝 '+t.name+(t.nt?' · NT'+t.nt:'')+'</div>'});
   el.innerHTML=h;
 }
 function editDraft(name){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   document.getElementById('pubName').value=t.name||'';
   document.getElementById('pubType').value=t.type||'在地任务';
@@ -785,7 +791,7 @@ function _renderUserChips(localUsers, names) {
   names.forEach(function(n){
     var s = localUsers[n] || n;
     var initial = n.charAt(0);
-    h += '<div class="user-chip" onclick="pickLoginUser(\''+esc(n)+'\')"><div class="user-chip-avatar"><img src="'+avatarURL(s,48)+'" width="48" height="48" style="border-radius:50%;object-fit:cover;background:#c8d8c8" alt="'+initial+'" onerror="this.outerHTML=&#39;<div style=width:48px;height:48px;border-radius:50%;background:#c8d8c8;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#5a6e5c>&#39;+&#39;'+initial+'&#39;+&#39;</div>&#39;"></div><div class="user-chip-name">'+n+'</div></div>';
+    h += '<div class="user-chip" onclick="pickLoginUser(\''+encodeURIComponent(n)+'\')"><div class="user-chip-avatar"><img src="'+avatarURL(s,48)+'" width="48" height="48" style="border-radius:50%;object-fit:cover;background:#c8d8c8" alt="'+initial+'" onerror="this.outerHTML=&#39;<div style=width:48px;height:48px;border-radius:50%;background:#c8d8c8;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#5a6e5c>&#39;+&#39;'+initial+'&#39;+&#39;</div>&#39;"></div><div class="user-chip-name">'+n+'</div></div>';
   });
   document.getElementById('userScroll').innerHTML = h;
   if (names[0]) { document.getElementById('loginName').value = names[0]; renderLoginAvatar(); }
@@ -807,7 +813,7 @@ function _saveLocalUser(name, seed) {
     }
   } catch(e) {}
 }
-function pickLoginUser(name){document.getElementById('loginName').value=name;document.querySelectorAll('#userScroll .user-chip').forEach(function(c){c.classList.remove('selected')});event.target.closest('.user-chip').classList.add('selected');renderLoginAvatar()}
+function pickLoginUser(name){name = decodeURIComponent(name);document.getElementById('loginName').value=name;document.querySelectorAll('#userScroll .user-chip').forEach(function(c){c.classList.remove('selected')});event.target.closest('.user-chip').classList.add('selected');renderLoginAvatar()}
 function renderLoginAvatar(){
   var name=document.getElementById('loginName').value||'';
   var seed = name; // fallback: 用名字生成头像
@@ -1262,7 +1268,7 @@ function renderMyTasks(){
     {label:'🔴 待处理',color:'var(--red)',key:'urgent',filter:function(t){return t.status==='待提交'||t.status==='待审核'||t.status==='退回修改'}},
     {label:'📋 进行中',color:'var(--green-primary)',key:'active',filter:function(t){return t.status==='进行中'}},
     {label:'🧾 待结算',color:'#c8892e',key:'settle',filter:function(t){return t.status==='待结算'}},
-    {label:'✅ 最近完成',color:'#5a6e5c',key:'done',filter:function(t){return t.status==='已完成'||t.status==='已结算'}},
+    {label:'✅ 最近完成',color:'#5a6e5c',key:'done',filter:function(t){return t.status==='待结算'||t.status==='已结算'}},
     {label:'🚫 已取消/争议',color:'#999',key:'closed',filter:function(t){return t.status==='已取消'||t.status==='已争议'}}
   ];
   var h='';
@@ -1300,7 +1306,7 @@ function renderProfile(mode){
   var el=document.getElementById('profileInner');if(!el)return;
   var h='<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a;z-index:1" onclick="document.getElementById(\'profileCard\').remove()">✕</button>';
   var pu=getUsers()[CURRENT_USER]||{};var pr=pu.role||'visitor';var pRole=roleName(pr);var pIcon=roleIcon(pr);var pCreated=pu.created||'';var au=window.AppData?AppData.me():null;if(!pCreated&&au&&au.created)pCreated=au.created;if(!pCreated)pCreated=today();
-  h+='<div style="text-align:center;margin-bottom:14px"><img src="'+profileSrc(_profileSeed)+'" width="56" height="56" style="border-radius:50%;border:2.5px solid var(--green-primary);cursor:'+(mode==='edit'?'pointer':'default')+'" alt="" id="profileAvatarImg" '+(mode==='edit'?'onclick="pickAvatar()"':'')+'><div style="font-weight:700;font-size:.9rem;margin-top:6px">'+esc(CURRENT_USER)+'</div><div style="font-size:.65rem;color:#5a6e5c">'+pIcon+' '+pRole+' · '+pCreated+'</div></div>';
+  h+='<div style="text-align:center;margin-bottom:14px"><img src="'+profileSrc(_profileSeed)+'" width="56" height="56" style="border-radius:50%;border:2.5px solid var(--green-primary);cursor:'+(mode==='edit'?'pointer':'default')+'" alt="" id="profileAvatarImg" '+(mode==='edit'?'onclick="pickAvatar()"':'')+'><div style="font-weight:700;font-size:.9rem;margin-top:6px">'+encodeURIComponent(CURRENT_USER)+'</div><div style="font-size:.65rem;color:#5a6e5c">'+pIcon+' '+pRole+' · '+pCreated+'</div></div>';
   if(mode==='view'){
     var u=getUsers()[CURRENT_USER]||{};var rl=u.role||'visitor';var rn=roleName(rl);
     // NT 余额 + 充值/提现

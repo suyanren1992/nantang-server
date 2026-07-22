@@ -771,7 +771,7 @@ function _renderStep1() {
   } else {
     h += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
     rooms.forEach(function(s) {
-      h += '<div onclick="_pickSpace(\''+s.id+'\',\''+esc(s.name)+'\')" style="width:calc(50% - 3px);padding:10px 8px;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.68rem;display:flex;align-items:center;gap:6px" onmouseover="this.style.background=\'#f5f8f2\'" onmouseout="this.style.background=\'#fff\'">';
+      h += '<div onclick="_pickSpace(\''+s.id+'\',\''+encodeURIComponent(s.name)+'\')" style="width:calc(50% - 3px);padding:10px 8px;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.68rem;display:flex;align-items:center;gap:6px" onmouseover="this.style.background=\'#f5f8f2\'" onmouseout="this.style.background=\'#fff\'">';
       h += '<span style="font-size:1.1rem;flex-shrink:0">'+s.icon+'</span>';
       h += '<span style="line-height:1.2">'+esc(s.name.replace(/^.* › /,''))+'</span>';
       h += '</div>';
@@ -842,7 +842,7 @@ function _renderStep2() {
     actions.forEach(function(item) {
       var a = item.action;
       var icon = item.icon || '📍';
-      h += '<div onclick="_pickAction(\''+a.id+'\',\''+esc(a.label)+'\',\''+icon+'\','+a.nt+',false)" style="padding:10px 12px;margin:3px 0;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.72rem;display:flex;justify-content:space-between;align-items:center">';
+      h += '<div onclick="_pickAction(\''+a.id+'\',\''+encodeURIComponent(a.label)+'\',\''+icon+'\','+a.nt+',false)" style="padding:10px 12px;margin:3px 0;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.72rem;display:flex;justify-content:space-between;align-items:center">';
       h += '<span>'+icon+' '+esc(a.label)+'</span>';
       h += '<span style="font-size:.62rem;color:#8a6a20;font-weight:600">+'+a.nt+' NT</span>';
       h += '</div>';
@@ -919,7 +919,7 @@ function _renderStep3() {
       var ri = typeof roleIcon === 'function' ? roleIcon(u.role) : '👤';
       var seed = (u && u.avatar_seed != null) ? u.avatar_seed : name;
       var avi = typeof avatarURL === 'function' ? avatarURL(seed, 32) : '';
-      h += '<div onclick="_submitDiscGuess(\''+esc(name)+'\')" style="padding:10px 12px;margin:3px 0;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.72rem;display:flex;align-items:center;gap:8px">';
+      h += '<div onclick="_submitDiscGuess(\''+encodeURIComponent(name)+'\')" style="padding:10px 12px;margin:3px 0;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.72rem;display:flex;align-items:center;gap:8px">';
       if (avi) h += '<img src="'+avi+'" width="32" height="32" style="border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
       h += '<span style="flex:1">'+ri+' '+esc(name)+'</span><span style="color:#aaa">→</span>';
       h += '</div>';
@@ -1191,7 +1191,7 @@ function openDiscoveryDetail(discId) {
       Object.values(tasks).forEach(function(t){ if(t.publisher) candidates[t.publisher] = true; if(t.assignee) candidates[t.assignee] = true; });
       Object.keys(candidates).forEach(function(name){
         if (name === CURRENT_USER || name === '社区') return;
-        h += '<div onclick="_guessExistingCard(\''+d.id+'\',\''+esc(name)+'\')" style="padding:8px 10px;margin:2px 0;background:#fff;border:1px solid #e8ede6;border-radius:8px;cursor:pointer;font-size:.68rem;display:flex;align-items:center;gap:6px">';
+        h += '<div onclick="_guessExistingCard(\''+d.id+'\',\''+encodeURIComponent(name)+'\')" style="padding:8px 10px;margin:2px 0;background:#fff;border:1px solid #e8ede6;border-radius:8px;cursor:pointer;font-size:.68rem;display:flex;align-items:center;gap:6px">';
         h += '<span>👤</span><span style="flex:1">'+esc(name)+'</span><span style="color:#5a6e5c">猜 +1 NT</span>';
         h += '</div>';
       });

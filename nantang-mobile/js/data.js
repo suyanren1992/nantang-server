@@ -168,7 +168,7 @@ function renderItemsInTab(filter){
       if(!items.length) h+='<div style="font-size:.6rem;color:#5a5a5a;padding:8px;white-space:nowrap">空空如也</div>';
       else items.forEach(function(item){
         var icon=ITEM_ICONS[item.cat]||'📦';
-        h+='<div style="width:80px;height:96px;background:#fff;border:1.5px solid var(--green-border);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;flex-shrink:0" onclick="openItemPopup(\''+esc(item.id)+'\')">';
+        h+='<div style="width:80px;height:96px;background:#fff;border:1.5px solid var(--green-border);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;flex-shrink:0" onclick="openItemPopup(\''+encodeURIComponent(item.id)+'\')">';
         h+='<div style="font-size:1.6rem;line-height:1">'+icon+'</div>';
         h+='<div style="font-size:.6rem;font-weight:600;margin-top:2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(item.name)+'</div>';
         h+='<div style="font-size:.58rem;color:'+(item.price?s.color:'#ccc')+';font-weight:600">'+(item.price?'¥'+item.price:'—')+'</div>';
@@ -181,6 +181,7 @@ function renderItemsInTab(filter){
   document.getElementById('myTabItems').innerHTML=h;
 }
 function openItemPopup(id){
+  id = decodeURIComponent(id);
   var item=MOCK_ITEMS.find(function(i){return i.id===id});if(!item)return;
   var m=document.getElementById('itemPopup');if(!m){
     m=document.createElement('div');m.id='itemPopup';
@@ -301,6 +302,7 @@ function expandCard(name,cls,css,html,el){
   d.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function openSubmit(el,name){
+  name = decodeURIComponent(name);
   if (typeof _guardOnline === 'function' && _guardOnline('提交任务')) return;
   var t=TASKS[name];if(!t)return;
   if(t.deadline&&t.deadline<(today())){showToast('任务已逾期，无法提交','error');return}
@@ -342,6 +344,7 @@ function doSubmit(name){
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function claimTask(name){
+  name = decodeURIComponent(name);
   if (typeof _guardOnline === 'function' && _guardOnline('领取任务')) return;
   var t=TASKS[name];if(!t)return;
   if(t.publisher===CURRENT_USER){showToast('不能领取自己发布的任务','error');return}
@@ -364,17 +367,20 @@ function claimTask(name){
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function unclaimTask(name){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
-  var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>📩 申请取消认领 · '+esc(name)+'</div><div style=font-size:.72rem;color:#5a6e5c;margin-bottom:8px>⚠️ 取消认领需要发布者审核批准。<br>确定要申请吗？</div><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.unclaim-expand\').remove()">再想想</button><button class="btn-sm warn" style=flex:1" onclick="confirmUnclaim(\''+esc(name)+'\')">📩 确认申请</button></div>';
+  var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>📩 申请取消认领 · '+encodeURIComponent(name)+'</div><div style=font-size:.72rem;color:#5a6e5c;margin-bottom:8px>⚠️ 取消认领需要发布者审核批准。<br>确定要申请吗？</div><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.unclaim-expand\').remove()">再想想</button><button class="btn-sm warn" style=flex:1" onclick="confirmUnclaim(\''+encodeURIComponent(name)+'\')">📩 确认申请</button></div>';
   expandCard(name,'unclaim-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
 }
 function confirmUnclaim(name){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   t.unclaimRequest=CURRENT_USER;t.unclaimRequestedAt=today();
   document.querySelectorAll('.unclaim-expand,.card-expand').forEach(function(c){c.remove()});
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function reviewTask(name,action){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   if(action==='approve'){
     var _t=t;var _name=name;
@@ -387,11 +393,12 @@ function reviewTask(name,action){
     _done();
     });
   }else{
-    var h='<div style=font-weight:700;margin-bottom:6px;color:var(--red)>🔙 退回修改 · '+esc(name)+'</div><textarea id="reviewReason" rows="2" placeholder="说明退回理由…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.review-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmReject(\''+esc(name)+'\')">✕ 确认打回</button></div>';
+    var h='<div style=font-weight:700;margin-bottom:6px;color:var(--red)>🔙 退回修改 · '+encodeURIComponent(name)+'</div><textarea id="reviewReason" rows="2" placeholder="说明退回理由…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.review-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmReject(\''+encodeURIComponent(name)+'\')">✕ 确认打回</button></div>';
     expandCard(name,'review-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
   }
 }
 function confirmReject(name){
+  name = decodeURIComponent(name);
   var reason=document.getElementById('reviewReason').value.trim();if(!reason){showToast('请填写退回理由','error');return}
   var t=TASKS[name];if(!t)return;
   t.rejectCount = (t.rejectCount || 0) + 1;
@@ -410,6 +417,7 @@ function confirmReject(name){
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function editTask(name){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   document.getElementById('pubName').value=t.name||'';
   document.getElementById('pubType').value=t.type||'在地任务';
@@ -425,6 +433,7 @@ function editTask(name){
   document.getElementById('overlayPublishTask').classList.add('open');
 }
 function withdrawTask(name){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   var submitters=(t.claimants||[]).filter(function(c){return c.status==='submitted'||c.status==='completed'});
   if(submitters.length>0){
@@ -454,6 +463,7 @@ function withdrawTask(name){
   }
 }
 function requestWithdraw(name){
+  name = decodeURIComponent(name);
   var h='<div style=font-weight:700;margin-bottom:6px;color:var(--red)>📩 申请撤回 · '+esc(name)+'</div>';
   h+='<textarea id="withdrawReason" rows="2" placeholder="说明撤回原因…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea>';
   h+='<div style=font-size:.6rem;color:#5a5a5a;margin-bottom:8px>⚠️ 提交后需审核人批准</div>';
@@ -468,6 +478,7 @@ function confirmWithdraw(name){
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function settleTask(name){
+  name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   var stlr=t.settler||t.publisher||'';
   var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>🧾 结算确认 · '+esc(t.name)+'</div>';
@@ -481,7 +492,7 @@ function confirmSettle(name){
   var t=TASKS[name];if(!t)return;
   if(t.status==='已结算')return;
   // FIX-10: 只允许从"待结算"或"已完成"状态结算，防止非法流转
-  if(t.status!=='待结算'&&t.status!=='已完成'){showToast('任务状态('+t.status+')不可结算','error');return}
+  if(t.status!=='待结算'){showToast('任务状态('+t.status+')不可结算','error');return}
   // A2: 通过 AppData 更新任务状态（自动存盘）
   AppData.updateTask(name, {status:'已结算', settler:CURRENT_USER, completedAt:t.completedAt||today()});
   // C2.6: HTTP 模式同步服务端结算
@@ -500,7 +511,7 @@ function showConfirm(msg,onOk){
   document.querySelectorAll('.confirm-card').forEach(function(c){c.remove()});
   var d=document.createElement('div');d.className='confirm-card';
   d.style.cssText='position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);animation:fadeIn .15s ease-out';
-  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:260px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.82rem;font-weight:700;margin-bottom:12px">'+esc(msg)+'</div><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 onclick="this.closest(\'.confirm-card\').remove()">取消</button><button class="btn-sm danger" style=flex:1 id="confirmOkBtn">确认</button></div></div>';
+  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:260px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.82rem;font-weight:700;margin-bottom:12px">'+encodeURIComponent(msg)+'</div><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 onclick="this.closest(\'.confirm-card\').remove()">取消</button><button class="btn-sm danger" style=flex:1 id="confirmOkBtn">确认</button></div></div>';
   document.body.appendChild(d);
   document.getElementById('confirmOkBtn').addEventListener('click',function(){d.remove();if(onOk)onOk()});
 }

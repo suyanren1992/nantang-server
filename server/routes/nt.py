@@ -103,7 +103,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
 
     # 冻结余额：本人发布且 escrow 未释放的任务的 escrow_amount
     frozen = 0
-    frozen_statuses = ("进行中", "待提交", "待审核", "退回修改", "待结算", "已争议")
+    frozen_statuses = (TASK_STATUSES["open"], TASK_STATUSES["pending_submit"], TASK_STATUSES["submitted"], TASK_STATUSES["rejected"], TASK_STATUSES["verified"], TASK_STATUSES["disputed"])
     for t in all_tasks:
         if t.poster == user.id and t.status in frozen_statuses:
             frozen += t.escrow_amount if t.escrow_amount is not None else (t.reward * (t.slots or 1))
