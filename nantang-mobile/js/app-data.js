@@ -225,7 +225,9 @@ window.AppData = {
         camps: this._data.camps,
         map_locations: this._data.map_locations,
         inventory: this._data.inventory,
-        canteenMenu: this._data.canteenMenu
+        canteenMenu: this._data.canteenMenu,
+        tasks: this._data.tasks,
+        users: this._data.users
       };
       API.request('POST', '/api/data/sync_shared', payload);
     }
@@ -582,6 +584,7 @@ this._data.map_locations.people_on_site = [];
 
   // 脏污度每日自动增长（每天每空间 += 该类型的 dirtiness_rate）
   _tickDirtiness: function() {
+    console.warn('[deprecated] use _growDirtiness in app.js instead');
     var ml = this._data.map_locations;
     if (!ml || !ml.state || !ml.state.room_items) return;
     var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
@@ -660,5 +663,5 @@ window.addEventListener('storage', function(e) {
 });
 
 AppData.init();
-// 脏污度定时增长：每 60 分钟 tick 一次
-setInterval(function(){ if(window.AppData){ AppData._tickDirtiness(); AppData._dailyPoolRefill(); } }, 3600000);
+// 脏污度由 app.js _growDirtiness 统一管理；此处仅保留社区池补填
+setInterval(function(){ if(window.AppData){ AppData._dailyPoolRefill(); } }, 3600000);

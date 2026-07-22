@@ -378,59 +378,61 @@ function closeCardRoom() {
 
 var _cardFilter = '全部';
 // 校核室独立渲染（overlayVerifyRoom）
+var _vfyFilter = 'pending';
 function _renderVerifyTab() {
   var vfys = (window.AppData && AppData._data.pendingVerifications) ? AppData._data.pendingVerifications : [];
   var pending = vfys.filter(function(v) { return v.status === 'pending'; });
   var resolved = vfys.filter(function(v) { return v.status === 'verified' || v.status === 'rejected' || v.status === 'permanently_rejected'; });
-
-  // R4.4: 云村民只读——非在地成员隐藏操作按钮
   var users = typeof getUsers === 'function' ? getUsers() : {};
   var role = (users[CURRENT_USER] || {}).role || 'visitor';
   var isOnsite = isMemberByRole(role);
-
   var h = '';
 
-  // B2: 校核积压告警
+  // 积压告警
   if (pending.length > 30) {
     h += '<div style="background:#fff5f5;border:1px solid #f0c8c8;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:.62rem;color:#b84c38">⚠️ 校核积压 ' + pending.length + ' 条，社区需要你帮忙验证！</div>';
   }
 
-  // 待验证
-  if (pending.length) {
-    h += '<div style="font-weight:700;font-size:.72rem;color:#5a6e5c;margin-bottom:6px">⏳ 待验证 (' + pending.length + ')</div>';
-    pending.forEach(function(v) {
-      var icon = ({cleaning:'🧹',stock_in:'📦',stock_out:'🗑',field_harvest:'🌿',field_action:'🌿',quest:'📋',stay:'🛏️',labor_report:'📝'})[v.type] || '📋';
-      h += '<div style="background:#fffdf9;border:1.5px solid #c8c0b0;border-radius:10px;padding:10px 12px;margin-bottom:6px">';
-      h += '<div style="display:flex;justify-content:space-between;align-items:flex-start">';
-      h += '<div style="flex:1"><span>' + icon + '</span> <b style="font-size:.72rem">' + esc(v.doer||'') + '</b> · ' + esc(v.action||'') + '</div>';
-      h += '<span style="font-size:.65rem;font-weight:700;color:#8a6a20">+' + (v.ntAmount||v.nt_amount||0) + ' NT</span></div>';
-      if (v.detail && v.detail.spaceId) h += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">📍 ' + esc(v.detail.spaceId||'') + '</div>';
-      h += '<div style="font-size:.55rem;color:#aaa;margin-top:4px">' + (v.createdAt||'').slice(0,16).replace('T',' ') + '</div>';
-      if (isOnsite) {
-        h += '<div style="display:flex;gap:6px;margin-top:8px">';
-        h += '<button class="btn-sm danger" style="flex:1;font-size:.6rem;padding:6px" onclick="if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\'))AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, false)">🙅 不是</button>';
-        h += '<button class="btn-sm pri" style="flex:1;font-size:.6rem;padding:6px" onclick="AppData.verifyAction(\'' + v.id + '\', CURRENT_USER, true)">✅ 确认 +' + (v.ntAmount||v.nt_amount||0) + 'NT</button>';
-        h += '</div>';
-      } else {
-        h += '<div style="font-size:.55rem;color:#aaa;margin-top:6px;background:#f5f5f5;padding:4px 8px;border-radius:6px" title="仅在地成员可校核">☁️ 云村民只读</div>';
-      }
+  // 池余额
+  var poolBalance = (window.AppData && AppData._data._poolBalance) || 999;
+  if (poolBalance < 200) {
+    h += '<div style="background:#fffdf5;border:1px solid #f0d8a0;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:.6rem;color:#8a6a20">⚠️ 社区池余额 ' + poolBalance + ' NT，验证奖励可能延迟发放</div>';
+  }
+
+  // 筛选 chips
+  var totalAll = pending.length + resolved.length;
+  h += '<div style="display:flex;gap:5px;margin-bottom:8px;overflow-x:auto;-webkit-overflow-scrolling:touch">';
+  var chips = [{k:'pending',l:'⏳待确认',n:pending.length},{k:'verified',l:'✅已通过',n:resolved.filter(function(v){return v.status==='verified'}).length},{k:'rejected',l:'❌已驳回',n:resolved.filter(function(v){return v.status!=='verified'}).length}];
+  chips.forEach(function(c){
+    var sel = _vfyFilter === c.k;
+    h += '<div onclick="_vfyFilter=\''+c.k+'\';renderVerifyRoom()" style="flex-shrink:0;padding:4px 10px;border-radius:14px;font-size:.6rem;cursor:pointer;border:1.5px solid '+(sel?'var(--green-primary)':'#d0d9ce')+';background:'+(sel?'#e8f0e8':'#fff')+';font-weight:'+(sel?'600':'400')+'">'+c.l+' '+c.n+'</div>';
+  });
+  h += '</div>';
+
+  // 待确认网格 — 扑克牌 4 列
+  if (_vfyFilter === 'pending') {
+    if (pending.length) {
+      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-bottom:8px">';
+      pending.forEach(function(v){ h += _renderVerifyCard(v, isOnsite); });
       h += '</div>';
-    });
-  } else {
-    h += '<div style="text-align:center;padding:20px;color:#aaa;font-size:.7rem">✅ 暂无待验证项</div>';
+    } else {
+      h += '<div style="text-align:center;padding:30px;color:#aaa;font-size:.7rem">✅ 暂无待验证项<br><span style="font-size:.6rem">在地图或快捷入口上报劳动后，这里会出现待验证卡片</span></div>';
+    }
   }
 
   // 已处理
-  if (resolved.length) {
-    h += '<div style="font-weight:700;font-size:.65rem;color:#5a6e5c;margin:12px 0 6px">📋 最近已处理 (' + resolved.length + ')</div>';
-    resolved.slice(0, 10).forEach(function(v) {
-      var stIcon = v.status === 'verified' ? '✅' : (v.status === 'permanently_rejected' ? '🚫' : '❌');
-      var stColor = v.status === 'verified' ? '#5d8c52' : '#b84c38';
-      h += '<div style="font-size:.62rem;color:' + stColor + ';padding:4px 0;border-bottom:1px solid #f0f0f0">' + stIcon + ' ' + esc(v.doer||'') + ' · ' + esc(v.action||'') + ' <span style="color:#aaa">' + (v.verifiedAt||v.rejectedAt||'').slice(0,10) + '</span></div>';
-    });
+  if (_vfyFilter !== 'pending') {
+    var filtered = _vfyFilter === 'verified' ? resolved.filter(function(v){return v.status==='verified'}) : resolved.filter(function(v){return v.status!=='verified'});
+    if (filtered.length) {
+      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-bottom:8px">';
+      filtered.forEach(function(v){ h += _renderVerifyCard(v, false); });
+      h += '</div>';
+    } else {
+      h += '<div style="text-align:center;padding:30px;color:#aaa;font-size:.7rem">📋 暂无此类记录</div>';
+    }
   }
 
-  // L1: 月度校核排行榜
+  // 月度排行榜
   var thisMonth = new Date().toISOString().slice(0,7);
   var monthlyVerifiers = {};
   resolved.forEach(function(v) {
@@ -447,7 +449,58 @@ function _renderVerifyTab() {
       h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px solid #f0f0f0">' + (medals[i]||'👏') + ' ' + esc(e[0]) + ' · ' + e[1] + '次</div>';
     });
   }
+  return h;
+}
 
+// 校核扑克牌卡片 — 复用 _renderCard 的视觉壳子
+function _renderVerifyCard(v, isOnsite) {
+  var typeIcons = {cleaning:'🧹',stock_in:'📦',stock_out:'🗑',field_harvest:'🌿',field_action:'🌿',quest:'📋',stay:'🛏️',labor_report:'📝',cooking:'🍳',farming:'🌿'};
+  var icon = typeIcons[v.type] || '📋';
+  var ntAmt = v.ntAmount || v.nt_amount || 0;
+  var doerName = esc((v.doer||'').slice(0,4));
+  var actionText = esc((v.action||'').slice(0,5));
+  var isPending = v.status === 'pending';
+  var isVerified = v.status === 'verified';
+  var isRejected = v.status === 'rejected' || v.status === 'permanently_rejected';
+
+  // 花色
+  var suitChar = '♦';
+  if (/cleaning|打扫|clean/.test(v.type)) suitChar = '♠';
+  else if (/field_harvest|field_action|farming|farm/.test(v.type)) suitChar = '♣';
+  else if (/cooking|cook/.test(v.type)) suitChar = '♥';
+
+  var bg = isVerified ? '#f8fcf6' : (isRejected ? '#fafafa' : '#fffdf9');
+  var border = ntAmt >= 15 ? '#c88740' : (isVerified ? '#a0c8a0' : (isRejected ? '#e0e0e0' : '#c8c0b0'));
+  var borderW = ntAmt >= 15 && isPending ? '2px' : '1.5px';
+  var shadow = ntAmt >= 15 && isPending ? '0 2px 12px rgba(200,135,64,.25)' : '0 1px 4px rgba(0,0,0,.04)';
+  var statusIcon = isVerified ? '✅' : (isRejected ? '🚫' : '⏳');
+
+  var h = '<div style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:6px 5px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">';
+  // 左上花色
+  h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:#5a6e5c;font-weight:700">'+suitChar+'</div>';
+  // 右上状态
+  h += '<div style="position:absolute;top:4px;right:5px;font-size:.6rem">'+statusIcon+'</div>';
+  // 中央图标
+  h += '<div style="font-size:1.8rem;line-height:1;margin-top:6px">'+icon+'</div>';
+  // doer 名字
+  h += '<div style="font-size:.62rem;font-weight:700;color:#1d2e24;line-height:1.2;margin-top:2px">'+doerName+'</div>';
+  // 劳动内容
+  h += '<div style="font-size:.5rem;color:#5a6e5c;margin-top:1px">'+actionText+'</div>';
+  // 时间
+  h += '<div style="font-size:.45rem;color:#aaa;margin-top:1px">'+(v.createdAt||'').slice(5,16).replace('T',' ')+'</div>';
+
+  if (isPending && isOnsite) {
+    // 按钮行
+    h += '<div style="display:flex;gap:3px;margin-top:4px">';
+    h += '<button onclick="event.stopPropagation();if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\'))AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid #d4a0a0;background:#fff5f5;color:#b84c38;cursor:pointer">🙅</button>';
+    h += '<button onclick="event.stopPropagation();AppData.verifyAction(\''+v.id+'\',CURRENT_USER,true)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
+    h += '</div>';
+  } else if (isPending) {
+    h += '<div style="font-size:.45rem;color:#aaa;margin-top:4px">☁️ 云村民</div>';
+  }
+  // 右下 NT
+  h += '<div style="position:absolute;bottom:4px;right:5px;font-size:.55rem;color:'+(ntAmt>=15?'#c88740':'#8a6a20')+';font-weight:700">'+ntAmt+'</div>';
+  h += '</div>';
   return h;
 }
 

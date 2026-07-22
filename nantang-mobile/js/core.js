@@ -295,7 +295,7 @@ function _startPolling() {
       ? Math.min(_pollInterval * 2, 120000) : 30000;
     _pollTimer = setInterval(_pollCycle, _pollInterval);
   }
-  _pollTimer = setInterval(_pollCycle, _pollInterval);
+  _pollCycle();  // 立即执行首次，后续由内部 setInterval 递归调度
 }
 function _stopPolling() {
   if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }

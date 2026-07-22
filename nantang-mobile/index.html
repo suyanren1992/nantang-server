@@ -521,7 +521,7 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-phase4.js"></script>
 <script src="js/ui-social.js"></script>
 <script src="js/ui-archive.js"></script>
-<script src="js/ui-cardroom.js?v=4"></script>
+<script src="js/ui-cardroom.js?v=5"></script>
 <script src="js/app.js?v=3"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
@@ -1228,31 +1228,6 @@ var _avatarStyleIdx=0;
 fillSeedPool();
 // FIX-08: 会话级 bridge nonce — file:// 协议下 origin 不可靠，nonce 作为共享密钥
 window._APP_NONCE = 'nt_'+Math.random().toString(36).slice(2)+'_'+Date.now().toString(36);
-// Bridge: handle messages from map iframe
-window.addEventListener('message',function(e){
-  if(e.origin!==window.location.origin&&e.origin!=='null')return;
-  var d=e.data;if(!d||!d.type)return;
-  // FIX-08: 敏感操作（ntEarn/ntSpend）需要有效的 bridge nonce
-  if((d.type==='ntEarn'||d.type==='ntSpend'||d.type==='confirm')&&window._APP_NONCE){
-    if(d._bridgeNonce!==window._APP_NONCE)return;  // nonce 不匹配，静默丢弃
-  }
-  if((d.type==='ntEarn'||d.type==='ntSpend')&&(typeof d.amount!=='number'||d.amount<=0||d.amount>10000))return;
-  if(d.type==='getUser'){
-    var u = Game.getUser();
-    e.source.postMessage({type:'userData', data:u, _bridgeNonce:window._APP_NONCE}, '*');
-  }
-  else if(d.type==='openTask'){openQuestHallPage()}
-  else if(d.type==='openMe'){document.getElementById('myPage').style.zIndex='200';showMy()}
-  else if(d.type==='toast'){showToast(d.msg)}
-  else if(d.type==='confirm'){if(confirm(d.title+'\n\n'+d.msg))e.source.postMessage({type:'confirmResult',result:true},'*')}
-  else if(d.type==='closeMap'){closeOverlay('overlayMap')}
-  // 阶段 1 前置B：地图建筑 → 档案室
-  else if(d.type==='openArchive'){openArchive(d.tab||'members')}
-  // NT 桥接
-  else if(d.type==='ntEarn'){var r=NT.earn(CURRENT_USER,d.amount,d.reason,d.scope);if(r){var t=document.createElement('div');t.textContent='+'+d.amount+' NT · '+d.reason;t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green-primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999';document.body.appendChild(t);setTimeout(function(){t.remove()},2000)}}
-  else if(d.type==='ntSpend'){NT.spend(CURRENT_USER,d.amount,d.reason,d.scope)}
-  else if(d.type==='ntGetBalance'){var u=NT.getUser(CURRENT_USER);e.source.postMessage({type:'ntBalance',balance:u?u.ntBalance:0},'*')}
-});
 
 // ══ 会话恢复（行业标准：先检查，再决定显示什么）══
 (function autoLogin(){

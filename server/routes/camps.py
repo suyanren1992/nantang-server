@@ -93,7 +93,7 @@ async def create_camp(req: CampCreateRequest, user: User = Depends(require_admin
             scope="camp", camp_ref_id=camp.id,
             note=t.get("note", ""), slots=t.get("slots", 1),
             deadline=t.get("deadline", ""), reviewer=t.get("reviewer", ""),
-            claimants=json.dumps(t.get("claimants", []), ensure_ascii=False)))
+            assignees=json.dumps(t.get("claimants", []), ensure_ascii=False)))
     # Budget NT → camp_pool topup
     adv = req.budget.adventurers
     bld = req.budget.builders
@@ -147,27 +147,9 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
         select(NTTask).where(NTTask.camp_ref_id == camp_id, NTTask.status == "待结算"))
     camp_tasks = list(tasks_result.scalars())
     total_nt = sum(t.reward for t in camp_tasks)
-    if total_nt <= 0:
-        return {"ok": True, "settled_tasks": 0, "total_nt": 0}
-    # 锁池子 → 扣 camp_balance → 分发到 assignee
-    pool = await _get_pool(db, lock=True)
-    if total_nt > pool.camp_balance:
-        raise HTTPException(status_code=400, detail=f"营地余额不足（需 {total_nt} NT，当前 {pool.camp_balance}）")
-    pool.camp_balance -= total_nt
     now = datetime.utcnow().isoformat()
+    # ponytail: verify_task 已是唯一支付点，settle_camp 只更新状态
     for t in camp_tasks:
-        assignees = json.loads(t.assignees or "[]")
-        n = max(len(assignees), 1)
-        base_share = t.reward // n   # 整数除，余数分给第一个人
-        remainder = t.reward - base_share * n
-        for i, a_name in enumerate(assignees):
-            u_result = await db.execute(select(User).where(User.id == a_name))
-            u = u_result.scalar_one_or_none()
-            if u:
-                share = base_share + (remainder if i == 0 else 0)
-                u.nt_balance += share
-                await _add_ledger(db, _ledger_id(), "营地结算", a_name, share, "camp_settle",
-                                  f"营地 {camp.name} 任务 {t.title}", t.id, "settled")
         t.settler_id = user.id
         t.settled_at = now
         t.status = "已结算"

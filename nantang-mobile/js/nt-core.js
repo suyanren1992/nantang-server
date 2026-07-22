@@ -203,8 +203,8 @@ function submitTask(taskId, evidence) {
 
 function verifyTask(taskId, verifierId, approved, reason) {
   var t = _getTask(taskId); if (!t) return null;
-  // ponytail: 允许 active/completed/verified 三种状态的任务被验证。pending（未接取）仍然拒绝。
-  if (t.status === 'pending' || t.status === 'settled' || t.status === 'cancelled' || t.status === 'disputed')
+  // ponytail: 只允许 active/completed 状态的任务被验证。verified/settled 终态不可重复支付。
+  if (t.status === 'pending' || t.status === 'verified' || t.status === 'settled' || t.status === 'cancelled' || t.status === 'disputed')
     return _err('任务状态('+t.status+')不可验证');
 
   var poster = _getUser(t.poster);
@@ -258,6 +258,16 @@ function verifyTask(taskId, verifierId, approved, reason) {
     if (assignee) _adjustTrust(assignee, -15);
   }
 
+  _saveState(true); return t;
+}
+
+function settleTask(taskId, settlerId) {
+  var t = _getTask(taskId); if (!t) return null;
+  if (t.status !== 'verified') return _err('任务状态('+t.status+')不可结算，需先验证');
+  t.status = 'settled';
+  t.settledAt = new Date().toISOString();
+  t.settlerId = settlerId || null;
+  _addLedger(null, null, 0, 'task_settled', '任务结算: '+t.title, taskId);
   _saveState(true); return t;
 }
 
@@ -657,6 +667,7 @@ window.NT = {
   acceptTask: acceptTask,
   submitTask: submitTask,
   verifyTask: verifyTask,
+  settleTask: settleTask,
   cancelTask: cancelTask,
   disputeTask: disputeTask,
 

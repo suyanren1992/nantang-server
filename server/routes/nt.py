@@ -221,9 +221,10 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     cv_amount = req.amount
     actual_cv_deducted = min(cv_amount, from_user_obj.contribution_value)
     from_user_obj.contribution_value = max(0, from_user_obj.contribution_value - cv_amount)
-    to_user.contribution_value = (to_user.contribution_value or 0) + int(actual_cv_deducted * 0.75)
+    receiver_cv = int(actual_cv_deducted * 0.75)
+    to_user.contribution_value = (to_user.contribution_value or 0) + receiver_cv
     pool = await _get_pool(db)
-    pool.contribution_pool = (pool.contribution_pool or 0) + int(actual_cv_deducted * 0.25)
+    pool.contribution_pool = (pool.contribution_pool or 0) + (actual_cv_deducted - receiver_cv)
 
     lid = _ledger_id()
     await _add_ledger(db, lid, actual_from, to_user.id, req.amount, "transfer", req.reason)
