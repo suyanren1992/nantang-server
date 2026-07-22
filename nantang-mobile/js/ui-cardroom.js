@@ -412,7 +412,7 @@ function _renderVerifyTab() {
   // 待确认网格 — 扑克牌 4 列
   if (_vfyFilter === 'pending') {
     if (pending.length) {
-      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-bottom:8px">';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:8px">';
       pending.forEach(function(v){ h += _renderVerifyCard(v, isOnsite); });
       h += '</div>';
     } else {
@@ -424,7 +424,7 @@ function _renderVerifyTab() {
   if (_vfyFilter !== 'pending') {
     var filtered = _vfyFilter === 'verified' ? resolved.filter(function(v){return v.status==='verified'}) : resolved.filter(function(v){return v.status!=='verified'});
     if (filtered.length) {
-      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-bottom:8px">';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:8px">';
       filtered.forEach(function(v){ h += _renderVerifyCard(v, false); });
       h += '</div>';
     } else {
@@ -475,7 +475,7 @@ function _renderVerifyCard(v, isOnsite) {
   var shadow = ntAmt >= 15 && isPending ? '0 2px 12px rgba(200,135,64,.25)' : '0 1px 4px rgba(0,0,0,.04)';
   var statusIcon = isVerified ? '✅' : (isRejected ? '🚫' : '⏳');
 
-  var h = '<div style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:6px 5px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:140px;display:flex;flex-direction:column;justify-content:space-between">';
+  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:6px 5px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:140px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
   // 左上花色
   h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:#5a6e5c;font-weight:700">'+suitChar+'</div>';
   // 右上状态
@@ -502,6 +502,44 @@ function _renderVerifyCard(v, isOnsite) {
   h += '<div style="position:absolute;bottom:4px;right:5px;font-size:.55rem;color:'+(ntAmt>=15?'#c88740':'#8a6a20')+';font-weight:700">'+ntAmt+'</div>';
   h += '</div>';
   return h;
+}
+
+// 校核卡片详情弹窗
+function _openVerifyDetail(vfyId) {
+  var vfys = (window.AppData && AppData._data.pendingVerifications) || [];
+  var v = vfys.find(function(x){ return x.id === vfyId; });
+  if (!v) return;
+  var ntAmt = v.ntAmount || v.nt_amount || 0;
+  var typeIcons = {cleaning:'🧹',stock_in:'📦',stock_out:'🗑',field_harvest:'🌿',field_action:'🌿',quest:'📋',stay:'🛏️',labor_report:'📝',cooking:'🍳',farming:'🌿'};
+  var icon = typeIcons[v.type] || '📋';
+  var stLabel = v.status === 'verified' ? '✅ 已通过' : (v.status === 'rejected' ? '❌ 已驳回' : (v.status === 'permanently_rejected' ? '🚫 已永久拒绝' : '⏳ 待确认'));
+  var users = typeof getUsers === 'function' ? getUsers() : {};
+  var role = (users[CURRENT_USER] || {}).role || 'visitor';
+  var isOnsite = isMemberByRole(role);
+
+  var h = '<div style="background:#fff;border-radius:16px;width:320px;max-width:92vw;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)">';
+  h += '<div style="padding:16px 16px 10px;text-align:center;background:#fafaf6">';
+  h += '<div style="font-size:3rem;line-height:1;margin-bottom:4px">'+icon+'</div>';
+  h += '<div style="font-size:.82rem;font-weight:700;color:#1d2e24">'+esc(v.doer||'')+'</div>';
+  h += '<div style="font-size:.65rem;color:#5a6e5c;margin-top:2px">'+esc(v.action||'')+'</div>';
+  if (v.detail && v.detail.spaceId) h += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">📍 '+esc(v.detail.spaceId||'')+'</div>';
+  h += '</div>';
+  h += '<div style="margin:0 16px 10px;background:#fafaf6;border-radius:12px;padding:12px">';
+  h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">💰 奖励</span><span style="font-size:.65rem;font-weight:700;color:#8a6a20">+'+ntAmt+' NT</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">📋 状态</span><span style="font-size:.6rem">'+stLabel+'</span></div>';
+  if (v.verifier) h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">👤 验证人</span><span style="font-size:.6rem">'+esc(v.verifier)+'</span></div>';
+  h += '<div style="font-size:.5rem;color:#aaa;margin-top:4px">'+(v.createdAt||'').slice(0,16).replace('T',' ')+'</div>';
+  h += '</div>';
+  h += '<div style="padding:0 16px 16px">';
+  if (v.status === 'pending' && isOnsite) {
+    h += '<div style="display:flex;gap:8px">';
+    h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\')){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm();}">🙅 不是</button>';
+    h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="AppData.verifyAction(\''+v.id+'\',CURRENT_USER,true);closeDiscoveryForm()">✅ 确认 +'+ntAmt+' NT</button>';
+    h += '</div>';
+  }
+  h += '<button class="btn-sm sec" style="width:100%;margin-top:6px;font-size:.62rem;padding:6px" onclick="closeDiscoveryForm();renderVerifyRoom()">关闭</button>';
+  h += '</div></div>';
+  _showModal(h);
 }
 
 function renderCardRoom() {
@@ -549,7 +587,7 @@ function renderCardRoom() {
     h += '<div style="text-align:center;padding:30px;color:#aaa;font-size:.7rem">🃏 暂无此分类的牌</div>';
   } else {
     // ── 4 列扑克牌网格 ──
-    h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-bottom:8px">';
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:8px">';
     show.forEach(function(d){ h += _renderCard(d); });
     h += '</div>';
   }
@@ -1124,9 +1162,19 @@ function openDiscoveryDetail(discId) {
       // 没猜过 → 可以猜
       h += '<div style="font-size:.6rem;color:#5a6e5c;margin-bottom:6px;font-weight:600">🎯 你要猜是谁做的？（仅一次机会）</div>';
       h += '<div style="max-height:160px;overflow-y:auto;margin-bottom:8px">';
-      var users = typeof getUsers === 'function' ? getUsers() : {};
-      Object.keys(users).forEach(function(name){
-        if (name === CURRENT_USER) return;
+      // 候选名单：localStorage用户 + 近期有行为的人（校核/发现/任务）+ 在地成员
+      var candidates = {};
+      var localUsers = typeof getUsers === 'function' ? getUsers() : {};
+      Object.keys(localUsers).forEach(function(n){ candidates[n] = true; });
+      // 从 pendingVerifications 提取 doer
+      (AppData._data.pendingVerifications || []).forEach(function(v){ if(v.doer) candidates[v.doer] = true; });
+      // 从 cardDiscoveries 提取 guesser/guessedPerson
+      (AppData._data.cardDiscoveries || []).forEach(function(d){ if(d.guesser) candidates[d.guesser] = true; if(d.guessedPerson) candidates[d.guessedPerson] = true; });
+      // 从 tasks 提取 poster/assignees
+      var tasks = AppData._data.tasks || {};
+      Object.values(tasks).forEach(function(t){ if(t.publisher) candidates[t.publisher] = true; if(t.assignee) candidates[t.assignee] = true; });
+      Object.keys(candidates).forEach(function(name){
+        if (name === CURRENT_USER || name === '社区') return;
         h += '<div onclick="_guessExistingCard(\''+d.id+'\',\''+esc(name)+'\')" style="padding:8px 10px;margin:2px 0;background:#fff;border:1px solid #e8ede6;border-radius:8px;cursor:pointer;font-size:.68rem;display:flex;align-items:center;gap:6px">';
         h += '<span>👤</span><span style="flex:1">'+esc(name)+'</span><span style="color:#5a6e5c">猜 +1 NT</span>';
         h += '</div>';

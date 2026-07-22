@@ -208,7 +208,7 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     if from_user_obj.nt_balance < req.amount:
         raise HTTPException(status_code=400, detail=f"余额不足（当前 {from_user_obj.nt_balance} NT）")
 
-    to_result = await db.execute(select(User).where(User.id == req.to))
+    to_result = await db.execute(select(User).where(User.id == req.to).with_for_update())
     to_user = to_result.scalar_one_or_none()
     if not to_user:
         raise HTTPException(status_code=404, detail="目标用户不存在")
@@ -259,7 +259,7 @@ async def spend(req: EarnSpendRequest, user: User = Depends(get_current_user), d
     user_locked.updated_at = datetime.utcnow().isoformat()
 
     # spend returns to pool — camp-scope routes to camp_balance
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)
     if req.scope == "camp":
         pool.camp_balance += req.amount
     else:
@@ -973,7 +973,7 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     for t in tenancies_r.scalars():
         if t.last_deducted == today:
             continue
-        tenant_user = (await db.execute(select(User).where(User.id == t.user_id))).scalar_one_or_none()
+        tenant_user = (await db.execute(select(User).where(User.id == t.user_id).with_for_update())).scalar_one_or_none()
         if not tenant_user:
             continue
         rate = BED_RATES.get(t.room_id, 28)  # fallback 均价 28

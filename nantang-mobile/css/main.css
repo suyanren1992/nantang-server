@@ -235,6 +235,7 @@ html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:1
 .card-detail{animation:fadeIn .1s ease-out}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 @keyframes spcPop{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes skeletonPulse{0%,100%{opacity:.4}50%{opacity:.8}}
 /* 全局加速：所有弹窗和展开卡片 */
 .card-expand,.submit-expand,.settle-expand,.withdraw-expand,.review-expand,.unclaim-expand{animation-duration:.1s!important}
 [style*="spcPop"]{animation-duration:.15s!important}

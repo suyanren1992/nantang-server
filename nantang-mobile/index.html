@@ -464,6 +464,11 @@ if (window.location.protocol !== 'file:') {
       </div>
       </div>
     <div class="scroll-area" id="scrollArea">
+      <div id="scrollSkeleton" style="padding:8px">
+        <div class="skeleton-card" style="height:120px;background:#e8ede6;border-radius:12px;margin-bottom:8px;animation:skeletonPulse 1.5s ease-in-out infinite"></div>
+        <div class="skeleton-card" style="height:100px;background:#e8ede6;border-radius:12px;margin-bottom:8px;animation:skeletonPulse 1.5s ease-in-out .2s infinite"></div>
+        <div class="skeleton-card" style="height:140px;background:#e8ede6;border-radius:12px;margin-bottom:8px;animation:skeletonPulse 1.5s ease-in-out .4s infinite"></div>
+      </div>
       <div class="crumb-path" id="crumbPath" style="font-size:.65rem;color:#5a6e5c;padding:0 6px 6px"></div>
       <div class="photo-card">
         <div class="photo-img" id="photoImg"></div>
@@ -521,7 +526,7 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-phase4.js"></script>
 <script src="js/ui-social.js"></script>
 <script src="js/ui-archive.js"></script>
-<script src="js/ui-cardroom.js?v=5"></script>
+<script src="js/ui-cardroom.js?v=6"></script>
 <script src="js/app.js?v=3"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。

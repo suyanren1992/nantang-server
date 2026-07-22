@@ -92,6 +92,9 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
             raise HTTPException(status_code=400, detail="社区池余额不足")
         pool.balance -= req.reward * req.slots
         pool.task_escrow += req.reward * req.slots
+    elif req.scope == "camp":
+        # F14: 营地任务预算走 camp_balance，不设 escrow
+        pass
     else:
         if user.nt_balance < req.reward * req.slots:
             raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward * req.slots} NT，当前 {user.nt_balance}）")

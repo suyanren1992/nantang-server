@@ -1,4 +1,6 @@
 // AppData — 统一数据层
+// F21: 依赖检查
+if (typeof window === 'undefined' || !window.localStorage) console.error('[app-data] localStorage not available');
 // 原则：NT 系统是金融唯一真相源。AppData 不存交易、不存余额。
 // Phase 1: 共享/私有分层存储，按用户 ID 隔离私有数据
 window.AppData = {
@@ -378,7 +380,7 @@ this._data.map_locations.people_on_site = [];
         this._saveShared(true);
       }
     } else {
-      // HTTP：异步调用API，成功/失败在回调中处理
+      // HTTP：异步调用API，不返回同步 ok——调用方应在回调中处理 UI 更新
       var self = this;
       API.request('POST', '/api/nt/verifications/' + vfy.id + '/approve',
         {doer: vfy.doer, action: vfy.action, nt_amount: ntAmt, verifier_reward: vfyReward}
@@ -401,13 +403,11 @@ this._data.map_locations.people_on_site = [];
         self._saveShared(true);
         if (typeof renderCardRoom === 'function') renderCardRoom();
       });
-      return { ok: true };  // 异步处理，先返回
+      return { async: true };  // 异步处理，调用方不应依赖同步结果
     }
-    // 写入公告栏
+    // 离线路径：本地更新
     this.addAnnouncement(vfy.type, vfy.doer, verifierName, vfy.action, vfy.ntAmount);
-    // 新手任务：清洁类触发
     if (vfy.type === 'cleaning' && typeof _completeNewbieQuest === 'function') _completeNewbieQuest(vfy.doer, 'join_cleaning');
-    // 写入被发现区（核心循环：校核通过 = 同时出现在待发现）
     if (!this._data.discoveries) this._data.discoveries = [];
     this._data.discoveries.unshift({ id: vfy.id, type: vfy.type, doer: vfy.doer, verifier: verifierName, action: vfy.action, ntAmount: vfy.ntAmount, verifiedAt: vfy.verifiedAt, status: 'active' });
     this._saveShared(true);

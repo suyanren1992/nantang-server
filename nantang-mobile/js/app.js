@@ -885,13 +885,57 @@ var MGMT_DATA = {
     ]
   },
   _load: function() {
-    try { var s = JSON.parse(localStorage.getItem('nt_mgmt_data')); if (s) { this.cleaning.mySelections = s.cleaning_mySelections || []; this.cleaning.nextDate = s.cleaning_nextDate || this.cleaning.nextDate; this.cleaning.history = s.cleaning_history || this.cleaning.history; this.stay.myRoom = s.stay_myRoom || null; this.stay.myCheckIn = s.stay_myCheckIn || null; this.stay.myCheckOut = s.stay_myCheckOut || null; this.stay.history = s.stay_history || this.stay.history; this.field.history = s.field_history || this.field.history; this.kitchen.history = s.kitchen_history || this.kitchen.history; } } catch(e) {}
+    // 迁移：旧 nt_mgmt_data key → 统一到 AppData._data
+    try {
+      var old = localStorage.getItem('nt_mgmt_data');
+      if (old) {
+        var s = JSON.parse(old);
+        if (window.AppData && AppData._data) {
+          AppData._data._mgmt = AppData._data._mgmt || {};
+          AppData._data._mgmt.cleaning_history = s.cleaning_history || this.cleaning.history;
+          AppData._data._mgmt.stay_history = s.stay_history || this.stay.history;
+          AppData._data._mgmt.field_history = s.field_history || this.field.history;
+          AppData._data._mgmt.kitchen_history = s.kitchen_history || this.kitchen.history;
+          AppData._data._mgmt.cleaning_nextDate = s.cleaning_nextDate || this.cleaning.nextDate;
+          AppData._data._mgmt.cleaning_mySelections = s.cleaning_mySelections || [];
+          AppData._data._mgmt.stay_myRoom = s.stay_myRoom || null;
+          AppData._data._mgmt.stay_myCheckIn = s.stay_myCheckIn || null;
+          AppData._data._mgmt.stay_myCheckOut = s.stay_myCheckOut || null;
+        }
+        localStorage.removeItem('nt_mgmt_data');
+      }
+    } catch(e) {}
+    // 从 AppData 恢复
+    var d = (window.AppData && AppData._data && AppData._data._mgmt) ? AppData._data._mgmt : null;
+    if (d) {
+      this.cleaning.history = d.cleaning_history || this.cleaning.history;
+      this.cleaning.nextDate = d.cleaning_nextDate || this.cleaning.nextDate;
+      this.cleaning.mySelections = d.cleaning_mySelections || [];
+      this.stay.history = d.stay_history || this.stay.history;
+      this.stay.myRoom = d.stay_myRoom || null;
+      this.stay.myCheckIn = d.stay_myCheckIn || null;
+      this.stay.myCheckOut = d.stay_myCheckOut || null;
+      this.field.history = d.field_history || this.field.history;
+      this.kitchen.history = d.kitchen_history || this.kitchen.history;
+    }
   },
   _save: function() {
     var self = this;
     clearTimeout(this._timer);
     this._timer = setTimeout(function() {
-      try { localStorage.setItem('nt_mgmt_data', JSON.stringify({ cleaning_mySelections: self.cleaning.mySelections, cleaning_nextDate: self.cleaning.nextDate, cleaning_history: self.cleaning.history, stay_myRoom: self.stay.myRoom, stay_myCheckIn: self.stay.myCheckIn, stay_myCheckOut: self.stay.myCheckOut, stay_history: self.stay.history, field_history: self.field.history, kitchen_history: self.kitchen.history })); } catch(e) {}
+      if (window.AppData && AppData._data) {
+        AppData._data._mgmt = AppData._data._mgmt || {};
+        AppData._data._mgmt.cleaning_history = self.cleaning.history;
+        AppData._data._mgmt.cleaning_nextDate = self.cleaning.nextDate;
+        AppData._data._mgmt.cleaning_mySelections = self.cleaning.mySelections;
+        AppData._data._mgmt.stay_history = self.stay.history;
+        AppData._data._mgmt.stay_myRoom = self.stay.myRoom;
+        AppData._data._mgmt.stay_myCheckIn = self.stay.myCheckIn;
+        AppData._data._mgmt.stay_myCheckOut = self.stay.myCheckOut;
+        AppData._data._mgmt.field_history = self.field.history;
+        AppData._data._mgmt.kitchen_history = self.kitchen.history;
+        AppData._saveShared();
+      }
     }, 200);
   },
   _timer: null
@@ -2092,6 +2136,8 @@ window.VillageMap = {
 // ═══ 自动初始化 ═══
 function _initMap(){
   try{
+    // F22: 移除加载骨架
+    var sk = document.getElementById('scrollSkeleton'); if (sk) sk.remove();
     _unbindEvents(); // R3: 防止重复绑定事件监听
     // 同窗运行，直接用 Game.getUser()
     var u = (window.Game && Game.getUser) ? Game.getUser() : null;
@@ -2454,5 +2500,16 @@ function _undoToast(type) {
   document.body.appendChild(toast);
   setTimeout(function(){ if (toast.parentNode) toast.remove(); }, 30000);
 }
+
+// F11: 统一建筑物初始化——写入 AppData，后续 getBuildings() 只读
+(function _seedBuildings() {
+  if (window.AppData && AppData._data && AppData._data.map_locations) {
+    var ml = AppData._data.map_locations;
+    if (!ml.buildings || !ml.buildings.length) {
+      ml.buildings = HARDCODED_BUILDINGS;
+      AppData._saveShared(true);
+    }
+  }
+})();
 
 // 由主应用 openMapPage() 主动调用 _initMap()，确保 Game/avatarURL 已就绪

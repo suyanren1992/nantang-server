@@ -120,8 +120,10 @@ window.Game = {
 // A2 过渡完成：TASKS 直接指向 AppData。旧种子数据 _OLD_TASKS 已废弃。
 // R9: 社区管理面板
 function openAdminPanel() {
-  var users = typeof getUsers==='function'?getUsers():{};
-  if ((users[CURRENT_USER]||{}).role !== 'admin') { showToast('仅管理员可访问', 'error'); return; }
+  // F13: 角色从服务端权威来源读取，离线时 fallback localStorage
+  var role = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role
+           : ((typeof getUsers === 'function' ? getUsers() : {})[CURRENT_USER] || {}).role;
+  if (role !== 'admin') { showToast('仅管理员可访问', 'error'); return; }
   var h = '<div style="background:#fff;border-radius:16px;width:360px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)">';
   h += '<div style="padding:16px;border-bottom:1px solid #f0f0f0"><span style="font-weight:700;font-size:.82rem">⚙️ 社区管理</span></div>';
   h += '<div style="padding:12px 16px">';
@@ -174,7 +176,9 @@ function _adminPublishTask() {
       else { showToast(r.detail||'发布失败', 'error'); }
     }).catch(function() { showToast('网络错误', 'error'); });
   } else {
-    // offline fallback
+    // offline fallback — 检查角色权限
+    var role = (getUsers()[CURRENT_USER] || {}).role;
+    if (role !== 'admin') { showToast('仅管理员可发布社区任务', 'warn'); return; }
     var t = { name: 'T_'+Date.now().toString(36), title:title, type:'other', nt:reward, scope:'社区', status:'进行中', publisher:'社区', slots:slots, note:'', claimants:[], action:'' };
     AppData._data.tasks[t.name] = t;
     showToast('社区任务已发布（离线）', 'ok');
@@ -287,7 +291,9 @@ function _startPolling() {
   function _pollCycle() {
     API.request('GET', '/api/nt/sync').then(function(srv) {
       if (srv && (srv.detail === 'unauthorized' || srv.error === '登录过期')) { _stopPolling(); return; }
-      if (srv && !srv.detail) _mergeNTSyncData(srv);
+      if (srv && !srv.detail) { _mergeNTSyncData(srv); }
+      // F15: 每次成功 sync 后排空离线 earn 队列
+      if (window.AppData && typeof AppData._drainPendingEarns === 'function') AppData._drainPendingEarns();
     }).catch(function(e){console.warn('[poll] sync failed',e)});
     // 退避
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
