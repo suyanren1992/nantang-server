@@ -65,7 +65,7 @@ async def init_db():
         from models import CommunityPool
         r = await session.execute(select(CommunityPool).limit(1))
         if not r.scalar_one_or_none():
-            session.add(CommunityPool(balance=0, total_issued=0, task_escrow=0,
+            session.add(CommunityPool(balance=500, total_issued=500, task_escrow=0,
                          contribution_pool=0, camp_balance=0, reserve=0, frozen=0))
             await session.commit()
         # Fix 2: 为已有 NTTask 补 assignees 列（多槽位）

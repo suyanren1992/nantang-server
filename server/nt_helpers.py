@@ -43,7 +43,7 @@ async def _get_pool(db, lock: bool = False):
     pool = result.scalar_one_or_none()
     if not pool:
         pool = CommunityPool(
-            balance=0, total_issued=0, task_escrow=0,
+            balance=500, total_issued=500, task_escrow=0,
             contribution_pool=0, camp_balance=0,
             reserve=0, frozen=0,
             updated_at=datetime.utcnow().isoformat(),
