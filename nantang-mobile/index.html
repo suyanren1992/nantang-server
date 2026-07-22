@@ -232,6 +232,8 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-body" id="verifyRoomBody" style="padding-bottom:60px"></div>
   <div style="position:fixed;bottom:0;left:0;right:0;padding:8px 14px;padding-bottom:max(8px,env(safe-area-inset-bottom,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--green-border);z-index:10;display:flex;gap:8px">
     <button class="btn-pri" style="flex:1;font-size:.72rem;padding:8px" onclick="if(typeof openPathChooser==='function')openPathChooser()">📝 上报劳动</button>
+    <button class="btn-outline" style="flex:1;font-size:.72rem;padding:8px;color:var(--green-primary);border-color:var(--green-primary)" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()">🔍 发起发现</button>
+    <button class="btn-sm sec" style="font-size:.65rem;padding:8px;flex-shrink:0" onclick="if(typeof _openCardRules==='function')_openCardRules()">📜</button>
   </div>
 </div>
 <!-- ══ 新手引导浮层 ══ -->
