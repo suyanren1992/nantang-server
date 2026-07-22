@@ -294,7 +294,7 @@ function changeUserRole(name, newRole, opts) {
   if (validRoles.indexOf(newRole) === -1) return { ok: false, error: '无效的角色：' + newRole };
   var oldRole = opts.fromRole || users[name].role;
   // P1: HTTP 模式信任服务端 role，仅 file:// 模式启用客户端 adminNames 守卫
-  if (!(typeof API !== 'undefined' && API.token) && (typeof adminNames!=='undefined'?adminNames:['砚仁']).indexOf(name) !== -1 && newRole !== 'admin') {
+  if (!(typeof API !== 'undefined' && API.token) && (typeof adminNames!=='undefined'?adminNames:[]).indexOf(name) !== -1 && newRole !== 'admin') {
     return { ok: false, error: '管理员不可被降级' };
   }
   if (newRole === 'builder') {

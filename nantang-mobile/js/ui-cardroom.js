@@ -542,10 +542,26 @@ function _openVerifyDetail(vfyId) {
   _showModal(h);
 }
 
+// TKT-009: 卡片室 tab 切换 — 'guess' | 'verify'
+var _cardroomTab = _cardroomTab || 'guess';
 function renderCardRoom() {
   var el = document.getElementById('cardRoomBody');
   if (!el) return;
   var h = '';
+
+  // ── Tab 栏 ──
+  h += '<div style="display:flex;gap:0;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1.5px solid var(--green-border)">';
+  h += '<div onclick="_cardroomTab=\'guess\';renderCardRoom()" style="flex:1;text-align:center;padding:10px 0;font-size:.72rem;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;' + (_cardroomTab==='guess'?'background:var(--green-primary);color:#fff;font-weight:700':'background:#fff;color:#5a6e5c') + '">🃏 猜</div>';
+  h += '<div onclick="_cardroomTab=\'verify\';renderCardRoom()" style="flex:1;text-align:center;padding:10px 0;font-size:.72rem;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;' + (_cardroomTab==='verify'?'background:var(--green-primary);color:#fff;font-weight:700':'background:#fff;color:#5a6e5c') + '">✓ 确认</div>';
+  h += '</div>';
+
+  // ── 校核 tab 内容 ──
+  if (_cardroomTab === 'verify') {
+    h += _renderVerifyTab();
+    el.innerHTML = h;
+    return;
+  }
+
   var discs = _getDiscoveries();
   var sevenDaysAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
   var recentDiscs = discs.filter(function(d) { return d.createdAt.slice(0, 10) >= sevenDaysAgo; });

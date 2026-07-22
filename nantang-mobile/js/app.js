@@ -851,10 +851,7 @@ var MGMT_DATA = {
     time: '15:00',
     advanceHours: 2,  // 提前2h开放选位
     selections: {},   // { spaceId: { lockedBy: 'userName', lockedAt: '...' } }
-    history: [
-      { date:'7/08', person:'砚仁', roomName:'画室', nt:5, note:'日常维护' },
-      { date:'7/01', person:'大飞', roomName:'厕所', nt:20, note:'大扫除' }
-    ]
+    history: []
   },
   // 章7: 日常清理容器
   dailyContainers: [
@@ -868,22 +865,13 @@ var MGMT_DATA = {
     myRoom: null,
     myCheckIn: null,
     myCheckOut: null,
-    history: [
-      { date:'7/15', person:'王五', room:'101', detail:'入住 7/15→20·5天·150NT' },
-      { date:'7/15', person:'李四', room:'103', detail:'入住 7/15→18·3天·90NT' }
-    ]
+    history: []
   },
   field: {
-    history: [
-      { date:'7/12', person:'大飞', plotName:'A区', action:'浇水', note:'番茄长势良好' },
-      { date:'7/10', person:'朝林', plotName:'C区', action:'施肥', note:'红薯追肥' }
-    ]
+    history: []
   },
   kitchen: {
-    history: [
-      { date:'7/12', person:'小杨', action:'放入物品', item:'鸡蛋×12', location:'冰箱上层' },
-      { date:'7/10', person:'公共', action:'放入物品', item:'豆腐×2', location:'冰箱下层' }
-    ]
+    history: []
   },
   _load: function() {
     // 迁移：旧 nt_mgmt_data key → 统一到 AppData._data
@@ -1013,7 +1001,7 @@ function _checkDailyContainers() {
 // ── 工具：当前用户 ──
 function _me() {
   var u = (window.Game && Game.getUser) ? Game.getUser() : null;
-  return (u && u.name) ? u.name : '砚仁';
+  return (u && u.name) ? u.name : '';
 }
 
 // ── 工具：收集打扫房间 ──

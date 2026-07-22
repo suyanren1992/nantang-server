@@ -1288,7 +1288,7 @@ var _avatarStyleIdx=0;
 var _avatarSeedPool=[];
 function fillSeedPool(){
   if(_avatarSeedPool.length)return;
-  var names=['砚仁','小云','朝林','淑惠','demo','nantang-guide','南塘','大理','云村','冒险者','画师','农夫','工匠','诗人','旅人','阿花','旺财','熊猫','Aria','Bao','Chen','Diana','Elena','Felix','Grace','Hana','Iris','Jade','Kai','Luna','Ming','Nora','Olive','Petra','Quinn','Ravi','Sage','Taro','Uma','Vera','Wren','Xia','Yuki','Zara'];
+  var names=['nantang-guide','云村','大理','南塘','Aria','Bao','Chen','Diana','Elena','Felix','Grace','Hana','Iris','Jade','Kai','Luna','Ming','Nora','Olive','Petra','Quinn','Ravi','Sage','Taro','Uma','Vera','Wren','Xia','Yuki','Zara'];
   for(var i=0;i<names.length;i++)_avatarSeedPool.push(names[i]);
 }
 fillSeedPool();

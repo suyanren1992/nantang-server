@@ -27,7 +27,7 @@ var TX_TYPES = {
   AUCTION_REFUND: 'auction_refund', AUCTION_SETTLE: 'auction_settle',
   TIP: 'tip', ENCOURAGE: 'encourage'
 };
-var adminNames = ['砚仁'];
+var adminNames = [];  // 生产环境由服务端 role 决定，客户端仅 file:// fallback
 
 // ═══ Safe localStorage wrapper (from app.js, with write-failure warning) ═══
 var safeStorage = {

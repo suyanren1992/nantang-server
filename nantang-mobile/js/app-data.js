@@ -275,24 +275,8 @@ this._data.map_locations.people_on_site = [];
         { id:'fd', name:'D区', icon:'🌳', crop:'—', planted:'—', harvest:'—', days:0, remain:0, status:'conservation' },
         { id:'fe', name:'E区', icon:'🍂', crop:'—', planted:'—', harvest:'—', days:0, remain:0, status:'composting' }
       ];
-      // 房间物品
-      this._data.map_locations.state.room_items = [
-        { room:'storage', icon:'📦', text:'备用桌椅', sub:'×3套', status:'clean' },
-        { room:'storage', icon:'🧹', text:'清洁工具', sub:'拖把·水桶', status:'clean' },
-        { room:'kitchen', icon:'🧊', text:'冰箱上层', sub:'', status:'clean' },
-        { room:'kitchen', icon:'🧊', text:'冰箱下层', sub:'', status:'clean' },
-        { room:'kitchen', icon:'🍳', text:'灶台', sub:'正常', status:'clean' },
-        { room:'kitchen', icon:'📦', text:'白菜', sub:'⚠3天过期', status:'warn' },
-        { room:'office_r', icon:'🪑', text:'办公桌×2', sub:'', status:'clean' },
-        { room:'office_r', icon:'💻', text:'电脑', sub:'', status:'clean' },
-        { room:'toilet_r', icon:'🧻', text:'卫生纸', sub:'剩3卷', status:'warn' },
-        { room:'studio', icon:'🎨', text:'颜料×5套', sub:'', status:'clean' },
-        { room:'studio', icon:'🖼', text:'画布×12', sub:'', status:'clean' },
-        { room:'study_r', icon:'📚', text:'藏书·200册', sub:'', status:'clean' },
-        { room:'reading', icon:'📚', text:'藏书·200册', sub:'', status:'clean' },
-        { room:'mahjong', icon:'🀄', text:'麻将桌×2', sub:'', status:'clean' },
-        { room:'dorm101', icon:'🛏', text:'空置', sub:'', status:'clean' },
-        { room:'dorm103', icon:'🛏', text:'空置', sub:'', status:'clean' }
+      // 房间物品（生产环境从空开始，由管理员逐间录入）
+      this._data.map_locations.state.room_items = []
       ];
       // 停车
       this._data.map_locations.state.parking = { vehicle:'🛵三轮车', status:'在库', key:'🔑钥匙在门卫处', user:'无人取用' };

@@ -18,3 +18,5 @@ Thumbs.db
 
 # Archive (don't upload old snapshots)
 存档/
+*.db-wal
+*.db-shm

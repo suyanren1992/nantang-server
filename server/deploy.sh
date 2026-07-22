@@ -34,6 +34,7 @@ After=network.target
 [Service]
 User=www-data
 WorkingDirectory=$APP_DIR/server
+EnvironmentFile=/etc/nantang.env
 ExecStart=$VENV_DIR/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 Restart=always
 RestartSec=5
@@ -72,15 +73,22 @@ systemctl enable nantang
 systemctl restart nantang
 systemctl restart nginx
 
-# 8. 设置 JWT 密钥（通过环境变量注入，不修改源码）
+# 8. 环境变量
 JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-echo "export JWT_SECRET=$JWT_SECRET" >> /etc/environment
-# systemd unit 中已配置 Environment=JWT_SECRET 从 /etc/environment 读取
-# 不再 sed 修改源码文件，避免重新部署时覆盖导致所有 token 失效
+cat > /etc/nantang.env << EOF
+JWT_SECRET=$JWT_SECRET
+CRON_ACTIVE=1
+FRONTEND_ORIGIN=https://$DOMAIN
+MAX_BEDS_PER_ROOM=6
+EOF
+chmod 600 /etc/nantang.env
 
 echo ""
 echo "=== 部署完成 ==="
-echo "访问: http://$DOMAIN"
+echo "访问: https://$DOMAIN"
+echo "CRON_ACTIVE=1 · 服务端 cron 已激活"
 echo "JWT 密钥已随机生成"
 echo ""
 echo "查看日志: journalctl -u nantang -f"
+echo ""
+echo "环境变量: cat /etc/nantang.env"

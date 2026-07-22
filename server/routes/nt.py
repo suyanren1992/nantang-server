@@ -147,9 +147,11 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
               "verifier_id": t.verifier_id,
               "settler_id": t.settler_id, "settled_at": t.settled_at} for t in all_tasks]
 
+    cron_active = os.environ.get("CRON_ACTIVE", "").lower() in ("1", "true", "yes")
     return {
         "balance": user.nt_balance, "cv": user.contribution_value,
         "xp": user.experience_value, "role": user.role,
+        "cron_active": cron_active,
         "trust_score": user.trust_score, "frozen_balance": frozen,
         "wallet_address": user.wallet_address,
         "ledger": ledger, "tasks": tasks, "deposit_intents": deposit_intents,
