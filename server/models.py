@@ -177,6 +177,7 @@ class CardDiscovery(Base):
     doer_confirmed_at = Column(String, nullable=True)
     doer_denied_at = Column(String, nullable=True)
     expired_at = Column(String, nullable=True)
+    doer_name_snapshot = Column(String(64), nullable=True)  # doer 名字快照（防用户注销后丢失）
     created_at = Column(String, nullable=True)
 
 

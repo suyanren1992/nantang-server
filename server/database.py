@@ -106,3 +106,9 @@ async def init_db():
             print(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
         except Exception as e:
             print(f"[T7 migration] skipped: {e}")
+        # T8: card_discoveries 加 doer_name_snapshot 列
+        try:
+            await session.execute(text("ALTER TABLE card_discoveries ADD COLUMN doer_name_snapshot VARCHAR(64)"))
+            await session.commit()
+        except Exception:
+            pass
