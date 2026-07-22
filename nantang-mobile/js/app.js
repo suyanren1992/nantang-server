@@ -1457,7 +1457,10 @@ function _confirmCheckin() {
     if (typeof changeUserRole === 'function' && !isSwitch) changeUserRole(me, 'npc');
     _showCheckinCard = false; _selectedBed = null; _expandedRoom = null; _calStart = null; _calEnd = null;
     var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
-    render();
+    // 刷新角色HUD + 如果在全貌页则重绘卡片室/校核室入口
+    if (typeof refreshUserUI === 'function') refreshUserUI();
+    var b = getBuildings()[currentIdx];
+    if (b && b.id === 'info') renderInfoPage(); else render();
   };
   if (typeof showConfirm === 'function') {
     showConfirm(confirmMsg, doCheckin);
