@@ -276,8 +276,7 @@ this._data.map_locations.people_on_site = [];
         { id:'fe', name:'E区', icon:'🍂', crop:'—', planted:'—', harvest:'—', days:0, remain:0, status:'composting' }
       ];
       // 房间物品（生产环境从空开始，由管理员逐间录入）
-      this._data.map_locations.state.room_items = []
-      ];
+      this._data.map_locations.state.room_items = [];
       // 停车
       this._data.map_locations.state.parking = { vehicle:'🛵三轮车', status:'在库', key:'🔑钥匙在门卫处', user:'无人取用' };
       // 戏台
