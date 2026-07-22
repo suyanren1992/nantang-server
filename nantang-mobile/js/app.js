@@ -226,8 +226,8 @@ function _renderStatusPills() {
 
 function _renderNewbieCard() {
   var me = _me(); if (!me) return '';
-  // E3.4: System B 已删除
-  var steps = [];
+  // E3.4: 新手引导统一走 data.js NEWBIE_QUESTS
+  var steps = (typeof NEWBIE_QUESTS !== 'undefined') ? NEWBIE_QUESTS : [];
   if (!steps.length) return '';
   var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || {};
   // 初始化
@@ -2196,8 +2196,8 @@ function _openVerificationPanel() {
   var me = _me();
   var h = '';
   // ── 新手引导 ──
-  // E3.4: System B 已删除
-  var steps = [];
+  // E3.4: 新手引导统一走 data.js NEWBIE_QUESTS
+  var steps = (typeof NEWBIE_QUESTS !== 'undefined') ? NEWBIE_QUESTS : [];
   var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || {};
   var doneCount = steps.filter(function(s){ return quests[s.id] && quests[s.id].done; }).length;
   if (steps.length && doneCount < steps.length) {
