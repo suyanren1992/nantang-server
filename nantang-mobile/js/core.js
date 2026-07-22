@@ -334,7 +334,7 @@ function openQuestHallPage(){
       filterQuests();
     });
   } else { filterQuests(); }
-  document.getElementById('overlayQuestHall').classList.add('open');
+  _pushOverlay('overlayQuestHall'); document.getElementById('overlayQuestHall').classList.add('open');
 }
 function filterQuests(){
   // R8: 一级chip限定 primary-filters 作用域
@@ -744,7 +744,7 @@ function editDraft(name){
   renderDrafts();
 }
 function openMapPage(){
-  document.getElementById('overlayMap').classList.add('open');
+  _pushOverlay('overlayMap'); document.getElementById('overlayMap').classList.add('open');
   if(typeof _initMap==='function'){_initMap()}
 }
 // Item system
@@ -932,6 +932,12 @@ function _mergeSyncData(data) {
       else if (localById[sv.id].status === 'pending') { Object.assign(localById[sv.id], sv); }
     });
     AppData._data.pendingVerifications = localVfys;
+  }
+  if (data.map_locations && window.AppData) {
+    AppData._data.map_locations = data.map_locations;
+  }
+  if (data.camps && window.AppData) {
+    data.camps.forEach(function(c) { AppData._data.camps[c.id] = c; });
   }
 }
 function enterVillage(){
@@ -1513,7 +1519,7 @@ function closeMyPage(){
   var hasOpenOverlay=document.querySelector('.overlay.open');
   if(_fromQuestHall&&!hasOpenOverlay){
     _fromQuestHall=false;
-    document.getElementById('overlayQuestHall').classList.add('open');
+    _pushOverlay('overlayQuestHall'); document.getElementById('overlayQuestHall').classList.add('open');
   }else{
     _fromQuestHall=false;
     document.getElementById('villagePage').classList.remove('hidden');

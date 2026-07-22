@@ -42,7 +42,7 @@ function openCampHome(campId) {
   avImg.style.display = 'block';
   avImg.onerror = function(){ this.style.display='none'; };
 
-  document.getElementById('overlayCampHome').classList.add('open');
+  document.getElementById('_pushOverlay('overlayCampHome'); overlayCampHome').classList.add('open');
   switchCampTab('overview');
 }
 

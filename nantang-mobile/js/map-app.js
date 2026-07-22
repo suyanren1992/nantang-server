@@ -24,10 +24,15 @@ var HARDCODED_BUILDINGS = [
 ];
 
 function getBuildings() {
+  // 优先从 AppData 读取服务端同步的地图数据
+  var ml = (window.AppData && AppData._data && AppData._data.map_locations) ? AppData._data.map_locations : null;
+  if (ml && ml.buildings && ml.buildings.length > 0) return ml.buildings;
+  // 同窗运行时从 Game 读取
   var data = (window.Game && window.Game.getData) ? window.Game.getData() : null;
   if (data && data.map_locations && data.map_locations.buildings && data.map_locations.buildings.length > 0) {
     return data.map_locations.buildings;
   }
+  // 离线 fallback
   return HARDCODED_BUILDINGS;
 }
 

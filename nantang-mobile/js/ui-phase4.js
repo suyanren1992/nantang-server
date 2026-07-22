@@ -110,7 +110,7 @@ var _canteenDate = '';
 
 function openCanteen() {
   _canteenDate = today();
-  document.getElementById('overlayCanteen').classList.add('open');
+  _pushOverlay('overlayCanteen'); document.getElementById('overlayCanteen').classList.add('open');
   var c = getCampData();
   document.querySelector('#overlayCanteen .overlay-title').textContent = '🥬 ' + (c ? c.name : '') + ' · 食堂';
   renderCanteen();

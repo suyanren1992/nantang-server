@@ -534,8 +534,24 @@ function upgradeRole(name,newRole,code){
   return r||{ok:false,error:'升级失败'};
 }
 function scrollToSection(id){var el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
-function closeOverlay(id,showVillage){var el=document.getElementById(id);if(el)el.classList.remove('open');if(showVillage!==false){var anyOpen=document.querySelector('.overlay.open');if(!anyOpen)document.getElementById('villagePage').classList.remove('hidden')}}
-function openCommunityPage(){document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub();renderTimeline()}
+// T6: overlay 栈——关闭时逐层返回而非总回村口
+var _overlayStack = [];
+function _pushOverlay(id) {
+  if (_overlayStack[_overlayStack.length-1] !== id) {
+    _overlayStack = _overlayStack.filter(function(x){return x!==id});
+    _overlayStack.push(id);
+  }
+}
+function closeOverlay(id,showVillage){
+  var el=document.getElementById(id);if(el)el.classList.remove('open');
+  _overlayStack = _overlayStack.filter(function(x){return x!==id});
+  if(showVillage===false) return;
+  // 有上级 overlay → 恢复；否则回村口
+  var prev = _overlayStack[_overlayStack.length-1];
+  if(prev){ document.getElementById(prev).classList.add('open'); }
+  else{ document.getElementById('villagePage').classList.remove('hidden'); }
+}
+function openCommunityPage(){_pushOverlay('overlayCommunity'); document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub();renderTimeline()}
 // 营地数据——从 AppData 读取，服务端同步
 function getCamps(){ return (window.AppData&&AppData._data.camps) ? Object.values(AppData._data.camps) : []; }
 function renderCommunityHub() {

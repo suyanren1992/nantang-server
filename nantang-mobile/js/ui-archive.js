@@ -244,7 +244,7 @@ var LOG_ICONS = {
 
 function openArchive(tab) {
   _archiveLogPage = 0;
-  document.getElementById('overlayArchive').classList.add('open');
+  _pushOverlay('overlayArchive'); document.getElementById('overlayArchive').classList.add('open');
   switchArchiveTab(tab || 'members');
 }
 

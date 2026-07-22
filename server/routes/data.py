@@ -435,8 +435,18 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
                      for v in v_r.scalars()]
     pool_r = (await db.execute(select(CommunityPool).limit(1))).scalar_one_or_none()
     pool_balance = pool_r.balance if pool_r else 0
+    # 地图数据
+    ml_r = (await db.execute(select(MapLocation).where(MapLocation.key == "shared"))).scalar_one_or_none()
+    map_locations = _safe_json(ml_r.data) if ml_r else {}
+    # 营地列表
+    camps_r = await db.execute(select(Camp).order_by(Camp.created_at.desc()).limit(20))
+    camps = [{"id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
+              "date": c.date, "status": c.status, "people": c.people, "max": c.max,
+              "location": c.location, "desc": c.desc} for c in camps_r.scalars()]
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
             "activity": activity, "items": items, "newbie": newbie,
             "verifications": verifications, "cron_active": True,
             "task_statuses": TASK_STATUSES,
-            "pool_balance": pool_balance}
+            "pool_balance": pool_balance,
+            "map_locations": map_locations,
+            "camps": camps}

@@ -1469,6 +1469,7 @@ function _confirmCheckin() {
     if (typeof refreshUserUI === 'function') refreshUserUI();
     var b = getBuildings()[currentIdx];
     if (b && b.id === 'info') renderInfoPage(); else render();
+    _refreshTopBar();
   };
   if (typeof showConfirm === 'function') {
     showConfirm(confirmMsg, doCheckin);
@@ -2110,8 +2111,34 @@ function _initMap(){
     else { currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false; }
     goTo(4);
     if(typeof refreshUserUI==='function') refreshUserUI();
+    _refreshTopBar();
   }catch(e){console.error('[Map] init failed:',e);if(window.Game&&Game.toast) Game.toast('地图加载失败，请刷新');}
 }
+// 刷新顶栏统计数字——从真实数据源读取
+function _refreshTopBar() {
+  var dateEl = document.getElementById('ubStatDate');
+  var stayEl = document.getElementById('ubStatStay');
+  var peopleEl = document.getElementById('ubStatPeople');
+  var tasksEl = document.getElementById('ubStatTasks');
+  if (dateEl) dateEl.textContent = '📅 ' + new Date().toISOString().slice(0,10);
+  if (stayEl) {
+    var accs = (AppData._data.map_locations && AppData._data.map_locations.accommodations) || {};
+    var stayCount = 0;
+    Object.values(accs).forEach(function(r){ if(r.tenants) stayCount += r.tenants.length; });
+    stayEl.textContent = '🛏️ ' + stayCount;
+  }
+  if (peopleEl) {
+    var p = (AppData._data && AppData._data.presence) || {};
+    var onsiteCount = Object.values(p).filter(function(x){return x.status==='onsite';}).length;
+    peopleEl.textContent = '👤 ' + onsiteCount;
+  }
+  if (tasksEl) {
+    var tasks = AppData._data.tasks || {};
+    var openCount = Object.values(tasks).filter(function(t){return t.status==='进行中';}).length;
+    tasksEl.textContent = '📋 ' + openCount + '待领';
+  }
+}
+
 // Phase 2: 房间物品编辑器（管理员）
 function _editRoomItem(roomId) {
   var items = _roomItems(roomId);
