@@ -412,7 +412,7 @@ function _renderVerifyTab() {
   // 待确认网格 — 扑克牌 4 列
   if (_vfyFilter === 'pending') {
     if (pending.length) {
-      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:8px">';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-bottom:12px">';
       pending.forEach(function(v){ h += _renderVerifyCard(v, isOnsite); });
       h += '</div>';
     } else {
@@ -424,7 +424,7 @@ function _renderVerifyTab() {
   if (_vfyFilter !== 'pending') {
     var filtered = _vfyFilter === 'verified' ? resolved.filter(function(v){return v.status==='verified'}) : resolved.filter(function(v){return v.status!=='verified'});
     if (filtered.length) {
-      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:8px">';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-bottom:12px">';
       filtered.forEach(function(v){ h += _renderVerifyCard(v, false); });
       h += '</div>';
     } else {
@@ -475,7 +475,7 @@ function _renderVerifyCard(v, isOnsite) {
   var shadow = ntAmt >= 15 && isPending ? '0 2px 12px rgba(200,135,64,.25)' : '0 1px 4px rgba(0,0,0,.04)';
   var statusIcon = isVerified ? '✅' : (isRejected ? '🚫' : '⏳');
 
-  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:6px 5px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:140px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
+  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:6px 5px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
   // 左上花色
   h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:#5a6e5c;font-weight:700">'+suitChar+'</div>';
   // 右上状态
@@ -587,7 +587,7 @@ function renderCardRoom() {
     h += '<div style="text-align:center;padding:30px;color:#aaa;font-size:.7rem">🃏 暂无此分类的牌</div>';
   } else {
     // ── 4 列扑克牌网格 ──
-    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:8px">';
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-bottom:12px">';
     show.forEach(function(d){ h += _renderCard(d); });
     h += '</div>';
   }
@@ -626,7 +626,7 @@ function _renderCard(d) {
   var shadow = isGolden && !isExpired ? '0 2px 12px rgba(200,135,64,.25)' : '0 1px 4px rgba(0,0,0,.04)';
   var statusIcon = isConfirmed ? '✅' : (isExpired ? '⏰' : (myGuess ? '👁' : '🂠'));
 
-  var h = '<div onclick="openDiscoveryDetail(\''+d.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:8px 6px;cursor:pointer;box-shadow:'+shadow+';text-align:center;position:relative;min-height:130px;display:flex;flex-direction:column;justify-content:space-between">';
+  var h = '<div onclick="openDiscoveryDetail(\''+d.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:8px 6px;cursor:pointer;box-shadow:'+shadow+';text-align:center;position:relative;min-height:120px;display:flex;flex-direction:column;justify-content:space-between">';
 
   // 左上花色
   h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:#5a6e5c;font-weight:700">'+suitChar+'</div>';
