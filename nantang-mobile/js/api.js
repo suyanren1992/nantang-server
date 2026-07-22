@@ -8,7 +8,7 @@ var API = {
   user: null,   // 当前用户信息
   init: function(baseUrl) {
     // 外网模式：指向服务器公网地址
-    this.base = 'https://reached-linda-participant-learners.trycloudflare.com';
+    this.base = 'https://tobacco-month-hans-ventures.trycloudflare.com';
   },
   // ── 底层请求 ──
   request: async function(method, path, body) {
