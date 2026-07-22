@@ -259,6 +259,7 @@ function switchArchiveTab(tab) {
   if (tab === 'members') renderArchiveMembers(body);
   else if (tab === 'log') renderArchiveLog(body);
   else if (tab === 'periods') renderArchivePeriods(body);
+  else if (tab === 'cards') renderArchiveCards(body);
 }
 
 function renderArchiveMembers(el) {

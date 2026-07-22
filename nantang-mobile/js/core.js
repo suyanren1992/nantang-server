@@ -1286,7 +1286,7 @@ function openMyFromQuestHall(){_fromQuestHall=true;document.getElementById('over
 function toggleProfile(){
   var m=document.getElementById('profileCard');if(m){m.remove();return}
   m=document.createElement('div');m.id='profileCard';
-  m.style.cssText='position:fixed;inset:0;z-index:250;display:flex;align-items:center;justify-content:center';
+  m.style.cssText='position:fixed;inset:0;z-index:310;display:flex;align-items:center;justify-content:center';
   m.innerHTML='<div id="profileBg" style="position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out" onclick="document.getElementById(\'profileCard\').remove()"></div><div id="profileInner" style="position:relative;width:300px;max-width:90vw;background:#fff;border-radius:16px;padding:20px;box-shadow:0 16px 48px rgba(0,0,0,.3);animation:spcPop .25s ease-out;max-height:80vh;overflow-y:auto"></div>';
   document.body.appendChild(m);
   renderProfile('view');
