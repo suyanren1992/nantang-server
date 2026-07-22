@@ -185,6 +185,7 @@ function renderInfoPage() {
     function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
     function(){ return _s('recentCards', _renderRecentCardRoomCards()); },
     function(){ return _s('mgmtGrid', _renderMgmtCards()); },
+    function(){ return _s('verifyRoomSection', _renderVerifyRoomSection()); },
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
     function(){ return _s('poolCard', _renderPoolCard()); }
   ];
@@ -353,6 +354,29 @@ function _openCovenantOverlay() {
   }
   body += '<div style="font-size:.55rem;color:#999;margin-top:8px">⚠ 所有定价由线下公约大会决定。管理员修改需24h公示+2人在线校核。</div>';
   _openQuickSheet('📜 南塘社区公约', body);
+}
+
+// ── 全貌页内嵌校核室：与卡片室对称 ──
+function _renderVerifyRoomSection() {
+  var vfys = (window.AppData && AppData._data.pendingVerifications) || [];
+  var pending = vfys.filter(function(v){ return v.status === 'pending'; });
+  var today = new Date().toISOString().slice(0,10);
+  var todayVerified = vfys.filter(function(v){ return v.status === 'verified' && v.verifiedAt && v.verifiedAt.slice(0,10) === today; }).length;
+
+  var h = '<div onclick="if(typeof openVerifyRoom===\'function\')openVerifyRoom()" style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 14px;margin:4px 0;cursor:pointer">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center">';
+  h += '<div style="flex:1">';
+  h += '<div style="font-weight:700;font-size:.75rem;color:#1d2e24;margin-bottom:4px">✓ 校核室</div>';
+  h += '<div style="font-size:.6rem;color:#5a6e5c">' + pending.length + ' 条待确认 · 今日已验证 ' + todayVerified + ' 次</div>';
+  h += '</div>';
+  h += '<span style="font-size:1.5rem;flex-shrink:0">✓</span>';
+  h += '</div>';
+  h += '</div>';
+  return h;
+}
+function openVerifyRoom() {
+  if (typeof _cardroomTab !== 'undefined') _cardroomTab = 'verify';
+  if (typeof openCardRoom === 'function') openCardRoom();
 }
 
 // ── 全貌页内嵌卡片室：可点击整卡进入 ──
