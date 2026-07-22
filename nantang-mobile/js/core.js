@@ -193,7 +193,10 @@ function openAdminConfig(){
   var r = cfg.nt_rewards||{}; document.getElementById('cfgStockIn').value=r.stock_in||2; document.getElementById('cfgStockOut').value=r.stock_out||1; document.getElementById('cfgCleanReward').value=r.cleaning||10;
   document.getElementById('cfgExpiryDays').value=cfg.item_expiry_days||5;
   var t=cfg.dirtiness_thresholds||{}; document.getElementById('cfgThGreen').value=t.green||30; document.getElementById('cfgThYellow').value=t.yellow||60; document.getElementById('cfgThRed').value=t.red||80;
-  document.getElementById('overlayAdminConfig').classList.add('open');
+  var _cfgOverlay=document.createElement('div'); _cfgOverlay.className='ci-overlay';
+  _cfgOverlay.innerHTML='<div class="ci-card"><div class="ci-head"><span class="ci-title">⚙️ 地图配置</span><button class="ci-close" onclick="this.closest(\'.ci-overlay\').remove()">✕</button></div>'+document.getElementById('overlayAdminConfig').querySelector('.overlay-body').innerHTML+'</div>';
+  _cfgOverlay.addEventListener('click',function(e){if(e.target===_cfgOverlay)_cfgOverlay.remove()});
+  document.body.appendChild(_cfgOverlay);
 }
 function saveAdminConfig(){
   if(!window.AppData)return;
@@ -208,7 +211,7 @@ function saveAdminConfig(){
   // 保留现有 dirtiness_rates（从 config 或默认值）
   ml.config.dirtiness_rates = ml.config.dirtiness_rates || { bathroom:15, kitchen:10, hallway:8, studio:8, bedroom:5, laundry:5, storage:3, outdoor:2, field:0 };
   AppData._saveShared();
-  closeOverlay('overlayAdminConfig');
+  var _co=document.querySelector('.ci-overlay'); if(_co)_co.remove();
   showToast('✅ 地图配置已保存','ok');
 }
 // ── 成员选择 Sheet ──
@@ -968,10 +971,8 @@ function enterVillage(){
       } catch(e) { console.warn('_finishEnter persist failed', e); }
     }
     document.getElementById('myPage').classList.add('hidden');
-    document.getElementById('overlayCommunity').classList.remove('open');
-    document.getElementById('overlayQuestHall').classList.remove('open');
-    document.getElementById('overlayMap').classList.remove('open');
-    var pc=document.getElementById('profileCard');if(pc)pc.remove();
+    document.querySelectorAll('.overlay.open').forEach(function(o){o.classList.remove('open')});
+    document.querySelectorAll('.mgmt-sheet,.ci-overlay,.confirm-card,.profile-card').forEach(function(e){e.remove()});
     _fromQuestHall=false;
     document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
     // 新手引导不再弹窗，静默初始化，签约后在信箱通知
@@ -1006,6 +1007,7 @@ function enterVillage(){
         if (result && result.name) {
           if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
           _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
+          if (typeof logActivity === 'function') logActivity('system', '🌱 新手引导已开启');
           _finishEnter(n);
         } else if (!result) {
           showToast('无法连接服务器，请检查网络','error');
@@ -1023,6 +1025,7 @@ function enterVillage(){
     if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
     _saveLocalUser(n, _profileSeed);
     _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
+    if (typeof logActivity === 'function') logActivity('system', '🌱 新手引导已开启');
   }else if(isLogin){
     var ln=document.getElementById('loginName').value.trim();var lp=document.getElementById('loginPwd').value;
     if(!lp){showToast('请输入密码','error',document.getElementById('loginPwd'));return}

@@ -666,6 +666,32 @@ function _computeInboxMessages() {
     });
   });
 
+  // 7. 系统 — 活动日志（新手引导等系统通知）
+  var actLog = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
+  actLog.forEach(function(a) {
+    if (a.type === 'system') {
+      msgs.push({
+        id: 'act_'+a.time, category:'系统', icon:'🌱',
+        text: a.text||'', sub:'', createdAt: a.time || now,
+        jumpType:'', jumpId:''
+      });
+    }
+  });
+
+  // 8. 校核结果 — 通过/退回通知
+  var discData = (window.AppData && AppData._data.discoveries) ? AppData._data.discoveries : [];
+  discData.forEach(function(d) {
+    if (d.status === 'verified' && d.verifier === me) {
+      msgs.push({
+        id: 'vfy_res_'+d.id, category:'校核结果', icon:'✅',
+        text: '你校核通过了 '+d.doer+' 的「'+(d.action||'操作')+'」',
+        sub: d.ntAmount ? '+'+d.ntAmount+' NT' : '',
+        createdAt: d.verifiedAt || now,
+        jumpType:'', jumpId:''
+      });
+    }
+  });
+
   msgs.sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); });
   _inboxMsgCache = { ts: Date.now(), msgs: msgs };
   return msgs;

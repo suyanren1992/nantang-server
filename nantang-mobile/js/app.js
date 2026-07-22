@@ -1221,7 +1221,7 @@ function _showStaySheet() {
     h += '<div class="rm-tags">';
     h += '<span class="rm-tag'+(noAC?' noac':'')+'">'+(noAC?'❄️无空调':'❄️有空调')+'</span>';
     h += '<span class="rm-tag">💵'+r.pricePerBed+'NT</span>';
-    if(r._id==='dorm101')h+='<span class="rm-tag item">🧰</span>';
+    h+='<span class="rm-tag item">🧰</span>';
     h += '</div><div class="rm-occ '+occCls+'">'+occ+'/'+total+' 人</div>';
     h += '<div class="rm-tenants">👤 '+tenantNames+'</div>';
     h += '</div></div>';
@@ -1233,12 +1233,10 @@ function _showStaySheet() {
     var r = activeRoom; var rid = r._id;
     h += '<div class="bp-panel">';
     h += '<div class="bp-head">🛏 '+r.label+'<span class="rm-tag">💵'+r.pricePerBed+'NT/天</span></div>';
-    if (rid==='dorm101') {
-      var items = r.items || [];
-      h += '<div class="rm-items-row">🧰 物品：';
-      if(items.length){items.forEach(function(it){h+='<span>'+it+'</span>';})}else{h+='<span style="color:#aaa">暂无</span>';}
-      h += ' <span class="rm-add-item" onclick="event.stopPropagation();_addRoomItem(\''+rid+'\')">+添加</span></div>';
-    }
+    var items = r.items || [];
+    h += '<div class="rm-items-row">🧰 物品：';
+    if(items.length){items.forEach(function(it){h+='<span>'+it+'</span>';})}else{h+='<span style="color:#aaa">暂无</span>';}
+    h += ' <span class="rm-add-item" onclick="event.stopPropagation();_addRoomItem(\''+rid+'\')">+添加</span></div>';
     h += '<div class="bp-bed-row">';
     for (var b=1; b<=(r.beds||1); b++) {
       var taken = r.tenants.find(function(t){return t.bed===b;});
@@ -2195,9 +2193,6 @@ function _showFlipOther(targetName) {
 }
 // ═══ 铃铛面板（校核 + 新手 + 整洁度）═══
 function _openVerificationPanel() {
-  if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
-    showToast('入住后可用', 'warn'); return;
-  }
   var me = _me();
   var h = '';
   // ── 新手引导 ──
@@ -2250,7 +2245,13 @@ function _doVerify(vfyId) {
   var me = _me();
   if (!window.AppData) return;
   var result = AppData.verifyAction(vfyId, me);
-  if (!result.ok) { if (window.Game&&Game.toast) Game.toast(result.error,'warn'); return; }
+  if (result && result.async) {
+    // HTTP 模式：异步，禁用按钮等待服务端响应
+    var btns = document.querySelectorAll('button[onclick*="_doVerify"]');
+    btns.forEach(function(b){ b.disabled = true; b.textContent = '⏳ 处理中…'; });
+    return;
+  }
+  if (!result || !result.ok) { if (window.Game&&Game.toast) Game.toast(result?result.error:'校核失败','warn'); return; }
   var el = document.querySelector('.vfy-popup'); if (el) el.remove();
   if (window.Game&&Game.toast) Game.toast('✅ 校核完成！');
   render();

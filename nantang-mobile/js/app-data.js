@@ -377,6 +377,8 @@ this._data.map_locations.people_on_site = [];
         self._saveShared(true);
         if (typeof renderCardRoom === 'function') renderCardRoom();
         if (typeof renderVerifyRoom === 'function') renderVerifyRoom();
+        var popup = document.querySelector('.vfy-popup'); if (popup) popup.remove();
+        if (window.Game && Game.toast) Game.toast('✅ 校核完成！');
       }).catch(function(err) {
         var msg = (err && err.detail) || '网络错误';
         if (err && err.status === 429) {
