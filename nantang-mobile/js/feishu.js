@@ -1,51 +1,31 @@
 /**
- * 南塘云村 · 飞书多维表格客户端
- * 通过 Cloudflare Worker 代理读写飞书 Bitable 数据
+ * 南塘云村 · 飞书 Bitable 客户端 v2
+ * 全部 API 走 Cloudflare Worker，零自建服务器
  *
- * 前置：Cloudflare Worker 已部署并可访问
  * 配置：改 WORKER_URL 为实际 Worker 地址
  */
 var FEISHU_WORKER = 'https://nantang-feishu.workers.dev';
 
 // ═══ 通用请求 ═══
-function _feishuGet(table, params) {
-  var qs = params ? '?' + Object.keys(params).map(function(k) { return k + '=' + encodeURIComponent(params[k]); }).join('&') : '';
-  return fetch(FEISHU_WORKER + '/feishu/' + table + qs)
-    .then(function(r) { return r.json(); })
-    .then(function(d) { return d.ok ? d : Promise.reject(d.error); });
+function _fw(path, method, body) {
+  var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(FEISHU_WORKER + path, opts)
+    .then(function(r) { return r.json(); });
 }
 
-function _feishuPost(table, fields) {
-  return fetch(FEISHU_WORKER + '/feishu/' + table, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fields)
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(d) { return d.ok ? d : Promise.reject(d.error); });
-}
+// ═══ 认证（Worker 处理注册/登录，查飞书 users 表） ═══
+function feishuRegister(name, password) { return _fw('/api/auth/register', 'POST', { name: name, password: password }); }
+function feishuLogin(name, password)    { return _fw('/api/auth/login', 'POST', { name: name, password: password }); }
 
-// ═══ 营地 ═══
-// 字段映射：name/season/type/theme/desc/emoji/status/date/people/max/location/created_by
-function feishuCamps()           { return _feishuGet('camps'); }
-function feishuCreateCamp(data)  { return _feishuPost('camps', data); }
+// ═══ NT 系统 ═══
+function feishuSync()          { return _fw('/api/nt/sync', 'GET'); }
+function feishuPools()         { return _fw('/api/nt/pools', 'GET'); }
 
-// ═══ 订餐 ═══
-// 字段映射：user/date/meal/status/ordered_at
-function feishuMealOrders(user)  { return _feishuGet('meal_orders', { user: user }); }
-function feishuOrderMeal(data)   { return _feishuPost('meal_orders', data); }
-
-// ═══ 菜单 ═══
-// 字段映射：date/lunch(JSON)/dinner(JSON)
-function feishuMenu(date)        { return _feishuGet('canteen_menu', { date: date }); }
-function feishuSetMenu(data)     { return _feishuPost('canteen_menu', data); }
-
-// ═══ 人员档案 ═══
-// 字段映射：name/role/avatar_seed/wallet_address/location/bio
-function feishuProfiles()        { return _feishuGet('user_profiles'); }
-function feishuUpsertProfile(data){ return _feishuPost('user_profiles', data); }
-
-// ═══ 公告 ═══
-// 字段映射：type/doer/verifier/action/nt_amount/created_at
-function feishuAnnouncements()   { return _feishuGet('announcements'); }
-function feishuAddAnnouncement(data) { return _feishuPost('announcements', data); }
+// ═══ 运营表 ═══
+function feishuCamps()         { return _fw('/feishu/camps', 'GET'); }
+function feishuMealOrders(u)   { return _fw('/feishu/meal_orders', 'GET'); }
+function feishuMenu(date)      { return _fw('/feishu/canteen_menu?date=' + (date||''), 'GET'); }
+function feishuProfiles()      { return _fw('/feishu/user_profiles', 'GET'); }
+function feishuAnnouncements() { return _fw('/feishu/announcements', 'GET'); }
+function feishuPost(table, data) { return _fw('/feishu/' + table, 'POST', data); }

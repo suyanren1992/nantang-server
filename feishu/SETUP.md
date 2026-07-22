@@ -1,6 +1,22 @@
-# 飞书多维表格集成 · 配置指南
+# 飞书多维表格集成 · 配置指南 v2
 
-> 2026-07-22 · 配合 Cloudflare Worker + 前端 feishu.js
+> 2026-07-22 · 全部数据存飞书，零自建服务器
+> Worker v2 替代 FastAPI+SQLite，飞书 Bitable 作为唯一数据库
+
+---
+
+## 架构
+
+```
+前端 (Cloudflare Pages)
+  │
+  └── Worker (Cloudflare Workers)
+       │  token 代理 + 业务逻辑 + 金融事务
+       └── 飞书 Bitable API
+            └── 13 张表（百度百科）
+```
+
+**无需 FastAPI，无需 SQLite，无需 Render/VPS。**
 
 ---
 
@@ -10,14 +26,23 @@
 1. 打开 [飞书开放平台](https://open.feishu.cn/app)
 2. 创建企业自建应用 → 拿到 **App ID** 和 **App Secret**
 3. 权限配置 → 添加 `bitable:app`（多维表格读写权限）
-4. 发布应用（仅企业内部可用即可）
+4. 发布应用
 
 ### 2. 创建多维表格 Base
-1. 飞书客户端 → 新建 → 多维表格
-2. 命名为「南塘云村」
-3. 在 Base 里建 5 张表（表名固定，table_id 后续填入 Worker 环境变量）：
+飞书客户端 → 新建 → 多维表格 → 命名「南塘云村」
 
-**表 1: camps（营地）**
+在 Base 里建 **13 张表**（表名固定）：
+
+#### 金融表（5 张）
+| 表名 | Worker env key | 关键字段 |
+|------|---------------|---------|
+| users | FEISHU_TABLE_USERS | name, password, role, nt_balance, contribution_value, experience_value, trust_score, wallet_address, avatar_seed, created_at |
+| nt_tasks | FEISHU_TABLE_TASKS | id, poster, title, reward, status, category, scope, slots, assignees(JSON), evidence, escrow_amount, is_system_generated, created_at |
+| nt_ledger | FEISHU_TABLE_LEDGER | entry_id, from_user, to_user, amount, type, reason, status, created_at |
+| community_pool | FEISHU_TABLE_POOL | balance, reserve, frozen, task_escrow, camp_balance, total_issued, contribution_pool, last_tick_date |
+| verifications | FEISHU_TABLE_VERIFICATIONS | id, type, doer, action, nt_amount, verifier_reward, status, verifier, retry_count, created_at |
+
+#### 运营表（5 张）
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | name | 文本 | 营地名称 |
