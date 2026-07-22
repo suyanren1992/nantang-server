@@ -392,7 +392,7 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
     # 我的任务
     tasks_r = await db.execute(
         select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id)
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{user.id}"%'))
         ).order_by(NTTask.created_at.desc())
     )
     my_tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,

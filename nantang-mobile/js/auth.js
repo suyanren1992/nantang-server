@@ -21,7 +21,7 @@ function getUsers() {
     return users;
   } catch(e) { return {}; }
 }
-function saveUsers(users) { if (window.location.protocol === 'file:') safeStorage.setItem(NT_USERS_KEY, JSON.stringify(users)); }
+function saveUsers(users) { safeStorage.setItem(NT_USERS_KEY, JSON.stringify(users)); }
 
 // Phase 3: 邀请码存储 key 常量
 var INVITES_KEY = 'nt_invites';

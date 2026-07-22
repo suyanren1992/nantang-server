@@ -96,7 +96,7 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
     # 用户的任务（发布或认领）
     tasks_r = await db.execute(
         select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id)
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{user.id}"%'))
         ).order_by(NTTask.created_at.desc())
     )
     all_tasks = list(tasks_r.scalars())

@@ -48,21 +48,23 @@ async def list_tasks(scope: str = None, status: str = None, mode: str = Query(No
                      user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
     # ponytail: O(n) 全量扫描。用户数 <100 时无感，超百人后加 SQLite JSON 函数或关联表 assignee_tasks。
-    result = await db.execute(
-        select(NTTask).order_by(NTTask.created_at.desc())
-    )
     if mode == "hall":
         # R1.3: 任务大厅模式——进行中的任务 + 在地过滤
+        result = await db.execute(
+            select(NTTask).order_by(NTTask.created_at.desc())
+        )
         from routes.nt import _is_onsite
         is_onsite = await _is_onsite(db, user)
         tasks = [t for t in result.scalars() if t.status == "进行中"]
         if not is_onsite:
             tasks = [t for t in tasks if not t.is_system_generated]
     else:
-        tasks = [t for t in result.scalars()
-                 if t.poster == user.id
-                 or t.assignee == user.id
-                 or user.id in _safe_assignees(t)]
+        result = await db.execute(
+            select(NTTask).where(
+                (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{user.id}"%'))
+            ).order_by(NTTask.created_at.desc())
+        )
+        tasks = [t for t in result.scalars()]
     if scope:
         tasks = [t for t in tasks if t.scope == scope]
     if status:

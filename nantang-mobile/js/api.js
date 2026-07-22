@@ -139,7 +139,7 @@ var API = {
   syncTaskUpdate: function(taskId, updates) { return this.request('PUT', '/api/tasks/' + taskId, updates); },
   deleteTask: function(name) { return this.request('DELETE', '/api/tasks/' + name); },
   fetchTasks: function(callback) {
-    this.request('GET', '/api/tasks').then(function(tasks) {
+    this.request('GET', '/api/tasks?mode=hall').then(function(tasks) {
       if (callback) callback(Array.isArray(tasks) ? tasks : null);
     });
   },
