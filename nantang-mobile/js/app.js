@@ -183,9 +183,8 @@ function renderInfoPage() {
   var sections = [
     function(){ return _s('announceTicker', _renderAnnounceTicker()); },
     function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
-    function(){ return _s('recentCards', _renderRecentCardRoomCards()); },
+    function(){ return _s('cardVerifyRow', _renderCardVerifyRow()); },
     function(){ return _s('mgmtGrid', _renderMgmtCards()); },
-    function(){ return _s('verifyRoomSection', _renderVerifyRoomSection()); },
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
     function(){ return _s('poolCard', _renderPoolCard()); }
   ];
@@ -354,6 +353,36 @@ function _openCovenantOverlay() {
   }
   body += '<div style="font-size:.55rem;color:#999;margin-top:8px">⚠ 所有定价由线下公约大会决定。管理员修改需24h公示+2人在线校核。</div>';
   _openQuickSheet('📜 南塘社区公约', body);
+}
+
+// ── 全貌页：卡片室+校核室并列 ──
+function _renderCardVerifyRow() {
+  var discs = (window.AppData && AppData._data.cardDiscoveries) || [];
+  var sevenDaysAgo = new Date(Date.now() - 7*86400000).toISOString().slice(0,10);
+  var recent = discs.filter(function(d){ return d.createdAt && d.createdAt.slice(0,10) >= sevenDaysAgo; });
+  var discPending = recent.filter(function(d){ return d.status === 'pending'; }).length;
+  var discConfirmed = recent.filter(function(d){ return d.status === 'confirmed' && d.doerConfirmedAt && d.doerConfirmedAt.slice(0,10) === new Date().toISOString().slice(0,10); }).length;
+
+  var vfys = (window.AppData && AppData._data.pendingVerifications) || [];
+  var vfyPending = vfys.filter(function(v){ return v.status === 'pending'; }).length;
+  var today = new Date().toISOString().slice(0,10);
+  var vfyToday = vfys.filter(function(v){ return v.status === 'verified' && v.verifiedAt && v.verifiedAt.slice(0,10) === today; }).length;
+
+  var h = '<div style="display:flex;gap:10px;margin:4px 0">';
+  // 卡片室
+  h += '<div onclick="if(typeof openCardRoom===\'function\')openCardRoom()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 10px;cursor:pointer;text-align:center">';
+  h += '<div style="font-size:1.2rem;margin-bottom:4px">🃏</div>';
+  h += '<div style="font-weight:700;font-size:.7rem;color:#1d2e24">卡片室</div>';
+  h += '<div style="font-size:.55rem;color:#5a6e5c;margin-top:2px">' + recent.length + '张牌 · ' + discPending + '待揭</div>';
+  h += '</div>';
+  // 校核室
+  h += '<div onclick="if(typeof openVerifyRoom===\'function\')openVerifyRoom()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 10px;cursor:pointer;text-align:center">';
+  h += '<div style="font-size:1.2rem;margin-bottom:4px">✓</div>';
+  h += '<div style="font-weight:700;font-size:.7rem;color:#1d2e24">校核室</div>';
+  h += '<div style="font-size:.55rem;color:#5a6e5c;margin-top:2px">' + vfyPending + '待确认 · 今日' + vfyToday + '</div>';
+  h += '</div>';
+  h += '</div>';
+  return h;
 }
 
 // ── 全貌页内嵌校核室：与卡片室对称 ──
