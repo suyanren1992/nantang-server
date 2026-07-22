@@ -2033,7 +2033,7 @@ window.VillageMap = {
     }
 
     _bindEvents();
-    render();
+    goTo(currentIdx);
   },
 
   navigateTo: function(buildingId, roomId) {
