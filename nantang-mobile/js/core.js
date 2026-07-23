@@ -1543,10 +1543,12 @@ function initSpcCard(){
 }
 function initCarousel(){
   var c=document.getElementById('villageCarousel');if(!c)return;
+  // 卡片 i 居中所需的 scrollLeft（260px 卡 + scroll-snap center）
+  function _cardLeft(i,pw){ return pw*i - Math.max(0,(c.offsetWidth-pw)/2); }
   // 等 DOM 就绪再定位（hidden→visible 后 offsetWidth 才正确）
   requestAnimationFrame(function(){
     var p=c.querySelector('.vp-card');var pw=p?p.offsetWidth:260;
-    c.scrollLeft=pw;
+    c.scrollLeft=_cardLeft(1,pw);
   });
   if(c._init)return;c._init=true;
   var cachedDots=document.querySelectorAll('.vdot');
@@ -1554,7 +1556,8 @@ function initCarousel(){
   var cachedInners=[];cachedPages.forEach(function(pg){cachedInners.push(pg.querySelector('.vp-card-inner'))});
   c.addEventListener('scroll',function(){
     var p0=c.querySelector('.vp-card');var pw=p0?p0.offsetWidth:260;
-    var idx=Math.round(c.scrollLeft/Math.max(pw,1));idx=Math.max(0,Math.min(2,idx));
+    var offsetComp=Math.max(0,(c.offsetWidth-pw)/2);
+    var idx=Math.round((c.scrollLeft+offsetComp)/Math.max(pw,1));idx=Math.max(0,Math.min(2,idx));
     cachedDots.forEach(function(d,i){d.classList.toggle('active',i===idx)});
     var center=c.scrollLeft+c.offsetWidth/2;
     cachedPages.forEach(function(pg,i){
@@ -1563,7 +1566,7 @@ function initCarousel(){
       var ci=cachedInners[i];if(ci){var v=Math.round(26+t*229);ci.style.background='rgba(255,255,255,'+(1-t*.92).toFixed(2)+')';ci.style.color='rgb('+v+','+v+','+v+')'}
     })
   },{passive:true});
-  cachedDots.forEach(function(d){d.addEventListener('click',function(){var i=parseInt(this.dataset.dot,10);var p1=c.querySelector('.vp-card');var pw1=p1?p1.offsetWidth:260;c.scrollTo({left:pw1*i,behavior:'smooth'})})})
+  cachedDots.forEach(function(d){d.addEventListener('click',function(){var i=parseInt(this.dataset.dot,10);var p1=c.querySelector('.vp-card');var pw1=p1?p1.offsetWidth:260;c.scrollTo({left:_cardLeft(i,pw1),behavior:'smooth'})})})
 }
 // FIX-08: 会话级 bridge nonce — file:// 协议下 origin 不可靠，nonce 作为共享密钥
 window._APP_NONCE = 'nt_'+Math.random().toString(36).slice(2)+'_'+Date.now().toString(36);
