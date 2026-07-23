@@ -1548,8 +1548,12 @@ function togglePwdEye(id, el){
 }
 function initCarousel(){
   var c=document.getElementById('villageCarousel');if(!c)return;
-  // 卡片 i 居中所需的 scrollLeft（260px 卡 + scroll-snap center）
-  function _cardLeft(i,pw){ return pw*i - Math.max(0,(c.offsetWidth-pw)/2); }
+  // 卡片 i 居中所需的 scrollLeft：CSS padding 已提供居中补偿，直接按实测步进（卡宽+gap）× i
+  function _cardLeft(i,pw){
+    var ps=c.querySelectorAll('.vp-card');
+    var stride=(ps.length>1)?(ps[1].offsetLeft-ps[0].offsetLeft):(pw+3);  // C-3: 不再重复扣 padding 补偿
+    return stride*i;
+  }
   // 等 DOM 就绪再定位（hidden→visible 后 offsetWidth 才正确）
   requestAnimationFrame(function(){
     var p=c.querySelector('.vp-card');var pw=p?p.offsetWidth:260;

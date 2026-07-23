@@ -179,6 +179,22 @@
 
 ---
 
+## 🔍 C-3 滑块左侧多余弧角方框 — 排查记录（2026-07-23）
+
+**排查**（无浏览器，几何推算；真机点选留给验收）：
+
+- DOM：`#villageCarousel` 内恰好 3 张 `.vp-card`，无多余节点（index.html:85-89）；背景层/伪元素无框形样式（main.css:78-99）
+- CSS：`.village-carousel` 有 `padding:0 calc((100% - 260px)/2)`（main.css:102）——**居中补偿 CSS padding 已经提供了**
+- JS：A-5 引入的 `_cardLeft(i,pw) = pw*i - (容器宽-卡宽)/2`（core.js:1552）**把同一份补偿又减了一次**，且步进没算 3px gap
+
+**真因（重复补偿 → 初始定位少滚 ~68px）**：以 390px 屏为例，CSS padding=65px，居中第 2 张卡的正确 scrollLeft=263；`_cardLeft(1,260)` 算出 **195**。停在该位置时：左视口露出卡片 0 的右侧 130px——一个白色圆角残框（`.vp-card-inner` border-radius:18px），右侧却无对称露出 → 正是"屏幕左方多一个弧角方框，三张卡都在"。部分浏览器 scroll-snap mandatory 会把 195 纠正到 263（掩盖症状），与"A-5 后有人见有人不见"的表现一致。
+
+**修法**：`_cardLeft` 改为按实测步进（相邻卡 offsetLeft 差 = 卡宽+gap）计算 `stride*i`，不再减补偿。初始定位和圆点跳转共用此函数，一并归位。
+
+**状态**：✅ 已修（见下提交）
+
+---
+
 ## ✅ 已修复
 
 | # | Bug | 日期 |
