@@ -45,6 +45,7 @@ class CardDiscoveryUpdateReq(BaseModel):
     doer_denied_at: str = ""
 
 class VerificationReq(BaseModel):
+    id: str = ""  # A-7: 接受客户端生成的 id，保证 approve 链路 id 一致
     type: str = Field(min_length=1)
     action: str = ""
     detail: dict = {}
@@ -193,8 +194,13 @@ async def get_verifications(user: User = Depends(get_current_user), db: AsyncSes
 
 @router.post("/verifications")
 async def add_verification(req: VerificationReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # A-7: 客户端带 id 时优先使用并按 id 幂等——approve 链路靠客户端 id 查本表
+    if req.id:
+        existing = await db.execute(select(Verification).where(Verification.id == req.id))
+        if existing.scalar_one_or_none():
+            return {"ok": True, "id": req.id}
     v = Verification(
-        id=f"vfy_{datetime.utcnow().timestamp()}",
+        id=req.id or f"vfy_{datetime.utcnow().timestamp()}",
         type=req.type, doer=user.id,
         action=req.action, detail=json.dumps(req.detail, ensure_ascii=False),
         nt_amount=req.nt_amount,
