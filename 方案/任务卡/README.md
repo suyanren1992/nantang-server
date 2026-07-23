@@ -13,7 +13,7 @@
 | C-1 | 密码眼睛点不了（A-6复修） | Claude Code | 🟡 待施工 |
 | C-2 | 滑块居中后跳转太慢（A-5复修） | Claude Code | 🟡 待施工 |
 | C-3 | 滑块左侧多余方框 | Claude Code 修 / Kimi Code 先排查 | 🟡 待施工 |
-| C-4 | 退出后再登录用户不存在（严重） | Claude Code 修 / Kimi Code 先排查 | 🔴 优先 |
+| C-4 | 数据库挂盘持久化（路A已批 07-24） | 监察确认挂盘→Claude Code 改路径→监察校验 | 🔴 优先 |
 | C-5 | 社区动态仍点不开+无小字（A-12复修） | Claude Code 修 / Kimi Code 先排查 | 🟡 待施工 |
 | C-6 | 确认后余额仍无+N（A-7复修） | Claude Code 修 / Kimi Code 先排查 | 🔴 优先 |
 | C-7 | 社区池起始值500（照多钱包稿） | Claude Code 修 / Kimi Code 先读稿核查 | 🟡 待施工 |
