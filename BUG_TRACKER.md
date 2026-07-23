@@ -109,6 +109,35 @@
 
 ---
 
+## 🔍 C-4 退出后再登录"用户不存在" — 排查记录（2026-07-23）
+
+**现象**：注册成功 → 退出 → 再登录提示"用户不存在"。
+
+**逐环排查**：
+
+| 环节 | 结论 | 证据 |
+|------|------|------|
+| 注册落库 | ✅ 正常 | `POST /api/auth/register` 写 User 表并 commit（server/routes/auth.py:60-80） |
+| 登录校验 | ✅ 正常 | 同名同表查询（auth.py:86），名字两端均 trim（core.js:1004/1036），无编码不一致 |
+| 退出清数据 | ✅ 无殃及 | logout 只 +token_version、删 cookie（auth.py:109-121），不删用户 |
+| **数据库持久化** | 🔴 **断点（架构级）** | 见下 |
+
+**断点：SQLite 在 Render 临时文件系统上，每次部署/重启全库清空**
+
+- 数据库是单文件 SQLite：`server/nantang_fresh.db`（server/database.py:7）
+- `render.yaml` **没有挂持久磁盘**（无 `disk:` 段），免费版实例文件系统是临时的
+- `*.db` 在 .gitignore 中，部署时库文件不从 git 来 → 每次 push 上线 = 新实例 = **全新空库**，所有注册用户随之消失 → 再登录"用户不存在"
+- 铁律"push = 上线 Render"，近期高频 push，与"注册后不久再登录就没了"的现象完全吻合
+
+**方案（二选一，需砚仁/Kimi Work 决策后再动手）**：
+
+1. **Render Disk 挂载**（改动小）：render.yaml 加 `disk: {name: nantang-data, mountPath: /opt/render/project/src/server/data, sizeGB: 1}`，`database.py` 的 `DB_PATH` 改为读环境变量（如 `NT_DB_PATH`，默认现路径）。⚠️ Render Disk 需付费实例（Starter 及以上），免费 web service 不支持挂盘。
+2. **迁 Postgres**（更耐用）：Render 有免费 PostgreSQL（注意免费库有 30 天期限，长期也需付费）；`database.py` 改为从 `DATABASE_URL` 环境变量读连接串，驱动换 `psycopg`/`asyncpg`，buildCommand 加依赖。改动集中在 database.py，模型层不动。
+
+**状态**：⏸ 架构级问题，按纪律停下来记录，未改代码，等决策。
+
+---
+
 ## ✅ 已修复
 
 | # | Bug | 日期 |
