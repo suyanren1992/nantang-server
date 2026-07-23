@@ -1541,6 +1541,11 @@ function initSpcCard(){
   var c=document.getElementById('spcCard');if(!c||c._init)return;c._init=true;
   c.addEventListener('click',function(){showMy()});
 }
+function togglePwdEye(id, el){
+  var i=document.getElementById(id);if(!i)return;
+  i.type = i.type==='password' ? 'text' : 'password';
+  if(el) el.textContent = i.type==='password' ? '👁' : '🙈';
+}
 function initCarousel(){
   var c=document.getElementById('villageCarousel');if(!c)return;
   // 卡片 i 居中所需的 scrollLeft（260px 卡 + scroll-snap center）

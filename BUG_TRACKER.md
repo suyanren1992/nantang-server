@@ -103,3 +103,4 @@
 | B15 | 3处 onClick XSS（用户名注入 selectPubTarget/selectReviewer/pickLoginUser） | 7/19 |
 | B16 | 3处 innerHTML XSS（unclaimTask/reviewTask/requestWithdraw 任务名未转义） | 7/19 |
 | B17 | `_profileSeed` 值 0 被 `\|\|'demo'` 吞没 | 7/19 |
+| A-5 | 村落滑动卡片不居中 — initCarousel() 三处缺容器-卡片宽度差补偿，统一 `_cardLeft(i,pw)` 修复 | 7/23 |
