@@ -104,3 +104,5 @@
 | B16 | 3处 innerHTML XSS（unclaimTask/reviewTask/requestWithdraw 任务名未转义） | 7/19 |
 | B17 | `_profileSeed` 值 0 被 `\|\|'demo'` 吞没 | 7/19 |
 | A-5 | 村落滑动卡片不居中 — initCarousel() 三处缺容器-卡片宽度差补偿，统一 `_cardLeft(i,pw)` 修复 | 7/23 |
+| A-6 | 注册/登录密码框补回小眼睛 — regPwd/loginPwd 各包一层相对容器 + togglePwdEye() | 7/23 |
+| A-12 | 社区动态：三区加 desc 说明 + cr-header min-height:44px + hover/active 反馈。点击真因静态未复现（onclick 逻辑/DOM/z-index 均正常），需浏览器验证 | 7/23 |
