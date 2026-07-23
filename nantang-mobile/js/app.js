@@ -400,9 +400,9 @@ function _renderRecentCardRoomCards_OLD() {
 
 function _renderCardRoomSection() {
   var sections = [
-    { id:'pres', title:'👤 在地人员', badge: _onsiteCount(), content: _renderPresenceSection, empty: '还没有人在线，翻一下自己的牌吧~' },
-    { id:'camp', title:'🏕️ 活跃营地', badge: _activeCampCount(), content: _renderCampSection, empty: '🏕️ 暂无活跃营地' },
-    { id:'tl', title:'📜 时间线', badge: '', content: _renderTimelineSection, empty: '时间线还是空的——完成了校核后会出现在这里' }
+    { id:'pres', title:'👤 在地人员', desc:'谁现在在村里，翻牌亮个相', badge: _onsiteCount(), content: _renderPresenceSection, empty: '还没有人在线，翻一下自己的牌吧~' },
+    { id:'camp', title:'🏕️ 活跃营地', desc:'正在进行的营队活动，点"进入"看详情', badge: _activeCampCount(), content: _renderCampSection, empty: '🏕️ 暂无活跃营地' },
+    { id:'tl', title:'📜 时间线', desc:'村里最近发生的大事小情', badge: '', content: _renderTimelineSection, empty: '时间线还是空的——完成了校核后会出现在这里' }
   ];
   return '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:8px 12px;margin:4px 0">'+
     '<div style="font-weight:700;font-size:.72rem;margin-bottom:6px">👥 社区动态</div>'+
@@ -410,8 +410,9 @@ function _renderCardRoomSection() {
 }
 function _collapsibleSection(sec) {
   return '<div class="cr-section" style="border-top:1px solid #f0f0f0;padding:6px 0">'+
-    '<div class="cr-header" onclick="var b=this.nextElementSibling;var arrow=this.lastElementChild;var open=b.style.display!==\'none\';b.style.display=open?\'none\':\'\';arrow.textContent=open?\'▸\':\'▾\'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:30px">'+
-      '<span style="font-weight:600;font-size:.7rem">'+sec.title+(sec.badge?' <span style="background:var(--green-primary);color:#fff;border-radius:8px;padding:1px 6px;font-size:.55rem">'+sec.badge+'</span>':'')+'</span>'+
+    '<div class="cr-header" onclick="var b=this.nextElementSibling;var arrow=this.lastElementChild;var open=b.style.display!==\'none\';b.style.display=open?\'none\':\'\';arrow.textContent=open?\'▸\':\'▾\'" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:44px;transition:background .15s" onmouseover="this.style.background=\'#f5f7f3\'" onmouseout="this.style.background=\'\'" ontouchstart="this.style.background=\'#edf0e9\'" ontouchend="this.style.background=\'\'">'+
+      '<span style="font-weight:600;font-size:.7rem">'+sec.title+(sec.badge?' <span style="background:var(--green-primary);color:#fff;border-radius:8px;padding:1px 6px;font-size:.55rem">'+sec.badge+'</span>':'')+
+      (sec.desc?'<br><span style="font-weight:400;font-size:.58rem;color:#999">'+sec.desc+'</span>':'')+'</span>'+
       '<span style="color:#999;font-size:.6rem">▸</span></div>'+
     '<div class="cr-body" style="display:none">'+(_safeRender(sec.content) || '<div style="color:#999;font-size:.62rem;padding:4px 0">'+sec.empty+'</div>')+'</div></div>';
 }
