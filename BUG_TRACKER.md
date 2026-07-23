@@ -157,6 +157,28 @@
 
 ---
 
+## 🔍 C-5 社区动态点不开 + 无小字（A-12 复修）— 排查记录（2026-07-23）
+
+**逐环排查**：
+
+| 检查项 | 结论 | 证据 |
+|--------|------|------|
+| onclick 逻辑/DOM | ✅ 无误 | `nextElementSibling`=cr-body、`lastElementChild`=箭头，均正确（app.js:413-417），与 A-12"静态未复现"一致 |
+| CSP 拦截 | ✅ 无 | 服务端只加 `X-Content-Type-Options`（main.py:89-93），无 CSP |
+| CSS 压制 | ✅ 无 | `.cr-body{display:none}` 无 `!important`（theme.css:588），inline 样式可覆盖 |
+| 轮询重渲染 | ✅ 无 | `_mergeNTSyncData` 只合数据不重渲染（core.js:850-901） |
+| **线上代码版本** | 🔴 **最可疑** | index.html 引用 `app.js?v=4`（nantang-mobile/index.html），A-12 改 app.js 后 **v 参数未升级**，浏览器沿用旧缓存。铁证：A-12 新加的 desc 小字在设备上也没出现 → 设备跑的就是旧代码，点击修复自然也没生效 |
+
+**真因**：前端静态文件靠 `?v=N` 缓存破解，但 A-12 改代码没升版本号，线上设备持续运行旧 app.js。
+
+**修法**（按卡建议）：
+1. `_collapsibleSection` 去掉行内 onclick，改 `#roomsGrid` 事件委托 addEventListener（渲染后绑定一次），根治行内处理器的转义/环境敏感问题
+2. `app.js?v=4` → `?v=5`，强制各端拉取新代码（desc 小字随新代码一起到位）
+
+**状态**：✅ 已修（见下提交）
+
+---
+
 ## ✅ 已修复
 
 | # | Bug | 日期 |
