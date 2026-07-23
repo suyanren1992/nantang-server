@@ -195,6 +195,22 @@
 
 ---
 
+## 🔧 C-7 社区池起始值 500 — 施工记录（2026-07-23）
+
+照 `方案/社区池多钱包设计_2026-07-22.md` 落实池初始化（只做多钱包稿中的"起始值"部分，冻结/划拨等 Phase 2+ 不在本卡）：
+
+- **新库**：`init_db` 建池 balance=500、total_issued=500，并写一条 `pool_init` 账（system → community_pool 500，"社区池初始化"）——此前只建行不写账
+- **存量库**：池存在且 balance=0 且账本中无 `pool_init` 记录 → 补 balance=500、total_issued+500、写 `pool_init` 账；有 `pool_init` 账则**永不重复补**（幂等，只补一次）
+- 发放扣池/充值进池的链路此前已通（approve 端点 nt.py:844-877），本卡未动
+
+**记录在案**：
+- 全貌页 `poolCard`（app.js:542）读的是**客户端本地 NT 池**，HTTP 模式下不是服务端权威数据 → "poolCard 待实现（接 /api/nt/pools）"，本卡按卡要求不做界面
+- 观察（未改）：`auth.py:74-75` register 兜底建池是 balance=0/total_issued=0，与 init_db 不一致；实际 init_db 必先于请求执行，兜底为死路径，留待后续卡决定
+
+**验证**：`py_compile` 通过；运行时三路径实测（新库/存量补齐/幂等）脚本被用户拦下未跑，留待砚仁冒烟。
+
+---
+
 ## ✅ 已修复
 
 | # | Bug | 日期 |

@@ -2,6 +2,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import select, text
+from datetime import datetime
 import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "nantang_fresh.db")
@@ -62,12 +63,29 @@ async def init_db():
             await session.commit()
         except Exception:
             pass
-        from models import CommunityPool
+        from models import CommunityPool, NTLedger
+        from nt_helpers import _add_ledger, _ledger_id
         r = await session.execute(select(CommunityPool).limit(1))
-        if not r.scalar_one_or_none():
-            session.add(CommunityPool(balance=500, total_issued=500, task_escrow=0,
-                         contribution_pool=0, camp_balance=0, reserve=0, frozen=0))
+        pool = r.scalar_one_or_none()
+        if not pool:
+            # C-7: 新库池起始值 500，账上留痕（照社区池多钱包设计稿）
+            pool = CommunityPool(balance=500, total_issued=500, task_escrow=0,
+                         contribution_pool=0, camp_balance=0, reserve=0, frozen=0,
+                         updated_at=datetime.utcnow().isoformat())
+            session.add(pool)
+            await _add_ledger(session, _ledger_id(), "system", "community_pool", 500,
+                              "pool_init", "社区池初始化", status="settled")
             await session.commit()
+        else:
+            # C-7: 存量库池为 0 且从未补过 → 幂等补一次 500（有 pool_init 账则永不重复）
+            has_init = await session.execute(select(NTLedger).where(NTLedger.type == "pool_init").limit(1))
+            if (pool.balance or 0) == 0 and not has_init.scalar_one_or_none():
+                pool.balance = 500
+                pool.total_issued = (pool.total_issued or 0) + 500
+                pool.updated_at = datetime.utcnow().isoformat()
+                await _add_ledger(session, _ledger_id(), "system", "community_pool", 500,
+                                  "pool_init", "社区池初始化（存量库补齐）", status="settled")
+                await session.commit()
         # Fix 2: 为已有 NTTask 补 assignees 列（多槽位）
         try:
             await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN assignees TEXT"))
