@@ -82,6 +82,33 @@
 
 ---
 
+## 🔍 A-7 校核确认后奖励 NT 没到账 — 排查记录（2026-07-23）
+
+**现象**：校核室点"✅ 确认 +N NT"，看似成功，但劳动者 NT 余额不增加。
+
+**逐环排查结论**（断点在第 2 环，仅一环）：
+
+| 环 | 环节 | 结论 | 证据 |
+|---|------|------|------|
+| 1 | 客户端 `verifyAction` | ✅ 正常 | HTTP 模式调 `POST /api/nt/verifications/{vfy.id}/approve`，成功回调改状态、失败回滚 pending（app-data.js:365-393） |
+| 2 | 服务端校核记录创建 | 🔴 **断点** | 见下 |
+| 3 | 服务端 approve 端点 | ✅ 逻辑正确 | 池扣款 + doer/verifier 加余额 + 写账本 + 行锁齐全（server/routes/nt.py:800-879），只是因环2 永远走不到 |
+| 4 | 前端余额刷新 | ✅ 无断点 | HTTP 模式余额以服务端 `/api/nt/balance` 为准（core.js:1154），30s 轮询 `/api/nt/sync`（core.js:290-308），到账后自动可见，刷新页面亦持久 |
+
+**断点详述（环2：id 不一致 → approve 永远 404）**：
+
+1. `addVerification` 把含**客户端生成 id**（`vfy_<base36>_<rand>`，app-data.js:321）的完整对象 POST 到 `/api/data/verifications`（app-data.js:327），且 `.catch(function(){})` 丢弃响应。
+2. 服务端 `VerificationReq` **没有 `id` 字段**（server/routes/data.py:47-52），extra 字段被忽略；`add_verification` 自建 id `vfy_{timestamp}`（data.py:197）并返回——但客户端没读返回值。
+3. 结果：服务端行的 id ≠ 客户端 `pendingVerifications` 里的 id。校核者点确认时带**客户端 id** 调 approve → 服务端查 Verification 表找不到 → 404「校核记录不存在」（nt.py:809-810）→ 客户端 catch 弹 toast 并回滚 pending。**社区池不扣、doer 余额不加、账本不写**。
+4. 附带副作用：`sync_all` 合并按 id 匹配（core.js:937-945），客户端 id 与服务端 id 对不上 → 同一条校核在列表里出现两份（本地一份 + 服务端同步一份）。
+
+**修法**（只修断点环，客户端零改动——body 里本就带着 id）：
+服务端 `VerificationReq` 增加可选 `id` 字段；`add_verification` 优先使用客户端 id，并按 id 幂等去重（重复提交直接返回已存在行）。
+
+**A-9 顺手核查（只记录，不写代码）**：确认成功回调只写 `_data.discoveries` 和 `announcements`（app-data.js:372-376），**未写入档案室数据源** `activity_log`/`journal`（ui-archive.js:43,193 读这两个）。归档设计另有安排，此处不动。
+
+---
+
 ## ✅ 已修复
 
 | # | Bug | 日期 |
