@@ -377,6 +377,7 @@ this._data.map_locations.people_on_site = [];
         self._saveShared(true);
         if (typeof renderCardRoom === 'function') renderCardRoom();
         if (typeof renderVerifyRoom === 'function') renderVerifyRoom();
+        if (typeof refreshUserUI === 'function') refreshUserUI();  // C-6: 确认后立即重拉服务端余额，刷新工作台显示
         var popup = document.querySelector('.vfy-popup'); if (popup) popup.remove();
         if (window.Game && Game.toast) Game.toast('✅ 校核完成！');
       }).catch(function(err) {

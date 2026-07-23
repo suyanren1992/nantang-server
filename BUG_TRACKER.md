@@ -138,6 +138,25 @@
 
 ---
 
+## 🔍 C-6 校核确认后余额仍无 +N（A-7 复修）— 排查记录（2026-07-23）
+
+**干扰排除**：A-7（e10349b）只对新上报生效。新上报仍不到账 → 继续查，发现第二处断点。
+
+**真因（断点仍在环2：金额字段名 camelCase/snake_case 不匹配）**：
+
+1. 客户端 `addVerification` POST 原始 vfy 对象，金额字段是 **`ntAmount` / `verifierReward`**（camelCase，app-data.js:321/327）。
+2. 服务端 `VerificationReq` 声明的是 **`nt_amount` / `verifier_reward`**（snake_case，data.py:48-53），camelCase 作为 extra 字段被 pydantic 静默丢弃 → 服务端行存成 **`nt_amount=0`、`verifier_reward=1`（默认值）**。
+3. approve 端点从 DB 行取权威金额（nt.py:846-847）→ doer **+0 NT**、校核者 +1。界面却按本地值显示"✅ +N"——与"看似成功但没到账"完全吻合。A-7 修好 id 后 approve 能走通了，这层才暴露出来。
+4. 附带问题（卡内方向2）：approve 成功回调不触发余额刷新（app-data.js:370-381），当前用户要等 30s 轮询或手动刷新才看到变化。
+
+**修法**：
+- `VerificationReq` 的 `nt_amount`/`verifier_reward` 加 `AliasChoices` 兼容 camelCase（服务端单点改，客户端不动）；
+- `verifyAction` 成功回调加 `refreshUserUI()`，确认后立即重拉 `/api/nt/balance` 刷新工作台显示。
+
+**状态**：✅ 已修（见下提交）
+
+---
+
 ## ✅ 已修复
 
 | # | Bug | 日期 |

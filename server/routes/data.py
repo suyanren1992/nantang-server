@@ -8,7 +8,7 @@ from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
                     CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, CommunityPool, TASK_STATUSES)
 from routes.auth import get_current_user, require_admin
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, AliasChoices
 from nt_helpers import _safe_assignees
 
 router = APIRouter(prefix="/api/data", tags=["data"])
@@ -49,8 +49,9 @@ class VerificationReq(BaseModel):
     type: str = Field(min_length=1)
     action: str = ""
     detail: dict = {}
-    nt_amount: int = Field(default=0, ge=0, le=1000)
-    verifier_reward: int = Field(default=1, ge=0, le=1000)
+    # C-6: 客户端发的是 camelCase（ntAmount/verifierReward），两种命名都接受
+    nt_amount: int = Field(default=0, ge=0, le=1000, validation_alias=AliasChoices("nt_amount", "ntAmount"))
+    verifier_reward: int = Field(default=1, ge=0, le=1000, validation_alias=AliasChoices("verifier_reward", "verifierReward"))
 
 class VerificationUpdateReq(BaseModel):
     status: str = ""
