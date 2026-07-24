@@ -1689,58 +1689,173 @@ function _doCheckout() {
 function renderFieldPanel() {
   var plots = getPlots();
   var actions = ['摘菜','浇水','播种','施肥','除草','收割','查看','其他'];
+  var pricing = _defaultConfig().farming_pricing;
   var me = _me();
   var h = '';
 
-  // ═══ 提醒 ═══
+  // B-1: 确保每块地有子区域
+  plots.forEach(function(p) { _ensurePlotZones(p); });
+
+  // ═══ ① 提醒 ═══
   h += '<div class="mgmt-reminders">';
-  var warnings = plots.filter(function(p) { return p.status === 'warning'; });
-  var available = plots.filter(function(p) { return p.crop === '—' || p.crop === '-' || !p.crop; });
-  warnings.forEach(function(p) { h += '<div class="mr-item warn">' + (p.icon||'🌿') + ' ' + p.name + ' ' + p.crop + ' ' + p.harvest + ' 成熟（剩' + p.remain + '天）· 准备收割</div>'; });
-  if (available.length) { h += '<div class="mr-item ok">🌱 ' + available.map(function(p){return p.name;}).join('、') + '空闲 · 可种秋季蔬菜</div>'; } else { h += '<div class="mr-item ok">全部地块已种植</div>'; }
+  var allZones = []; plots.forEach(function(p) { (p.zones||[]).forEach(function(z) { allZones.push({plot:p,zone:z}); }); });
+  var ripeZones = allZones.filter(function(x) { return x.zone.crop && x.zone.status==='warning'; });
+  var idlePlots = plots.filter(function(p) { return (p.zones||[]).some(function(z) { return !z.crop; }); });
+  if (ripeZones.length) {
+    ripeZones.forEach(function(x) {
+      var ci = _cropInfo(x.zone.crop); var seasonNote = '';
+      if (ci && ci.seasons.indexOf(_currentSeason())<0) seasonNote = ' · ⚠不当季';
+      h += '<div class="mr-item warn">⚠ '+x.plot.name+' '+x.zone.crop+' 即将成熟 · 剩'+x.zone.remain+'天 · 准备收割'+seasonNote+'</div>';
+    });
+  }
+  if (idlePlots.length) {
+    var season = _currentSeason(); var seasonalCrops = Object.keys(CROP_TABLE).filter(function(c) { return CROP_TABLE[c].seasons.indexOf(season)>=0; });
+    h += '<div class="mr-item ok">🌱 '+idlePlots.map(function(p){return p.name;}).join('、')+'有空闲子区域 · 当季可种：'+seasonalCrops.join('、')+'</div>';
+  }
+  if (!ripeZones.length && !idlePlots.length) h += '<div class="mr-item ok">🟢 全部地块正常生长中</div>';
   h += '</div>';
 
-  // ═══ 操作按钮 ═══
+  // ═══ ② 操作按钮 ═══
+  var tmpSels = MGMT_DATA.field._tmpSelections || [];
   h += '<div class="mgmt-actions">';
-  h += '<button class="ma-btn primary" onclick="_toggleForm(\'field\')">📝 我做了农活</button>';
+  h += '<button class="ma-btn primary" onclick="_toggleForm(\'field\')">📝 记录农活</button>';
+  h += '<button class="ma-btn secondary" onclick="_toggleForm(\'fieldPlant\')">🌱 种植/修改</button>';
   h += '</div>';
+  if (tmpSels.length > 0) {
+    h += '<div style="text-align:center;font-size:var(--g-font-size-xs);color:var(--g-gold);font-weight:700;margin-bottom:8px">已选 '+tmpSels.length+' 块子区域待操作</div>';
+  }
 
-  // ── 快速表单 ──
+  // ═══ ③ 快速表单 ═══
+  // 表单 A：记录农活
   h += '<div class="mgmt-quick-form' + (_mgmtFormType==='field'?' open':'') + '">';
   h += '<div class="qf-title">✏️ 我（'+me+'）在田地做了什么</div>';
   h += '<div class="qf-row">在 <select id="fpPlot">'+plots.map(function(p){return '<option value="'+p.id+'">'+p.icon+' '+p.name+'</option>';}).join('')+'</select>';
+  h += ' <select id="fpZone"><option value="">全区 ▼</option>'+plots.map(function(p){return (p.zones||[]).map(function(z){return '<option value="'+z.id+'">'+p.name+'-'+(z.label||z.id.slice(-1))+(z.crop?' '+z.crop:' 空闲')+'</option>';}).join('');}).join('')+'</select>';
   h += ' <select id="fpAction">'+actions.map(function(a){return '<option>'+a+'</option>';}).join('')+'</select>';
   h += ' <input id="fpNote" placeholder="备注（可选）">';
   h += ' <button class="qf-submit" onclick="_submitFieldLog()">✓ 记录</button></div>';
   h += '</div>';
+  // 表单 B：种植/修改
+  h += '<div class="mgmt-quick-form' + (_mgmtFormType==='fieldPlant'?' open':'') + '">';
+  h += '<div class="qf-title">🌱 种植或修改作物</div>';
+  h += '<div class="qf-row">在 <select id="fpPlot2">'+plots.map(function(p){return '<option value="'+p.id+'">'+p.icon+' '+p.name+'</option>';}).join('')+'</select>';
+  h += ' <select id="fpZone2"><option value="">全区 ▼</option>'+plots.map(function(p){return (p.zones||[]).map(function(z){return '<option value="'+z.id+'">'+p.name+'-'+(z.label||z.id.slice(-1))+(z.crop?' '+z.crop:' 空闲')+'</option>';}).join('');}).join('')+'</select>';
+  h += ' <select id="fpCrop"><option value="">选作物 ▼</option>'+Object.keys(CROP_TABLE).map(function(c){var ci=CROP_TABLE[c];return '<option value="'+c+'">'+c+' ('+ci.days+'天·'+ci.seasons.join('/')+')</option>';}).join('')+'</select>';
+  h += ' <button class="qf-submit" onclick="_submitFieldPlant()">✓ 确认</button></div>';
+  h += '</div>';
 
-  // ═══ 田地卡片 ═══
+  // ═══ ④ 卡片网格 ═══
   h += '<div class="mgmt-card-grid">';
   plots.forEach(function(p) {
-    var isP = p.crop && p.crop!=='—';
-    var pct = isP ? Math.round((1-p.remain/p.days)*100) : 0;
-    h += '<div class="mgmt-card'+( (p.note||'').indexOf('⚠')>=0?' selected':'')+'">';
+    var zoneCount = (p.zones||[]).length;
+    var plantedCount = (p.zones||[]).filter(function(z){return z.crop;}).length;
+    var hasWarning = (p.zones||[]).some(function(z){return z.status==='warning';});
+    var statusColor = hasWarning?'#d4a017':plantedCount>0?'var(--g-green)':'#999';
+    var isExpanded = _expandedFieldPlot === p.id;
+    h += '<div class="mgmt-card'+(isExpanded?' selected':'')+'" onclick="_expandFieldPlot(\''+p.id+'\')" style="cursor:pointer">';
+    h += '<span class="mc-status" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+statusColor+';margin-right:4px;vertical-align:middle"></span>';
     h += '<span class="mc-icon">'+p.icon+'</span>';
     h += '<div class="mc-name">'+p.name+'</div>';
-    if (isP) {
-      h += '<div class="mc-sub">'+p.crop+' · '+p.planted+'→'+p.harvest+'</div>';
+    h += '<div class="mc-sub">'+(plantedCount>0?plantedCount+'块种植':'空闲')+(zoneCount>0?' · '+zoneCount+'块可种':'')+'</div>';
+    if (plantedCount > 0) {
+      var mainZone = (p.zones||[]).find(function(z){return z.crop;}) || p.zones[0];
+      var pct = mainZone.crop ? Math.round((1-(mainZone.remain||0)/(mainZone.days||90))*100) : 0;
       h += '<div style="width:100%;height:5px;background:var(--g-card-border);border-radius:3px;margin-top:4px"><div style="width:'+pct+'%;height:100%;background:'+(pct>80?'var(--g-warn)':'var(--g-green)')+';border-radius:3px"></div></div>';
-      h += '<div class="mc-sub" style="margin-top:2px">剩'+p.remain+'天 · '+(pct>80?'⚠即将成熟':'正常生长')+'</div>';
-    } else {
-      h += '<div class="mc-sub">'+(p.note||'空闲')+'</div>';
+      if (mainZone.crop) {
+        var ci = _cropInfo(mainZone.crop); var seasonOk = ci && ci.seasons.indexOf(_currentSeason())>=0;
+        h += '<div class="mc-sub" style="margin-top:2px">'+(mainZone.crop||'')+' · '+(mainZone.planted||'')+'→'+(mainZone.harvest||'')+' · 剩'+(mainZone.remain||0)+'天'+(seasonOk?'':' ⚠')+'</div>';
+      }
     }
     h += '</div>';
+    // 展开子区域
+    if (isExpanded) {
+      h += '<div style="grid-column:1/-1;background:#f8faf7;border-radius:10px;padding:8px;margin-bottom:4px"><div style="font-weight:600;font-size:.65rem;margin-bottom:6px">'+p.icon+' '+p.name+' 子区域</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px">';
+      (p.zones||[]).forEach(function(z) {
+        var isPlanted = z.crop && z.crop!=='—';
+        var zPct = isPlanted ? Math.round((1-(z.remain||0)/(z.days||90))*100) : 0;
+        var zStatusColor = !isPlanted?'#ccc':z.status==='warning'?'#d4a017':'var(--g-green)';
+        h += '<div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:6px;text-align:center;font-size:.6rem">';
+        h += '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+zStatusColor+';margin-right:3px"></span>';
+        h += '<b>'+(z.label||z.id.slice(-1))+'</b>';
+        if (isPlanted) {
+          h += '<div>'+z.crop+'</div><div style="height:3px;background:#eee;border-radius:2px;margin:3px 0"><div style="width:'+zPct+'%;height:100%;background:'+(zPct>80?'var(--g-warn)':'var(--g-green)')+';border-radius:2px"></div></div><div style="color:#999">剩'+z.remain+'天</div>';
+        } else {
+          h += '<div style="color:#999">空闲</div>';
+        }
+        h += '</div>';
+      });
+      h += '</div></div>';
+    }
   });
   h += '</div>';
 
-  // ═══ 历史 ═══
+  // ═══ ⑤ 定价说明 ═══
+  h += '<div class="mgmt-pricing">';
+  var chips = [
+    { label:'种植 +'+pricing.plant+'NT', style:'' },
+    { label:'浇水 +'+pricing.water+'NT', style:'' },
+    { label:'施肥 +'+pricing.fertilize+'NT', style:'' },
+    { label:'收割 +'+pricing.harvest+'NT', style:'' }
+  ];
+  chips.forEach(function(ch) { h += '<span class="mgmt-price-chip"'+(ch.style?' style="'+ch.style+'"':'')+'>'+ch.label+'</span>'; });
+  h += '</div>';
+
+  // ═══ ⑥ 历史 ═══
   h += '<div class="mgmt-history"><div class="mas-title" style="margin-bottom:4px">📜 农事记录</div>';
   MGMT_DATA.field.history.forEach(function(hi) {
-    h += '<div class="mh-item">'+hi.date+' · '+hi.person+' · '+hi.plotName+' · '+hi.action+(hi.note?' · '+hi.note:'')+'</div>';
+    h += '<div class="mh-item">'+hi.date+' · '+hi.person+' · '+(hi.plotName||'')+' · '+hi.action+(hi.note?' · '+hi.note:'')+'</div>';
   });
   h += '</div>';
 
   return h;
+}
+
+// B-1: 确保地块有子区域数据
+function _ensurePlotZones(p) {
+  if (!p.zones) p.zones = [];
+  if (p.zones.length > 0) return;
+  for (var i=1; i<=3; i++) {
+    p.zones.push({ id: p.id+'-'+i, label: p.name+'-'+i, crop: null, planted: '', days: 0, remain: 0, status: 'idle' });
+  }
+}
+// B-1: 点击地块展开/收起子区域
+var _expandedFieldPlot = null;
+function _expandFieldPlot(pid) {
+  _expandedFieldPlot = (_expandedFieldPlot === pid) ? null : pid;
+  renderMgmtPanel('field');
+}
+// B-1: 种植提交
+function _submitFieldPlant() {
+  var crop = (_d('fpCrop')||{}).value; if (!crop) { if (window.Game&&Game.toast) Game.toast('请选择作物','warn'); return; }
+  var plotId = (_d('fpPlot2')||{}).value;
+  var zoneId = (_d('fpZone2')||{}).value;
+  var plots = getPlots();
+  var plot = plots.find(function(p){return p.id===plotId;});
+  if (!plot) return;
+  var ci = _cropInfo(crop); var today = _todayStr(); var days = ci ? ci.days : 90;
+  var harvestDate = new Date(); harvestDate.setDate(harvestDate.getDate()+days);
+  var harvestStr = (harvestDate.getMonth()+1)+'/'+harvestDate.getDate();
+  if (zoneId) {
+    // 指定子区域
+    var zone = (plot.zones||[]).find(function(z){return z.id===zoneId;});
+    if (zone) {
+      zone.crop = crop; zone.planted = today; zone.days = days; zone.remain = days;
+      zone.harvest = harvestStr; zone.status = days<=7?'warning':'ok';
+    }
+  } else {
+    // 全区：找第一个空闲子区域
+    var free = (plot.zones||[]).find(function(z){return !z.crop;});
+    if (free) {
+      free.crop = crop; free.planted = today; free.days = days; free.remain = days;
+      free.harvest = harvestStr; free.status = days<=7?'warning':'ok';
+    }
+  }
+  MGMT_DATA.field.history.unshift({ date:today, person:_me(), plotName:plot.name, action:'播种 '+crop, note:'子区域' });
+  MGMT_DATA._save();
+  _savePlotData();
+  _mgmtFormType = '';
+  if (window.Game&&Game.toast) Game.toast('已种植 '+crop+' @'+plot.name);
+  renderMgmtPanel('field');
 }
 
 function _submitFieldLog() {

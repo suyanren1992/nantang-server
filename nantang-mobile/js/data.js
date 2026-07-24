@@ -667,3 +667,15 @@ function computeTitle(userId) {
   }
   return { tier: tier, branches: branches, xp: xp, stats: stats };
 }
+
+// B-1: 内置作物表（生长天数/适宜季节）
+var CROP_TABLE = {
+  '番茄':   { days:90,  seasons:['春'] },
+  '辣椒':   { days:80,  seasons:['春'] },
+  '黄瓜':   { days:60,  seasons:['夏'] },
+  '小白菜': { days:30,  seasons:['春','秋'] },
+  '萝卜':   { days:50,  seasons:['秋'] },
+  '红薯':   { days:120, seasons:['夏'] }
+};
+function _cropInfo(name) { return CROP_TABLE[name] || null; }
+function _currentSeason() { var m = new Date().getMonth()+1; if (m>=3&&m<=5) return '春'; if (m>=6&&m<=8) return '夏'; if (m>=9&&m<=11) return '秋'; return '冬'; }

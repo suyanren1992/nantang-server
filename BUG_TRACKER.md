@@ -279,3 +279,10 @@
 | A-5 | 村落滑动卡片不居中 — initCarousel() 三处缺容器-卡片宽度差补偿，统一 `_cardLeft(i,pw)` 修复 | 7/23 |
 | A-6 | 注册/登录密码框补回小眼睛 — regPwd/loginPwd 各包一层相对容器 + togglePwdEye() | 7/23 |
 | A-12 | 社区动态：三区加 desc 说明 + cr-header min-height:44px + hover/active 反馈。点击真因静态未复现（onclick 逻辑/DOM/z-index 均正常），需浏览器验证 | 7/23 |
+| C-1 | 密码眼睛加 z-index:1 防止被 block 级 input 遮挡点击（a959faf） | 7/24 |
+| C-2 | 滑块提速：移除 CSS scroll-behavior:smooth + 圆点跳转改 behavior:auto（8ecbeb0） | 7/24 |
+| C-4 | 数据库迁 Neon Postgres：DATABASE_URL 环境变量 + PRAGMA/T7 方言守卫 + asyncpg + 轮询 30→60s（e583a88） | 7/24 |
+| C-6 | ✅ Kimi Code 已修（4d0e714）：camelCase 兼容 + refreshUserUI 即时刷新 | 7/23 |
+| C-5 | ✅ Kimi Code 已修（1658adc）：事件委托 + v=5 升版 | 7/23 |
+| C-3 | ✅ Kimi Code 已修（ca245ea）：_cardLeft 改 stride 步进 | 7/23 |
+| C-7 | ✅ Kimi Code 已修（a29198e）：池 500 初始化 | 7/23 |
