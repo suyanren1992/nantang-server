@@ -104,6 +104,13 @@ var LABOR_ACTIONS = [
     { id:'photo_video', label:'拍照/录视频记录', nt:8 },
     { id:'writing', label:'写作/文案', nt:8 }
   ]},
+  { category:'🧠 脑力劳动', icon:'🧠', actions:[
+    { id:'brain_writing', label:'✍️ 写作', nt:10, needEvidence:true },
+    { id:'brain_design', label:'🎨 设计', nt:12, needEvidence:true },
+    { id:'brain_translate', label:'🌐 翻译', nt:10, needEvidence:true },
+    { id:'brain_plan', label:'📊 策划', nt:12, needEvidence:true },
+    { id:'brain_accounting', label:'🧮 算账', nt:10, needEvidence:true }
+  ]},
   { category:'📝 自定义', icon:'✏️', actions:[
     { id:'_custom', label:'其他劳动（手动输入）', nt:5, custom:true }
   ]}
@@ -472,7 +479,10 @@ function _renderVerifyCard(v, isOnsite) {
   var icon = typeIcons[v.type] || '📋';
   var ntAmt = v.ntAmount || v.nt_amount || 0;
   var doerName = v.status==='pending' ? '有成员' : esc((v.doer||'').slice(0,4));
-  var actionText = esc((v.action||'').slice(0,5));
+  var rawAction = v.action||'';
+  var evidencePart = ''; var idx = rawAction.indexOf('🔗');
+  if (idx >= 0) { evidencePart = rawAction.slice(idx+2); rawAction = rawAction.slice(0,idx).trim(); }
+  var actionText = esc(rawAction.slice(0,8));
   var isPending = v.status === 'pending';
   var isVerified = v.status === 'verified';
   var isRejected = v.status === 'rejected' || v.status === 'permanently_rejected';
@@ -500,6 +510,7 @@ function _renderVerifyCard(v, isOnsite) {
   h += '<div style="font-size:.62rem;font-weight:700;color:#1d2e24;line-height:1.2;margin-top:2px">'+doerName+'</div>';
   // 劳动内容
   h += '<div style="font-size:.5rem;color:#5a6e5c;margin-top:1px">'+actionText+'</div>';
+  if (evidencePart) h += '<div style="font-size:.45rem;margin-top:2px"><a href="'+esc(evidencePart)+'" target="_blank" style="color:var(--green-primary)" onclick="event.stopPropagation()">🔗 凭证</a></div>';
   // 时间
   h += '<div style="font-size:.45rem;color:#aaa;margin-top:1px">'+(v.createdAt||'').slice(5,16).replace('T',' ')+'</div>';
 
@@ -893,6 +904,7 @@ function _pickAction(id, label, icon, nt, isCustom) {
   d.actionIcon = icon;
   d.actionNT = nt;
   d.isCustom = isCustom;
+  d.actionNeedEvidence = (id.indexOf('brain_') === 0);  // B-11
 
   if (isCustom) {
     setTimeout(function(){
@@ -955,6 +967,12 @@ function _renderSRStep3() {
   h += '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:2px">📍 '+esc(d.spaceName)+'</div>';
   h += '<div style="font-size:.68rem;color:#1d2e24;margin-bottom:8px">'+d.actionIcon+' '+esc(d.actionLabel)+'  ·  +'+d.actionNT+' NT</div>';
 
+  // B-11: 脑力劳动需要成果凭证
+  var needEvidence = d.actionNeedEvidence || false;
+  if (needEvidence) {
+    h += '<div style="font-size:.62rem;color:#b84c38;margin-bottom:4px">⚠ 脑力劳动需提供成果凭证（必填）</div>';
+    h += '<input id="srEvidence" placeholder="粘贴链接或说明成果在哪（文档/图片/表格）" style="width:100%;padding:10px;border:1px solid #b84c38;border-radius:10px;font-size:.7rem;margin-bottom:8px;background:#fff;color:#1d2e24;font-family:inherit;box-sizing:border-box">';
+  }
   h += '<textarea id="srNote" rows="3" placeholder="补充说明（选填）：擦了台面、拖了地、倒了垃圾…" style="width:100%;padding:10px;border:1px solid var(--green-border);border-radius:10px;font-size:.7rem;margin-bottom:8px;background:#fff;color:#1d2e24;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>';
 
   h += '<div style="font-size:.58rem;color:#5a6e5c;margin-bottom:8px;background:#f8f8f8;padding:8px;border-radius:8px">💡 提交后等待另一位成员验证。通过后 +'+d.actionNT+' NT 到账。</div>';
@@ -1075,13 +1093,16 @@ function _submitDiscGuess(name) {
 function _submitSelfReport() {
   if (!CURRENT_USER) { showToast('请先登录', 'error'); return; }
   var note = (document.getElementById('srNote')||{}).value || '';
+  var evidence = (_srDraft.actionNeedEvidence && document.getElementById('srEvidence')) ? (document.getElementById('srEvidence').value||'').trim() : '';
+  // B-11: 脑力劳动凭证必填
+  if (_srDraft.actionNeedEvidence && !evidence) { showToast('脑力劳动需提供成果凭证（链接或说明）', 'warn'); return; }
   var actionLabel = _srDraft.actionLabel;
   var ntAmount = _getLaborNT(_srDraft.actionId) || _srDraft.actionNT || 5;
-  var fullNote = actionLabel + (note ? ' · ' + note : '');
+  var fullNote = actionLabel + (note ? ' · ' + note : '') + (evidence ? ' 🔗'+evidence : '');
 
   // 写入校核队列
   if (window.AppData && typeof AppData.addVerification === 'function') {
-    AppData.addVerification('labor_report', CURRENT_USER, fullNote, { spaceId: _srDraft.spaceId, actionId: _srDraft.actionId }, ntAmount, Math.ceil(ntAmount/5)||1);
+    AppData.addVerification('labor_report', CURRENT_USER, fullNote, { spaceId: _srDraft.spaceId, actionId: _srDraft.actionId, evidence: evidence }, ntAmount, Math.ceil(ntAmount/5)||1);
   }
 
   // 同时写入卡片室 — 让上报的劳动在卡片室可见
