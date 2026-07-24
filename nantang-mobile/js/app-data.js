@@ -135,7 +135,12 @@ window.AppData = {
     if (this._data.tasks[name]) Object.assign(this._data.tasks[name], updates);
     this._saveShared();
     var srvId = (this._data.tasks[name] && this._data.tasks[name]._srvId) || name;
-    if (typeof API !== 'undefined' && API.token) API.syncTaskUpdate(srvId, updates);
+    // H-7 修复：服务端 TaskUpdate 显式拒绝 status 字段（400），同步前剔除，剔除后无剩余字段则跳过
+    if (typeof API !== 'undefined' && API.token) {
+      var sync = Object.assign({}, updates);
+      delete sync.status; delete sync.action;
+      if (Object.keys(sync).length) API.syncTaskUpdate(srvId, sync);
+    }
   },
   deleteTask: function(name) {
     var srvId = (this._data.tasks[name] && this._data.tasks[name]._srvId) || name;
