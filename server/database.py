@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "nantang_fresh.db")
-DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -23,9 +23,10 @@ async def get_db():
 
 async def init_db():
     async with engine.begin() as conn:
-        # B+1: WAL 提升并发读写；显式开启外键约束（SQLite 默认关闭）
-        await conn.execute(text("PRAGMA journal_mode=WAL"))
-        await conn.execute(text("PRAGMA foreign_keys=ON"))
+        # SQLite 专属 PRAGMA（PG 上跳过，否则报错）
+        if engine.dialect.name == 'sqlite':
+            await conn.execute(text("PRAGMA journal_mode=WAL"))
+            await conn.execute(text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
         # B+3: nt_ledger 高频查询列索引
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_from_user ON nt_ledger(from_user)"))
@@ -92,38 +93,38 @@ async def init_db():
             await session.commit()
         except Exception:
             pass
-        # T7: CampTask 合并到 NTTask — 加 camp_ref_id 列 + 迁移数据
-        try:
-            await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN camp_ref_id TEXT"))
-            await session.commit()
-            # 迁移已有 camp_tasks 数据
-            r2 = await session.execute(text("SELECT * FROM camp_tasks"))
-            keys = r2.keys()
-            rows = [dict(zip(keys, vals)) for vals in r2.fetchall()]
-            import json as _json
-            for row in rows:
-                task_id = f"camp_{row['camp_id']}_{row['id']}"
-                # CampTask claimants JSON → NTTask assignees JSON (name array)
-                claimants_raw = row.get("claimants") or "[]"
-                try: claimants_list = _json.loads(claimants_raw) if isinstance(claimants_raw, str) else claimants_raw
-                except Exception: claimants_list = []
-                assignee_names = [c if isinstance(c, str) else c.get("name", str(c)) for c in claimants_list]
-                await session.execute(text(
-                    "INSERT OR IGNORE INTO nt_tasks(id, poster, title, reward, status, category, scope, note, slots, deadline, reviewer, assignees, camp_ref_id, created_at) "
-                    "VALUES(:id, :poster, :title, :reward, :status, :category, 'camp', :note, :slots, :deadline, :reviewer, :assignees, :camp_ref_id, :created_at)"
-                ), {
-                    "id": task_id, "poster": row.get("poster") or "", "title": row["name"], "reward": row.get("nt") or 0,
-                    "status": row.get("status") or "draft", "category": row.get("type") or "",
-                    "note": row.get("note") or "", "slots": row.get("slots") or 1,
-                    "deadline": row.get("deadline"), "reviewer": row.get("reviewer"),
-                    "assignees": _json.dumps(assignee_names, ensure_ascii=False), "camp_ref_id": row["camp_id"],
-                    "created_at": row.get("created_at")
-                })
-            await session.execute(text("DROP TABLE IF EXISTS camp_tasks"))
-            await session.commit()
-            print(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
-        except Exception as e:
-            print(f"[T7 migration] skipped: {e}")
+        # T7: CampTask 合并到 NTTask — 加 camp_ref_id 列 + 迁移数据（SQLite 专属，PG 新库无此表）
+        if engine.dialect.name == 'sqlite':
+            try:
+                await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN camp_ref_id TEXT"))
+                await session.commit()
+                # 迁移已有 camp_tasks 数据
+                r2 = await session.execute(text("SELECT * FROM camp_tasks"))
+                keys = r2.keys()
+                rows = [dict(zip(keys, vals)) for vals in r2.fetchall()]
+                import json as _json
+                for row in rows:
+                    task_id = f"camp_{row['camp_id']}_{row['id']}"
+                    claimants_raw = row.get("claimants") or "[]"
+                    try: claimants_list = _json.loads(claimants_raw) if isinstance(claimants_raw, str) else claimants_raw
+                    except Exception: claimants_list = []
+                    assignee_names = [c if isinstance(c, str) else c.get("name", str(c)) for c in claimants_list]
+                    await session.execute(text(
+                        "INSERT OR IGNORE INTO nt_tasks(id, poster, title, reward, status, category, scope, note, slots, deadline, reviewer, assignees, camp_ref_id, created_at) "
+                        "VALUES(:id, :poster, :title, :reward, :status, :category, 'camp', :note, :slots, :deadline, :reviewer, :assignees, :camp_ref_id, :created_at)"
+                    ), {
+                        "id": task_id, "poster": row.get("poster") or "", "title": row["name"], "reward": row.get("nt") or 0,
+                        "status": row.get("status") or "draft", "category": row.get("type") or "",
+                        "note": row.get("note") or "", "slots": row.get("slots") or 1,
+                        "deadline": row.get("deadline"), "reviewer": row.get("reviewer"),
+                        "assignees": _json.dumps(assignee_names, ensure_ascii=False), "camp_ref_id": row["camp_id"],
+                        "created_at": row.get("created_at")
+                    })
+                await session.execute(text("DROP TABLE IF EXISTS camp_tasks"))
+                await session.commit()
+                print(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
+            except Exception as e:
+                print(f"[T7 migration] skipped: {e}")
         # T8: card_discoveries 加 doer_name_snapshot 列
         try:
             await session.execute(text("ALTER TABLE card_discoveries ADD COLUMN doer_name_snapshot VARCHAR(64)"))

@@ -290,7 +290,7 @@ var _pollTimer = null;
 function _startPolling() {
   if (_pollTimer) return;
   if (typeof API === 'undefined' || !API.token) return;
-  var _pollInterval = 30000;  // C4: 30s 全量同步
+  var _pollInterval = 60000;  // C4: 60s 全量同步，省 Neon CU-hour
   function _pollCycle() {
     API.request('GET', '/api/nt/sync').then(function(srv) {
       if (srv && (srv.detail === 'unauthorized' || srv.error === '登录过期')) { _stopPolling(); return; }
@@ -301,7 +301,7 @@ function _startPolling() {
     // 退避
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
     _pollInterval = (typeof API !== 'undefined' && API._serverOnline === false)
-      ? Math.min(_pollInterval * 2, 120000) : 30000;
+      ? Math.min(_pollInterval * 2, 120000) : 60000;
     _pollTimer = setInterval(_pollCycle, _pollInterval);
   }
   _pollCycle();  // 立即执行首次，后续由内部 setInterval 递归调度
