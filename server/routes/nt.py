@@ -312,12 +312,12 @@ async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: Asy
 @router.post("/cashout")
 async def cashout(req: TopUpRequest, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     if req.amount <= 0: raise HTTPException(status_code=400, detail="金额必须大于0")
-    target = (await db.execute(select(User).where(User.id == req.user))).scalar_one_or_none()
+    target = (await db.execute(select(User).where(User.id == req.user).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
     if not target: raise HTTPException(status_code=404, detail="用户不存在")
     if target.nt_balance < req.amount:
         raise HTTPException(status_code=400, detail=f"余额不足（当前 {target.nt_balance} NT）")
     target.nt_balance -= req.amount; target.updated_at = datetime.utcnow().isoformat()
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)
     if pool.total_issued < req.amount: raise HTTPException(status_code=400, detail="系统发行量不足")
     pool.total_issued -= req.amount
     lid = _ledger_id()
@@ -338,6 +338,12 @@ async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
     addr = req.to_address or user.wallet_address
     if not addr or not Web3.is_address(addr):
         raise HTTPException(400, "请先设置有效的钱包地址（0x开头40位）")
+
+    # D-5 H-2/H-3: 事务内重查加行锁（防并发双重扣款/下溢；populate_existing 读到锁定行最新值）
+    user = (await db.execute(
+        select(User).where(User.id == user.id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one()
     if user.nt_balance < req.amount:
         raise HTTPException(400, f"余额不足（当前 {user.nt_balance} NT）")
     if user.trust_score < 60:
@@ -422,6 +428,12 @@ async def create_deposit_intent(req: DepositIntentRequest, user: User = Depends(
     from_addr = req.from_address or user.wallet_address
     if not from_addr:
         raise HTTPException(status_code=400, detail="请先在个人资料中设置钱包地址")
+
+    # D-5 M-11: 加锁重查——防并发重复创建充值意向（TOCTOU）
+    user = (await db.execute(
+        select(User).where(User.id == user.id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one()
 
     # 有进行中的意向时复用，不重复创建
     existing = (await db.execute(
@@ -560,7 +572,10 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
         else:
             pool.task_escrow -= task.escrow_amount
         for aid in assignee_ids:
-            a = (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
+            a = (await db.execute(
+                select(User).where(User.id == aid)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one_or_none()
             if a:
                 a.nt_balance += task.reward
                 a.experience_value += task.reward
