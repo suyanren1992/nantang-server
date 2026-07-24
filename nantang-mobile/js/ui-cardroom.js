@@ -457,7 +457,7 @@ function _renderVerifyCard(v, isOnsite) {
   var typeIcons = {cleaning:'🧹',stock_in:'📦',stock_out:'🗑',field_harvest:'🌿',field_action:'🌿',quest:'📋',stay:'🛏️',labor_report:'📝',cooking:'🍳',farming:'🌿'};
   var icon = typeIcons[v.type] || '📋';
   var ntAmt = v.ntAmount || v.nt_amount || 0;
-  var doerName = esc((v.doer||'').slice(0,4));
+  var doerName = v.status==='pending' ? '有成员' : esc((v.doer||'').slice(0,4));
   var actionText = esc((v.action||'').slice(0,5));
   var isPending = v.status === 'pending';
   var isVerified = v.status === 'verified';
@@ -712,7 +712,7 @@ function openPathChooser() {
   h += '</div>';
 
   // 备选：需要帮忙
-  h += '<div onclick="closeDiscoveryForm();openPublishTask()" style="background:#fff;border:1.5px solid #d0d9ce;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer">';
+  h += '<div onclick="closeDiscoveryForm();openQuestHallPage()" style="background:#fff;border:1.5px solid #d0d9ce;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer">';
   h += '<div style="font-size:1.2rem;margin-bottom:4px">📝 我需要帮忙</div>';
   h += '<div style="font-size:.6rem;color:#5a6e5c">发布委托任务，请别人帮忙做一件事</div>';
   h += '</div>';
