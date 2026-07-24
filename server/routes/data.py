@@ -370,6 +370,9 @@ async def add_inventory(req: InventoryReq, user: User = Depends(get_current_user
 # ══ 统一共享数据推送 ══
 @router.post("/sync_shared")
 async def sync_shared(req: dict, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # D-8 第一步：兼容前端 camel/snake 混用（旧前端发 map_locations(snake) + canteenMenu(camel)）
+    _ml = req.get("map_locations") or req.get("mapLocations")
+    _cm = req.get("canteenMenu") or req.get("canteen_menu")
     # 营地（仅管理员可创建）
     if req.get("camps") and isinstance(req.get("camps"), dict) and user.role == "admin":
         for camp_id, camp_data in req["camps"].items():
@@ -378,14 +381,14 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
                 db.add(Camp(id=camp_id, name=camp_data.get("name",""), created_by=user.id,
                            created_at=datetime.utcnow().isoformat()))
     # 地图（仅管理员可覆盖）
-    if req.get("map_locations") and user.role == "admin":
+    if _ml and user.role == "admin":
         ml = (await db.execute(select(MapLocation).where(MapLocation.key == "shared"))).scalar_one_or_none()
         if not ml:
             ml = MapLocation(key="shared"); db.add(ml)
-        ml.data = json.dumps(req["map_locations"], ensure_ascii=False)
+        ml.data = json.dumps(_ml, ensure_ascii=False)
     # 食堂菜单（仅管理员可设置）
-    if req.get("canteenMenu") and user.role == "admin":
-        for date, menu in req["canteenMenu"].items():
+    if _cm and user.role == "admin":
+        for date, menu in _cm.items():
             existing = (await db.execute(select(CanteenMenu).where(CanteenMenu.date == date))).scalar_one_or_none()
             if not existing:
                 db.add(CanteenMenu(date=date, lunch=json.dumps(menu.get("lunch",[]), ensure_ascii=False),
