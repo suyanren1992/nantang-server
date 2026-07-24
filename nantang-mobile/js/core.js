@@ -189,25 +189,30 @@ function _adminPublishTask() {
 // ── 管理员配置 ──
 function openAdminConfig(){
   var cfg = (window.AppData&&AppData._data.map_locations&&AppData._data.map_locations.config) ? AppData._data.map_locations.config : {};
-  var p = cfg.cleaning_pricing||{}; document.getElementById('cfgCleanDirty').value=p.dirty||20; document.getElementById('cfgCleanWarn').value=p.warning||15; document.getElementById('cfgCleanOk').value=p.clean||5;
-  var r = cfg.nt_rewards||{}; document.getElementById('cfgStockIn').value=r.stock_in||2; document.getElementById('cfgStockOut').value=r.stock_out||1; document.getElementById('cfgCleanReward').value=r.cleaning||10;
-  document.getElementById('cfgExpiryDays').value=cfg.item_expiry_days||5;
-  var t=cfg.dirtiness_thresholds||{}; document.getElementById('cfgThGreen').value=t.green||30; document.getElementById('cfgThYellow').value=t.yellow||60; document.getElementById('cfgThRed').value=t.red||80;
   var _cfgOverlay=document.createElement('div'); _cfgOverlay.className='ci-overlay';
   _cfgOverlay.innerHTML='<div class="ci-card"><div class="ci-head"><span class="ci-title">⚙️ 地图配置</span><button class="ci-close" onclick="this.closest(\'.ci-overlay\').remove()">✕</button></div>'+document.getElementById('overlayAdminConfig').querySelector('.overlay-body').innerHTML+'</div>';
   _cfgOverlay.addEventListener('click',function(e){if(e.target===_cfgOverlay)_cfgOverlay.remove()});
   document.body.appendChild(_cfgOverlay);
+  // 先克隆再在克隆层内填值：克隆后 getElementById 命中的仍是隐藏模板，必须用 overlay 作用域
+  var q=function(id){return _cfgOverlay.querySelector('#'+id);};
+  var p = cfg.cleaning_pricing||{}; q('#cfgCleanDirty').value=p.dirty||20; q('#cfgCleanWarn').value=p.warning||15; q('#cfgCleanOk').value=p.clean||5;
+  var r = cfg.nt_rewards||{}; q('#cfgStockIn').value=r.stock_in||2; q('#cfgStockOut').value=r.stock_out||1; q('#cfgCleanReward').value=r.cleaning||10;
+  q('#cfgExpiryDays').value=cfg.item_expiry_days||5;
+  var t=cfg.dirtiness_thresholds||{}; q('#cfgThGreen').value=t.green||30; q('#cfgThYellow').value=t.yellow||60; q('#cfgThRed').value=t.red||80;
 }
 function saveAdminConfig(){
   if(!window.AppData)return;
   var cu=(typeof getUsers==='function'?getUsers():{})[CURRENT_USER];
   if(!cu||cu.role!=='admin'){showToast('权限不足，仅管理员可操作','error');return;}
+  // 读克隆层内的输入值（模板里的同名 id 是隐藏原件，直接 getElementById 会读错）
+  var _ov=document.querySelector('.ci-overlay');
+  var _cfgEl=function(id){ var e=_ov?_ov.querySelector('#'+id):null; return e||document.getElementById(id); };
   var ml = AppData._data.map_locations || {};
   ml.config = ml.config || {};
-  ml.config.cleaning_pricing = { dirty: parseInt(document.getElementById('cfgCleanDirty').value,10)||20, warning: parseInt(document.getElementById('cfgCleanWarn').value,10)||15, clean: parseInt(document.getElementById('cfgCleanOk').value,10)||5 };
-  ml.config.nt_rewards = { stock_in: parseInt(document.getElementById('cfgStockIn').value,10)||2, stock_out: parseInt(document.getElementById('cfgStockOut').value,10)||1, cleaning: parseInt(document.getElementById('cfgCleanReward').value,10)||10 };
-  ml.config.item_expiry_days = parseInt(document.getElementById('cfgExpiryDays').value,10)||5;
-  ml.config.dirtiness_thresholds = { green: parseInt(document.getElementById('cfgThGreen').value,10)||30, yellow: parseInt(document.getElementById('cfgThYellow').value,10)||60, red: parseInt(document.getElementById('cfgThRed').value,10)||80 };
+  ml.config.cleaning_pricing = { dirty: parseInt(_cfgEl('cfgCleanDirty').value,10)||20, warning: parseInt(_cfgEl('cfgCleanWarn').value,10)||15, clean: parseInt(_cfgEl('cfgCleanOk').value,10)||5 };
+  ml.config.nt_rewards = { stock_in: parseInt(_cfgEl('cfgStockIn').value,10)||2, stock_out: parseInt(_cfgEl('cfgStockOut').value,10)||1, cleaning: parseInt(_cfgEl('cfgCleanReward').value,10)||10 };
+  ml.config.item_expiry_days = parseInt(_cfgEl('cfgExpiryDays').value,10)||5;
+  ml.config.dirtiness_thresholds = { green: parseInt(_cfgEl('cfgThGreen').value,10)||30, yellow: parseInt(_cfgEl('cfgThYellow').value,10)||60, red: parseInt(_cfgEl('cfgThRed').value,10)||80 };
   // 保留现有 dirtiness_rates（从 config 或默认值）
   ml.config.dirtiness_rates = ml.config.dirtiness_rates || { bathroom:15, kitchen:10, hallway:8, studio:8, bedroom:5, laundry:5, storage:3, outdoor:2, field:0 };
   AppData._saveShared();
@@ -987,6 +992,14 @@ function enterVillage(){
       API.syncAll(function(data) {
         if (data && !data.detail && !data._offline && data.ok !== false) _mergeSyncData(data);
       });
+      // E 修复：拉取服务端用户列表补全本地 users 字典（在地人员/翻牌区依赖它，此前只读 localStorage 常为空）
+      API.request('GET', '/api/auth/users').then(function(list){
+        if (Array.isArray(list) && list.length) {
+          var users = getUsers(); var changed = false;
+          list.forEach(function(u){ if (!users[u.name]) { users[u.name] = { name:u.name, avatar_seed:u.avatar_seed||u.name, role:'visitor' }; changed = true; } });
+          if (changed) saveUsers(users);
+        }
+      }).catch(function(e){ console.warn('[users] pull failed', e); });
       // CR2: 先 sync 后 tick——避免 tick 余额变更被 sync 旧数据覆盖
       API.request('GET', '/api/nt/sync').then(function(srv) {
         if (srv && !srv.detail) _mergeNTSyncData(srv);
@@ -1193,9 +1206,9 @@ function refreshUserUI(){
   if(mapFrame&&mapFrame.contentWindow){
     try{mapFrame.contentWindow.postMessage({type:'userData',data:Game.getUser()},'*')}catch(e){}
   }
-  // Phase 2: 管理员入口
+  // Phase 2: 管理员入口（角色以服务端为准，本地 users 字典可能缺 role 字段导致按钮永不显示）
   var cfgBtn=document.getElementById('ubAdminCfgBtn');
-  if(cfgBtn){var ur=(getUsers()[u]||{}).role||'';cfgBtn.style.display=(ur==='admin')?'':'none';}
+  if(cfgBtn){var ur=(typeof API!=='undefined'&&API.user&&API.user.role)?API.user.role:((getUsers()[u]||{}).role||'');cfgBtn.style.display=(ur==='admin')?'':'none';}
   // Phase 2: 动态统计
   var dateEl=document.getElementById('ubStatDate'); if(dateEl) dateEl.textContent='📅 '+(typeof Clock!=='undefined'?Clock.today():today()).slice(5);
   var ml = (window.AppData&&AppData._data.map_locations) ? AppData._data.map_locations : null;
@@ -1204,7 +1217,7 @@ function refreshUserUI(){
     if(cl&&cl.spaces){ Object.keys(cl.spaces).forEach(function(s){ var d=cl.spaces[s].dirtiness||0; if(d>60)dc++; }); }
     var dirtEl=document.getElementById('ubStatDirt'); if(dirtEl){ dirtEl.textContent=dc>0?'🔴'+dc+'处需清洁':'🟢整洁'; }
     var presence = (window.AppData && AppData._data.presence) ? AppData._data.presence : {};
-    var pplCount = Object.values(presence).filter(function(p){return p.status==='在地';}).length || 0;
+    var pplCount = Object.values(presence).filter(function(p){return p.status==='onsite'||p.status==='在地';}).length || 0;
     var pplEl=document.getElementById('ubStatPeople'); if(pplEl) pplEl.textContent='👤'+pplCount+'人在线';
     // 校核铃铛 badge
     var vBadge=document.getElementById('ubVerifyBadge'); if(vBadge){ var vCnt=(AppData._data.pendingVerifications||[]).filter(function(v){return v.status==='pending';}).length; vBadge.textContent=vCnt; vBadge.style.display=vCnt>0?'inline':'none'; }

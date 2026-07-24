@@ -307,6 +307,10 @@ this._data.map_locations.people_on_site = [];
     this._data.journal.unshift(entry);
     if (this._data.journal.length > 200) this._data.journal.length = 200;
     this._savePrivate();
+    // E 修复：同步到服务端（此前 API.syncJournal 是死代码，时间线跨设备永远为空）
+    if (typeof API !== 'undefined' && API.token && typeof API.syncJournal === 'function') {
+      try { API.syncJournal(entry); } catch(e) { console.warn('[journal] sync failed', e); }
+    }
   },
 
   // ══ 校核制 ══

@@ -48,6 +48,12 @@
   --g-font-size-lg:  1.1rem;
   --g-font-size-xl:  1.5rem;
   --g-trans:         0.15s ease;
+  /* 入住/住宿 sheet 内联样式使用的旧短名变量（未定义会导致白字白底按钮等样式失效） */
+  --gp: var(--green-primary, #3d6b52);
+  --tx: var(--g-text);
+  --t2: var(--g-text-dim);
+  --rd: var(--g-red);
+  --ga: var(--g-warn);
 }
 * { box-sizing:border-box; margin:0; padding:0; }
 html, body { height:100%; overflow:hidden; }
@@ -311,14 +317,8 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
   border-top:1px solid var(--g-card-border); position:relative; overflow:hidden;
   padding:2px 0;
 }
-/* 固定居中指示器——框框不动，图标滑进来 */
-.bottom-carousel::before {
-  content:''; position:absolute; z-index:3; pointer-events:none;
-  left:50%; top:4px; bottom:4px; width:64px;
-  transform:translateX(-50%);
-  border:2px solid var(--green-primary); border-radius:14px;
-  background:rgba(61,107,82,.06);
-}
+/* 居中指示器已废弃：与下方渐变遮罩 ::before 冲突，残留的 border+transform
+   会在滑块左侧露出半个绿框（用户反馈的"蓝绿色线框"）。统一由 ::after/::before 渐变遮罩负责边缘。 */
 .bc-track {
   display:flex; align-items:center; height:100%;
   overflow-x:auto; scroll-snap-type:x mandatory;

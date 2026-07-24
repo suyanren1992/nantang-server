@@ -300,9 +300,9 @@ function _renderMgmtCards() {
 }
 
 function _renderQuickEntryCards() {
+  // D 修复：「打扫卫生」快捷卡从全貌页移除（大扫除走管理面板入口，避免双入口混淆）
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
     '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:.65rem;font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:.65rem;font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">日常清洁</div></div>'+
     '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:.65rem;font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>'+
   '</div>';
 }
@@ -1106,10 +1106,15 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 
 // 管理卡片点击 → 弹窗
 function _openMgmtSheet(type) {
-  if (type === 'kitchen') { _showFridgeSheet(); return; }
+  if (type === 'kitchen') { _showCardPopup('🍳 厨房 · 冰箱', renderKitchenPanel()||'', null, true); return; }  // J 修复：统一用 B-2 双开门面板，废弃旧储物区弹层
   if (type === 'field')   { _showFieldSheet(); return; }
   if (type === 'cleaning') { _showCardPopup('🧹 大扫除管理', renderCleaningPanel()||'', null, true); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
+}
+// J 修复：厨房面板可能开在建筑页 mgmtOverlay 或全貌页弹层（.mgmt-sheet），重绘时按当前容器选择
+function _rerenderKitchen() {
+  if (document.querySelector('.mgmt-sheet')) { _openMgmtSheet('kitchen'); }
+  else { renderMgmtPanel('kitchen'); }
 }
 
 function _showFridgeSheet() {
@@ -1977,8 +1982,8 @@ function _renderFridgeItem(it) {
   return '<div class="fridge-item">📦 '+it.name+' · '+(it.putBy||'')+' · '+(it.putDate||'')+' <span class="'+cls+'">'+tag+'</span></div>';
 }
 
-function _toggleFridgeComp(comp) { _kOpen['comp_'+comp] = !_kOpen['comp_'+comp]; renderMgmtPanel('kitchen'); }
-function _toggleKitchenZone(zid) { _kOpen[zid] = !_kOpen[zid]; renderMgmtPanel('kitchen'); }
+function _toggleFridgeComp(comp) { _kOpen['comp_'+comp] = !_kOpen['comp_'+comp]; _rerenderKitchen(); }
+function _toggleKitchenZone(zid) { _kOpen[zid] = !_kOpen[zid]; _rerenderKitchen(); }
 
 function _submitKitchenLog() {
   var action = (_d('kpAction')||{}).value;
@@ -1990,14 +1995,16 @@ function _submitKitchenLog() {
   _mgmtFormType = '';
   // Step 2: 同步到 AppData 持久存储
   if (window.Game&&Game.toast) Game.toast(action+' '+item);
-  _syncItemToAppData(action, item, location);
-  renderMgmtPanel('kitchen');
+  _syncItemToAppData(action, item, location, false, 'office');
+  _rerenderKitchen();
 }
 // Step 2: 物品操作同步到 AppData + NT 奖励（skipVerify=true 时只同步库存，校核记录由调用方写）
-function _syncItemToAppData(action, itemName, location, skipVerify) {
+function _syncItemToAppData(action, itemName, location, skipVerify, spaceOverride) {
   if (!window.AppData) return;
   var inv = AppData._data.inventory;
-  var spaceId = (curBuilding()||{}).id || 'unknown';
+  // 厨房面板从全貌页打开时 curBuilding 是 info，会写错空间导致冰箱永不更新；
+  // 调用方可传 spaceOverride 强制目标空间（厨房固定 'office'）
+  var spaceId = spaceOverride || (curBuilding()||{}).id || 'unknown';
   if (!inv[spaceId]) inv[spaceId] = [];
   if (action === '放入物品') {
     var cfg = _mlConfig();

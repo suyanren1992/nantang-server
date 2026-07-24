@@ -511,7 +511,7 @@ function showConfirm(msg,onOk){
   document.querySelectorAll('.confirm-card').forEach(function(c){c.remove()});
   var d=document.createElement('div');d.className='confirm-card';
   d.style.cssText='position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);animation:fadeIn .15s ease-out';
-  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:260px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.82rem;font-weight:700;margin-bottom:12px">'+encodeURIComponent(msg)+'</div><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 onclick="this.closest(\'.confirm-card\').remove()">取消</button><button class="btn-sm danger" style=flex:1 id="confirmOkBtn">确认</button></div></div>';
+  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:260px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.82rem;font-weight:700;margin-bottom:12px;line-height:1.6">'+esc(msg).replace(/\n/g,'<br>')+'</div><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 onclick="this.closest(\'.confirm-card\').remove()">取消</button><button class="btn-sm danger" style=flex:1 id="confirmOkBtn">确认</button></div></div>';
   document.body.appendChild(d);
   document.getElementById('confirmOkBtn').addEventListener('click',function(){d.remove();if(onOk)onOk()});
 }
