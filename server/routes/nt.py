@@ -94,9 +94,11 @@ async def get_balance(user: User = Depends(get_current_user)):
 async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     """全量同步：余额/CV/XP/角色/流水/任务/充值意图/冻结余额。Phase C0。"""
     # 用户的任务（发布或认领）
+    # D-4: LIKE 拼接前剔除通配符（存量 %/_ 用户名账号兜底，防注入看全量）
+    uid = user.id.replace('%', '').replace('_', '')
     tasks_r = await db.execute(
         select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{user.id}"%'))
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{uid}"%'))
         ).order_by(NTTask.created_at.desc())
     )
     all_tasks = list(tasks_r.scalars())

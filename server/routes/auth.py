@@ -1,5 +1,6 @@
 """Authentication: register, login, refresh (httpOnly cookie), logout."""
 import os
+import re
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,6 +63,8 @@ async def require_admin(user: User = Depends(get_current_user)):
 @router.post("/register")
 async def register(req: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
     if not req.name or len(req.name) > 64: return JSONResponse({"ok": False, "error": "用户名需为1-64字符"})
+    # D-4 H-1: 用户名字符白名单（中英文/数字/下划线），堵 LIKE 通配符注入入口
+    if not re.fullmatch(r"[a-zA-Z0-9_一-龥]+", req.name): return JSONResponse({"ok": False, "error": "用户名仅限中英文、数字、下划线"})
     if len(req.password) < 8: return JSONResponse({"ok": False, "error": "密码至少8位"})
     # D-3 CR-2: 邀请制——INVITE_CODES 环境变量（逗号分隔码池）；未设置/为空=邀请制关闭，向后兼容
     _codes = os.environ.get("INVITE_CODES", "")
