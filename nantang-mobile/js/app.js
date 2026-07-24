@@ -1874,95 +1874,85 @@ function _submitFieldLog() {
 /* ══════════════════════════════════════
    🍳 厨房管理（我的视角）
    ══════════════════════════════════════ */
+var _kOpen = {};
 function renderKitchenPanel() {
-  var kitchenRoom = null;
-  var office = getBuildings().find(function(b) { return b.id==='office'; });
-  if (office&&office.floors) {
-    Object.keys(office.floors).forEach(function(fk) {
-      (office.floors[fk]||[]).forEach(function(r) { if (r.id==='kitchen') kitchenRoom=r; });
-    });
-  }
-  var items = (kitchenRoom&&kitchenRoom.items)||[];
-  var actions = ['放入物品','取出/消耗','打扫','做饭','其他'];
-  var me = _me();
-  var h = '';
+  var me = _me(); var h = '';
+  // 收集冰箱物品
+  var inv = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
+  var upperItems = inv.filter(function(it){ return (it.location||'').indexOf('fridge')>=0 || (it.location||'').indexOf('冷藏')>=0 || (it.location||'').indexOf('上层')>=0; });
+  var lowerItems = inv.filter(function(it){ return (it.location||'').indexOf('冷冻')>=0 || (it.location||'').indexOf('下层')>=0; });
+  if (!upperItems.length && !lowerItems.length) { upperItems = inv.slice(); }
+  var upperWarn = upperItems.filter(function(i){ return _itemExpired(i)==='warn'||_itemExpired(i)==='expired'; }).length;
+  var lowerWarn = lowerItems.filter(function(i){ return _itemExpired(i)==='warn'||_itemExpired(i)==='expired'; }).length;
 
-  // ═══ 提醒 ═══
+  // ═══ ① 提醒 ═══
   h += '<div class="mgmt-reminders">';
-  var kw = _roomItems('kitchen').filter(function(i){return i.status==='warn';});
-  var tw = _roomItems('toilet_r').filter(function(i){return i.status==='warn';});
-  kw.forEach(function(i){ h += '<div class="mr-item warn">'+i.icon+' '+i.text+' · '+i.sub+' · 建议尽快处理</div>'; });
-  tw.forEach(function(i){ h += '<div class="mr-item info">'+i.icon+' '+i.text+' · '+i.sub+' · 可考虑补货</div>'; });
-  if (!kw.length && !tw.length) h += '<div class="mr-item ok">🟢 物品充足，无需补充</div>';
+  if (upperWarn+lowerWarn > 0) h += '<div class="mr-item warn">⚠ 冰箱 '+upperWarn+lowerWarn+' 件物品临期/过期 · 建议清理</div>';
+  h += '<div class="mr-item info">🧊 冷冻 '+lowerItems.length+'件 · 冷藏 '+upperItems.length+'件</div>';
   h += '</div>';
 
-  // ═══ 操作按钮 ═══
+  // ═══ ② 操作按钮 ═══
   h += '<div class="mgmt-actions">';
-  h += '<button class="ma-btn primary" onclick="_toggleForm(\'kitchen\')">📝 我在厨房做了什么</button>';
+  h += '<button class="ma-btn primary" onclick="_toggleForm(\'kitchen\')">🍳 做饭</button>';
+  h += '<button class="ma-btn secondary" onclick="_toggleForm(\'kitchenAdd\')">＋ 放入物品</button>';
   h += '</div>';
 
-  // ── 快速表单 ──
+  // ── 快速表单 A：操作记录 ──
   h += '<div class="mgmt-quick-form' + (_mgmtFormType==='kitchen'?' open':'') + '">';
   h += '<div class="qf-title">✏️ 我（'+me+'）在厨房的操作</div>';
-  h += '<div class="qf-row"><select id="kpAction">'+actions.map(function(a){return '<option>'+a+'</option>';}).join('')+'</select>';
+  h += '<div class="qf-row"><select id="kpAction"><option>放入物品</option><option>取出/消耗</option><option>打扫</option><option>做饭</option><option>其他</option></select>';
   h += ' <input id="kpItem" placeholder="物品名（必填）">';
-  h += ' <input id="kpLoc" placeholder="位置" style="width:80px" value="冰箱上层">';
+  h += ' <input id="kpLoc" placeholder="位置" style="width:80px" value="冰箱冷藏">';
   h += ' <button class="qf-submit" onclick="_submitKitchenLog()">✓ 记录</button></div>';
   h += '</div>';
-
-  // ═══ 章8: 冰箱分区 ═══
-  h += '<div class="section-label">🧊 冰箱</div>';
-  var zones = [
-    { key:'fridge_upper', name:'🧊 冷藏上层', items:[] },
-    { key:'fridge_lower', name:'❄️ 冷冻下层', items:[] },
-    { key:'fridge_door', name:'🚪 门架', items:[] },
-    { key:'storage', name:'📦 储物间', items:[] }
-  ];
-  var inv = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
-  inv.forEach(function(it) {
-    var z = zones.find(function(z){ return z.key === (it.location||''); }) || zones[3];
-    z.items.push(it);
-  });
-  zones.forEach(function(z) {
-    if (!z.items.length) return;
-    h += '<div style="font-size:.62rem;font-weight:600;color:#5a6e5c;margin:4px 0 2px">'+z.name+' ('+z.items.length+'件)</div>';
-    z.items.forEach(function(it) {
-      var expireWarn = '';
-      if (it.expiryDays && it.putDate) {
-        var daysLeft = it.expiryDays - Math.floor((new Date() - new Date(it.putDate+'T00:00:00'))/86400000);
-        if (daysLeft <= 0) expireWarn = ' <span style="color:var(--g-red)">⚠已过期</span>';
-        else if (daysLeft <= 2) expireWarn = ' <span style="color:#c8892e">⚠'+daysLeft+'天</span>';
-      }
-      h += '<div class="item-row" style="font-size:.62rem"><span>📦</span> '+it.name+' · '+it.putBy+expireWarn+'</div>';
-    });
-  });
-  // 其他空间的库存（快捷录入按建筑 id 归集；office 已在上面的冰箱分区展示）
-  var invAll = (window.AppData && AppData._data.inventory) ? AppData._data.inventory : {};
-  Object.keys(invAll).forEach(function(sid) {
-    if (sid === 'office') return;
-    var list = (invAll[sid]||[]).filter(function(it){ return it.status === 'fresh'; });
-    if (!list.length) return;
-    h += '<div style="font-size:.62rem;font-weight:600;color:#5a6e5c;margin:4px 0 2px">📍 '+sid+' ('+list.length+'件)</div>';
-    list.forEach(function(it) {
-      h += '<div class="item-row" style="font-size:.62rem"><span>📦</span> '+it.name+' · '+(it.putBy||'')+' · '+(it.location||'')+'</div>';
-    });
-  });
-  // ═══ 物品卡片 ═══
-  h += '<div class="mgmt-card-grid">';
-  items.forEach(function(it) {
-    var statusColor = it.status==='warn'?'var(--g-warn)':it.status==='expired'?'var(--g-red)':'var(--g-green)';
-    var statusLabel = it.status==='warn'?'⚠注意':it.status==='expired'?'❌过期':'🟢新鲜';
-    h += '<div class="mgmt-card">';
-    h += '<span class="mc-icon">'+it.icon+'</span>';
-    h += '<div class="mc-name">'+it.text+'</div>';
-    h += '<div class="mc-sub">'+(it.sub||'')+'</div>';
-    h += '<div class="mc-sub" style="color:'+statusColor+';font-weight:600">'+statusLabel+'</div>';
-    h += '</div>';
-  });
-  if (items.length===0) h += '<div style="grid-column:1/-1;color:var(--g-text-dim);font-size:var(--g-font-size-xs);text-align:center;padding:16px">暂无物品记录</div>';
+  // ── 快速表单 B：放入物品 ──
+  h += '<div class="mgmt-quick-form' + (_mgmtFormType==='kitchenAdd'?' open':'') + '">';
+  h += '<div class="qf-title">＋ 往冰箱加东西</div>';
+  h += '<div class="qf-row"><input id="kpItem2" placeholder="物品名（必填）">';
+  h += ' <select id="kpLoc2"><option value="冷藏">❄️ 冷藏</option><option value="冷冻">🧊 冷冻</option></select>';
+  h += ' <button class="qf-submit" onclick="var a=_d(\'kpItem2\'),b=_d(\'kpLoc2\');var n=a?a.value:\'\';if(!n.trim())return;var l=b?b.value:\'冷藏\';_d(\'kpItem\').value=n;_d(\'kpLoc\').value=l;_d(\'kpAction\').value=\'放入物品\';_submitKitchenLog()">✓ 放进去</button></div>';
   h += '</div>';
 
-  // ═══ 历史 ═══
+  // ═══ ③ 冰箱双门 ═══
+  h += '<div style="font-weight:700;font-size:.72rem;margin:8px 0 4px">🧊 双开门冰箱</div>';
+  var lowerOpen = _kOpen['comp_lower']||false, upperOpen = _kOpen['comp_upper']||false;
+  h += '<div class="fridge-doors">';
+  // 左门：冷冻
+  h += '<div class="fridge-door-card'+(lowerOpen?' open':'')+'"><div class="fridge-door-head" onclick="_toggleFridgeComp(\'lower\')"><div class="fridge-door-handle"></div><div class="fridge-door-icon">🧊</div><div class="fridge-door-label">冷冻室</div><div class="fridge-door-temp">-18°C</div><div class="fridge-door-count">'+lowerItems.length+'件'+(lowerWarn?' <span style="color:#c8892e">⚠'+lowerWarn+'</span>':'')+'</div></div><div class="fridge-door-arrow">'+(lowerOpen?'▲ 收起':'▼ 展开')+'</div></div>';
+  // 右门：冷藏
+  h += '<div class="fridge-door-card'+(upperOpen?' open':'')+'"><div class="fridge-door-head" onclick="_toggleFridgeComp(\'upper\')"><div class="fridge-door-handle"></div><div class="fridge-door-icon">❄️</div><div class="fridge-door-label">冷藏室</div><div class="fridge-door-temp">0-4°C</div><div class="fridge-door-count">'+upperItems.length+'件'+(upperWarn?' <span style="color:#c8892e">⚠'+upperWarn+'</span>':'')+'</div></div><div class="fridge-door-arrow">'+(upperOpen?'▲ 收起':'▼ 展开')+'</div></div>';
+  h += '</div>';
+  // 物品面板
+  h += '<div class="fridge-body-panel'+(lowerOpen?' open':'')+'"><div class="fridge-item" style="font-weight:600;color:#5a6e5c">🧊 冷冻室物品</div>';
+  if (!lowerItems.length) h += '<div class="fridge-item" style="color:#999">冷冻室暂无物品</div>';
+  else lowerItems.forEach(function(it){ h += _renderFridgeItem(it); });
+  h += '</div>';
+  h += '<div class="fridge-body-panel'+(upperOpen?' open':'')+'"><div class="fridge-item" style="font-weight:600;color:#5a6e5c">❄️ 冷藏室物品</div>';
+  if (!upperItems.length) h += '<div class="fridge-item" style="color:#999">冷藏室暂无物品</div>';
+  else upperItems.forEach(function(it){ h += _renderFridgeItem(it); });
+  h += '</div>';
+
+  // ═══ ④ 其他储物区（手风琴）═══
+  var otherZones = [
+    { id:'basket', icon:'🧺', name:'菜篮架', desc:'冰箱旁 · 常温蔬果' },
+    { id:'spice', icon:'🧂', name:'调料区', desc:'橱柜下层' },
+    { id:'noodle', icon:'🍜', name:'粉面区', desc:'橱柜中层' },
+    { id:'delivery', icon:'📦', name:'快递区', desc:'入口右侧' }
+  ];
+  var invAll = (window.AppData && AppData._data.inventory) ? AppData._data.inventory : {};
+  otherZones.forEach(function(z) {
+    var zItems = (invAll[z.id]||[]).filter(function(it){ return it.status !== 'expired'; });
+    var isOpen = _kOpen[z.id]||false;
+    h += '<div class="mgmt-card" style="cursor:pointer;margin:4px 0;padding:8px 12px;text-align:left" onclick="_toggleKitchenZone(\''+z.id+'\')"><div style="display:flex;align-items:center;gap:8px"><span>'+z.icon+'</span><div style="flex:1"><div style="font-weight:600;font-size:.68rem">'+z.name+'</div><div style="font-size:.58rem;color:#999">'+z.desc+' · '+zItems.length+'件</div></div><span style="font-size:.6rem;color:#999">'+(isOpen?'▾':'▸')+'</span></div></div>';
+    if (isOpen) {
+      h += '<div style="padding:0 12px">';
+      if (!zItems.length) h += '<div style="color:#999;font-size:.6rem;padding:4px 0">暂无物品</div>';
+      else zItems.forEach(function(it){ h += _renderFridgeItem(it); });
+      h += '</div>';
+    }
+  });
+
+  // ═══ ⑤ 历史 ═══
   h += '<div class="mgmt-history"><div class="mas-title" style="margin-bottom:4px">📜 操作记录</div>';
   MGMT_DATA.kitchen.history.forEach(function(hi) {
     h += '<div class="mh-item">'+hi.date+' · '+hi.person+' · '+hi.action+' · '+hi.item+(hi.location?' @'+hi.location:'')+'</div>';
@@ -1971,6 +1961,24 @@ function renderKitchenPanel() {
 
   return h;
 }
+
+function _itemExpired(it) {
+  if (!it.expiryDays || !it.putDate) return 'ok';
+  var daysLeft = it.expiryDays - Math.floor((new Date() - new Date(it.putDate+'T00:00:00'))/86400000);
+  if (daysLeft <= 0) return 'expired';
+  if (daysLeft <= 2) return 'warn';
+  return 'fresh';
+}
+
+function _renderFridgeItem(it) {
+  var status = _itemExpired(it);
+  var tag = {fresh:'🟢新鲜', warn:'⚠剩'+(it.expiryDays-Math.floor((new Date()-new Date(it.putDate+'T00:00:00'))/86400000))+'天', expired:'❌过期'}[status]||'';
+  var cls = 'fi-tag '+(status==='expired'?'expired':status==='warn'?'warn':'fresh');
+  return '<div class="fridge-item">📦 '+it.name+' · '+(it.putBy||'')+' · '+(it.putDate||'')+' <span class="'+cls+'">'+tag+'</span></div>';
+}
+
+function _toggleFridgeComp(comp) { _kOpen['comp_'+comp] = !_kOpen['comp_'+comp]; renderMgmtPanel('kitchen'); }
+function _toggleKitchenZone(zid) { _kOpen[zid] = !_kOpen[zid]; renderMgmtPanel('kitchen'); }
 
 function _submitKitchenLog() {
   var action = (_d('kpAction')||{}).value;

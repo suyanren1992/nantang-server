@@ -528,3 +528,23 @@ button:active:not(:disabled),a:active:not(:disabled){transform:scale(.96);transi
 @keyframes jztFireBig{0%{transform:scaleY(1)translateY(0);opacity:.8}100%{transform:scaleY(1.3)translateY(-4px);opacity:.5}}
 @keyframes jztFireSmall{0%{transform:scaleY(1)translateY(0);opacity:.9}100%{transform:scaleY(1.4)translateY(-2px);opacity:.4}}
 .settle-calc-detail{transition:max-height .2s ease-out;overflow:hidden}
+/* ══ B-2: 冰箱双门 ══ */
+.fridge-doors{display:flex;gap:3px;padding:12px 14px;background:linear-gradient(180deg,#e8ece8,#dce0dc)}
+.fridge-door-card{flex:1;background:#fff;border-radius:8px;border:1.5px solid #d5d9d5;position:relative}
+.fridge-door-card.open{border-color:var(--green-primary);box-shadow:0 0 0 1px var(--green-primary)}
+.fridge-door-head{display:flex;flex-direction:column;align-items:center;padding:12px 8px;cursor:pointer;min-height:74px;background:linear-gradient(180deg,#f5f7f5,#eaeeea);position:relative}
+.fridge-door-handle{position:absolute;top:50%;transform:translateY(-50%);width:3px;height:26px;background:#c0c4c0;border-radius:2px}
+.fridge-door-card:first-child .fridge-door-handle{right:5px}
+.fridge-door-card:last-child .fridge-door-handle{left:5px}
+.fridge-door-icon{font-size:1.4rem;margin-bottom:2px}
+.fridge-door-label{font-size:.62rem;font-weight:700;color:#444}
+.fridge-door-temp{font-size:.55rem;color:#999;margin:1px 0 4px}
+.fridge-door-count{font-size:.58rem;color:#666}
+.fridge-door-arrow{text-align:center;font-size:.55rem;color:#999;padding:3px 0;cursor:pointer}
+.fridge-body-panel{display:none;border-top:1px solid #d5d9d5;background:#fff}
+.fridge-body-panel.open{display:block}
+.fridge-item{display:flex;align-items:center;padding:6px 10px;border-bottom:1px dotted #f0f0f0;font-size:.62rem}
+.fridge-item .fi-tag{font-size:.52rem;padding:1px 5px;border-radius:6px;font-weight:600;margin-left:auto}
+.fridge-item .fi-tag.fresh{background:#e8f5e9;color:#3d6b52}
+.fridge-item .fi-tag.warn{background:#fef3cd;color:#c8892e}
+.fridge-item .fi-tag.expired{background:#fde8e8;color:#b84c38}
