@@ -416,12 +416,13 @@ function loginUser(name, password, rememberMe) {
 }
 
 function logoutUser() {
-  if (!confirm('确定退出登录？')) return;
-  if (currentUser && currentTab) saveLastPage(currentUser.name, currentTab);
-  currentUser = null; previewMode = false; localStorage.removeItem(NT_SESSION_KEY);
-  ['worldHUD','builderTabs','adventurerTabs','builderModeBar','instanceSidebar','mobileBottomNav'].forEach(function(id) { var el = document.getElementById(id); if (el) el.classList.add('hidden'); });
-  var banner = document.getElementById('previewBanner'); if (banner) banner.style.display = 'none';
-  document.body.classList.remove('builder-mode', 'adventurer-mode', 'sidebar-open', 'has-mobile-nav'); hideAllTabs(); closeMoreSheet(); closeProfilePanel();
-  _moreSheetCacheRole = null; // 重置浮层缓存，下次登录按新角色渲染
-  document.getElementById('loginPage').style.display = 'flex'; showLoginEntry();
+  showConfirm('确定退出登录？', function(){
+    if (currentUser && currentTab) saveLastPage(currentUser.name, currentTab);
+    currentUser = null; previewMode = false; localStorage.removeItem(NT_SESSION_KEY);
+    ['worldHUD','builderTabs','adventurerTabs','builderModeBar','instanceSidebar','mobileBottomNav'].forEach(function(id) { var el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+    var banner = document.getElementById('previewBanner'); if (banner) banner.style.display = 'none';
+    document.body.classList.remove('builder-mode', 'adventurer-mode', 'sidebar-open', 'has-mobile-nav'); hideAllTabs(); closeMoreSheet(); closeProfilePanel();
+    _moreSheetCacheRole = null;
+    document.getElementById('loginPage').style.display = 'flex'; showLoginEntry();
+  });
 }

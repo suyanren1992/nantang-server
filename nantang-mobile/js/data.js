@@ -242,6 +242,7 @@ function saveItemForm(mode,id){
 }
 function pickChip(el){el.parentElement.querySelectorAll('.my-fchip').forEach(function(c){c.classList.remove('on')});el.classList.add('on');renderMyTasks()}
 function openSub(t){document.getElementById('subTitle').textContent=t.name;document.getElementById('subPage').classList.add('open');
+  document.body.classList.add('ov-locked');
   var h='<span class="sub-badge sb-gold">'+t.type+'</span> ';
   h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';
   h+='<div style="font-size:1.1rem;font-weight:700;margin-top:8px">'+esc(t.name)+'</div>';
@@ -515,6 +516,18 @@ function showConfirm(msg,onOk){
   document.body.appendChild(d);
   document.getElementById('confirmOkBtn').addEventListener('click',function(){d.remove();if(onOk)onOk()});
 }
+// M-5: 替代原生 prompt() 的自定义输入对话框
+function _promptDialog(msg, defVal, onOk) {
+  document.querySelectorAll('.prompt-card').forEach(function(c){c.remove()});
+  var d=document.createElement('div');d.className='prompt-card';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);animation:fadeIn .15s ease-out';
+  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:280px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.78rem;font-weight:600;margin-bottom:10px;line-height:1.5">'+esc(msg)+'</div><input id="promptInp" value="'+esc(defVal||'')+'" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;font-size:.82rem;margin-bottom:12px;box-sizing:border-box"><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 onclick="this.closest(\'.prompt-card\').remove()">取消</button><button class="btn-sm pri" style=flex:1 id="promptOkBtn">确认</button></div></div>';
+  document.body.appendChild(d);
+  document.getElementById('promptInp').focus();
+  var ok = function(){ var v=document.getElementById('promptInp').value; d.remove(); if(onOk)onOk(v); };
+  document.getElementById('promptOkBtn').addEventListener('click', ok);
+  document.getElementById('promptInp').addEventListener('keydown', function(e){ if(e.key==='Enter')ok(); });
+}
 function showToast(msg,type,anchor){
   // 单参数：浮动绿色 toast（Game.toast / postMessage 使用）
   if(!type&&!anchor){
@@ -552,15 +565,21 @@ function _pushOverlay(id) {
     _overlayStack = _overlayStack.filter(function(x){return x!==id});
     _overlayStack.push(id);
   }
+  // M-7: overlay 打开时锁定 body 滚动
+  document.body.classList.add('ov-locked');
+}
+function _unlockBodyIfAllClosed() {
+  var anyOpen = document.querySelector('.overlay.open, .sub-page.open');
+  if (!anyOpen) document.body.classList.remove('ov-locked');
 }
 function closeOverlay(id,showVillage){
   var el=document.getElementById(id);if(el)el.classList.remove('open');
   _overlayStack = _overlayStack.filter(function(x){return x!==id});
-  if(showVillage===false) return;
+  if(showVillage===false) { _unlockBodyIfAllClosed(); return; }
   // 有上级 overlay → 恢复；否则回村口
   var prev = _overlayStack[_overlayStack.length-1];
   if(prev){ document.getElementById(prev).classList.add('open'); }
-  else{ document.getElementById('villagePage').classList.remove('hidden'); }
+  else{ document.getElementById('villagePage').classList.remove('hidden'); _unlockBodyIfAllClosed(); }
 }
 function openCommunityPage(){_pushOverlay('overlayCommunity'); document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub();renderTimeline()}
 // 营地数据——从 AppData 读取，服务端同步

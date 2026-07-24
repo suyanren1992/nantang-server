@@ -110,7 +110,7 @@ window.Game = {
   openTask: function(taskId) { openQuestHallPage(); },
   toast: function(msg) { showToast(msg); },
   confirm: function(title, message, onConfirm) {
-    if (confirm(title + '\n\n' + message)) { setTimeout(onConfirm, 0); }
+    showConfirm(message, onConfirm);
   },
   openCamp: function(campId) { openCampHome(campId); },
   refresh: function() { if (window.AppData) AppData._saveShared(); if (typeof refreshUserUI === 'function') refreshUserUI(); }
@@ -763,7 +763,7 @@ function openMapPage(){
   if(typeof _initMap==='function'){_initMap()}
 }
 // Item system
-function closeSub(){document.getElementById('subPage').classList.remove('open')}
+function closeSub(){document.getElementById('subPage').classList.remove('open');if(typeof _unlockBodyIfAllClosed==='function')_unlockBodyIfAllClosed();else document.body.classList.remove('ov-locked')}
 function S(id){
   ['scrEntry','scrRegister','scrLogin'].forEach(function(s){document.getElementById(s).classList.add('hidden')});
   document.getElementById(id).classList.remove('hidden');

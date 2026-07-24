@@ -517,7 +517,7 @@ function _renderVerifyCard(v, isOnsite) {
   if (isPending && isOnsite) {
     // 按钮行
     h += '<div style="display:flex;gap:3px;margin-top:4px">';
-    h += '<button onclick="event.stopPropagation();if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\'))AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid #d4a0a0;background:#fff5f5;color:#b84c38;cursor:pointer">🙅</button>';
+    h += '<button onclick="event.stopPropagation();showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false)})" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid #d4a0a0;background:#fff5f5;color:#b84c38;cursor:pointer">🙅</button>';
     h += '<button onclick="event.stopPropagation();_confirmWitness(\''+v.id+'\',CURRENT_USER)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
     h += '</div>';
   } else if (isPending) {
@@ -558,7 +558,7 @@ function _openVerifyDetail(vfyId) {
   h += '<div style="padding:0 16px 16px">';
   if (v.status === 'pending' && isOnsite) {
     h += '<div style="display:flex;gap:8px">';
-    h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\')){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm();}">🙅 不是</button>';
+    h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm()})">🙅 不是</button>';
     h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="_confirmWitness(\''+v.id+'\',CURRENT_USER,true)">✅ 确认 +'+ntAmt+' NT</button>';
     h += '</div>';
   }
@@ -908,11 +908,12 @@ function _pickAction(id, label, icon, nt, isCustom) {
 
   if (isCustom) {
     setTimeout(function(){
-      var custom = prompt('描述你的劳动内容：');
-      if (custom) {
-        d.actionLabel = custom;
-        setTimeout(function(){ _renderStep3(); }, 100);
-      }
+      _promptDialog('描述你的劳动内容：', '', function(custom) {
+        if (custom) {
+          d.actionLabel = custom;
+          _renderStep3();
+        }
+      });
     }, 200);
   } else {
     setTimeout(function(){ _renderStep3(); }, 150);

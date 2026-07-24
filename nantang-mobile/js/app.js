@@ -1670,7 +1670,7 @@ function _checkoutStay() {
       _doCheckout();
     });
   } else {
-    if (confirm('退房确认：\n\n请确认个人物品已带走、垃圾已清理。\n\n确认退房？')) _doCheckout();
+    showConfirm('退房确认：\n\n请确认个人物品已带走、垃圾已清理。\n\n确认退房？', _doCheckout);
   }
 }
 
@@ -2338,7 +2338,7 @@ function _showFlipOther(targetName) {
   if (window.Game && Game.confirm) {
     Game.confirm('帮 '+targetName+' 翻牌？', '帮ta更新在线状态，将扣你 1 NT 作为提醒代价。', _cb);
   } else {
-    if (confirm('帮 '+targetName+' 翻牌？将扣你 1 NT 作为提醒代价。')) _cb();
+    showConfirm('帮 '+targetName+' 翻牌？将扣你 1 NT 作为提醒代价。', _cb);
   }
 }
 // ═══ 铃铛面板（校核 + 新手 + 整洁度）═══
