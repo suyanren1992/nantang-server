@@ -52,7 +52,7 @@ if (window.location.protocol !== 'file:') {
       <div class="reg-avatar" id="regAvatar" onclick="cycleAvatar()"></div>
       <button class="avatar-btn" onclick="cycleAvatar()">🎨 换头像</button>
       <input type="text" id="regName" class="login-input" placeholder="你的名字">
-      <div style="position:relative"><input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少8位）" style="padding-right:38px"><span onclick="togglePwdEye('regPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
+      <div style="position:relative"><input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少8位）" style="padding-right:38px"><span onclick="togglePwdEye('regPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
       <div><div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:4px">邀请码（可选，填入后可解锁身份）</div><input type="text" id="regInviteCode" class="login-input" placeholder="输入邀请码"></div>
       <div class="login-error" id="regError"></div>
       <div class="login-btns"><button class="btn-pri" onclick="enterVillage()">确认注册 →</button></div>
@@ -63,7 +63,7 @@ if (window.location.protocol !== 'file:') {
       <div class="user-scroll" id="userScroll"></div>
       <div class="login-avatar-lg" id="loginAvatar"></div>
       <input type="text" id="loginName" class="login-input" placeholder="输入名字或点击下方选择" oninput="renderLoginAvatar()" autocomplete="off">
-      <div style="position:relative"><input type="password" id="loginPwd" class="login-input" placeholder="密码" style="padding-right:38px"><span onclick="togglePwdEye('loginPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
+      <div style="position:relative"><input type="password" id="loginPwd" class="login-input" placeholder="密码" style="padding-right:38px"><span onclick="togglePwdEye('loginPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
       <div class="login-error" id="loginError"></div>
       <button class="btn-pri btn-full" onclick="enterVillage()">✅ 登录 →</button>
     </div>
