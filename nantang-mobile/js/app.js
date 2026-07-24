@@ -1034,7 +1034,7 @@ function _collectCleaningRooms() {
     if (fKeys.length) {
       fKeys.forEach(function(fk) {
         (b.floors[fk] || []).forEach(function(r) {
-          if (r.cleaning && r.cleaning.length > 0) {
+          if (r.id.indexOf('dorm') !== 0) {
             rooms.push({ id:r.id, name:r.name, icon:r.icon, status:st, buildingName:b.name, cleaning:r.cleaning });
           }
         });
