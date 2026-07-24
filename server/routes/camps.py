@@ -141,6 +141,9 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
+    # D-10 M-9: 仅营地创建者或管理员可结算（沿用同文件 update_camp 鉴权风格）
+    if camp.created_by != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="仅营地创建者或管理员可结算")
     # 找出待结算的营地任务（verify 后 status="待结算"，尚未营地级结算）
     tasks_result = await db.execute(
         select(NTTask).where(NTTask.camp_ref_id == camp_id, NTTask.status == "待结算"))
