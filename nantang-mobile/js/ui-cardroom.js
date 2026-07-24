@@ -453,6 +453,20 @@ function _renderVerifyTab() {
 }
 
 // 校核扑克牌卡片 — 复用 _renderCard 的视觉壳子
+// B-10: 校核作证确认弹窗
+function _confirmWitness(vId, vfyUser, closeAfter) {
+  var h = '<div style="text-align:center;padding:8px">';
+  h += '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:#2a4a30">你正在为这件事作证</div>';
+  h += '<div style="font-size:.72rem;color:#5a6e5c;line-height:1.6;margin-bottom:6px">校核 = 证明劳动成果真实发生，</div>';
+  h += '<div style="font-size:.72rem;color:#5a6e5c;line-height:1.6;margin-bottom:14px">是你亲眼看见了别人的付出。</div>';
+  h += '<div style="font-size:.62rem;color:#b84c38;margin-bottom:16px">⚠ 作假证会失去社区对你的信任。</div>';
+  h += '<div style="display:flex;gap:8px">';
+  h += '<button onclick="_closeModal();AppData.verifyAction(\''+vId+'\',\''+vfyUser+'\',true);'+(closeAfter?'closeDiscoveryForm();':'')+'" style="flex:1;padding:10px 8px;border-radius:8px;border:none;background:var(--green-primary);color:#fff;font-size:.65rem;font-weight:600;cursor:pointer">我亲眼所见，确认作证</button>';
+  h += '<button onclick="_closeModal()" style="flex:1;padding:10px 8px;border-radius:8px;border:1px solid #d0d9ce;background:#fff;color:#5a6e5c;font-size:.65rem;cursor:pointer">再想想</button>';
+  h += '</div></div>';
+  _showModal(h);
+}
+
 function _renderVerifyCard(v, isOnsite) {
   var typeIcons = {cleaning:'🧹',stock_in:'📦',stock_out:'🗑',field_harvest:'🌿',field_action:'🌿',quest:'📋',stay:'🛏️',labor_report:'📝',cooking:'🍳',farming:'🌿'};
   var icon = typeIcons[v.type] || '📋';
@@ -493,7 +507,7 @@ function _renderVerifyCard(v, isOnsite) {
     // 按钮行
     h += '<div style="display:flex;gap:3px;margin-top:4px">';
     h += '<button onclick="event.stopPropagation();if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\'))AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid #d4a0a0;background:#fff5f5;color:#b84c38;cursor:pointer">🙅</button>';
-    h += '<button onclick="event.stopPropagation();AppData.verifyAction(\''+v.id+'\',CURRENT_USER,true)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
+    h += '<button onclick="event.stopPropagation();_confirmWitness(\''+v.id+'\',CURRENT_USER)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
     h += '</div>';
   } else if (isPending) {
     h += '<div style="font-size:.45rem;color:#aaa;margin-top:4px">☁️ 云村民</div>';
@@ -534,7 +548,7 @@ function _openVerifyDetail(vfyId) {
   if (v.status === 'pending' && isOnsite) {
     h += '<div style="display:flex;gap:8px">';
     h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="if(confirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\')){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm();}">🙅 不是</button>';
-    h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="AppData.verifyAction(\''+v.id+'\',CURRENT_USER,true);closeDiscoveryForm()">✅ 确认 +'+ntAmt+' NT</button>';
+    h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="_confirmWitness(\''+v.id+'\',CURRENT_USER,true)">✅ 确认 +'+ntAmt+' NT</button>';
     h += '</div>';
   }
   h += '<button class="btn-sm sec" style="width:100%;margin-top:6px;font-size:.62rem;padding:6px" onclick="closeDiscoveryForm();renderVerifyRoom()">关闭</button>';
