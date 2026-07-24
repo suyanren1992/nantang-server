@@ -5,6 +5,50 @@
 
 ---
 
+## 🔎 监察记录（2026-07-24 · Kimi Code，只读结论，未改业务代码）
+
+### C-4 监察勘察：SQLite → Neon Postgres 方言依赖点清单
+
+通读 `server/database.py`、`models.py`、`main.py`、`cron.py`、`chain_scanner.py`、`nt_helpers.py`、`auth_utils.py`、`routes/*.py`，需适配的点：
+
+| # | 位置 | 问题 | 适配建议 |
+|---|------|------|---------|
+| 1 | database.py:27-28 | `PRAGMA journal_mode=WAL` / `PRAGMA foreign_keys=ON` —— SQLite 专属，PG 上**启动即报错崩溃** | 按方言守卫（`if engine.dialect.name == 'sqlite'`） |
+| 2 | database.py:112 | `INSERT OR IGNORE INTO nt_tasks ...` —— SQLite 方言（在 T7 camp_tasks 旧迁移块内，有 try/except 吞错，PG 上会每次打印 skipped 但不崩） | 方言守卫整个 T7 迁移块（PG 新库无 camp_tasks，本就不需要跑） |
+| 3 | database.py:7-9 | 连接层写死 `sqlite+aiosqlite:///{DB_PATH}` | 改读 `DATABASE_URL` 环境变量（`postgresql+asyncpg://`），无变量回落 SQLite，与卡②1 一致 |
+| 4 | render.yaml buildCommand | 缺 `asyncpg`（迁移必需）；缺 `web3` —— 老问题：chain_scanner.py:10 顶层 `from web3 import Web3`，线上 scanner 永远初始化失败（main.py:23-30 try/except 吞掉，不致命但链上充值扫描从未运行） | 加 asyncpg；web3 缺失顺带记录，不在本卡修 |
+| 5 | database.py:43-111 各 `ALTER TABLE ADD COLUMN` | 无 `IF NOT EXISTS`，靠 try/except pass 幂等 —— PG 上行为同样正确（报错被吞），可不动；若求干净可用 `ADD COLUMN IF NOT EXISTS`（PG 9.6+/SQLite 均支持） | 可不改 |
+| 6 | models.py 11 处 `Integer, autoincrement=True` 主键 | SQLAlchemy 通用，PG 映射 SERIAL/IDENTITY | 无需改 |
+| 7 | JSON 存 Text（Verification.detail、NTTask.assignees 等）、datetime 存 ISO 字符串、`like()` 模糊查、`with_for_update()` | 均为跨库通用写法 | 无需改 |
+| 8 | `_reset_db.py`、`migrate_frozen_cv_20260721.py` | sqlite3 标准库直连本地文件的本地工具，迁 PG 后对新库失效 | 记录即可，不阻塞 |
+
+勘察结论：**真正的硬依赖只有 #1/#2/#3 三处**，都集中在 database.py；routes/ 业务层零方言，迁移面很小。
+
+### C-6 / C-5 / C-3 / C-7 排查结论位置 + 现状警示
+
+四卡排查结论均已在上文（本文件各 🔍 小节），含文件:行号+证据+修法。**重要现状**：这四卡在旧分工下已由 Kimi Code 施工并 commit（C-6=4d0e714、C-5=1658adc、C-3=ca245ea、C-7=a29198e），代码改动已落库未 push。Claude Code 施工前**必须先 `git log` 核对现状**，避免重复施工或覆盖；若验收标准已满足，建议直接转监察校验环节。
+
+### B-3 排查结论：四卡片与建筑页数据源对照
+
+`Game.getData()` 就是 `AppData._data` 的薄封装（core.js:98-106），所以 `_ml()` 系读取与直接读 AppData 是**同一份数据**。逐卡对照：
+
+| 卡 | 全貌页卡片读 | 建筑页读 | 同源？ |
+|---|---|---|---|
+| 🛏️ 住宿 | `_ml().accommodations`（app.js:267） | `_getRoomLiveData` 同一 accommodations（app.js:88、726） | ✅ 已同源 |
+| 🌿 田地 | `getPlots()`（app.js:276，定义 app.js:37-44） | 田地房间面板同用 `getPlots()`（app.js:648），写路径 `_savePlotData` 统一写回 `map_locations.plots`（app.js:657-661） | ✅ 已同源 |
+| 🍳 厨房·冰箱 | `AppData._data.inventory.office/study`（app.js:287-289） | 建筑页房间物品 `inventory[spaceId]`（app.js:727-728） | ✅ 已同源（同一 inventory 按建筑 id 分桶） |
+| 🧹 大扫除 | 脏污定价 `_mlConfig()`（app.js:262，与建筑页同源）；下次日期 `MGMT_DATA.cleaning.nextDate`（app.js:260） | 脏污状态读 `cleaning.spaces[b.id].dirtiness`（app.js:705-709） | ✅ 房间状态同源；nextDate 是日程配置（存 `_mgmt` blob），不属房间数据，不算不同源 |
+
+**结论**：1817 文档指的"四卡来自 MGMT_DATA 硬编码"在当前代码已消解——`MGMT_DATA`（app.js:866-950）只剩历史记录/日程/选位薄壳，四卡动态数据已全部从 AppData 活源读取。**任务一无需改读取**，施工时静态验证此结论即可，不要为改而改。
+
+**任务二（大扫除补全房间）**：`_collectCleaningRooms`（app.js:1026-1056）的门禁在 **app.js:1037** `if (r.cleaning && r.cleaning.length > 0)`——只有挂了 cleaning 清单的房间才可打扫，正厅/走廊/楼梯/洗手台因此被排除。修法（照卡，~10 行）：1037 行条件改为排除宿舍即可（`if (r.id.indexOf('dorm') !== 0)`），其余结构、兜底分支（1046-1054）不动。注意 `_getWeeklyCleaningAreas`（app.js:963）有同款门禁，但卡未点名，不动。
+
+### 监察任务状态
+
+截至本记录，Claude Code 尚无施工提交（git log 最新为 docs 类），无待审 diff。后续每见其 commit，按流程审 diff + 跑卡内验收 + 实测。
+
+---
+
 ## 🔧 待修 - 任务系统
 
 | # | Bug | 文件 | 行号 | 状态 |
