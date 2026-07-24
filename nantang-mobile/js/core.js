@@ -1575,7 +1575,7 @@ function initCarousel(){
       var ci=cachedInners[i];if(ci){var v=Math.round(26+t*229);ci.style.background='rgba(255,255,255,'+(1-t*.92).toFixed(2)+')';ci.style.color='rgb('+v+','+v+','+v+')'}
     })
   },{passive:true});
-  cachedDots.forEach(function(d){d.addEventListener('click',function(){var i=parseInt(this.dataset.dot,10);var p1=c.querySelector('.vp-card');var pw1=p1?p1.offsetWidth:260;c.scrollTo({left:_cardLeft(i,pw1),behavior:'smooth'})})})
+  cachedDots.forEach(function(d){d.addEventListener('click',function(){var i=parseInt(this.dataset.dot,10);var p1=c.querySelector('.vp-card');var pw1=p1?p1.offsetWidth:260;c.scrollTo({left:_cardLeft(i,pw1),behavior:'auto'})})})
 }
 // FIX-08: 会话级 bridge nonce — file:// 协议下 origin 不可靠，nonce 作为共享密钥
 window._APP_NONCE = 'nt_'+Math.random().toString(36).slice(2)+'_'+Date.now().toString(36);
