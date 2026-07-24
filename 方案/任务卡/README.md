@@ -68,3 +68,4 @@
 3. Kimi Code 是监察：可排查、可校验、可打回，永不改业务代码
 4. 同一时刻只有一方改代码，commit 后另一方才动手
 5. 所有政绩以 BUG_TRACKER.md + git log 为凭，口说无凭
+6. **凡改动 nantang-mobile/ 下 js/css 文件，必须同 commit 升级 index.html 里对应文件的 ?v= 版本号**（缓存不刷新=线上跑旧代码=修了等于没修，C-5/D-1 两次踩坑）
