@@ -56,24 +56,24 @@ async def init_db():
             await session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_community_pool_singleton ON community_pool(singleton)"))
             await session.commit()
         except Exception:
-            pass
+            await session.rollback()  # PG: 失败 DDL 会中止事务，必须回滚才能继续
         # R7: 为已有 User 补 token_version（SQLite ALTER TABLE 加列 + 默认值）
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0"))
             await session.commit()
         except Exception:
-            pass  # 列已存在则跳过
+            await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
         # Step 1: 社区资金系统 — reserve/frozen 列
         try:
             await session.execute(text("ALTER TABLE community_pool ADD COLUMN reserve INTEGER DEFAULT 0"))
             await session.commit()
         except Exception:
-            pass
+            await session.rollback()  # PG: 同上，回滚恢复事务
         try:
             await session.execute(text("ALTER TABLE community_pool ADD COLUMN frozen INTEGER DEFAULT 0"))
             await session.commit()
         except Exception:
-            pass
+            await session.rollback()  # PG: 同上，回滚恢复事务
         from models import CommunityPool, NTLedger
         from nt_helpers import _add_ledger, _ledger_id
         r = await session.execute(select(CommunityPool).limit(1))
@@ -135,9 +135,10 @@ async def init_db():
                 print(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
             except Exception as e:
                 print(f"[T7 migration] skipped: {e}")
+                await session.rollback()  # PG: 回滚恢复事务，避免影响后续迁移
         # T8: card_discoveries 加 doer_name_snapshot 列
         try:
             await session.execute(text("ALTER TABLE card_discoveries ADD COLUMN doer_name_snapshot VARCHAR(64)"))
             await session.commit()
         except Exception:
-            pass
+            await session.rollback()  # PG: 同上，回滚恢复事务
