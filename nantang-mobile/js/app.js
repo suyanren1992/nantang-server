@@ -230,24 +230,25 @@ function _renderNewbieCard() {
   // E3.4: 新手引导统一走 data.js NEWBIE_QUESTS
   var steps = (typeof NEWBIE_QUESTS !== 'undefined') ? NEWBIE_QUESTS : [];
   if (!steps.length) return '';
-  var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || {};
-  // 初始化
-  if (!Object.keys(quests).length && window.AppData) {
-    steps.forEach(function(s){ quests[s.id] = { done: false, verifiedBy: null, verifiedAt: null }; });
+  var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]);
+  // H-4 修复：统一为数组格式（data.js _initNewbieQuests 已用数组；老用户无 newbieQuests[me] 时，此路径原写为对象 → .find() 崩溃）
+  if ((!quests || !quests.length) && window.AppData) {
+    quests = steps.map(function(s){ return { id: s.id, done: false, verifiedBy: null, verifiedAt: null }; });
     if (!AppData._data.newbieQuests) AppData._data.newbieQuests = {};
     AppData._data.newbieQuests[me] = quests;
     AppData._savePrivate();
   }
-  var doneCount = steps.filter(function(s){ return quests[s.id] && quests[s.id].done; }).length;
+  if (!quests || !quests.length) return '';
+  var doneCount = quests.filter(function(q){ return q.done; }).length;
   if (doneCount >= steps.length) return ''; // 全部完成，不显示
   var pct = Math.round(doneCount / steps.length * 100);
   var h = '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px 12px;margin:4px 0">'+
     '<div style="font-weight:700;font-size:.72rem;margin-bottom:4px">🌱 新手引导 ('+doneCount+'/'+steps.length+')</div>'+
     '<div style="height:6px;background:#f0f0f0;border-radius:3px;margin-bottom:8px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:3px"></div></div>';
   steps.forEach(function(s){
-    var q = quests[s.id] || {};
+    var q = quests.find(function(x){ return x.id === s.id; }) || {};
     var done = q.done;
-    h += '<div style="font-size:.62rem;padding:3px 0;color:'+(done?'#999':'')+'">'+(done?'✅':'☐')+' '+s.title+(s.nt?' +'+s.nt+'NT':'')+(s.xp?' +'+s.xp+'XP':'')+'</div>';
+    h += '<div style="font-size:.62rem;padding:3px 0;color:'+(done?'#999':'')+'">'+(done?'✅':'☐')+' '+s.name+(s.nt?' +'+s.nt+'NT':'')+'</div>';
   });
   var bonusNt = steps.reduce(function(sum,s){ return sum + (s.nt||0); }, 0);
   h += '<div style="font-size:.58rem;color:#999;margin-top:4px">💡 全部完成奖励: +'+bonusNt+' NT</div></div>';
@@ -2067,11 +2068,12 @@ function _growDirtiness() {
   var blds = getBuildings();
   blds.forEach(function(b) {
     if (b.id === 'info' || b.id === 'gate_a' || b.id === 'parking') return;
+    var rate = _dirtinessRates()[_getSpaceType(b.id)] || 5;
     if (!cl.spaces[b.id]) {
-      var rate = _dirtinessRates()[_getSpaceType(b.id)] || 5;
       cl.spaces[b.id] = { dirtiness: Math.min(100, rate * daysPassed), lastCleaned: '', cleanedBy: '', dailyGrowthBase: rate };
     } else {
-      cl.spaces[b.id].dirtiness = Math.min(100, cl.spaces[b.id].dirtiness + cl.spaces[b.id].dailyGrowthBase * daysPassed);
+      // H-5 修复：旧数据缺 dailyGrowthBase 或 dirtiness → NaN 扩散，加 || 兜底
+      cl.spaces[b.id].dirtiness = Math.min(100, (cl.spaces[b.id].dirtiness||0) + (cl.spaces[b.id].dailyGrowthBase||rate) * daysPassed);
     }
   });
   cl.lastCheckDate = today;
@@ -2346,8 +2348,8 @@ function _openVerificationPanel() {
   // ── 新手引导 ──
   // E3.4: 新手引导统一走 data.js NEWBIE_QUESTS
   var steps = (typeof NEWBIE_QUESTS !== 'undefined') ? NEWBIE_QUESTS : [];
-  var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || {};
-  var doneCount = steps.filter(function(s){ return quests[s.id] && quests[s.id].done; }).length;
+  var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || [];
+  var doneCount = quests.length ? steps.filter(function(s){ var q = quests.find(function(x){ return x.id === s.id; }); return q && q.done; }).length : 0;
   if (steps.length && doneCount < steps.length) {
     var pct = Math.round(doneCount / steps.length * 100);
     h += '<div style="background:#f0f8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer" onclick="var el=document.querySelector(\'.vfy-popup\');if(el)el.remove();alert(\'新手引导在首页下方查看\')"><div style="font-weight:700;font-size:.7rem">🌱 新手引导 ('+doneCount+'/'+steps.length+')</div><div style="height:4px;background:#ddd;border-radius:2px;margin:4px 0"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:2px"></div></div><div style="font-size:.55rem;color:#999">点击查看详情</div></div>';
