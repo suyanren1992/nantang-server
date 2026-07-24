@@ -58,20 +58,23 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# D-2: CORS 精确白名单（CR-1）——通配符域名 + allow_credentials = CSRF 敞口
+_cors_origins = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://nantang.imeeting.club",
+    "https://nantang-server.pages.dev",
+]
+# 环境变量 FRONTEND_ORIGIN 存在才追加，逗号可分隔多个
+if os.environ.get("FRONTEND_ORIGIN"):
+    _cors_origins += [o.strip() for o in os.environ["FRONTEND_ORIGIN"].split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-        "https://nantang-server.pages.dev",
-        "https://nantang-api.imeeting.club",
-        "https://*.trycloudflare.com",
-        "https://*.pages.dev",
-        os.environ.get("FRONTEND_ORIGIN", "http://localhost:8000"),
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # API 路由
