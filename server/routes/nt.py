@@ -875,6 +875,15 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
             await _add_ledger(db, lid2, "community_pool", user.id, verifier_reward, "earn",
                               f"校核奖励: {vfy.action}", status="settled")
     await db.commit()
+    # B-9: 校核通过写入档案室归档（Journal）
+    try:
+        from models import Journal as JModel
+        jtext = f"{vfy.doer} {vfy.action} · {user.id} 作证 +{nt_amount}NT"
+        jentry = JModel(user=vfy.doer, type="verification", content=jtext, time=datetime.utcnow().isoformat())
+        db.add(jentry)
+        await db.commit()
+    except Exception:
+        pass  # 归档失败不阻塞校核
     return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
             "verifier_balance": user.nt_balance}
 
