@@ -8,6 +8,16 @@ import os
 DB_PATH = os.path.join(os.path.dirname(__file__), "nantang_fresh.db")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
 
+# Neon/Render 给的 postgres:// 或 postgresql:// 统一改用 asyncpg 驱动
+# （部署环境未装 psycopg2，直接传入会因缺驱动启动崩溃）
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql+asyncpg://" + DATABASE_URL[len("postgres://"):]
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "postgresql+asyncpg://" + DATABASE_URL[len("postgresql://"):]
+# asyncpg 不认 sslmode 参数，翻译成 ssl
+if "sslmode=" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("sslmode=", "ssl=")
+
 engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
