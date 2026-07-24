@@ -234,7 +234,8 @@ window.AppData = {
         inventory: this._data.inventory,
         canteenMenu: this._data.canteenMenu,
         tasks: this._data.tasks,
-        users: this._data.users
+        users: this._data.users,
+        presence: this._data.presence
       };
       API.request('POST', '/api/data/sync_shared', payload);
     }

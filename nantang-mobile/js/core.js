@@ -954,6 +954,10 @@ function _mergeSyncData(data) {
   if (data.camps && window.AppData) {
     data.camps.forEach(function(c) { AppData._data.camps[c.id] = c; });
   }
+  // D-12: presence 翻牌状态以服务端为准整体覆盖
+  if (data.presence && typeof data.presence === 'object' && window.AppData) {
+    AppData._data.presence = data.presence;
+  }
 }
 function enterVillage(){
   var isReg=!document.getElementById('scrRegister').classList.contains('hidden');
