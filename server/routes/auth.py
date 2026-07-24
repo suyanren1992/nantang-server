@@ -1,4 +1,5 @@
 """Authentication: register, login, refresh (httpOnly cookie), logout."""
+import os
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 class RegisterRequest(BaseModel):
     name: str; password: str; role: str = "visitor"; avatar_seed: str | None = None
+    invite_code: str = ''
 
 
 class LoginRequest(BaseModel):
@@ -61,6 +63,12 @@ async def require_admin(user: User = Depends(get_current_user)):
 async def register(req: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
     if not req.name or len(req.name) > 64: return JSONResponse({"ok": False, "error": "用户名需为1-64字符"})
     if len(req.password) < 8: return JSONResponse({"ok": False, "error": "密码至少8位"})
+    # D-3 CR-2: 邀请制——INVITE_CODES 环境变量（逗号分隔码池）；未设置/为空=邀请制关闭，向后兼容
+    _codes = os.environ.get("INVITE_CODES", "")
+    if _codes.strip():
+        _pool = [c.strip() for c in _codes.split(",") if c.strip()]
+        if req.invite_code not in _pool:
+            return JSONResponse({"ok": False, "error": "邀请码无效"})
     ex = await db.execute(select(User).where(User.id == req.name))
     if ex.scalar_one_or_none(): return JSONResponse({"ok": False, "error": "用户名已存在"})
     c = await db.execute(select(func.count(User.id)))
@@ -84,8 +92,9 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
 async def login(req: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     # ponytail: 无速率限制。日活 <50 时内存 IP 计数足够，>50 时加 slowapi/Redis。
     u = (await db.execute(select(User).where(User.id == req.name))).scalar_one_or_none()
-    if not u: return JSONResponse({"ok": False, "error": "用户不存在"})
-    if not verify_password(req.password, u.password_hash): return JSONResponse({"ok": False, "error": "密码错误"})
+    # D-3 M-10: 「用户不存在」与「密码错误」统一文案，消除用户枚举
+    if not u: return JSONResponse({"ok": False, "error": "用户名或密码错误"})
+    if not verify_password(req.password, u.password_hash): return JSONResponse({"ok": False, "error": "用户名或密码错误"})
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
     return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u)}
