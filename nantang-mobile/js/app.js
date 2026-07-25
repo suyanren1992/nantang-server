@@ -48,7 +48,7 @@ function _ml() { var d=(window.Game&&Game.getData)?Game.getData():null; return (
 function _mlState() { return _ml().state||{}; }
 function _defaultConfig() { return {
   cleaning_pricing: { dirty:20, warning:15, clean:5 },
-  farming_pricing: { harvest:15, plant:5, water:5, weed:5, fertilize:5, view:2 },
+  farming_pricing: { harvest:15, plant:5, water:3, weed:5, fertilize:5, view:2 },
   kitchen_pricing: { stock_in:2, stock_out:1, detail:5 },
   cooking_pricing: { chef:15, helper:5, wash:5 },
   verifier_reward_pct: 0.25,  // M1: 20%→25%，小社区更需激励校核供给
@@ -326,7 +326,9 @@ function _openCovenantOverlay() {
       '大扫除(注意🟡): '+cfg.cleaning_pricing.warning+' NT',
       '日常打扫(维护🟢): '+cfg.cleaning_pricing.clean+' NT',
       '农活(收割/除草/施肥): '+cfg.farming_pricing.harvest+' NT',
-      '轻量农活(浇水/种植): '+cfg.farming_pricing.plant+' NT',
+      '轻量农活(种植): '+cfg.farming_pricing.plant+' NT',
+      '浇水: '+cfg.farming_pricing.water+' NT',
+      '查看: '+cfg.farming_pricing.view+' NT',
       '帮厨/主厨: '+cfg.cooking_pricing.chef+' NT',
       '洗碗/备菜: '+cfg.cooking_pricing.helper+' NT',
       '冰箱物品录入: '+cfg.kitchen_pricing.stock_in+' NT',
@@ -1851,10 +1853,10 @@ function renderFieldPanel() {
   // ═══ ⑤ 定价说明 ═══
   h += '<div class="mgmt-pricing">';
   var chips = [
-    { label:'种植 +'+pricing.plant+'NT', style:'' },
+    { label:'收割 +'+pricing.harvest+'NT', style:'' },
+    { label:'种植/施肥/除草 +'+pricing.plant+'NT', style:'' },
     { label:'浇水 +'+pricing.water+'NT', style:'' },
-    { label:'施肥 +'+pricing.fertilize+'NT', style:'' },
-    { label:'收割 +'+pricing.harvest+'NT', style:'' }
+    { label:'查看 +'+pricing.view+'NT', style:'' }
   ];
   chips.forEach(function(ch) { h += '<span class="mgmt-price-chip"'+(ch.style?' style="'+ch.style+'"':'')+'>'+ch.label+'</span>'; });
   h += '</div>';
@@ -2554,9 +2556,17 @@ function _submitKitchenEntry() {
 
 // ── 田地 ──
 function _openFarmQuick() {
-  var actions = ['🌾收割','💧浇水','🌱种植','🪴施肥','🧹除草','👀查看'];
+  var pricing = _mlConfig().farming_pricing;
+  var actionDefs = [
+    { label:'🌾收割', key:'harvest', nt:pricing.harvest },
+    { label:'💧浇水', key:'water', nt:pricing.water },
+    { label:'🌱种植', key:'plant', nt:pricing.plant },
+    { label:'🪴施肥', key:'fertilize', nt:pricing.fertilize },
+    { label:'🧹除草', key:'weed', nt:pricing.weed },
+    { label:'👀查看', key:'view', nt:pricing.view }
+  ];
   var plots = getPlots();
-  var body = '<div id="qfActions" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+actions.map(function(a){ return '<div class="quick-sheet__preset-btn" onclick="var s=this;var p=this.parentElement;var prev=p.querySelector(\'[data-selected]\');if(prev&&prev!==s){prev.removeAttribute(\'data-selected\');prev.style.background=\'\';prev.style.color=\'\'}if(s.hasAttribute(\'data-selected\')){s.removeAttribute(\'data-selected\');s.style.background=\'\';s.style.color=\'\'}else{s.setAttribute(\'data-selected\',\'1\');s.style.background=\'var(--green-primary)\';s.style.color=\'#fff\'}" style="padding:6px 10px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.65rem;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center">'+a+'</div>'; }).join('')+'</div>'+
+  var body = '<div id="qfActions" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+actionDefs.map(function(a){ return '<div class="quick-sheet__preset-btn" data-action-key="'+a.key+'" onclick="var s=this;var p=this.parentElement;var prev=p.querySelector(\'[data-selected]\');if(prev&&prev!==s){prev.removeAttribute(\'data-selected\');prev.style.background=\'\';prev.style.color=\'\'}if(s.hasAttribute(\'data-selected\')){s.removeAttribute(\'data-selected\');s.style.background=\'\';s.style.color=\'\'}else{s.setAttribute(\'data-selected\',\'1\');s.style.background=\'var(--green-primary)\';s.style.color=\'#fff\'}" style="padding:6px 10px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.65rem;min-width:44px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'+a.label+'<span style="font-size:.45rem;color:#8a6a20">+'+a.nt+'NT</span></div>'; }).join('')+'</div>'+
     '<div id="qfPlots" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">'+plots.map(function(p){ return '<div class="quick-sheet__preset-btn" style="padding:6px 10px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.6rem" onclick="var s=this;var pa=this.parentElement;var prev=pa.querySelector(\'[data-selected]\');if(prev&&prev!==s){prev.removeAttribute(\'data-selected\');prev.style.background=\'\';prev.style.color=\'\'}if(s.hasAttribute(\'data-selected\')){s.removeAttribute(\'data-selected\');s.style.background=\'\';s.style.color=\'\'}else{s.setAttribute(\'data-selected\',\'1\');s.style.background=\'var(--green-primary)\';s.style.color=\'#fff\'}">'+p.icon+' '+p.name+'</div>'; }).join('')+'</div>'+
     '<input id="qfFarmNote" placeholder="备注（选填）" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.7rem;margin-bottom:6px">'+
     '<button class="quick-sheet__submit" onclick="_submitFarmEntry()" style="width:100%;padding:10px;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:.75rem;font-weight:700;min-height:44px">✓ 确认记录</button>';
@@ -2566,13 +2576,14 @@ function _submitFarmEntry() {
   // 读选中的动作 + 田块
   var actionBtn = document.querySelector('#qfActions .quick-sheet__preset-btn[data-selected]');
   var plotBtn = document.querySelector('#qfPlots .quick-sheet__preset-btn[data-selected]');
-  var action = actionBtn ? actionBtn.textContent : '农活';
+  var actionKey = actionBtn ? actionBtn.getAttribute('data-action-key') : '';
+  var action = actionBtn ? actionBtn.textContent.replace(/\+.*/,'').trim() : '农活';
   var plot = plotBtn ? plotBtn.textContent : '';
   var note = (document.getElementById('qfFarmNote')||{}).value || '';
   var desc = action + (plot ? ' @'+plot : '') + (note ? ' · '+note : '');
   var pricing = _mlConfig().farming_pricing;
-  var nt = action.indexOf('收割')>=0 ? pricing.harvest : action.indexOf('浇水')>=0||action.indexOf('种植')>=0 ? pricing.plant : 5;
-  if (window.AppData) AppData.addVerification('field_action', _me(), desc, { action:action, plot:plot }, nt, Math.ceil(nt/5));
+  var nt = actionKey ? (pricing[actionKey] || 5) : 5;
+  if (window.AppData) AppData.addVerification('field_action', _me(), desc, { action:action, plot:plot, actionKey:actionKey }, nt, Math.ceil(nt/5));
   _closeQuickSheet();
   _undoToast('field_action');
 }
