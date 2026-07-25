@@ -23,12 +23,12 @@
 | D-8 | sync_shared 混合 camelCase/snake_case（两步走） | 🟠 High | Claude Code | 豆包 Codex | 🟡 施工完成，待二营验收 |
 | D-9 | UI 批次：小屏裁剪/safe-area/原生弹窗/搜索防抖/滚动锁定 | 🟠 Medium | Claude Code | 豆包 Codex | 🟡 施工完成，待二营验收 |
 | D-12 | presence 翻牌状态跨设备同步 | 🟠 Medium | Claude Code | 豆包 Codex | 🟡 施工完成，待二营验收 |
-| D-13 | 田间管理劳务区分（先考古设计稿，照稿施工） | 🟠 考古+施工 | Claude Code | 豆包 Codex | 🟢 定夺已下：照稿施工（4 档 chips/浇水 3NT/逐动作定价修 lookup） |
+| D-13 | 田间管理劳务区分（先考古设计稿，照稿施工） | 🟠 考古+施工 | Claude Code | 豆包 Codex | 🟡 施工完成（eab26d9），待二营验收 |
 | D-14 | 社区公约版本化考古（找旧版工作，回报后丞相设计） | 🟠 考古卡 | Claude Code | 豆包 Codex | 🟢 考古完成 → 已发 D-15 |
-| D-15 | 公约版本化闭环（提案入口+待校核展示+服务端同步） | 🟠 跨端 | Claude Code | 豆包 Codex | 🟡 待施工 |
-| D-16 | data.py 查漏：LIKE 第三处 + card_discoveries id 幂等 | 🟠 小卡 | Claude Code | 豆包 Codex | 🟡 待施工 |
+| D-15 | 公约版本化闭环（提案入口+待校核展示+服务端同步） | 🟠 跨端 | Claude Code | 豆包 Codex | 🟡 施工完成（5602a30），待二营验收 |
+| D-16 | data.py 查漏：LIKE 第三处 + card_discoveries id 幂等 | 🟠 小卡 | Claude Code | 豆包 Codex | 🟡 施工完成（5602a30），待二营验收 |
 | D-17 | 行锁查漏：populate_existing + verify_task poster 锁 | 🟠 小卡 | 豆包 Codex | Claude Code | 🟡 待施工 |
-| D-18 | 资金契约全量接服务端（reject/提现/admin审批/退房 + cashout 下线） | 🔴 跨端大卡 | Claude Code | 豆包 Codex | 🟡 待施工（定夺 ①②③ 已下） |
+| D-18 | 资金契约全量接服务端（reject/提现/admin审批/退房 + cashout 下线） | 🔴 跨端大卡 | Claude Code | 豆包 Codex | 🟡 施工完成（3839b77/dc3da0e/ea0b204/9b83e9f），待二营验收 |
 
 > 已完成销账（07-24 夜战，Kimi Work 直修 dcc2b08）：报告 H-6/B16 确认弹窗乱码、
 > 滑块左侧线框（真因：废弃居中指示器 CSS 冲突）、入住按钮白字、冰箱双门统一、

@@ -830,3 +830,164 @@ if camp.created_by != user.id and user.role != "admin":
 | D-13 | 考古卡 | ✅ 通过 | 差异清单准确，守纪律不自由发挥 |
 | D-14 | 考古卡 | ✅ 通过 | 骨架/调用/服务端三段对账准确 |
 
+---
+
+## 🔧 D 系列 · 一营返修记录（2026-07-25 · 二营打回后）
+
+### D-9 返修 — commit `853588f`（补替全部原生 prompt/confirm + Game.confirm 标题兼容）
+
+**打回原因**：M-5 替换不彻底（漏 14 处）+ Game.confirm 丢 title 参数。
+
+**返修内容**（20+ 处，全仓 grep `\bprompt\(|\bconfirm\(` 后仅剩 Game.confirm 方法定义与注释）：
+
+| 文件 | 改动 |
+|------|------|
+| `core.js:112` | `Game.confirm(title,msg,cb)` → `showConfirm(title+'\n\n'+msg, cb)` |
+| `core.js:271` | `onBuilderPicked` prompt → `_promptDialog` 异步回调 + 提取 `_addBuilder` |
+| `core.js:1621` | worker `confirm` handler → `showConfirm` + onCancel（result:false） |
+| `data.js:212` | `itemShelf` prompt → `_promptDialog` 回调 |
+| `data.js:216` | `itemAuction` prompt → `_promptDialog` 回调 |
+| `data.js:525` | `showConfirm` 扩展可选 onCancel 参数（id-based event listener） |
+| `utils.js:134` | 剪贴板 fallback prompt → `_promptDialog` |
+| `app.js:460` | 退回原因 inline prompt → `_promptDialog` onclick 回调 |
+| `app.js:641` | 作物名编辑 inline prompt → `_promptDialog` onclick 回调 |
+| `app.js:1488` | fallback confirm → 删 dead code，直调 `showConfirm` |
+| `app.js:1522` | `_addRoomItem` prompt → `_promptDialog` 回调 |
+| `app.js:1623` | `_changeCleanDate` prompt → `_promptDialog` 回调 |
+| `app.js:1667/2337` | 两处 `Game.confirm` 调用方 → 标题自动修复（core.js fix） |
+| `app.js:2282` | `_editRoomItem` prompt → `_promptDialog` 回调 |
+| `ui-wizard.js` | 6 处 confirm + 10 处 prompt → `showConfirm`/`_promptDialog`（含 `openCreateCamp` onCancel 双分支） |
+| `ui-phase4.js:38/76` | 食堂预定/取消 confirm → `showConfirm` |
+| `ui-camp.js:1280` | 完结营地 confirm → `showConfirm` |
+| `index.html` | `utils.js` 首次加 `?v=9`；`ui-camp/ui-wizard/ui-phase4` 首次加 `?v=9`；`data/core/app` 升 `v=12` |
+
+### D-12 返修 — commit `79ff178`（flipPresence HTTP 上行 + 分用户 key 存储）
+
+**打回原因**：① flipPresence immediate=true 路径绕过 HTTP ② 服务端整存整取多人互踩。
+
+**返修内容**：
+1. **前端** `app-data.js:490`：`this._saveShared(true)` 后追加 `API.request('POST','/api/data/sync_shared',{presence:...})`——immediate 路径落本地 + 立即 HTTP 上行
+2. **服务端写** `data.py:sync_shared`：presence 从单 key `"presence"` 改为分用户 key `"presence:{uid}"`；加 `updatedAt >=` 防回写（老旧数据不覆盖新数据）
+3. **服务端读** `data.py:sync_all`：`MapLocation.key.like("presence:%")` 合并所有分用户 key 为单一 presence dict 返回前端
+4. `index.html`：`app-data.js?v=11→12`
+
+### D-15 施工 — commit `5602a30`（公约版本化闭环）
+
+**来源**：D-14 考古报告。补 D-14 指出的三个断环：提案入口 / 待校核展示 / 服务端同步。
+
+**施工内容**：
+1. **提案入口** `app.js`：`_openCovenantOverlay` 底部加「📝 发起修改提案」按钮（仅 admin 可见）→ `_openCovenantProposal()` 表单（字段下拉 + 旧值/新值 + 原因必填）→ 调 `AppData.proposeConfigChange`
+2. **待校核展示** `app.js`：`_openCovenantOverlay` 中渲染 `pendingConfigChanges`（非空时黄底卡片 + 校核按钮）→ `_verifyCovenantProposal()` 调 `AppData.verifyConfigChange`
+3. **服务端同步** `data.py`：sync_shared 接 `pendingConfigChanges`/`configHistory`（MapLocation key="config_changes"/"config_history"）；sync_all 返回两字段
+4. **前端合并** `core.js:_mergeSyncData`：以服务端 config 字段覆盖本地
+5. `index.html`：`app.js?v=12→13`、`core.js?v=12→13`
+
+### D-16 施工 — 同 commit `5602a30`（data.py 阵地查漏）
+
+**来源**：D-11 勘察额外观察 1 + M-16。
+
+**施工内容**：
+1. **LIKE 第三处** `data.py:sync_all`：`user.id.replace('%','').replace('_','')` → `_uid`，LIKE 用 `_uid`（补 D-4 的最后一个 assignees.like 漏洞）
+2. **card_discoveries id 幂等** `data.py`：`CardDiscoveryReq` 加 `id: str = ""`；`add_card_discovery` 优先用客户端 id + 按 id 查重幂等去重（照 A-7 同修）
+
+---
+
+## 🟢 返修后总体状态（2026-07-25）
+
+| 卡 | 状态 | Commit |
+|---|------|--------|
+| D-6 | 施工完成，待二营复验 | 4c09152 |
+| D-7 | 施工完成，待二营复验 | 9665c77 |
+| D-8 | 施工完成，待二营复验 | d4a5372 |
+| D-9 | ✅ 返修完成，待二营复验 | 853588f |
+| D-12 | ✅ 返修完成，待二营复验 | 79ff178 |
+| D-13 | 考古完成，待丞相定夺 | — |
+| D-15 | ✅ 施工完成，待二营验收 | 5602a30 |
+| D-16 | ✅ 施工完成，待二营验收 | 5602a30 |
+
+
+---
+
+## 🔍 二营复验结论（2026-07-25 · Codex 验收席）
+
+| 卡 | Commit | 结论 | 备注 |
+|---|--------|------|------|
+| **D-9** | 853588f | ❌ **打回** | mobile-bundle.js:188 一键结算仍使用原生 confirm()——移动端生产核心文件漏替；Game.confirm 三参数签名正确、两个调用方（退房/翻牌）标题已恢复，app.js/core.js/data.js/ui-wizard.js/utils.js/ui-phase4.js/ui-camp.js 七文件替换齐全 |
+| **D-12** | 79ff178 | ✅ **通过** | 分用户 key 存储（presence:{uid}）天然隔离 alice/bob 写入，updatedAt 字符串比较防回写，客户端 immediate 路径有 HTTP 上行，sync_all LIKE "presence:%" 合并读取正确 |
+| **D-15** | 5602a30 | ✅ **通过** | 三件套齐全：① 管理员提案入口（role===admin 按钮）② 待校核列表+进度(n/2)+校核按钮（提案者不能自校/重复校核拦截/满2人自动 apply+写 history）③ sync_shared/sync_all 两端打通 config_changes/configHistory，core.js 服务端数据整体覆盖，换设备/清缓存重登服务端权威 |
+| **D-16** | 5602a30 | ✅ **通过** | ① LIKE 三处通配符剔除齐全（data.py:437 / nt.py:98 / tasks.py:63）② card_discoveries id 幂等：同 id 去重直接返回、无 id 自动生成 disc_{timestamp} 向后兼容 |
+
+### 🚦 上线闸口状态
+
+**暂不 push**。D-9 需一营补替 mobile-bundle.js 第188行原生 confirm（改 showConfirm）+ 升 index.html ?v= 后再复验。D-12/D-15/D-16 可随 D-9 复验通过后一并上线。
+
+待上线清单（共13卡）：D-2/D-3/D-4/D-5/D-6/D-7/D-8/D-10/D-12/D-15/D-16 + D-9 二次返修 + D-13(定夺后)
+
+---
+
+## ✅ D 系列 · 一营施工记录（续 · 2026-07-25 第三轮）
+
+### D-13 施工 — commit `eab26d9`
+
+**来源**：砚仁定夺「照稿施工」。
+
+**施工内容**：
+1. **浇水对齐 3NT**：`_defaultConfig().farming_pricing.water: 5 → 3`
+2. **定价 chips 4 档分档显示**：收割 +15NT / 种植·施肥·除草 +5NT / 浇水 +3NT / 查看 +2NT（覆盖全部 6 个动作）
+3. **`_openFarmQuick` 动作按钮追加 NT 显示**：每个按钮下方显示 `+N NT`，`flex-direction:column` + `gap:2px`
+4. **`_submitFarmEntry` 修复**：原 `action.indexOf('收割')>=0 ? pricing.harvest : ...` 字符串匹配 → `pricing[actionKey]` 逐动作 mapping，`data-action-key` 属性直读
+5. **公约定价展示同步更新**：拆分「农活(收割/除草/施肥)」「轻量农活(种植)」「浇水」「查看」四行
+
+**变更文件**：`app.js`, `index.html`（?v=14）
+
+---
+
+### D-18 施工 — 四子卡分 4 个 commit
+
+#### D-18-1: M-13 校核驳回接服务端 — commit `3839b77`
+
+- `api.js` 新增 `rejectVerification(id, reason)`、`approveVerification(id, data)`
+- `verifyAction` reject 分支：online → HTTP POST `/api/nt/verifications/{id}/reject`；offline 保留原本地逻辑
+- `_doReject` 适配 async 模式：禁用按钮等待服务端响应
+
+**变更**：`app-data.js`(?v=13), `api.js`(?v=9), `app.js`(?v=15)
+
+#### D-18-2: M-14 提现接服务端 — commit `dc3da0e`
+
+- `api.js` 新增 `withdraw(amount, toAddress)` → `POST /api/nt/withdraw`
+- `submitWithdraw` 改调服务端：成功后冻结余额同步、失败降级入离线队列
+- 新增 `_drainPendingWithdraws()` 离线队列重放，挂轮询 poll 的 sync 成功回调
+- tx type 从 `cashOut` 改 `withdraw`
+
+**变更**：`api.js`(?v=10), `core.js`(?v=14)
+
+#### D-18-3: M-15 admin 审批切服务端 — commit `ea0b204`
+
+- `api.js` 新增 `pendingWithdraws()`、`confirmWithdraw(entryId)`、`rejectWithdraw(entryId)`
+- admin review 面板改拉 `GET /api/admin/withdraws/pending` 为权威源，合并本地离线记录
+- `approveTx`/`rejectTx` 仅处理 topUp；提现审批走 `approveWithdraw(entryId)` / `rejectWithdrawAdmin(entryId)`
+- server `/api/nt/cashout` 标记 `# DEPRECATED (D-18)`，前端零入口
+
+**变更**：`api.js`(?v=11), `core.js`(?v=15), `nt.py`
+
+#### D-18-4: M-17 退房按钮 — commit `9b83e9f`
+
+- `api.js` 新增 `checkout()` → `POST /api/accommodation/checkout`
+- `_doCheckout` 改调服务端：成功后同步角色/欠费，离线降级本地
+- 补定义 `_checkoutBed`（此前 onclick 指向未定义函数，退房按钮实际无法工作）
+
+**变更**：`api.js`(?v=12), `app.js`(?v=16)
+
+---
+
+## 🟢 返修后总体状态（2026-07-25 第三轮更新）
+
+| 卡 | 状态 | Commit |
+|---|------|--------|
+| D-13 | ✅ 施工完成，待二营验收 | eab26d9 |
+| D-18-1 | ✅ 施工完成，待二营验收 | 3839b77 |
+| D-18-2 | ✅ 施工完成，待二营验收 | dc3da0e |
+| D-18-3 | ✅ 施工完成，待二营验收 | ea0b204 |
+| D-18-4 | ✅ 施工完成，待二营验收 | 9b83e9f |
+
+**待上线新增**：D-13/D-18 共 5 卡。
