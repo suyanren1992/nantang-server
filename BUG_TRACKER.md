@@ -1436,3 +1436,133 @@ if camp.created_by != user.id and user.role != "admin":
 
 > **太傅注**：对应补课 `13`（前端骨架——模块边界与组件复用）+ `16`（后端骨架——目录责任与分层）。
 > 人话原理：文档不随码走=三个月后又是一份没人看的旧方案。arch_check.py 让机器替你盯着——模块行数漂移超 30%、架构图锚点落后 HEAD 10 个 commit、旧文件复活，全亮灯。
+
+
+---
+
+## ✅ D-24 验收回执（二营，2026-07-26）
+
+**目标 commit**: `7b83106` "fix(D-24): 6个JS漏标?v=补齐"（已合入 HEAD=39fe8af 祖先链）
+
+**验收实测**:
+1. `python server/scripts/deploy_check.py --skip-smoke` → 第 2 检 ?v= 一致性 **PASS**（"0 个 js/css 漏带 ?v="）
+2. Python 正则扫 `nantang-mobile/index.html` 全部 20 个本地 js/css 引用 → 20/20 带 `?v=`：
+   - 本次补齐 6 个：mobile-bundle.js?v=17 / nt.js?v=17 / seed-test-data.js?v=17 / ui-village.js?v=17 / ui-social.js?v=17 / ui-archive.js?v=17
+   - 其余 14 个维持原版本号
+3. 变异抽查：从 `deploy_check.py` 本身逻辑已知，删任何一个 ?v= 会立刻报黄（D-22 实跑验证过）
+
+**结论**: 🟢 D-24 通过。缓存铁律机检化闭环。
+
+
+---
+
+## ✅ E-1 验收回执（二营，2026-07-26）
+
+**验收对象**: `方案/架构现状图.md`（一营太傅考古）+ `nantang-mobile/scripts/arch_check.py`
+
+### A. 架构现状图对照（我的 E-1_二营考古回执 对照一营现状图）
+
+| 点 | 我的结论 | 一营结论 | 冲突? |
+|---|---|---|---|
+| HEAD 锚点 | d4d1a09 | d4d1a09 | ✅ 一致 |
+| 后端 routes 端点数 | 72 | 未列总数，但列了 7 个 routes 文件 | ✅ 一致（7 文件 72 端点已实证） |
+| 旧方案过时条目数 | 8/13 | 6 过时 + 1 错误 = 7 | ⚠ 口径差（我把"未实施"也算过时；一营精确分"过时/错误/属实"），**非冲突**，一营口径更清晰 |
+| nantang-mobile.html | 已删 | 已删+列了备份 html 留存 | ✅ 一致（一营更细，补了备份文件处置建议） |
+| ui-cardroom.js | 已接入（/api/nt/transfer 调用实证） | 已接入（index.html:529） | ✅ 一致 |
+| eventbus.js | 不存在 | 不存在 | ✅ 一致 |
+| 后端文件行数 | 我数错（只数了前段）→ 实际与一营一致：auth 189/nt 1053/data 513 | 一致 | ✅ 我回执里的行数需修正 |
+
+**结论**：无事实冲突，一营粒度更细（前端 18 模块行数 + 前端→后端调用映射 + 拆分差距 P0/P1/P2），我的回执补了后端 72 端点全可达性 + 旧方案服务段落整段作废两点，互补。
+
+### B. arch_check.py 实跑
+
+```
+python nantang-mobile/scripts/arch_check.py <root>
+→ exit code 1（黄灯）
+```
+
+五检实测：
+
+| 检 | 结果 | 真实性 |
+|---|---|---|
+| [1] 模块存在性 | OK (18 个全部在位) | ✅ 真检 |
+| [2] 行数漂移 | OK (全部在 ±30% 内) | ✅ 真检 |
+| [3] 引用对账 | OK (18 引用 = 18 磁盘) | ✅ 真检 |
+| [5] 旧文件 | OK (nantang-mobile.html 已删) | ✅ 真检 |
+| [4] 锚点新鲜度 | 🟡 "落后 HEAD 999 commits" | ❌ **假黄灯（bug）** |
+
+### 🐛 arch_check.py bug（打回修正）
+
+**现象**：锚点实际仅落后 HEAD **1 commit**（`git rev-list --count d4d1a09..HEAD` = 1），脚本却报 999。
+
+**根因**：脚本在 Windows 沙箱/GBK 环境下调用 `git -C <proj> rev-list` 时，未设置 `safe.directory`，git 返回非零退出码 → 被 `except: ahead = 999` 兜底误报。同样 `git rev-parse HEAD` 显示 "unknown"。
+
+**两处 subprocess 调用都有问题**：
+1. `git_head()` 没设 `encoding='utf-8'`，GBK 解码中文路径报错 → 返回 "unknown"（但被外层 try 吞了）
+2. 锚点计数 `subprocess.run(["git", ...])` 没加 `-c safe.directory=*`，Windows 跨用户仓库默认拒绝 → returncode 非 0 → ahead = 999 兜底误亮黄灯
+
+**修复建议**（给一营）：
+```python
+# 所有 subprocess.run 调用统一加：
+r = subprocess.run(
+    ["git", "-c", "safe.directory=*", "-C", str(proj), "rev-parse", "HEAD"],
+    capture_output=True, text=True, timeout=10, encoding="utf-8", errors="replace")
+# rev-list 同理
+```
+
+### 变异抽查（实跑）
+
+- ✅ exit code 语义：0 绿 / 1 黄 / 2 红 — 脚本逻辑正确（`return 2 if issues_red else 1`）
+- ✅ docstring 承诺的五项检查全部实装
+- 🟡 基线行数与我 `wc` 实测一致（auth 189/nt 1053 等），真从 d4d1a09 抓的
+- ✅ nantang-mobile.html 真查了磁盘
+
+**结论**：🟡 **打回修正 subprocess bug**（两处加 `-c safe.directory=*` + `encoding="utf-8"`）。修完后黄灯应熄灭（锚点仅落后 1 commit < 10），整体全绿即通过。其他四检机制正确，可挂 vault_gate / deploy_check。
+
+### 太傅注（卡面要求必附）
+
+arch_check.py 是架构现状图的**脐带**——脐带本身必须强健。今天这个 bug 就是脐带打结：脚本逻辑都对，但调用 git 的两行没考虑跨平台编码/safe.directory，结果就是机检天天报假黄灯，人看多了就不信了（「狼来了」效应），最后脐带等于没有。修起来一行的事，但修前挂闸等于挂了个谎报军情的哨兵。
+
+> 我的 E-1 回执里后端行数（auth 156/nt 914 等）系 PowerShell `Get-Content -TotalCount` 口径错误，应按一营现状图数字（auth 189/nt 1053/data 513）为准。事实结论不变，仅数字修正。
+
+
+---
+
+## 🛠 D-25 施工回执（二营，2026-07-26）
+
+**来源**: 一营验收 D-19 四类问题返修。
+**工作区状态**: 4 个测试文件有未 commit 改动（33 行 +/-），`git diff` 确认是**一营验收时顺手改的返修半成品**，不是我的旧作。直接在一营修改基础上续修。
+
+### 一营已经改对的 4 类问题（复核确认）
+1. **import 风格** `server.database` → `database`（conftest 已 cd 到 server/）✅
+2. **User 模型字段** `User(id=uid, name=name)` → `User(id=name)`（后端 User.id = 用户名字符串作主键，没有独立 uid，没有 name 字段被 register 使用）✅
+3. **API 路径** `/api/tasks/list` → `/api/tasks`（tasks.py 挂 `/api/tasks` 根 GET）✅
+4. **NTLedger 字段** `.id`(Integer) → `.entry_id`(String 唯一键)；confirm 后 status 从 `confirmed` 改 `settled` ✅
+
+### 我补充修的问题
+1. **conftest.py 补 `sys.path.insert(0, server_dir)`**：一营只改了 import 语句但没把 server/ 加入 sys.path，pytest 从项目根跑会 ImportError
+2. **`_create_user`/`_make_user` 全量对齐 User.id=name 语义**：删除我捏造的 "u-xxx" uid 别名，用户名直接当主键；Camp.created_by 用用户名
+3. **e2e admin 注册顺序前置**：第一个注册的用户 is_first=True 自动成 admin 并建 pool(balance=0)，之前把 alice 放第一个导致 pool 没钱 approve 失败。改为 admin 先注册，`_register_and_login` 无条件补 pool.balance/reserve=10000 兜底
+4. **VerificationApproveRequest 必填 body**：`{doer, action, nt_amount, verifier_reward}`（卡面 docstring 承诺的参数，之前空 body 会 422）
+5. **用户名加后缀 `_z/_w/_c`**：避免和 D-19 测试本身、其他测试注册过的名字冲突（测试库 session 级持久化）
+6. **/api/admin/withdraw/confirm 用 query param**：看 admin.py 签名是 `entry_id: str = Query(...)`，必须用 `?entry_id=xxx` 不是 path/json
+
+### 语法自检
+`py_compile` 四个文件全绿；沙箱无网装不了 pytest，实跑交一营。
+
+### 影响面声明
+- 只动 `server/tests/` 4 个文件；零业务代码改动；回滚 = `git checkout server/tests/`
+- NTLedger 模型核对结论：`.entry_id` 是字符串唯一键，`.id` 是 Integer 自增主键（我之前测错字段）
+
+### 太傅注（卡面必附）
+
+**为什么"测试全绿但测错对象"比没有测试更危险？**
+
+没有测试，你知道自己在裸奔，改代码会小心。测试全绿但断言的是错的东西，会产生**两种幻觉**：
+
+1. **反向安慰剂**：你看着绿灯放心部署，但生产上 bug 照样炸——测试没覆盖到真路径。比如我 D-19 原测 `NTLedger.id == entry_id`——NTLedger.id 是自增整数，永远不等于字符串 entry_id，只要库能写进去这条断言就过，但真正验证"confirm 后状态=settled"的逻辑一行没测。
+2. **重构陷阱**：未来有人重构成 `entry.status = "confirmed"`（以为和 withdraw 对应），测试查 `.id` 仍绿——测试没起看门狗作用，反而让人以为行为没变。
+
+**测错对象的测试比没有测试多一层恶：它会在 code review 时挡住"这里缺测试"的质疑，把真正的保护赶走。** 补课测试章的一句话我这里兑现：测试的第一原则是**断言服务端状态，不是断言返回文案**；第二原则是**字段名要和模型对得上**——第一条我做到了，第二条我没做到，一营验收揪出来了，这就是异体对抗的价值。
+
+> 回执完毕，commit = 待一营实跑后 push。
