@@ -117,3 +117,12 @@ async def tick_daily():
             logger.info(f"cron: tick complete, {created} tasks generated")
         else:
             logger.debug("cron: tick complete, no new tasks")
+
+    # D-26: 每日住宿费日结（直接调用内部函数，不走 HTTP；独立 session 隔离事务）
+    try:
+        from routes.nt import _run_daily_settlement
+        async with async_session() as settle_db:
+            settle_results = await _run_daily_settlement(settle_db)
+            logger.info(f"cron: daily settlement complete: {settle_results}")
+    except Exception as e:
+        logger.error(f"cron: daily settlement failed: {e}")

@@ -979,43 +979,76 @@ async def earn_sync(req: EarnSyncRequest, user: User = Depends(get_current_user)
 
 
 # ══ 每日 tick（C2.6：替代客户端 _dailyTick）══
+# 房费率公约定价（大地书房2F dorm101-106）；卡面裁定：G3 费率分叉不动，BED_RATES 数值不改
+BED_RATES = {"dorm101":20,"dorm102":30,"dorm103":30,"dorm104":60,"dorm105":30,"dorm106":35}
+
 system_router = APIRouter(prefix="/api/system", tags=["system"])
 
 
-@system_router.post("/daily-tick")
-async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """客户端登录时触发——幂等：同一天不重复执行。"""
+async def _run_daily_settlement(db, today: str | None = None):
+    """内部日结函数——住宿费扣款 + 池操作，可被 cron.py 直接调用（不走 HTTP）。
+
+    幂等：pool.last_tick_date == today 直接跳过；Tenancy.last_deducted 按天标记。
+    补扣历史：last_deducted 早于 today 时按实际漏扣天数逐日扣/欠费。
+    行锁：每个 User 行 with_for_update().populate_existing()，对齐 D-5/D-17。
+    """
     from models import Tenancy
-    today = datetime.utcnow().strftime("%Y-%m-%d")
+    if today is None:
+        today = datetime.utcnow().strftime("%Y-%m-%d")
 
     pool = await _get_pool(db, lock=True)
     if pool.last_tick_date == today:
         return {"ok": True, "skipped": True, "date": today}
 
-    results = {"date": today, "accommodation_fees": 0, "pool_refill": 0}
+    results = {"date": today, "accommodation_fees": 0, "pool_refill": 0,
+               "caught_up_days": 0}
 
-    # 1. 住宿费扣款
+    # 1. 住宿费扣款（补扣漏扣天数）
     tenancies_r = await db.execute(
         select(Tenancy).where(Tenancy.status == "active")
     )
-    # 公约定价：每房不同价格（大地书房2F dorm101-106）
-    BED_RATES = {"dorm101":20,"dorm102":30,"dorm103":30,"dorm104":60,"dorm105":30,"dorm106":35}
     for t in tenancies_r.scalars():
+        # 计算要补扣的天数
         if t.last_deducted == today:
             continue
-        tenant_user = (await db.execute(select(User).where(User.id == t.user_id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
+        from datetime import date as _date, timedelta as _td
+        if t.last_deducted:
+            last = _date.fromisoformat(t.last_deducted)
+        else:
+            # 从未扣过 → 从入住日起算
+            try:
+                last = _date.fromisoformat(t.checkin_date[:10])
+            except Exception:
+                last = _date.fromisoformat(today) - _td(days=1)
+        today_d = _date.fromisoformat(today)
+        days_passed = (today_d - last).days
+        if days_passed <= 0:
+            t.last_deducted = today
+            continue
+
+        rate = BED_RATES.get(t.room_id, 28)
+        tenant_user = (await db.execute(
+            select(User).where(User.id == t.user_id)
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalar_one_or_none()
         if not tenant_user:
             continue
-        rate = BED_RATES.get(t.room_id, 28)  # fallback 均价 28
-        if tenant_user.nt_balance >= rate:
-            tenant_user.nt_balance -= rate
-            pool.balance += rate
-            lid = _ledger_id()
-            await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
-                              "accommodation_fee", f"住宿费 {today}", status="settled")
-            results["accommodation_fees"] += rate
-        else:
-            t.debt += rate
+
+        for day_offset in range(days_passed):
+            due_date = (last + _td(days=day_offset + 1)).isoformat()
+            if tenant_user.nt_balance >= rate:
+                tenant_user.nt_balance -= rate
+                pool.balance += rate
+                lid = _ledger_id()
+                await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
+                                  "accommodation_fee", f"住宿费 {due_date}", status="settled")
+                results["accommodation_fees"] += rate
+            else:
+                t.debt += rate
+                lid = _ledger_id()
+                await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
+                                  "debt_accrued", f"住宿费欠费 {due_date}", status="pending")
+            results["caught_up_days"] += 1
         t.last_deducted = today
 
     # 2. 社区池补填 (M2: 50→20，20人规模轻度补填)
@@ -1051,3 +1084,9 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     pool.last_tick_date = today
     await db.commit()
     return {"ok": True, **results}
+
+
+@system_router.post("/daily-tick")
+async def daily_tick(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    """D-26 G5 收敛：仅管理员可手动触发；日常由 cron.py 00:05 内部调用 _run_daily_settlement。"""
+    return await _run_daily_settlement(db)

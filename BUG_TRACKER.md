@@ -1566,3 +1566,45 @@ arch_check.py 是架构现状图的**脐带**——脐带本身必须强健。�
 **测错对象的测试比没有测试多一层恶：它会在 code review 时挡住"这里缺测试"的质疑，把真正的保护赶走。** 补课测试章的一句话我这里兑现：测试的第一原则是**断言服务端状态，不是断言返回文案**；第二原则是**字段名要和模型对得上**——第一条我做到了，第二条我没做到，一营验收揪出来了，这就是异体对抗的价值。
 
 > 回执完毕，commit = 待一营实跑后 push。
+
+
+---
+
+## 🛠 D-26 施工回执（二营，2026-07-26）
+
+**砚仁裁定**：中卡直道，三项（cron接入/补扣历史/G5鉴权收敛）；G3/G4/BED_RATES 数值不动。
+
+### 改动清单
+1. **`server/routes/nt.py`**：
+   - BED_RATES 提为文件级常量（985行，保持原数值不改）
+   - 抽出 `_run_daily_settlement(db, today)` 内部异步函数，可被 cron 和 HTTP 端点共用
+   - **补扣历史漏扣天数**：每个 active Tenancy 算 `daysPassed = today - (last_deducted||checkin_date)`，逐日扣/欠费、每天一条 ledger（余额够=accommodation_fee/settled，不够=debt_accrued/pending）
+   - **行锁**：每个 tenant User 行 `with_for_update().execution_options(populate_existing=True)` 对齐 D-5/D-17
+   - `/api/system/daily-tick` 端点 `Depends(get_current_user)` → `Depends(require_admin)`（G5 收敛）
+   - 返回值新增 `caught_up_days` 字段（补扣总天数）
+
+2. **`server/cron.py`**：`tick_daily()` 系统任务生成后，用独立 async_session 调 `_run_daily_settlement(settle_db)`；日结异常只 log error 不影响系统任务生成（事务隔离）。每日 00:05 UTC 自动触发，不依赖用户登录。
+
+3. **`server/tests/test_accommodation_daily.py`** 新增 5 条测试：
+   - 断言1：余额够扣 20 + accommodation_fee ledger + last_deducted=今天
+   - 断言2：余额 0 → debt += 20 + debt_accrued ledger + 余额不动
+   - 断言3：同天二次 tick → skipped=true，幂等不重复扣
+   - 断言4：last_deducted=3天前 → caught_up_days≥3 + 余额扣 3×20
+   - 断言5（G5）：普通用户 POST /api/system/daily-tick → 403
+
+### 影响面声明
+- 零改动 BED_RATES 数值（G3 不动）
+- 零改动欠费追缴逻辑（G4 不动）
+- 零改动 nantang-mobile/ 前端文件（一营阵地），但 core.js:1026 普通用户登录会发 POST /api/system/daily-tick 拿 403——fire-and-forget 只 console.warn，不崩。**建议一营同步删除 core.js:1026 的主动 POST**（cron 已接管日结）
+- 新表字段零；Tenancy.debt / Tenancy.last_deducted / CommunityPool.last_tick_date 复用现有字段
+- 回滚：`git revert <commit>` 即可，无数据库迁移
+- py_compile nt.py/cron.py/测试文件全绿；沙箱无网装不了 pytest，实跑交一营验收
+
+### 太傅注（卡面必附）
+
+资金路径的铁律是"行锁 + 幂等 + 小事务"——这三条 D-26 都对齐了：
+- **行锁**：`with_for_update()` 防并发双扣（同 D-5 提现逻辑）
+- **幂等**：`pool.last_tick_date==today` 直接跳过；每个 Tenancy `last_deducted==today` 跳过，重跑不会多扣
+- **小事务**：cron 里日结用独立 session，和系统任务生成分离——日结炸了不影响每日任务发卡
+
+补扣历史的实现里有个细节：每漏扣一天写一条独立的 ledger（accommodation_fee 或 debt_accrued），而不是"一条 ledger 写总额"。这是为了**可审计**——未来对账时能精确看出哪天住了、哪天欠费，而不是一团总数。审计粒度到天，比到结算事件要高一个量级，多写几行 ledger 值得。
