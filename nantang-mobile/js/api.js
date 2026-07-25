@@ -132,6 +132,8 @@ var API = {
   pendingWithdraws: function() { return this.request('GET', '/api/admin/withdraws/pending'); },
   confirmWithdraw: function(entryId) { return this.request('POST', '/api/admin/withdraw/confirm?entry_id=' + encodeURIComponent(entryId)); },
   rejectWithdraw: function(entryId) { return this.request('POST', '/api/admin/withdraw/reject?entry_id=' + encodeURIComponent(entryId)); },
+  // ── 住宿 ──
+  checkout: function() { return this.request('POST', '/api/accommodation/checkout'); },
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
   // ── 任务同步 ──
   syncTask: function(task, callback) {

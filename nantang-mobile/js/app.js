@@ -1737,18 +1737,41 @@ function _checkoutStay() {
 
 function _doCheckout() {
   var roomNum = (MGMT_DATA.stay.myRoom||'').replace('dorm','');
-  MGMT_DATA.stay.history.unshift({
-    date:_todayStr(), person:_me(), room:roomNum, detail:'退房 ✓'
+  // D-18: 退房接服务端——先调 API，失败时保留本地状态
+  var isOffline = (typeof API === 'undefined' || !API.token);
+  if (isOffline) {
+    MGMT_DATA.stay.history.unshift({date:_todayStr(), person:_me(), room:roomNum, detail:'退房 ✓'});
+    MGMT_DATA.stay.myRoom = null; MGMT_DATA.stay.myCheckIn = null; MGMT_DATA.stay.myCheckOut = null;
+    MGMT_DATA._save();
+    if (window.AppData) AppData.flipPresence(_me(), 'cloud', null);
+    if (window.Game&&Game.toast) Game.toast('已退房 '+roomNum+'室（离线）· 状态已切为云在线');
+    renderMgmtPanel('stay');
+    return;
+  }
+  API.checkout().then(function(r){
+    if (r && r.ok) {
+      MGMT_DATA.stay.history.unshift({date:_todayStr(), person:_me(), room:roomNum, detail:'退房 ✓'});
+      MGMT_DATA.stay.myRoom = null; MGMT_DATA.stay.myCheckIn = null; MGMT_DATA.stay.myCheckOut = null;
+      MGMT_DATA._save();
+      if (window.AppData) AppData.flipPresence(_me(), 'cloud', null);
+      // 服务端可能返回角色变更
+      if (r.role && window.AppData) {
+        var users = (typeof getUsers === 'function') ? getUsers() : {};
+        if (users[_me()]) users[_me()].role = r.role;
+      }
+      var msg = '已退房 '+roomNum+'室 · 状态已切为云在线';
+      if (r.remaining_debt > 0) msg += ' · ⚠ 欠费 '+r.remaining_debt+' NT 未结';
+      if (window.Game&&Game.toast) Game.toast(msg);
+    } else {
+      showToast((r&&r.detail)||'退房失败，请重试','error');
+    }
+    renderMgmtPanel('stay');
+  }).catch(function(){
+    showToast('网络异常，请稍后重试','error');
+    renderMgmtPanel('stay');
   });
-  MGMT_DATA.stay.myRoom = null;
-  MGMT_DATA.stay.myCheckIn = null;
-  MGMT_DATA.stay.myCheckOut = null;
-  MGMT_DATA._save();
-  // 退房自动切云在线
-  if (window.AppData) AppData.flipPresence(_me(), 'cloud', null);
-  if (window.Game&&Game.toast) Game.toast('已退房 '+roomNum+'室 · 状态已切为云在线');
-  renderMgmtPanel('stay');
 }
+function _checkoutBed(){ _checkoutStay(); }
 
 /* ══════════════════════════════════════
    🌿 田地管理（我的视角）
