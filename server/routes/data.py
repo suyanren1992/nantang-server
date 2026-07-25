@@ -31,6 +31,7 @@ class ActivityLogReq(BaseModel):
     text: str = ""
 
 class CardDiscoveryReq(BaseModel):
+    id: str = ""
     space_id: str = ""
     description: str = ""
     guessed_person: str = ""
@@ -148,8 +149,14 @@ async def get_card_discoveries(user: User = Depends(get_current_user), db: Async
 
 @router.post("/card_discoveries")
 async def add_card_discovery(req: CardDiscoveryReq, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    # D-16 M-16: 优先用客户端 id + 幂等去重（照 A-7 同修）
+    disc_id = req.id if req.id else f"disc_{datetime.utcnow().timestamp()}"
+    if req.id:
+        existing = (await db.execute(select(CardDiscovery).where(CardDiscovery.id == req.id))).scalar_one_or_none()
+        if existing:
+            return {"ok": True, "id": existing.id}
     d = CardDiscovery(
-        id=f"disc_{datetime.utcnow().timestamp()}",
+        id=disc_id,
         space_id=req.space_id, description=req.description,
         guesser=user.id, guessed_person=req.guessed_person,
         guessed_at=req.guessed_at, status=req.status,
@@ -406,6 +413,19 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
             existing = json.loads(pr.data) if pr.data else {}
             if pdata.get("updatedAt", "") >= existing.get("updatedAt", ""):
                 pr.data = json.dumps(pdata, ensure_ascii=False)
+    # D-15: 公约修改同步
+    _pcc = req.get("pendingConfigChanges")
+    if _pcc and isinstance(_pcc, list):
+        pc = (await db.execute(select(MapLocation).where(MapLocation.key == "config_changes"))).scalar_one_or_none()
+        if not pc:
+            pc = MapLocation(key="config_changes"); db.add(pc)
+        pc.data = json.dumps(_pcc, ensure_ascii=False)
+    _ch = req.get("configHistory")
+    if _ch and isinstance(_ch, list):
+        ch = (await db.execute(select(MapLocation).where(MapLocation.key == "config_history"))).scalar_one_or_none()
+        if not ch:
+            ch = MapLocation(key="config_history"); db.add(ch)
+        ch.data = json.dumps(_ch, ensure_ascii=False)
     await db.commit()
     return {"ok": True}
 
@@ -413,9 +433,11 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
 @router.get("/sync_all")
 async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     # 我的任务
+    # D-16: LIKE 拼接前剔除通配符（存量 %/_ 用户名账号兜底）
+    _uid = user.id.replace('%', '').replace('_', '')
     tasks_r = await db.execute(
         select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{user.id}"%'))
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{_uid}"%'))
         ).order_by(NTTask.created_at.desc())
     )
     my_tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
@@ -474,6 +496,11 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
         pdata = _safe_json(pr.data) if pr.data else {}
         if pdata:
             presence[uid] = pdata
+    # D-15: 公约修改同步
+    pcc_r = (await db.execute(select(MapLocation).where(MapLocation.key == "config_changes"))).scalar_one_or_none()
+    pendingConfigChanges = json.loads(pcc_r.data) if pcc_r and pcc_r.data else []
+    ch_r = (await db.execute(select(MapLocation).where(MapLocation.key == "config_history"))).scalar_one_or_none()
+    configHistory = json.loads(ch_r.data) if ch_r and ch_r.data else []
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
             "activity": activity, "items": items, "newbie": newbie,
             "verifications": verifications, "cron_active": True,
@@ -481,4 +508,6 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
             "pool_balance": pool_balance,
             "map_locations": map_locations,
             "camps": camps,
-            "presence": presence}
+            "presence": presence,
+            "pendingConfigChanges": pendingConfigChanges,
+            "configHistory": configHistory}

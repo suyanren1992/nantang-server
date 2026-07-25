@@ -345,8 +345,63 @@ function _openCovenantOverlay() {
     });
     body += '</div>';
   }
+  // D-15: 待校核修改展示
+  var pendingCfgs = (window.AppData && AppData._data.pendingConfigChanges) ? AppData._data.pendingConfigChanges.filter(function(c){ return c.status === 'pending'; }) : [];
+  if (pendingCfgs.length) {
+    body += '<div style="margin-bottom:10px"><div style="font-weight:700;font-size:.68rem;color:#c8892e;margin-bottom:4px">⏳ 待校核修改 ('+pendingCfgs.length+')</div>';
+    pendingCfgs.forEach(function(c){
+      body += '<div style="font-size:.58rem;padding:4px;background:#fef8e8;border-radius:6px;margin:4px 0">提案人:'+esc(c.proposedBy)+' · '+(c.note||'')+'<br>';
+      (c.changes||[]).forEach(function(ch){ body += ch.field+': '+ch.old+'→'+ch.new+'<br>'; });
+      body += '<button class="btn-sm pri" style="font-size:.55rem;padding:2px 8px;margin-top:4px" onclick="event.stopPropagation();_verifyCovenantProposal(\''+c.id+'\')">✓ 校核 ('+(c.verifiedBy||[]).length+'/'+c.requiredVerifiers+')</button>';
+      body += '</div>';
+    });
+    body += '</div>';
+  }
+  // D-15: 管理员修改提案按钮
+  if (_me().role === 'admin') {
+    body += '<button class="btn-sm pri" style="width:100%;margin-top:6px;font-size:.65rem" onclick="closeQuickSheet();_openCovenantProposal()">📝 发起修改提案</button>';
+  }
   body += '<div style="font-size:.55rem;color:#999;margin-top:8px">⚠ 所有定价由线下公约大会决定。管理员修改需24h公示+2人在线校核。</div>';
   _openQuickSheet('📜 南塘社区公约', body);
+}
+
+// D-15: 发起公约修改提案
+function _openCovenantProposal() {
+  var fields = [
+    { id:'cleaning_pricing.dirty', label:'大扫除超时🔴 NT' },
+    { id:'cleaning_pricing.warning', label:'大扫除注意🟡 NT' },
+    { id:'cleaning_pricing.clean', label:'日常打扫🟢 NT' },
+    { id:'farming_pricing.harvest', label:'农活收割/除草/施肥 NT' },
+    { id:'farming_pricing.plant', label:'轻量农活浇水/种植 NT' },
+    { id:'cooking_pricing.chef', label:'帮厨/主厨 NT' },
+    { id:'cooking_pricing.helper', label:'洗碗/备菜 NT' },
+    { id:'kitchen_pricing.stock_in', label:'冰箱物品录入 NT' },
+    { id:'kitchen_pricing.stock_out', label:'物品消耗标记 NT' },
+    { id:'kitchen_pricing.detail', label:'详细录入 NT' },
+    { id:'verifier_reward_pct', label:'校核奖励比例' },
+    { id:'accommodation_pricing.dorm101.perBed', label:'A室 NT/床' },
+    { id:'accommodation_pricing.dorm102.perBed', label:'B室 NT/床' }
+  ];
+  var opts = fields.map(function(f){ return '<option value="'+f.id+'">'+f.label+'</option>'; }).join('');
+  var h = '<div style="padding:12px"><div style="font-weight:700;font-size:.7rem;margin-bottom:8px">📝 发起定价修改提案</div>';
+  h += '<select id="cfgField" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:6px;font-family:inherit">'+opts+'</select>';
+  h += '<input id="cfgOld" placeholder="当前值" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:4px;box-sizing:border-box;font-family:inherit">';
+  h += '<input id="cfgNew" placeholder="新值" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:4px;box-sizing:border-box;font-family:inherit">';
+  h += '<input id="cfgNote" placeholder="修改原因/会议纪要（必填）" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:8px;box-sizing:border-box;font-family:inherit">';
+  h += '<button class="btn-pri btn-full" style="font-size:.65rem" onclick="var f=document.getElementById(\'cfgField\').value;var o=document.getElementById(\'cfgOld\').value;var n=document.getElementById(\'cfgNew\').value;var nt=document.getElementById(\'cfgNote\').value;if(!nt){showToast(\'请填写修改原因\',\'warn\');return}var ch={field:f,old:isNaN(o)?o:parseInt(o),new:isNaN(n)?n:parseInt(n)};AppData.proposeConfigChange([ch],nt,\'\',null,_me().name);closeSub();showToast(\'提案已提交，需24h公示+2人校核\',\'ok\')">提交提案</button>';
+  h += '</div>';
+  openSub('公约修改提案', '⚖️', h, [{ label:'返回', action:'closeSub' }]);
+}
+
+// D-15: 校核公约修改
+function _verifyCovenantProposal(changeId) {
+  if (!CURRENT_USER) { showToast('请先登录', 'warn'); return; }
+  var result = AppData.verifyConfigChange(changeId, CURRENT_USER);
+  if (result.ok) {
+    showToast('校核成功！'+(result.remaining?'还需 '+result.remaining+' 人校核':'修改已生效'), 'ok');
+  } else {
+    showToast(result.error, 'warn');
+  }
 }
 
 // ── 全貌页：卡片室+校核室并列 ──

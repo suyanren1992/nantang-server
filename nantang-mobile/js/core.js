@@ -964,6 +964,13 @@ function _mergeSyncData(data) {
   if (data.presence && typeof data.presence === 'object' && window.AppData) {
     AppData._data.presence = data.presence;
   }
+  // D-15: 公约修改以服务端为准
+  if (data.pendingConfigChanges && Array.isArray(data.pendingConfigChanges) && window.AppData) {
+    AppData._data.pendingConfigChanges = data.pendingConfigChanges;
+  }
+  if (data.configHistory && Array.isArray(data.configHistory) && window.AppData) {
+    AppData._data.configHistory = data.configHistory;
+  }
 }
 function enterVillage(){
   var isReg=!document.getElementById('scrRegister').classList.contains('hidden');
