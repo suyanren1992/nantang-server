@@ -1362,3 +1362,77 @@ if camp.created_by != user.id and user.role != "admin":
 - `pip install -r requirements-dev.txt` → `cd server && pytest tests/ -v`（D-19/D-20 实跑全绿 + 变异抽查改一行被测代码至少一条变红）
 - `python server/scripts/deploy_check.py --skip-smoke`（D-22 前三项 PASS）
 - `python server/scripts/security_scan.py`（D-23 降级提示正常；装 pip-audit 后再跑一次看 0 漏洞输出）
+
+---
+
+## 🔍 S2 四卡复验（Claude Code 一营验收席 · 2026-07-26 复跑）
+
+> 此前验收回执已写入各卡正文。本次按砚仁指令复验，实跑所有脚本+变异抽查。
+
+### D-19 后端测试骨架
+- `pytest tests/ -v` → **22 passed, 0 failed**（9.22s，与初验一致）
+- requirements-dev.txt 曾从工作区消失，已从 704b57b 恢复（`git checkout 704b57b -- requirements-dev.txt`）
+- 变异抽查：`test_invite_invalid_rejected` 断言从 200→400 → 🔴 FAIL → 断言有效 → 已还原
+- **结论：通过** ✅（22/22 全绿，断言非摆设）
+
+### D-20 契约链路冒烟
+- `test_full_capital_loop` 6 段全闭环通过（校核到账 / 提现冻结 / admin confirm / reject / presence 同步）
+- 直查库断言服务端状态，非返回文案
+- **结论：通过** ✅
+
+### D-22 部署总检
+- `deploy_check.py --skip-smoke` → **3/3 PASS**（依赖对账 / ?v=一致性 / 环境变量）
+- 注：初验时发现 6 个 js 漏 ?v=，D-24（commit 7b83106）已修复，当前 0 个
+- **结论：通过** ✅
+
+### D-23 运维安全
+- `security_scan.py` 实跑正常：1 个已知漏洞（ecdsa 0.19.2，web3 传递依赖，初验已记录）
+- 密钥清单零真实值，模板卡可用
+- **结论：通过** ✅（已知漏洞非本次引入，属传递依赖）
+
+### 汇总
+| 卡 | 测试数 | 变异抽查 | 结论 |
+|---|---|---|---|
+| D-19 | 22/22 | 断言有效 | ✅ 通过 |
+| D-20 | 6/6 闭环 | 含 D-19 体系 | ✅ 通过 |
+| D-22 | 3/3 检查 | ?v= 漏标→报黄 | ✅ 通过 |
+| D-23 | 3/3 产出 | 零真实值 | ✅ 通过 |
+
+> **太傅注**：对应补课 `26`（测试——真跑脚本而非目测）+ `27`（安全审计——扫描脚本防静默失效）。
+> 人话原理：测试不跑=没写，断言不红=摆设。Codex 的测试骨架做到了「改一行就红」，及格。
+
+---
+
+## 🏗️ E-1 架构核验考古 + arch_check.py（Claude Code 一营 · 2026-07-26）
+
+> 旧文档《架构梳理与拆分方案.md》（07-20）17 条结论逐条核验结果：
+> **10 属实 · 6 过时 · 1 错误**。旧文档已丧失架构依据有效性。
+
+### 考古关键发现
+
+| 发现 | 证据 |
+|---|---|
+| monolithic `nantang-mobile.html` 已删除 | `ls` → No such file，双轨时代结束 |
+| `index.html` 从 482→1365 行（3x 增长） | 补齐了登录/村口/我的/任务大厅 HTML |
+| `ui-cardroom.js` 从 418→1368 行（+227%） | 旧文档说「未被加载」——**错误**，index.html:529 已加载 |
+| `ui-phase4.js` 从 532→267 行（-50%） | 客栈+食堂逻辑简化 |
+| `core.js` 6 天内 +582 行（→1798 行） | 无模块边界，全堆进核心文件——P1 债务 |
+| `app.js` 2715 行——最大文件 | 旧文档未规划此文件，含页面路由+所有 overlay+业务逻辑——P0 债务 |
+| EventBus 不存在 | 磁盘无此文件，未被加载 |
+| 目标前缀重命名（0-schema/1-login/...）未执行 | 磁盘无任何 0-/1-/2- 前缀文件 |
+
+### 产出
+
+- `方案/架构现状图.md`：锚点 commit `d4d1a09`，前端 18 模块加载顺序/行数/职责 + 后端 7 路由 + 前后端调用对应表 + 拆分差距清单（P0×1 / P1×4 / P2×3）
+- `nantang-mobile/scripts/arch_check.py`：5 项检查（模块存在性/行数漂移±30%/引用对账/锚点新鲜度≥10commits/旧文件存废），实跑 **全绿 exit 0**
+
+### 影响面声明
+
+- 纯新增文件 + 文档（`方案/架构现状图.md` + `nantang-mobile/scripts/arch_check.py`）
+- 零业务代码改动
+- 回滚 = 删除两个新增文件
+- 架构图是否受影响：否（本轮即架构图本身）
+- `arch_check.py` 挂载点就绪：`python nantang-mobile/scripts/arch_check.py` 可嵌入 vault_gate 或 deploy_check
+
+> **太傅注**：对应补课 `13`（前端骨架——模块边界与组件复用）+ `16`（后端骨架——目录责任与分层）。
+> 人话原理：文档不随码走=三个月后又是一份没人看的旧方案。arch_check.py 让机器替你盯着——模块行数漂移超 30%、架构图锚点落后 HEAD 10 个 commit、旧文件复活，全亮灯。
