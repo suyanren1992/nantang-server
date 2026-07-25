@@ -42,8 +42,8 @@ BASELINE = {
 # ── 辅助 ──
 def git_head(proj):
     try:
-        r = subprocess.run(["git", "-C", str(proj), "rev-parse", "HEAD"],
-                         capture_output=True, text=True, timeout=10)
+        r = subprocess.run(["git", "-c", "safe.directory=*", "-C", str(proj), "rev-parse", "HEAD"],
+                         capture_output=True, encoding="utf-8", timeout=10)
         return r.stdout.strip()[:8] if r.returncode == 0 else "unknown"
     except:
         return "unknown"
@@ -126,8 +126,8 @@ def main():
             doc_anchor = m.group(1)
             try:
                 r = subprocess.run(
-                    ["git", "-C", str(proj), "rev-list", "--count", f"{doc_anchor}..HEAD"],
-                    capture_output=True, text=True, timeout=10)
+                    ["git", "-c", "safe.directory=*", "-C", str(proj), "rev-list", "--count", f"{doc_anchor}..HEAD"],
+                    capture_output=True, encoding="utf-8", timeout=10)
                 ahead = int(r.stdout.strip()) if r.returncode == 0 else 999
             except:
                 ahead = 999
