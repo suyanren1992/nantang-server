@@ -102,7 +102,7 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         # F14: 营地任务预算走 camp_balance，不设 escrow
         pass
     else:
-        user_locked = (await db.execute(select(User).where(User.id == user.id).with_for_update())).scalar_one_or_none()
+        user_locked = (await db.execute(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if not user_locked or user_locked.nt_balance < req.reward * req.slots:
             raise HTTPException(status_code=400, detail=f"余额不足（需 {req.reward * req.slots} NT，当前 {user_locked.nt_balance if user_locked else 0}）")
 
@@ -160,7 +160,7 @@ async def update_task(task_id: str, req: TaskUpdate, user: User = Depends(get_cu
 @router.delete("/{task_id}")
 async def delete_task(task_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404)
@@ -170,7 +170,7 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
         raise HTTPException(status_code=403, detail="只能删除自己的任务")
     # Refund escrow if task was active
     if task.escrow_amount > 0 and task.status != "已结算":
-        poster_result = await db.execute(select(User).where(User.id == task.poster))
+        poster_result = await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))
         poster = poster_result.scalar_one_or_none()
         pool = await _get_pool(db)
         if poster:

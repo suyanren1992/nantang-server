@@ -205,14 +205,14 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
         raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
 
     from_user_obj = (await db.execute(
-        select(User).where(User.id == actual_from).with_for_update()
+        select(User).where(User.id == actual_from).with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not from_user_obj:
         raise HTTPException(status_code=404, detail="转出用户不存在")
     if from_user_obj.nt_balance < req.amount:
         raise HTTPException(status_code=400, detail=f"余额不足（当前 {from_user_obj.nt_balance} NT）")
 
-    to_result = await db.execute(select(User).where(User.id == req.to).with_for_update())
+    to_result = await db.execute(select(User).where(User.id == req.to).with_for_update().execution_options(populate_existing=True))
     to_user = to_result.scalar_one_or_none()
     if not to_user:
         raise HTTPException(status_code=404, detail="目标用户不存在")
@@ -256,7 +256,7 @@ async def spend(req: EarnSpendRequest, user: User = Depends(get_current_user), d
         raise HTTPException(status_code=400, detail=f"余额不足（当前 {user.nt_balance} NT）")
 
     # 重新查询加行锁防并发扣款
-    user_locked = (await db.execute(select(User).where(User.id == user.id).with_for_update())).scalar_one_or_none()
+    user_locked = (await db.execute(select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
     if not user_locked or user_locked.nt_balance < req.amount:
         raise HTTPException(status_code=400, detail="余额不足")
     user_locked.nt_balance -= req.amount
@@ -520,7 +520,7 @@ async def pools(user: User = Depends(get_current_user), db: AsyncSession = Depen
 
 @router.post("/tasks/{task_id}/accept")
 async def accept_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -546,7 +546,7 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
 @router.post("/tasks/{task_id}/verify")
 async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: str = Body(""),
                       user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -586,7 +586,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
         task.verified_at = datetime.utcnow().isoformat()
         task.escrow_amount = 0
 
-        poster = await db.execute(select(User).where(User.id == task.poster))
+        poster = await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))
         poster = poster.scalar_one_or_none()
         if poster:
             await _adjust_trust(poster, 3)
@@ -617,7 +617,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
             # 超 3 次 → 释放 escrow，自动取消
             if not task.escrow_amount or task.escrow_amount <= 0:
                 raise HTTPException(status_code=409, detail="任务无托管金额，无法自动取消")
-            poster = await db.execute(select(User).where(User.id == task.poster))
+            poster = await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))
             poster = poster.scalar_one_or_none()
             if poster:
                 poster.nt_balance += task.escrow_amount
@@ -636,7 +636,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
 
 @router.post("/tasks/{task_id}/cancel")
 async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
     if task.poster != user.id and user.role != "admin":
@@ -660,7 +660,7 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
 
     if task.escrow_amount > 0:
         pool = await _get_pool(db)
-        poster = (await db.execute(select(User).where(User.id == task.poster))).scalar_one_or_none()
+        poster = (await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if poster: poster.nt_balance += task.escrow_amount
         else: pool.balance += task.escrow_amount
         pool.task_escrow -= task.escrow_amount
@@ -675,7 +675,7 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
 
 @router.post("/tasks/{task_id}/submit")
 async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
     a_ids = _safe_assignees(task)
@@ -706,7 +706,7 @@ async def submit_task(task_id: str, evidence: str = "", user: User = Depends(get
 async def settle_task(task_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):
     """结算任务——仅任务发布者或管理员可操作。ponytail: 最小实现。"""
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -726,7 +726,7 @@ async def settle_task(task_id: str, user: User = Depends(get_current_user),
 
 @router.post("/tasks/{task_id}/dispute")
 async def dispute_task(task_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task: raise HTTPException(status_code=404)
     a_ids = _safe_assignees(task)
@@ -748,7 +748,7 @@ class ResolveTaskRequest(BaseModel):
 @router.post("/tasks/{task_id}/resolve")
 async def resolve_task(task_id: str, req: ResolveTaskRequest, admin: User = Depends(require_admin),
                        db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update())
+    result = await db.execute(select(NTTask).where(NTTask.id == task_id).with_for_update().execution_options(populate_existing=True))
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="任务不存在")
@@ -773,7 +773,7 @@ async def resolve_task(task_id: str, req: ResolveTaskRequest, admin: User = Depe
     # 发布者份额：refund_poster 全额 / split_5050 一半
     if req.action in ("refund_poster", "split_5050"):
         poster_share = escrow if req.action == "refund_poster" else escrow // 2
-        poster = (await db.execute(select(User).where(User.id == task.poster))).scalar_one_or_none()
+        poster = (await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if poster:
             poster.nt_balance += poster_share
             poster.updated_at = datetime.utcnow().isoformat()
@@ -790,7 +790,7 @@ async def resolve_task(task_id: str, req: ResolveTaskRequest, admin: User = Depe
         per = assignee_total // len(assignee_ids)
         for i, aid in enumerate(assignee_ids):
             share = per + (assignee_total - per * len(assignee_ids)) if i == 0 else per
-            a = (await db.execute(select(User).where(User.id == aid))).scalar_one_or_none()
+            a = (await db.execute(select(User).where(User.id == aid).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
             if a:
                 a.nt_balance += share
                 a.updated_at = datetime.utcnow().isoformat()
@@ -822,7 +822,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     """Peer 校核通过——从社区池发放 NT 给 doer + verifier。ponytail: 最小实现，完整校核规则在 Phase D2。"""
     # 从 Verification 表获取权威金额（不信任客户端传入值）
     from models import Verification as VfyModel
-    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update())
+    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update().execution_options(populate_existing=True))
     vfy = vfy_r.scalar_one_or_none()
     if not vfy:
         raise HTTPException(status_code=404, detail="校核记录不存在")
@@ -873,7 +873,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     vfy.verified_at = datetime.utcnow().isoformat()
     # 发放 NT 给 doer
     doer = (await db.execute(
-        select(User).where(User.id == vfy.doer).with_for_update()
+        select(User).where(User.id == vfy.doer).with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if doer and nt_amount > 0:
         doer.nt_balance += nt_amount
@@ -885,7 +885,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     # 发放 verifier 奖励——加行锁防并发
     if verifier_reward > 0:
         verifier = (await db.execute(
-            select(User).where(User.id == user.id).with_for_update()
+            select(User).where(User.id == user.id).with_for_update().execution_options(populate_existing=True)
         )).scalar_one_or_none()
         if verifier:
             verifier.nt_balance += verifier_reward
@@ -911,7 +911,7 @@ async def reject_verification(vfy_id: str, user: User = Depends(get_current_user
                                db: AsyncSession = Depends(get_db)):
     """Peer 驳回校核——写 DB，3 次驳回后永久拒绝。"""
     from models import Verification as VfyModel
-    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update())
+    vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update().execution_options(populate_existing=True))
     vfy = vfy_r.scalar_one_or_none()
     if not vfy:
         raise HTTPException(status_code=404, detail="校核记录不存在")
@@ -1003,7 +1003,7 @@ async def daily_tick(user: User = Depends(get_current_user), db: AsyncSession = 
     for t in tenancies_r.scalars():
         if t.last_deducted == today:
             continue
-        tenant_user = (await db.execute(select(User).where(User.id == t.user_id).with_for_update())).scalar_one_or_none()
+        tenant_user = (await db.execute(select(User).where(User.id == t.user_id).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if not tenant_user:
             continue
         rate = BED_RATES.get(t.room_id, 28)  # fallback 均价 28
