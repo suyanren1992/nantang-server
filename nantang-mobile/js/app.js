@@ -591,6 +591,12 @@ function _doReject(vfyId, reason) {
   if (!reason) { showToast('请填写退回原因', 'warn'); return; }
   if (!window.AppData) return;
   var result = AppData.verifyAction(vfyId, _me(), false, reason);
+  if (result && result.async) {
+    // D-18: 异步HTTP，禁用按钮等待服务端响应
+    var btns = document.querySelectorAll('button[onclick*="_doReject"]');
+    btns.forEach(function(b){ b.disabled = true; b.textContent = '⏳ 处理中…'; });
+    return;
+  }
   if (result && result.ok) {
     if (window.Game&&Game.toast) Game.toast('已退回');
     render();

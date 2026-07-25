@@ -347,17 +347,47 @@ this._data.map_locations.people_on_site = [];
     // 冷却/日上限校验——已迁移到服务端（P3），客户端仅保留结构性校验
     // 退回模式
     if (approved === false) {
-      vfy.retryCount = (vfy.retryCount || 0) + 1;
-      vfy.rejectReason = rejectReason || '';
-      vfy.rejectedBy = verifierName;
-      vfy.rejectedAt = new Date().toISOString();
-      if (vfy.retryCount >= 3) {
-        vfy.status = 'permanently_rejected';
-      } else {
-        vfy.status = 'rejected';
+      // D-18: 退回接服务端——先调 API，再更新本地
+      var isOffline = (typeof API === 'undefined' || !API.token);
+      if (isOffline) {
+        vfy.retryCount = (vfy.retryCount || 0) + 1;
+        vfy.rejectReason = rejectReason || '';
+        vfy.rejectedBy = verifierName;
+        vfy.rejectedAt = new Date().toISOString();
+        if (vfy.retryCount >= 3) {
+          vfy.status = 'permanently_rejected';
+        } else {
+          vfy.status = 'rejected';
+        }
+        this._saveShared(true);
+        return { ok: true, rejected: true, retryCount: vfy.retryCount };
       }
-      this._saveShared(true);
-      return { ok: true, rejected: true, retryCount: vfy.retryCount };
+      // HTTP：异步调用API
+      var self = this;
+      var retries_before = (vfy.retryCount || 0);
+      API.rejectVerification(vfy.id, rejectReason || '').then(function() {
+        vfy.retryCount = retries_before + 1;
+        vfy.rejectReason = rejectReason || '';
+        vfy.rejectedBy = verifierName;
+        vfy.rejectedAt = new Date().toISOString();
+        if (vfy.retryCount >= 3) {
+          vfy.status = 'permanently_rejected';
+        } else {
+          vfy.status = 'rejected';
+        }
+        self._saveShared(true);
+        if (typeof renderCardRoom === 'function') renderCardRoom();
+        if (typeof renderVerifyRoom === 'function') renderVerifyRoom();
+        var popup = document.querySelector('.vfy-popup'); if (popup) popup.remove();
+        if (window.Game && Game.toast) Game.toast('已退回');
+      }).catch(function(err) {
+        var msg = (err && err.detail) || '网络错误';
+        showToast(msg, 'warn');
+        vfy.retryCount = retries_before;
+        self._saveShared(true);
+        if (typeof renderCardRoom === 'function') renderCardRoom();
+      });
+      return { async: true };
     }
     // 通过模式——HTTP 先调 API，成功回调中更新本地状态（悲观更新）
     // 兼容服务端 snake_case 和客户端 camelCase

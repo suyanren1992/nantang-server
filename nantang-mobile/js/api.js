@@ -125,6 +125,8 @@ var API = {
   spend: function(amount, reason, scope) { return this.request('POST', '/api/nt/spend', {amount:amount, reason:reason||'', scope:scope||'personal'}); },
   topUp: function(user, amount, reason) { return this.request('POST', '/api/nt/topup', {user:user, amount:amount, reason:reason||''}); },
   verify: function() { return this.request('GET', '/api/nt/verify'); },
+  approveVerification: function(id, data) { return this.request('POST', '/api/nt/verifications/' + id + '/approve', data); },
+  rejectVerification: function(id, reason) { return this.request('POST', '/api/nt/verifications/' + id + '/reject', {reject_reason: reason}); },
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
   // ── 任务同步 ──
   syncTask: function(task, callback) {
