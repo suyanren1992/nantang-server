@@ -488,6 +488,10 @@ this._data.map_locations.people_on_site = [];
       this._data.member_locations[userName] = location;
     }
     this._saveShared(true);
+    // D-12 返修: immediate 路径补 HTTP 上行，否则其他设备看不到翻牌
+    if (typeof API !== 'undefined' && API.token) {
+      API.request('POST', '/api/data/sync_shared', { presence: this._data.presence });
+    }
   },
   flipForOther: function(targetName, status, flipperName) {
     if (!window.NT) return { ok: false, error: 'NT系统不可用' };

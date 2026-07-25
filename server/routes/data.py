@@ -393,13 +393,19 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
             if not existing:
                 db.add(CanteenMenu(date=date, lunch=json.dumps(menu.get("lunch",[]), ensure_ascii=False),
                                    dinner=json.dumps(menu.get("dinner",[]), ensure_ascii=False)))
-    # D-12: presence 翻牌状态（任何人可写，复用 MapLocation key="presence"）
+    # D-12 返修: presence 翻牌状态——分用户 key 存储，防并发互踩
     _presence = req.get("presence")
     if _presence and isinstance(_presence, dict):
-        pr = (await db.execute(select(MapLocation).where(MapLocation.key == "presence"))).scalar_one_or_none()
-        if not pr:
-            pr = MapLocation(key="presence"); db.add(pr)
-        pr.data = json.dumps(_presence, ensure_ascii=False)
+        for uid, pdata in _presence.items():
+            if not isinstance(pdata, dict): continue
+            # updatedAt 防回写：只有更新的数据才覆盖
+            pk = f"presence:{uid}"
+            pr = (await db.execute(select(MapLocation).where(MapLocation.key == pk))).scalar_one_or_none()
+            if not pr:
+                pr = MapLocation(key=pk); db.add(pr)
+            existing = json.loads(pr.data) if pr.data else {}
+            if pdata.get("updatedAt", "") >= existing.get("updatedAt", ""):
+                pr.data = json.dumps(pdata, ensure_ascii=False)
     await db.commit()
     return {"ok": True}
 
@@ -460,9 +466,14 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
     camps = [{"id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
               "date": c.date, "status": c.status, "people": c.people, "max": c.max,
               "location": c.location, "desc": c.desc} for c in camps_r.scalars()]
-    # D-12: presence 翻牌状态（全用户共享）
-    pr_r = (await db.execute(select(MapLocation).where(MapLocation.key == "presence"))).scalar_one_or_none()
-    presence = _safe_json(pr_r.data) if pr_r else {}
+    # D-12 返修: presence 翻牌状态——合并所有分用户 key
+    pr_rows = (await db.execute(select(MapLocation).where(MapLocation.key.like("presence:%")))).scalars()
+    presence = {}
+    for pr in pr_rows:
+        uid = pr.key.replace("presence:", "")
+        pdata = _safe_json(pr.data) if pr.data else {}
+        if pdata:
+            presence[uid] = pdata
     return {"tasks": my_tasks, "journal": journal, "discoveries": discoveries,
             "activity": activity, "items": items, "newbie": newbie,
             "verifications": verifications, "cron_active": True,
