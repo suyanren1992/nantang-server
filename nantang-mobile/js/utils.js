@@ -131,7 +131,7 @@ function _fallbackCopy(txt) {
   ta.style.position = 'fixed'; ta.style.left = '-9999px'; ta.style.top = '0';
   document.body.appendChild(ta);
   ta.focus(); ta.select();
-  try { document.execCommand('copy'); setStatus('已复制：' + txt.slice(0,20) + '...'); } catch(e) { prompt('手动复制：', txt); }
+  try { document.execCommand('copy'); setStatus('已复制：' + txt.slice(0,20) + '...'); } catch(e) { _promptDialog('手动复制：', txt, function(){}); }
   document.body.removeChild(ta);
 }
 

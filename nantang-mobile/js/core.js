@@ -110,7 +110,7 @@ window.Game = {
   openTask: function(taskId) { openQuestHallPage(); },
   toast: function(msg) { showToast(msg); },
   confirm: function(title, message, onConfirm) {
-    showConfirm(message, onConfirm);
+    showConfirm(title + '\n\n' + message, onConfirm);
   },
   openCamp: function(campId) { openCampHome(campId); },
   refresh: function() { if (window.AppData) AppData._saveShared(); if (typeof refreshUserUI === 'function') refreshUserUI(); }
@@ -265,15 +265,21 @@ function selectMemberPicker(name) {
 function onBuilderPicked(name) {
   if (!_campDraft) return;
   var taskChoices = _builderPendingTasks;
-  var taskNames = [];
   if (taskChoices.length) {
     var list = taskChoices.map(function(t, i) { return (i+1)+'. '+t.name+' ('+t.nt+'NT)'; }).join('\n');
-    var sel = prompt('分配任务（序号逗号分隔，留空=全选）：\n'+list);
-    if (sel) {
-      var idxs = sel.split(',').map(function(s){ return parseInt(s.trim())-1; }).filter(function(i){ return i>=0 && i<taskChoices.length; });
-      taskNames = idxs.map(function(i){ return taskChoices[i].name; });
-    } else { taskNames = taskChoices.map(function(t){ return t.name; }); }
+    _promptDialog('分配任务（序号逗号分隔，留空=全选）：\n'+list, '', function(sel){
+      var taskNames = [];
+      if (sel) {
+        var idxs = sel.split(',').map(function(s){ return parseInt(s.trim())-1; }).filter(function(i){ return i>=0 && i<taskChoices.length; });
+        taskNames = idxs.map(function(i){ return taskChoices[i].name; });
+      } else { taskNames = taskChoices.map(function(t){ return t.name; }); }
+      _addBuilder(name, taskNames);
+    });
+  } else {
+    _addBuilder(name, []);
   }
+}
+function _addBuilder(name, taskNames) {
   var totalNT = _campDraft.step4.tasks.filter(function(t){ return taskNames.indexOf(t.name)!==-1; }).reduce(function(s,t){ return s+t.nt; },0);
   _campDraft.step5.builders.push({ name:name, taskNames:taskNames, totalNT:totalNT, confirmed:false });
   if (typeof changeUserRole === 'function') { changeUserRole(name, 'builder', { skipAdventurerCheck: true }); }
@@ -1612,7 +1618,7 @@ window.addEventListener('message',function(e){
   else if(d.type==='openTask'){openQuestHallPage()}
   else if(d.type==='openMe'){document.getElementById('myPage').style.zIndex='200';showMy()}
   else if(d.type==='toast'){showToast(d.msg)}
-  else if(d.type==='confirm'){if(confirm(d.title+'\n\n'+d.msg))e.source.postMessage({type:'confirmResult',result:true},'*')}
+  else if(d.type==='confirm'){showConfirm(d.title+'\n\n'+d.msg,function(){e.source.postMessage({type:'confirmResult',result:true},'*')},function(){e.source.postMessage({type:'confirmResult',result:false},'*')})}
   else if(d.type==='closeMap'){closeOverlay('overlayMap')}
   // 阶段 1 前置B：地图建筑 → 档案室
   else if(d.type==='openArchive'){openArchive(d.tab||'members')}

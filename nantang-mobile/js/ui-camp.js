@@ -1277,7 +1277,7 @@ function _saveCamp(c) {
 function closePeriod() {
   var c = getCampData(); if (!c) return;
   if (c.status === 'archived') { showToast('本期已完结', 'warn'); return; }
-  if (!confirm('确定完结本期「'+c.name+'」？\n\n此操作不可撤销。完结后所有任务不可再结算。')) return;
+  showConfirm('确定完结本期「'+c.name+'」？\n\n此操作不可撤销。完结后所有任务不可再结算。', function(){
 
   var builders = (c.builders||[]).slice().sort(function(a,b){ return b.totalNT - a.totalNT; });
   c._prevRank = builders.map(function(b){ return { name:b.name, totalNT:b.totalNT }; });
@@ -1312,6 +1312,7 @@ function closePeriod() {
   setTimeout(function() {
     playCloseCeremony(c.id);
   }, 400);
+  });
 }
 
 function openCampReport(campId) {

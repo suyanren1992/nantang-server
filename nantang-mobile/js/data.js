@@ -209,11 +209,25 @@ function openItemPopup(id){
 }
 function closeItemPopup(){var m=document.getElementById('itemPopup');if(m)m.style.display='none'}
 // ponytail: prompt OK for quick price input, replace with inline form later
-function itemShelf(id){var p=prompt('售价 ¥');if(!p)return;var it=MOCK_ITEMS.find(function(i){return i.id===id});if(it){it.status='selling';it.price=parseInt(p,10);it.date='刚刚';_saveItems()};renderItemsInTab()}
+function itemShelf(id){
+  _promptDialog('售价 ¥', '', function(p){
+    if(!p)return;
+    var it=MOCK_ITEMS.find(function(i){return i.id===id});
+    if(it){it.status='selling';it.price=parseInt(p,10);it.date='刚刚';_saveItems()}
+    renderItemsInTab();
+  });
+}
 function itemDelist(id){var it=MOCK_ITEMS.find(function(i){return i.id===id});if(it){it.status='storage';it.price=0;_saveItems()};renderItemsInTab()}
 function itemRelist(id){var it=MOCK_ITEMS.find(function(i){return i.id===id});if(it){it.status='selling';it.date='刚刚';_saveItems()};renderItemsInTab()}
 function itemCancelAuction(id){var it=MOCK_ITEMS.find(function(i){return i.id===id});if(it){it.status='storage';it.price=0;_saveItems()};renderItemsInTab()}
-function itemAuction(id){var p=prompt('起拍价 ¥');if(!p)return;var it=MOCK_ITEMS.find(function(i){return i.id===id});if(it){it.status='auction';it.price=parseInt(p,10);it.date='刚刚';_saveItems()};renderItemsInTab()}
+function itemAuction(id){
+  _promptDialog('起拍价 ¥', '', function(p){
+    if(!p)return;
+    var it=MOCK_ITEMS.find(function(i){return i.id===id});
+    if(it){it.status='auction';it.price=parseInt(p,10);it.date='刚刚';_saveItems()}
+    renderItemsInTab();
+  });
+}
 function addItem(){openItemForm('new',null)}
 function editItem(id){openItemForm('edit',id)}
 function openItemForm(mode,id){
@@ -508,13 +522,14 @@ function confirmSettle(name){
 }
 function today(){return (window.Clock&&Clock.today)?Clock.today():new Date().toISOString().slice(0,10)}
 // Toast system: inline card notifications, no browser dialogs
-function showConfirm(msg,onOk){
+function showConfirm(msg,onOk,onCancel){
   document.querySelectorAll('.confirm-card').forEach(function(c){c.remove()});
   var d=document.createElement('div');d.className='confirm-card';
   d.style.cssText='position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);animation:fadeIn .15s ease-out';
-  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:260px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.82rem;font-weight:700;margin-bottom:12px;line-height:1.6">'+esc(msg).replace(/\n/g,'<br>')+'</div><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 onclick="this.closest(\'.confirm-card\').remove()">取消</button><button class="btn-sm danger" style=flex:1 id="confirmOkBtn">确认</button></div></div>';
+  d.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px;width:260px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,.3)"><div style="font-size:.82rem;font-weight:700;margin-bottom:12px;line-height:1.6">'+esc(msg).replace(/\n/g,'<br>')+'</div><div style="display:flex;gap:8px"><button class="btn-sm sec" style=flex:1 id="confirmCancelBtn">取消</button><button class="btn-sm danger" style=flex:1 id="confirmOkBtn">确认</button></div></div>';
   document.body.appendChild(d);
   document.getElementById('confirmOkBtn').addEventListener('click',function(){d.remove();if(onOk)onOk()});
+  document.getElementById('confirmCancelBtn').addEventListener('click',function(){d.remove();if(onCancel)onCancel()});
 }
 // M-5: 替代原生 prompt() 的自定义输入对话框
 function _promptDialog(msg, defVal, onOk) {

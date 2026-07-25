@@ -8,16 +8,27 @@ function openCreateCamp() {
   var saved = null;
   try { saved = JSON.parse(sessionStorage.getItem('nantang_camp_draft')); } catch(e) {}
   if (saved && saved.step1 && saved.step1.name) {
-    if (confirm('检测到未完成的创营草稿「' + saved.step1.name + '」，是否恢复？\n\n选择「取消」将重新开始。')) {
+    showConfirm('检测到未完成的创营草稿「' + saved.step1.name + '」，是否恢复？\n\n选择「取消」将重新开始。', function(){
       _campDraft = saved;
       _campWizardStep = saved._step || 1;
       document.getElementById('overlayCreateCamp').classList.add('open');
       renderWizardStep(_campWizardStep);
       showToast('草稿已恢复', 'ok');
-      return;
-    }
-    sessionStorage.removeItem('nantang_camp_draft');
+    }, function(){
+      sessionStorage.removeItem('nantang_camp_draft');
+      _initNewDraft();
+      _campWizardStep = 1;
+      document.getElementById('overlayCreateCamp').classList.add('open');
+      renderWizardStep(1);
+    });
+    return;
   }
+  _initNewDraft();
+  _campWizardStep = 1;
+  document.getElementById('overlayCreateCamp').classList.add('open');
+  renderWizardStep(1);
+}
+function _initNewDraft() {
   _campDraft = {
     step1: { name:'', season:'第四期', type:'regular', theme:'', desc:'', testMode:false, soulWhy:'', soulWho:'', soulWhat:'' },
     step2: { startDate:'', days:8, schedule:[], milestones:[] },
@@ -28,18 +39,19 @@ function openCreateCamp() {
     step6: { sentAt:null, confirmations:{} },
     step7: { launched:false }
   };
-  // P2-2: 预填 18 个默认预算项
   var defBudget = initDefaultBudgetItems();
   _campDraft.step3.extraIncome = defBudget.extraIncome.slice();
   _campDraft.step3.extraExpense = defBudget.extraExpense.slice();
-  _campWizardStep = 1;
-  document.getElementById('overlayCreateCamp').classList.add('open');
-  renderWizardStep(1);
 }
 
 function cancelCampWizard() {
   if (_campDraft && _campDraft.step1.name) {
-    if (!confirm('确定放弃创建？已填写的内容将丢失。')) return;
+    showConfirm('确定放弃创建？已填写的内容将丢失。', function(){
+      sessionStorage.removeItem('nantang_camp_draft');
+      _campDraft = null;
+      document.getElementById('overlayCreateCamp').classList.remove('open');
+    });
+    return;
   }
   sessionStorage.removeItem('nantang_camp_draft');
   _campDraft = null;
@@ -202,7 +214,15 @@ function applyQuickTemplate(name) {
     '青年间隔月': { name:'青年间隔月', theme:'28天发现另一种可能', season:'特别期', days:28, adv:20, bld:2, eb:199, fp:299 }
   };
   var t = map[name]; if (!t) return;
-  if (_campDraft.step1.name && !confirm('替换当前已填写内容？')) return;
+  if (_campDraft.step1.name) {
+    showConfirm('替换当前已填写内容？', function(){
+      _applyTemplate(t, name);
+    });
+    return;
+  }
+  _applyTemplate(t, name);
+}
+function _applyTemplate(t, name) {
   _campDraft.step1.name = t.name; _campDraft.step1.theme = t.theme; _campDraft.step1.season = t.season;
   _campDraft.step2.days = t.days;
   _campDraft.step3.adventurers = t.adv; _campDraft.step3.builders = t.bld;
@@ -430,11 +450,13 @@ function addSchedSlot() {
   var sch = _campDraft.step2.schedule;
   if (!sch || !sch.length) return;
   var days = (sch[0].cells || []).length;
-  var name = prompt('新时段名称（例：🎵 音乐时间）：', '');
-  if (!name) return;
-  var time = prompt('时间段（例：20:00-21:00）：', '');
-  sch.push({ section: name, time: time || '—', cells: new Array(days).fill('') });
-  renderWizardStep(2);
+  _promptDialog('新时段名称（例：🎵 音乐时间）：', '', function(name){
+    if (!name) return;
+    _promptDialog('时间段（例：20:00-21:00）：', '', function(time){
+      sch.push({ section: name, time: time || '—', cells: new Array(days).fill('') });
+      renderWizardStep(2);
+    });
+  });
 }
 function removeSchedSlot() {
   var sch = _campDraft.step2.schedule;
@@ -456,28 +478,33 @@ function loadSchedTemplate(name) {
   if (!name) return;
   var data = loadSchedTemplateData(name);
   if (!data) { showToast('模板不存在', 'warn'); return; }
+  var _apply = function(){
+    _campDraft.step2.schedule = data.slots.map(function(s){ return { section:s.section, time:s.time, cells:(s.cells||[]).slice() }; });
+    _campDraft.step2.startDate = data.startDate || _campDraft.step2.startDate;
+    _campDraft.step2.days = data.days || _campDraft.step2.days;
+    showToast('已加载模板：'+name, 'ok');
+    renderWizardStep(2);
+  };
   if (_campDraft.step2.schedule && _campDraft.step2.schedule.length) {
-    if (!confirm('加载模板将覆盖当前日程，确定？')) return;
+    showConfirm('加载模板将覆盖当前日程，确定？', _apply);
+  } else {
+    _apply();
   }
-  _campDraft.step2.schedule = data.slots.map(function(s){ return { section:s.section, time:s.time, cells:(s.cells||[]).slice() }; });
-  _campDraft.step2.startDate = data.startDate || _campDraft.step2.startDate;
-  _campDraft.step2.days = data.days || _campDraft.step2.days;
-  showToast('已加载模板：'+name, 'ok');
-  renderWizardStep(2);
 }
 
 function saveSchedTemplate() {
   var s = _campDraft.step2;
   if (!s.schedule || !s.schedule.length) { showToast('请先生成日历', 'warn'); return; }
-  var name = prompt('模板名称（例：标准15天共创营日程）：');
-  if (!name) return;
-  try {
-    var all = JSON.parse(localStorage.getItem(SCHED_TPL_KEY) || '{}');
-    all[name] = { slots: s.schedule.map(function(sl){ return { section:sl.section, time:sl.time, cells:(sl.cells||[]).slice() }; }), startDate: s.startDate, days: s.days };
-    localStorage.setItem(SCHED_TPL_KEY, JSON.stringify(all));
-    showToast('模板「'+name+'」已保存', 'ok');
-    renderWizardStep(2);
-  } catch(e) { showToast('保存失败：存储空间不足', 'error'); }
+  _promptDialog('模板名称（例：标准15天共创营日程）：', '', function(name){
+    if (!name) return;
+    try {
+      var all = JSON.parse(localStorage.getItem(SCHED_TPL_KEY) || '{}');
+      all[name] = { slots: s.schedule.map(function(sl){ return { section:sl.section, time:sl.time, cells:(sl.cells||[]).slice() }; }), startDate: s.startDate, days: s.days };
+      localStorage.setItem(SCHED_TPL_KEY, JSON.stringify(all));
+      showToast('模板「'+name+'」已保存', 'ok');
+      renderWizardStep(2);
+    } catch(e) { showToast('保存失败：存储空间不足', 'error'); }
+  });
 }
 
 function offsetDate(dateStr, days) {
@@ -505,10 +532,13 @@ function renderMilestones(s) {
 }
 
 function addMilestone() {
-  var name = prompt('里程碑名称：'); if (!name) return;
-  var date = prompt('日期（YYYY-MM-DD）：', _campDraft.step2.startDate || '');
-  _campDraft.step2.milestones.push({ name: name, date: date || '', rule: '自定义', locked: false });
-  renderWizardStep(2);
+  _promptDialog('里程碑名称：', '', function(name){
+    if (!name) return;
+    _promptDialog('日期（YYYY-MM-DD）：', _campDraft.step2.startDate || '', function(date){
+      _campDraft.step2.milestones.push({ name: name, date: date || '', rule: '自定义', locked: false });
+      renderWizardStep(2);
+    });
+  });
 }
 function removeMilestone(i) {
   _campDraft.step2.milestones.splice(i, 1);
@@ -691,30 +721,38 @@ function renderStep4(el) {
 
 function importTaskTemplate() {
   var names = CAMP_TASK_PRESETS.map(function(p){ return p.name+' ('+p.tasks.length+'项)'; });
-  var choice = prompt('选择任务模板：\n1. '+names.join('\n2. ')+'\n\n输入序号（1-'+CAMP_TASK_PRESETS.length+'）：','1');
-  var idx = parseInt(choice) - 1;
-  if (isNaN(idx) || idx < 0 || idx >= CAMP_TASK_PRESETS.length) return;
-  var preset = CAMP_TASK_PRESETS[idx];
-  if (_campDraft.step4.tasks.length && !confirm('导入将追加到现有任务列表，确定？')) return;
-  preset.tasks.forEach(function(pt) {
-    if (!_campDraft.step4.tasks.some(function(t){ return t.name === pt.name; })) {
-      _campDraft.step4.tasks.push({ name:pt.name, category:pt.category, nt:pt.nt, type:'支线S', status:'todo' });
+  _promptDialog('选择任务模板：\n1. '+names.join('\n2. ')+'\n\n输入序号（1-'+CAMP_TASK_PRESETS.length+'）：', '1', function(choice){
+    var idx = parseInt(choice) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= CAMP_TASK_PRESETS.length) return;
+    var preset = CAMP_TASK_PRESETS[idx];
+    var _doImport = function(){
+      preset.tasks.forEach(function(pt) {
+        if (!_campDraft.step4.tasks.some(function(t){ return t.name === pt.name; })) {
+          _campDraft.step4.tasks.push({ name:pt.name, category:pt.category, nt:pt.nt, type:'支线S', status:'todo' });
+        }
+      });
+      showToast('已导入「'+preset.name+'」', 'ok');
+      renderWizardStep(4);
+    };
+    if (_campDraft.step4.tasks.length) {
+      showConfirm('导入将追加到现有任务列表，确定？', _doImport);
+    } else {
+      _doImport();
     }
   });
-  showToast('已导入「'+preset.name+'」', 'ok');
-  renderWizardStep(4);
 }
 
 function saveTaskTemplate() {
   if (!_campDraft.step4.tasks.length) { showToast('当前无任务可保存', 'warn'); return; }
-  var name = prompt('模板名称：');
-  if (!name) return;
-  try {
-    var all = JSON.parse(localStorage.getItem('nantang_task_templates') || '{}');
-    all[name] = _campDraft.step4.tasks.map(function(t){ return { name:t.name, category:t.category, nt:t.nt, type:t.type }; });
-    localStorage.setItem('nantang_task_templates', JSON.stringify(all));
-    showToast('任务模板「'+name+'」已保存', 'ok');
-  } catch(e) { showToast('保存失败', 'error'); }
+  _promptDialog('模板名称：', '', function(name){
+    if (!name) return;
+    try {
+      var all = JSON.parse(localStorage.getItem('nantang_task_templates') || '{}');
+      all[name] = _campDraft.step4.tasks.map(function(t){ return { name:t.name, category:t.category, nt:t.nt, type:t.type }; });
+      localStorage.setItem('nantang_task_templates', JSON.stringify(all));
+      showToast('任务模板「'+name+'」已保存', 'ok');
+    } catch(e) { showToast('保存失败', 'error'); }
+  });
 }
 
 function loadTaskTemplate() {
@@ -722,12 +760,19 @@ function loadTaskTemplate() {
     var all = JSON.parse(localStorage.getItem('nantang_task_templates') || '{}');
     var names = Object.keys(all);
     if (!names.length) { showToast('没有已保存的模板', 'warn'); return; }
-    var choice = prompt('选择加载的模板：\n'+names.map(function(n,i){ return (i+1)+'. '+n+' ('+all[n].length+'项)'; }).join('\n'));
-    var idx = parseInt(choice) - 1; if (isNaN(idx) || idx < 0 || idx >= names.length) return;
-    var tasks = all[names[idx]];
-    if (_campDraft.step4.tasks.length && !confirm('加载将替换当前任务列表，确定？')) return;
-    _campDraft.step4.tasks = tasks.map(function(t){ return { name:t.name, category:t.category, nt:t.nt, type:t.type||'支线S', status:'todo' }; });
-    showToast('已加载：'+names[idx], 'ok'); renderWizardStep(4);
+    _promptDialog('选择加载的模板：\n'+names.map(function(n,i){ return (i+1)+'. '+n+' ('+all[n].length+'项)'; }).join('\n'), '', function(choice){
+      var idx = parseInt(choice) - 1; if (isNaN(idx) || idx < 0 || idx >= names.length) return;
+      var tasks = all[names[idx]];
+      var _doLoad = function(){
+        _campDraft.step4.tasks = tasks.map(function(t){ return { name:t.name, category:t.category, nt:t.nt, type:t.type||'支线S', status:'todo' }; });
+        showToast('已加载：'+names[idx], 'ok'); renderWizardStep(4);
+      };
+      if (_campDraft.step4.tasks.length) {
+        showConfirm('加载将替换当前任务列表，确定？', _doLoad);
+      } else {
+        _doLoad();
+      }
+    });
   } catch(e) { showToast('加载失败', 'error'); }
 }
 
@@ -746,12 +791,16 @@ function toggleTaskStatus(i) {
 }
 
 function addBudgetItemMobile(type) {
-  var name = prompt('项目名称（例：资助金 / 画材采购）：'); if (!name) return;
-  var amount = parseInt(prompt('金额（¥）：','0')) || 0;
-  var key = type === 'income' ? 'extraIncome' : 'extraExpense';
-  _campDraft.step3[key] = _campDraft.step3[key] || [];
-  _campDraft.step3[key].push({ name: name, amount: amount });
-  renderWizardStep(3);
+  _promptDialog('项目名称（例：资助金 / 画材采购）：', '', function(name){
+    if (!name) return;
+    _promptDialog('金额（¥）：', '0', function(amt){
+      var amount = parseInt(amt) || 0;
+      var key = type === 'income' ? 'extraIncome' : 'extraExpense';
+      _campDraft.step3[key] = _campDraft.step3[key] || [];
+      _campDraft.step3[key].push({ name: name, amount: amount });
+      renderWizardStep(3);
+    });
+  });
 }
 function removeBudgetItemMobile(type, i) {
   var key = type === 'income' ? 'extraIncome' : 'extraExpense';

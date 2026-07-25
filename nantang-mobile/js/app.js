@@ -457,7 +457,7 @@ function _renderVerificationSection() {
       '<div style="display:flex;gap:4px;margin-top:4px">'+
         (isMe ? '<span style="font-size:.58rem;color:#999">等待他人校核…</span>' :
          '<button class="btn-sm pri" style="flex:1;font-size:.58rem;padding:3px 6px" onclick="event.stopPropagation();_doVerify(\''+v.id+'\')">✓ 校核 +'+v.verifierReward+'NT</button>'+
-         '<button class="btn-sm sec" style="font-size:.58rem;padding:3px 6px" onclick="event.stopPropagation();var r=prompt(\'退回原因：\');if(r)_doReject(\''+v.id+'\',r)">✕ 退回</button>')+
+         '<button class="btn-sm sec" style="font-size:.58rem;padding:3px 6px" onclick="event.stopPropagation();_promptDialog(\'退回原因：\',\'\',function(r){if(r)_doReject(\''+v.id+'\',r)})">✕ 退回</button>')+
       '</div></div>';
   }).join('');
 }
@@ -638,7 +638,7 @@ function buildFieldDetail(plot) {
         '<div style="font-size:.68rem;color:var(--g-text-dim);margin:4px 0">已生长'+(c.days-c.remain)+'天/共'+c.days+'天·剩余'+c.remain+'天</div>'+
         '<div style="display:flex;gap:4px;margin-bottom:6px">'+
           (c.remain <= 0 ? '<button class="btn-sm pri" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();_harvestCrop(\''+plot.id+'\','+idx+')">🌾 收割 +15 NT</button>' : '')+
-          '<button class="btn-sm sec" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();var n=prompt(\'修改作物名：\',\''+c.name+'\');if(n){plot.crops['+idx+'].name=n;_savePlotData();closeRoom();selectRoom(\''+plot.id+'\')}">✏️ 编辑</button>'+
+          '<button class="btn-sm sec" style="font-size:.6rem;padding:3px 8px" onclick="event.stopPropagation();_promptDialog(\'修改作物名：\',\''+c.name+'\',function(n){if(n){plot.crops['+idx+'].name=n;_savePlotData();closeRoom();selectRoom(\''+plot.id+'\')}})">✏️ 编辑</button>'+
         '</div>';
     });
   } else { body += '<div style="color:var(--g-text-dim);font-size:.72rem;padding:8px">暂无种植</div>'; }
@@ -1481,12 +1481,7 @@ function _confirmCheckin() {
     if (b && b.id === 'info') renderInfoPage(); else render();
     _refreshTopBar();
   };
-  if (typeof showConfirm === 'function') {
-    showConfirm(confirmMsg, doCheckin);
-    return;
-  }
-  if (!confirm(confirmMsg)) return;
-  doCheckin();
+  showConfirm(confirmMsg, doCheckin);
 }
 
 function _renderCheckinTip(room) {
@@ -1519,11 +1514,13 @@ function _renderCheckinTip(room) {
 
 function _addRoomItem(roomId) {
   var accs = _ml().accommodations || {}; var room = accs[roomId]; if(!room) return;
-  var item = prompt('添加房间物品（如：风扇、毯子、蚊香）：'); if(!item||!item.trim()) return;
-  if(!room.items) room.items = [];
-  room.items.push(item.trim());
-  if(window.AppData) AppData._saveShared(true);
-  _showStaySheet();
+  _promptDialog('添加房间物品（如：风扇、毯子、蚊香）：', '', function(item){
+    if(!item||!item.trim()) return;
+    if(!room.items) room.items = [];
+    room.items.push(item.trim());
+    if(window.AppData) AppData._saveShared(true);
+    _showStaySheet();
+  });
 }
 
 // ponytail: _applyStay 已替换为 _confirmCheckin + 入住弹窗日历 (2026-07-22)
@@ -1620,8 +1617,9 @@ function _saveMySelections() {
 }
 
 function _changeCleanDate() {
-  var d = prompt('修改大扫除日期：', MGMT_DATA.cleaning.nextDate);
-  if (d) { MGMT_DATA.cleaning.nextDate = d; MGMT_DATA._save(); renderMgmtPanel('cleaning'); }
+  _promptDialog('修改大扫除日期：', MGMT_DATA.cleaning.nextDate, function(d){
+    if (d) { MGMT_DATA.cleaning.nextDate = d; MGMT_DATA._save(); renderMgmtPanel('cleaning'); }
+  });
 }
 
 function _submitMyCleaning() {
@@ -2279,26 +2277,26 @@ function _refreshTopBar() {
 function _editRoomItem(roomId) {
   var items = _roomItems(roomId);
   var list = items.map(function(i,idx){ return idx+'. '+i.icon+' '+i.text+' ['+i.status+']'; }).join('\n');
-  var action = prompt('✏️ 编辑「'+roomId+'」的物品\n\n当前物品：\n'+list+'\n\n输入: +图标 名称 状态 来添加\n输入: -编号 来删除\n或点取消关闭');
-  if (!action) return;
-  var ml = (window.AppData&&AppData._data.map_locations) ? AppData._data.map_locations : null;
-  if (!ml) return;
-  ml.state = ml.state || {}; ml.state.room_items = ml.state.room_items || [];
-  if (action.charAt(0)==='-') {
-    var idx = parseInt(action.slice(1),10);
-    // 找到该房间的第 idx 个物品在全局数组中的位置
-    var roomItems = ml.state.room_items, found = 0;
-    for (var i = roomItems.length-1; i >= 0; i--) { if (roomItems[i].room === roomId) { if (found === idx) { roomItems.splice(i,1); break; } found++; } }
-  } else if (action.charAt(0)==='+') {
-    var parts = action.slice(1).trim().split(' ');
-    var text, status;
-    if (parts.length >= 3) { text = parts.slice(1,-1).join(' '); status = parts[parts.length-1]; }
-    else if (parts.length === 2) { text = parts[1]; status = 'clean'; }
-    else { text = '新物品'; status = 'clean'; }
-    ml.state.room_items.push({ room: roomId, icon: parts[0]||'📦', text: text, sub: '', status: status });
-  }
-  if (window.AppData) AppData._saveShared();
-  render();  // 刷新房间详情
+  _promptDialog('✏️ 编辑「'+roomId+'」的物品\n\n当前物品：\n'+list+'\n\n输入: +图标 名称 状态 来添加\n输入: -编号 来删除\n或点取消关闭', '', function(action){
+    if (!action) return;
+    var ml = (window.AppData&&AppData._data.map_locations) ? AppData._data.map_locations : null;
+    if (!ml) return;
+    ml.state = ml.state || {}; ml.state.room_items = ml.state.room_items || [];
+    if (action.charAt(0)==='-') {
+      var idx = parseInt(action.slice(1),10);
+      var roomItems = ml.state.room_items, found = 0;
+      for (var i = roomItems.length-1; i >= 0; i--) { if (roomItems[i].room === roomId) { if (found === idx) { roomItems.splice(i,1); break; } found++; } }
+    } else if (action.charAt(0)==='+') {
+      var parts = action.slice(1).trim().split(' ');
+      var text, status;
+      if (parts.length >= 3) { text = parts.slice(1,-1).join(' '); status = parts[parts.length-1]; }
+      else if (parts.length === 2) { text = parts[1]; status = 'clean'; }
+      else { text = '新物品'; status = 'clean'; }
+      ml.state.room_items.push({ room: roomId, icon: parts[0]||'📦', text: text, sub: '', status: status });
+    }
+    if (window.AppData) AppData._saveShared();
+    render();
+  });
 }
 // ═══ 在线翻牌 ═══
 function _flipMyPresence() {

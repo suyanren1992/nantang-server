@@ -35,7 +35,7 @@ function _orderMeal(date, meal) {
     showToast('该时段暂无菜单', 'warn'); return;
   }
 
-  if (!confirm('预定 ' + date + ' ' + (meal==='lunch'?'午餐':'晚餐') + '？\n费用：' + mealCost + ' NT')) return;
+  showConfirm('预定 ' + date + ' ' + (meal==='lunch'?'午餐':'晚餐') + '？\n费用：' + mealCost + ' NT', function(){
 
   if (window.NT) {
     var u = NT.getUser(CURRENT_USER);
@@ -56,6 +56,7 @@ function _orderMeal(date, meal) {
 
   showToast('预定成功！-' + mealCost + ' NT', 'ok');
   renderCanteen();
+  });
 }
 
 function _cancelMeal(date, meal) {
@@ -73,7 +74,7 @@ function _cancelMeal(date, meal) {
     return;
   }
 
-  if (!confirm('取消预定？\n将退回 ' + mealCost + ' NT')) return;
+  showConfirm('取消预定？\n将退回 ' + mealCost + ' NT', function(){
 
   // 退款
   if (window.NT) {
@@ -89,6 +90,7 @@ function _cancelMeal(date, meal) {
 
   showToast('已取消，退回 ' + mealCost + ' NT', 'ok');
   renderCanteen();
+  });
 }
 // 管理员设置今日菜单: setCanteenMenu('2026-07-19', ['糙米饭','清炒时蔬','菌菇汤'], ['素汤面','田园沙拉','蒸红薯'])
 function setCanteenMenu(date, lunch, dinner) {
