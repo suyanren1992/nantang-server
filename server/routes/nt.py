@@ -310,6 +310,7 @@ async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: Asy
 
 
 @router.post("/cashout")
+# DEPRECATED (D-18): 前端已零入口，审批流统一走 /withdraw/confirm、/withdraw/reject。保留以便二期清理。
 async def cashout(req: TopUpRequest, admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     if req.amount <= 0: raise HTTPException(status_code=400, detail="金额必须大于0")
     target = (await db.execute(select(User).where(User.id == req.user).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()

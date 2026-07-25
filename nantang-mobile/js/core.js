@@ -1369,20 +1369,12 @@ function renderProfile(mode){
     h+='<input id="profileCfmPwd" class="login-input" type="password" placeholder="确认新密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
     h+='<button class="btn-sm warn" style="width:100%;margin-top:6px" onclick="changePwd()">🔑 确认修改密码</button></div>';
   }else if(mode==='review'){
-    // 管理员审核充值/提现
-    var txns=AppData._data.pendingTransactions||[];
-    var pending=txns.filter(function(tx){return tx.status==='pending'});
-    h+='<div style="font-size:.8rem;font-weight:700;margin-bottom:10px">📋 待审核 ('+pending.length+')</div>';
-    if(!pending.length){h+='<div style="text-align:center;color:#5a5a5a;padding:16px;font-size:.72rem">暂无待审核项</div>'}
-    else pending.forEach(function(tx){
-      var icon=tx.type==='topUp'?'💰':'📤';
-      h+='<div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:6px;font-size:.7rem">';
-      h+='<div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>'+icon+' '+tx.user+'</b><span style="color:#5a6e5c">'+tx.amount+' NT</span></div>';
-      h+='<div style="color:#5a5a5a;font-size:.62rem;margin-bottom:6px">'+(tx.reason||'')+' · '+tx.createdAt+'</div>';
-      h+='<div style="display:flex;gap:4px"><button class="btn-sm pri" style=flex:1;font-size:.62rem;padding:4px onclick="event.stopPropagation();approveTx(\''+tx.id+'\')">✓ 通过</button><button class="btn-sm danger" style=flex:1;font-size:.62rem;padding:4px onclick="event.stopPropagation();rejectTx(\''+tx.id+'\')">✕ 拒绝</button></div>';
-      h+='</div>';
-    });
+    // D-18: 管理员审核——服务端权威源 + 本地离线合并
+    h+='<div id="reviewList" style="font-size:.8rem;font-weight:700;margin-bottom:10px">📋 待审核 <span style="color:#5a6e5c">⏳ 加载中…</span></div>';
     h+='<div style="margin-top:10px"><button class="btn-sm sec" style=width:100% onclick="renderProfile(\'view\')">← 返回资料</button></div>';
+    el.innerHTML=h;
+    _fetchWithdrawReview();
+    return;
   }
   el.innerHTML=h;
 }
@@ -1487,37 +1479,77 @@ function _drainPendingWithdraws(){
   });
 }
 function approveTx(txId){
-  // FIX-04: 管理员权限检查
+  // D-18: 仅处理 topUp；withdraw 走 approveWithdraw()
   var cu=(typeof getUsers==='function'?getUsers():{})[CURRENT_USER];
   if(!cu||cu.role!=='admin'){showToast('权限不足，仅管理员可审批','error');return}
   var txns=AppData._data.pendingTransactions;
   var tx=txns.find(function(t){return t.id===txId});
   if(!tx||tx.status!=='pending')return;
+  if(tx.type!=='topUp') return;
   if(window.NT){
     try {
-      var result=tx.type==='topUp'?NT.topUp(tx.user,tx.amount,tx.reason||'管理员审核充值',tx.id):NT.cashOut(tx.user,tx.amount,tx.reason||'管理员审核提现',tx.id);
-      if(!result){showToast('NT 操作失败，请检查余额或用户状态','error');return}
+      NT.topUp(tx.user,tx.amount,tx.reason||'管理员审核充值',tx.id);
     } catch(e) { showToast('NT 系统异常，请刷新后重试','error');return; }
   }
-  // A3: 审批充值同步服务端余额（服务端 /api/nt/topup 需 admin 权限）
-  if (tx.type==='topUp' && typeof API !== 'undefined' && API.token) {
+  if (typeof API !== 'undefined' && API.token) {
     API.topUp(tx.user, tx.amount, tx.reason).catch(function(e) {
       showToast('服务端同步失败', 'warn');
     });
   }
   tx.status='approved';tx.reviewedBy=CURRENT_USER;tx.reviewedAt=today();AppData._save();
   renderProfile('review');refreshUserUI();
-  showToast((tx.type==='topUp'?'💰 充值':'📤 提现')+' '+tx.amount+' NT 已到账','ok');
+  showToast('💰 充值 '+tx.amount+' NT 已到账','ok');
 }
 function rejectTx(txId){
-  // FIX-04: 管理员权限检查
+  // D-18: 仅处理 topUp；withdraw 走 rejectWithdraw()
   var cu=(typeof getUsers==='function'?getUsers():{})[CURRENT_USER];
   if(!cu||cu.role!=='admin'){showToast('权限不足，仅管理员可审批','error');return}
   var txns=AppData._data.pendingTransactions;
   var tx=txns.find(function(t){return t.id===txId});
   if(!tx||tx.status!=='pending')return;
+  if(tx.type!=='topUp') return;
   tx.status='rejected';tx.reviewedBy=CURRENT_USER;tx.reviewedAt=today();AppData._save();
   renderProfile('review');
+}
+// D-18: 提现审批走服务端
+function approveWithdraw(entryId){
+  var cu=(typeof getUsers==='function'?getUsers():{})[CURRENT_USER];
+  if(!cu||cu.role!=='admin'){showToast('权限不足，仅管理员可审批','error');return}
+  if(typeof API==='undefined'||!API.token){showToast('离线模式无法审批','error');return}
+  API.confirmWithdraw(entryId).then(function(r){
+    if(r&&r.ok){showToast('✅ 提现已确认');renderProfile('review');refreshUserUI()}
+    else showToast((r&&r.detail)||'确认失败','error');
+  }).catch(function(){showToast('网络异常','error')});
+}
+function rejectWithdrawAdmin(entryId){
+  var cu=(typeof getUsers==='function'?getUsers():{})[CURRENT_USER];
+  if(!cu||cu.role!=='admin'){showToast('权限不足，仅管理员可审批','error');return}
+  if(typeof API==='undefined'||!API.token){showToast('离线模式无法审批','error');return}
+  API.rejectWithdraw(entryId).then(function(r){
+    if(r&&r.ok){showToast('已拒绝，NT 已退回用户余额');renderProfile('review');refreshUserUI()}
+    else showToast((r&&r.detail)||'拒绝失败','error');
+  }).catch(function(){showToast('网络异常','error')});
+}
+// D-18: 管理员审核面板——从服务端拉取提现列表，合并本地离线记录
+function _fetchWithdrawReview(){
+  var reviewList=document.getElementById('reviewList');
+  if(!reviewList)return;
+  var localTxns=(AppData._data.pendingTransactions||[]).filter(function(tx){return tx.status==='pending'});
+  var isOffline=(typeof API==='undefined'||!API.token);
+  if(isOffline){reviewList.outerHTML=_renderReviewList(localTxns,[]);return}
+  API.pendingWithdraws().then(function(srv){reviewList.outerHTML=_renderReviewList(localTxns,Array.isArray(srv)?srv:[])})
+    .catch(function(){reviewList.outerHTML=_renderReviewList(localTxns,[])});
+}
+function _renderReviewList(localTxns,srvWithdraws){
+  var h='';var topUps=localTxns.filter(function(tx){return tx.type==='topUp'});
+  var offlineWD=localTxns.filter(function(tx){return tx.type==='withdraw'});
+  var count=topUps.length+srvWithdraws.length+offlineWD.length;
+  h+='<div style="font-size:.8rem;font-weight:700;margin-bottom:10px">📋 待审核 ('+count+')</div>';
+  if(!count){h+='<div style="text-align:center;color:#5a5a5a;padding:16px;font-size:.72rem">暂无待审核项</div>'}
+  srvWithdraws.forEach(function(srv){h+='<div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:6px;font-size:.7rem"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>📤 '+esc(srv.from_user)+'</b><span style="color:#5a6e5c">'+srv.amount+' NT</span></div><div style="color:#5a5a5a;font-size:.62rem;margin-bottom:6px">'+(srv.reason||'')+' · '+(srv.created_at||'')+'</div><div style="display:flex;gap:4px"><button class="btn-sm pri" style=flex:1;font-size:.62rem;padding:4px onclick="event.stopPropagation();approveWithdraw(\''+srv.entry_id+'\')">✓ 通过</button><button class="btn-sm danger" style=flex:1;font-size:.62rem;padding:4px onclick="event.stopPropagation();rejectWithdrawAdmin(\''+srv.entry_id+'\')">✕ 拒绝</button></div></div>'});
+  offlineWD.forEach(function(tx){h+='<div style="background:#fff8e8;border:1px solid #e8d890;border-radius:8px;padding:10px;margin-bottom:6px;font-size:.7rem"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>📤 '+esc(tx.user)+'</b><span style="color:#5a6e5c">'+tx.amount+' NT</span></div><div style="color:#5a5a5a;font-size:.62rem;margin-bottom:6px">'+(tx.reason||'')+' · '+tx.createdAt+' <span style="color:#c8892e">📴 离线</span></div><div style="color:#999;font-size:.55rem">联网后自动提交，当前无法审批</div></div>'});
+  topUps.forEach(function(tx){h+='<div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:10px;margin-bottom:6px;font-size:.7rem"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><b>💰 '+esc(tx.user)+'</b><span style="color:#5a6e5c">'+tx.amount+' NT</span></div><div style="color:#5a5a5a;font-size:.62rem;margin-bottom:6px">'+(tx.reason||'')+' · '+tx.createdAt+'</div><div style="display:flex;gap:4px"><button class="btn-sm pri" style=flex:1;font-size:.62rem;padding:4px onclick="event.stopPropagation();approveTx(\''+tx.id+'\')">✓ 通过</button><button class="btn-sm danger" style=flex:1;font-size:.62rem;padding:4px onclick="event.stopPropagation();rejectTx(\''+tx.id+'\')">✕ 拒绝</button></div></div>'});
+  return h;
 }
 function pickAvatar(styleIdx){
   if(typeof styleIdx!=='undefined')_avatarStyleIdx=styleIdx;
