@@ -1022,8 +1022,7 @@ function enterVillage(){
       // CR2: 先 sync 后 tick——避免 tick 余额变更被 sync 旧数据覆盖
       API.request('GET', '/api/nt/sync').then(function(srv) {
         if (srv && !srv.detail) _mergeNTSyncData(srv);
-        // C2.6: tick 在 sync 之后，幂等，服务端同一天不重复执行
-        if (typeof API !== 'undefined' && API.token) API.request('POST', '/api/system/daily-tick').catch(function(e){console.warn('[daily-tick] failed',e)});
+        // C2.6: daily-tick 已由 cron.py 接管 + 端点收敛 admin-only（D-26），客户端不再主动触发
         // F16: 离线 earn 队列同步
         if (window.AppData && typeof AppData._drainPendingEarns === 'function') AppData._drainPendingEarns();
       }).catch(function(e){console.warn('[sync] NT sync failed',e)});
