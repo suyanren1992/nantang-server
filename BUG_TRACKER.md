@@ -1607,4 +1607,108 @@ arch_check.py 是架构现状图的**脐带**——脐带本身必须强健。�
 - **幂等**：`pool.last_tick_date==today` 直接跳过；每个 Tenancy `last_deducted==today` 跳过，重跑不会多扣
 - **小事务**：cron 里日结用独立 session，和系统任务生成分离——日结炸了不影响每日任务发卡
 
+---
+
+## D-24 验收记录（2026-07-26 · Codex 二营验收席）
+
+**验收依据**：一营施工回执（commit 7b83106 / 1523f43）+ 卡面判据
+
+**实跑验证**：
+- `deploy_check.py --skip-smoke` → 3/3 PASS ✅
+- `grep 'src="js/.*\.js' index.html` → 16/16 全部带 `?v=` ✅
+- `grep 'href="css/.*\.css' index.html` → 2/2 带 `?v=` ✅
+
+**结论**：✅ 通过。6 漏标全部补齐 `?v=17`，deploy_check 全绿，太傅注已附。
+
+---
+
+## E-1 返修验收（2026-07-26 · Claude Code 一营返修）
+
+**问题**：arch_check.py 两处 git subprocess 在 Windows 沙箱 returncode 非 0 → 锚点误报 ahead=999
+
+**修复**（commit 1523f43）：
+1. `git -c safe.directory=* -C ... rev-parse HEAD` — 消 Windows 安全目录拒绝
+2. `text=True` → `encoding="utf-8"` — 防 GBK 乱码
+
+**实跑**：`python arch_check.py` → 5/5 全绿，exit 0，锚点=646e2649，ahead=5（真实值）
+
+**结论**：✅ 待二营复验。
+
+---
+
+## D-25 验收记录（2026-07-26 · Claude Code 一营验收席）
+
+**验收依据**：Codex 返修 commit 8e85543（继承一营半成品 + 补 sys.path / e2e 顺序 / 必填 body / 统一 User.id 语义）
+
+**1. 实跑全绿**：
+- `pytest tests/ -v` → **22 passed, 0 failed** ✅
+- import 风格统一：conftest.py 通过 `sys.path.insert(0, _SERVER_DIR)` 消除双重注册
+- User 模型假设修正：`User(id=name, ...)` 替代 `User(name=..., id=...)`
+- API 路径/签名修正：`/api/tasks`、approve 必填 body、`NTLedger.entry_id`
+- 提现下限修正：e2e 用 60→50→10 流，admin 先注册保 pool
+
+**2. 变异抽查**：
+
+| 变异 | 位置 | 结果 |
+|------|------|------|
+| 邀请码校验 → `if False` | `auth.py:73` | 🔴 `test_invite_invalid_rejected` FAILED（`assert True is False`）|
+| 营地结算权限 → `if False` | `camps.py:145` | 🔴 `test_non_creator_non_admin_gets_403` FAILED（`assert 200 == 403`）|
+
+两处变异均被对应测试准确捕获，断言有效。
+
+**3. 太傅注**（Codex 已附于 D-25 施工回执）
+
+**结论**：✅ **通过**。四类问题全部修正，22 条回归测试全绿，2 处变异断言有效。D-19 从"有条件通过"升级为无保留通过。
+
 补扣历史的实现里有个细节：每漏扣一天写一条独立的 ledger（accommodation_fee 或 debt_accrued），而不是"一条 ledger 写总额"。这是为了**可审计**——未来对账时能精确看出哪天住了、哪天欠费，而不是一团总数。审计粒度到天，比到结算事件要高一个量级，多写几行 ledger 值得。
+
+---
+
+## D-26 验收记录（2026-07-26 · Claude Code 一营验收席）
+
+**验收依据**：Codex 施工 commit c7613e9（cron 接入+补扣历史+鉴权收敛）
+
+### 1. 实跑全绿
+
+`pytest tests/test_accommodation_daily.py -v` → **5 passed, 0 failed** ✅
+
+| 测试 | 断言点 | 结果 |
+|------|--------|------|
+| 断言1 | 余额够→扣费率+accommodation_fee ledger+last_deducted更新 | ✅ |
+| 断言2 | 余额0→debt+=rate+余额不动+debt_accrued ledger | ✅ |
+| 断言3 | 同天两次tick→第二次skipped+余额只扣一次 | ✅ |
+| 断言4 | last_deducted 3天前→补扣3天+caught_up_days≥3 | ✅ |
+| G5 | 普通用户调daily-tick→403 | ✅ |
+
+### 2. 变异抽查
+
+| 变异 | 结果 |
+|------|------|
+| 幂等跳过 → `if False` | 🔴 `test_daily_tick_idempotent_same_day` FAILED（`None is True`） |
+
+### 3. git diff 审计
+
+- **行锁** ✅: `select(User).where(...).with_for_update().execution_options(populate_existing=True)` — 对齐 D-5/D-17
+- **cron 隔离** ✅: `async with async_session() as settle_db` — 独立 session，日结异常不影响任务生成
+- **补扣逐日 ledger** ✅: 每天写独立 `accommodation_fee`/`debt_accrued` ledger，可审计到天
+- **幂等** ✅: pool 级 `last_tick_date` + tenancy 级 `last_deducted` 双重保护
+- **G5 鉴权** ✅: `/api/system/daily-tick` 从 `get_current_user` 收敛为 `require_admin`
+
+### 4. 测试代码问题（验收中修复）
+
+验收实测发现 3 处测试问题并修复：
+
+1. **同日入住不扣费**：`checkin_date == today` → `days_passed=0` 合法跳过。修复：回填 `checkin_date` 到昨天（UTC）
+2. **DB 共享残留**：前测 `pool.last_tick_date` 阻塞后测。修复：`_make_user` 中重置 `pool.last_tick_date = None`
+3. **断言 KeyError**：非 skip 响应无 `skipped` key。修复：`["skipped"]` → `.get("skipped")`
+
+### 5. 跨端尾巴（同批次 cleanup）
+
+`core.js:1026` 的 `POST /api/system/daily-tick` 已删除（commit 8b30727）：
+- cron.py 已接管日结（00:05 定时触发）
+- 端点已收敛为 admin-only（普通用户必 403）
+- `core.js?v=15` → `v=18`
+
+### 结论
+
+**✅ 通过**。5 条回归测试全绿，变异断言有效，行锁对齐 D-5/D-17 标准，cron 事务隔离，补扣逐日可审计，G5 鉴权已收敛。跨端多余调用已清理。

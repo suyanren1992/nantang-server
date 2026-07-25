@@ -40,6 +40,7 @@ async def _make_user(client, name, balance=200, role="villager"):
             s.add(pool)
         else:
             pool.balance = max(pool.balance or 0, 10000)
+            pool.last_tick_date = None  # 重置——使本测试的 daily_tick 不被前测阻塞
         await s.commit()
     r = await client.post("/api/auth/login", json={"name": name, "password": "Passw0rd!"})
     return r.json()["token"], uid
@@ -51,12 +52,24 @@ async def _checkin(client, tok, room_id="dorm101"):
     assert r.status_code == 200 and r.json()["ok"] is True, r.json()
 
 
+async def _backdate_checkin(user_id):
+    """将最近 active tenancy 的 checkin_date 回填到昨天（UTC）——使 days_passed ≥ 1。"""
+    yesterday = (datetime.utcnow().date() - timedelta(days=1)).isoformat()
+    async with async_session() as s:
+        ten = (await s.execute(
+            select(Tenancy).where(Tenancy.user_id == user_id, Tenancy.status == "active")
+        )).scalar_one()
+        ten.checkin_date = yesterday
+        await s.commit()
+
+
 @pytest.mark.asyncio
 async def test_daily_tick_deducts_when_balance_sufficient(client: AsyncClient):
     """断言1：active tenancy + 余额够 → 扣费率 + accommodation_fee ledger + last_deducted=今天。"""
     admin_tok, _ = await _make_user(client, "d26_admin_z", role="admin", balance=10000)
     alice_tok, alice_id = await _make_user(client, "d26_alice_z", balance=200)
     await _checkin(client, alice_tok, "dorm101")
+    await _backdate_checkin(alice_id)
 
     today = datetime.utcnow().strftime("%Y-%m-%d")
     r = await client.post("/api/system/daily-tick", headers=_h(admin_tok))
@@ -84,6 +97,7 @@ async def test_daily_tick_accumulates_debt_when_insufficient(client: AsyncClient
     admin_tok, _ = await _make_user(client, "d26_admin2_z", role="admin", balance=10000)
     bob_tok, bob_id = await _make_user(client, "d26_bob_z", balance=0)
     await _checkin(client, bob_tok, "dorm101")
+    await _backdate_checkin(bob_id)
 
     r = await client.post("/api/system/daily-tick", headers=_h(admin_tok))
     assert r.status_code == 200
@@ -107,9 +121,10 @@ async def test_daily_tick_idempotent_same_day(client: AsyncClient):
     admin_tok, _ = await _make_user(client, "d26_admin3_z", role="admin", balance=10000)
     carol_tok, carol_id = await _make_user(client, "d26_carol_z", balance=200)
     await _checkin(client, carol_tok, "dorm101")
+    await _backdate_checkin(carol_id)
 
     r1 = await client.post("/api/system/daily-tick", headers=_h(admin_tok))
-    assert r1.json()["skipped"] is not True  # 第一次执行
+    assert r1.json().get("skipped") is not True  # 第一次执行
     r2 = await client.post("/api/system/daily-tick", headers=_h(admin_tok))
     assert r2.json().get("skipped") is True, "第二次应 skipped"
 
@@ -124,9 +139,10 @@ async def test_daily_tick_catches_up_missed_days(client: AsyncClient):
     admin_tok, _ = await _make_user(client, "d26_admin4_z", role="admin", balance=10000)
     dave_tok, dave_id = await _make_user(client, "d26_dave_z", balance=500)
     await _checkin(client, dave_tok, "dorm101")
+    await _backdate_checkin(dave_id)
 
-    # 手动把 last_deducted 设到 3 天前
-    three_days_ago = (date.today() - timedelta(days=3)).isoformat()
+    # 手动把 last_deducted 设到 3 天前（UTC，对齐服务端 datetime.utcnow()）
+    three_days_ago = (datetime.utcnow().date() - timedelta(days=3)).isoformat()
     async with async_session() as s:
         ten = (await s.execute(
             select(Tenancy).where(Tenancy.user_id == dave_id, Tenancy.status == "active")
