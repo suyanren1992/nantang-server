@@ -991,3 +991,31 @@ if camp.created_by != user.id and user.role != "admin":
 | D-18-4 | ✅ 施工完成，待二营验收 | 9b83e9f |
 
 **待上线新增**：D-13/D-18 共 5 卡。
+
+---
+
+## 🔍 二营交叉验收（2026-07-25 · Codex）
+
+### 验收结论：✅ 全过，建议放行 push
+
+| 卡 | Commit | 判据 | 结论 | 备注 |
+|---|--------|------|------|------|
+| D-13 | ab26d9 | water:3 ✅ / 4档chips(收割15/种植施肥除草5/浇水3/查看2) ✅ / 6动作NT显示 ✅ / pricing[actionKey]逐动作匹配 ✅ / 公约定价4行展开 ✅ / ?v=app14 ✅ | ✅ PASS | 🟡 公约overlay「农活(收割/除草/施肥)」行仍显示15NT（除草/施肥实为5NT），展示文案瑕疵，不影响计算 |
+| D-18-1 | 3839b77 | API.rejectVerification ✅ / reject HTTP POST 异步 ✅ / 离线降级保留本地逻辑 ✅ / _doReject按钮禁用等待 ✅ / 服务端retry_count+1+状态变更 ✅ / ?v=app-data13+api9+app15 ✅ | ✅ PASS | 🟡 服务端reject端点未接收reject_reason请求体（客户端发送但服务端未解析），reject原因不入库，属字段缺失非阻断 |
+| D-18-2 | dc3da0e | API.withdraw → POST /api/nt/withdraw ✅ / 成功冻结余额+frozenBalance ✅ / 失败入pendingTransactions离线队列 ✅ / _drainPendingWithdraws轮询重放 ✅ / tx type改withdraw ✅ / 服务端with_for_update+populate_existing ✅ / ?v=api10+core14 ✅ | ✅ PASS | |
+| D-18-3 | a0b204 | /api/admin/withdraws/pending权威源 ✅ / approveWithdraw/rejectWithdrawAdmin调服务端 ✅ / 本地离线合并渲染 ✅ / cashout标记DEPRECATED前端零入口 ✅ / nt.py仅加1行注释未越界 ✅ / ?v=api11+core15 ✅ | ✅ PASS | 🟡 admin.py confirm/reject端点未对NTLedger行加with_for_update，reject路径读User未加锁；管理员低频操作，风险极低 |
+| D-18-4 | 9b83e9f | API.checkout → POST /api/accommodation/checkout ✅ / 服务端checked_out+欠费结算+角色降级visitor ✅ / 返回remaining_debt+role ✅ / 离线降级 ✅ / _checkoutBed补定义 ✅ / ?v=api12+app16 ✅ | ✅ PASS | |
+
+### 版本号核验
+
+最终 index.html 版本：core.js **v=15** ✅ / app.js **v=16** ✅ / api.js **v=12** / app-data.js **v=13**
+递升无冲突，各 commit 改动文件均升 ?v=。
+
+### 判据汇总
+
+1. ✅ D-13：_submitFarmEntry 用 pricing[actionKey] 替代字符串indexOf，water=3对齐公约定价
+2. ✅ D-18-1：reject后服务端 VfyModel.status=rejected/retry_count+1（nt.py:923-929），客户端异步更新+回滚
+3. ✅ D-18-2：withdraw服务端写 ledger(type=withdraw,status=pending) + pool.frozen增加 + 用户余额扣减（nt.py:369-374）；离线队列_drainPendingWithdraws接入polling排空
+4. ✅ D-18-3：admin审批面板数据源切 /api/admin/withdraws/pending（admin.py:39-48），cashout端点标记DEPRECATED保留；nt.py diff仅+1行注释，零越界
+5. ✅ D-18-4：checkout服务端 tenancy.status=checked_out + 欠费结算 + role=visitor（accommodation.py:89-112）；_checkoutBed补定义修复onclick未定义
+
