@@ -308,6 +308,8 @@ function _startPolling() {
       if (srv && !srv.detail) { _mergeNTSyncData(srv); }
       // F15: 每次成功 sync 后排空离线 earn 队列
       if (window.AppData && typeof AppData._drainPendingEarns === 'function') AppData._drainPendingEarns();
+      // D-18: 排空离线提现队列
+      if (typeof _drainPendingWithdraws === 'function') _drainPendingWithdraws();
     }).catch(function(e){console.warn('[poll] sync failed',e)});
     // 退避
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
@@ -1430,9 +1432,59 @@ function submitWithdraw(){
   var ntBal=window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0;
   if(amt>ntBal){showToast('余额不足（当前 '+ntBal+' NT）','error');return}
   var note=document.getElementById('withdrawNote').value.trim();
-  var tx={id:_genTxId(),type:'cashOut',user:CURRENT_USER,amount:amt,reason:note,status:'pending',createdAt:today()};
-  AppData._data.pendingTransactions.push(tx);AppData._save();
-  document.getElementById('profileTxForm').innerHTML='<div style="color:var(--green-primary);font-size:.7rem;text-align:center;padding:4px">✅ 已提交提现申请，等待管理员审核</div>';
+  var el=document.getElementById('profileTxForm');
+  // D-18: 提现接服务端——先调 API，失败时入离线队列重放
+  var isOffline = (typeof API === 'undefined' || !API.token);
+  if (isOffline) {
+    var tx={id:_genTxId(),type:'withdraw',user:CURRENT_USER,amount:amt,reason:note,status:'pending',createdAt:today()};
+    AppData._data.pendingTransactions.push(tx);AppData._save();
+    if(el)el.innerHTML='<div style="color:#c8892e;font-size:.7rem;text-align:center;padding:4px">📴 离线：已缓存提现申请，联网后自动提交</div>';
+    return;
+  }
+  if(el)el.innerHTML='<div style="color:#5a6e5c;font-size:.7rem;text-align:center;padding:4px">⏳ 提交中…</div>';
+  API.withdraw(amt).then(function(r){
+    if (!r || !r.ok || r.detail) {
+      // 服务端错误：降级入离线队列
+      var tx={id:_genTxId(),type:'withdraw',user:CURRENT_USER,amount:amt,reason:note,status:'pending',createdAt:today()};
+      AppData._data.pendingTransactions.push(tx);AppData._save();
+      if(el)el.innerHTML='<div style="color:#c8892e;font-size:.7rem;text-align:center;padding:4px">⚠ '+(r&&r.detail?r.detail:'服务端异常')+' · 已缓存，联网后重试</div>';
+      return;
+    }
+    // 服务端成功：更新本地余额、清本地队列
+    if(el)el.innerHTML='<div style="color:var(--green-primary);font-size:.7rem;text-align:center;padding:4px">✅ 已提交提现申请（冻结 '+amt+' NT），等待管理员审核'+(r.expected_time?' · '+r.expected_time:'')+'</div>';
+    if (window.NT) {
+      var ntUser = NT.getUser(CURRENT_USER);
+      if (ntUser) {
+        ntUser.ntBalance = r.balance || (ntUser.ntBalance - amt);
+        ntUser.frozenBalance = (ntUser.frozenBalance || 0) + amt;
+      }
+    }
+  }).catch(function(e){
+    var tx={id:_genTxId(),type:'withdraw',user:CURRENT_USER,amount:amt,reason:note,status:'pending',createdAt:today()};
+    AppData._data.pendingTransactions.push(tx);AppData._save();
+    if(el)el.innerHTML='<div style="color:#c8892e;font-size:.7rem;text-align:center;padding:4px">📴 网络异常 · 已缓存，联网后自动提交</div>';
+  });
+}
+// D-18: 离线提现队列重放——联网后自动提交
+function _drainPendingWithdraws(){
+  if (typeof API === 'undefined' || !API.token) return;
+  var txns = AppData._data.pendingTransactions || [];
+  var pending = txns.filter(function(tx){ return tx.type === 'withdraw' && tx.status === 'pending'; });
+  if (!pending.length) return;
+  pending.forEach(function(tx){
+    API.withdraw(tx.amount).then(function(r){
+      if (r && r.ok) {
+        tx.status = 'synced'; AppData._save();
+        if (window.NT) {
+          var ntUser = NT.getUser(CURRENT_USER);
+          if (ntUser) {
+            ntUser.ntBalance = r.balance || ntUser.ntBalance;
+            ntUser.frozenBalance = (ntUser.frozenBalance || 0) + tx.amount;
+          }
+        }
+      }
+    }).catch(function(){ /* 静默，下次轮询再试 */ });
+  });
 }
 function approveTx(txId){
   // FIX-04: 管理员权限检查
