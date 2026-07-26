@@ -237,24 +237,6 @@ function _renderCanteenHistory(showAll) {
 // 原 ~220 行 INN_ROOMS 依赖代码已移除，住宿统一走 _showStaySheet()（app.js）
 
 
-function renderTimeline() {
-  var el = document.getElementById('timelineList'); if (!el) return;
-  var journal = (window.AppData && AppData._data.journal) ? AppData._data.journal : [];
-  if (!journal.length) { el.innerHTML = '<div style=text-align:center;padding:20px;color:#5a6e5c>📜 暂无动态<br><span style=font-size:.65rem>打扫、放物品、完成任务都会记录在这里</span></div>'; return; }
-  var h = '';
-  journal.slice(0, 20).forEach(function(j) {
-    var jt = JOURNAL_TYPES[j.type] || { icon:'📋', label:j.type };
-    h += '<div style=display:flex;gap:8px;padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:.72rem;align-items:flex-start>'+
-      '<span style=font-size:1.1rem;flex-shrink:0>'+jt.icon+'</span>'+
-      '<div style=flex:1;min-width:0>'+
-        '<div><b>'+esc(j.user)+'</b> · <span style=color:#5a6e5c>'+jt.label+'</span></div>'+
-        '<div style=color:#1d2e24;margin-top:1px>'+esc(j.content)+'</div>'+
-        '<div style=font-size:.6rem;color:#aaa;margin-top:2px>'+j.date+' '+j.time+'</div>'+
-      '</div>'+
-    '</div>';
-  });
-  el.innerHTML = h;
-}
 
 function recordTransaction(tx) {
   if (!window.AppData) return;

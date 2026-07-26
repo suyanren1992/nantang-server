@@ -1100,12 +1100,12 @@ function _collectCleaningRooms() {
       fKeys.forEach(function(fk) {
         (b.floors[fk] || []).forEach(function(r) {
           if (r.id.indexOf('dorm') !== 0) {
-            rooms.push({ id:r.id, name:r.name, icon:r.icon, status:st, buildingName:b.name, cleaning:r.cleaning });
+            rooms.push({ id:r.id, name:r.name, icon:r.icon, status:st, buildingName:b.name, buildingId:b.id, cleaning:r.cleaning });
           }
         });
       });
     } else {
-      rooms.push({ id:b.id, name:b.name, icon:b.icon, status:st, buildingName:b.name, cleaning:[] });
+      rooms.push({ id:b.id, name:b.name, icon:b.icon, status:st, buildingName:b.name, buildingId:b.id, cleaning:[] });
     }
   });
   if (!rooms.length) {
@@ -1114,7 +1114,7 @@ function _collectCleaningRooms() {
       if (b.id === 'info' || b.id === 'gate_a') return;
       var d2 = (cl[b.id]) ? cl[b.id].dirtiness || 0 : 0;
       var st2 = d2 >= 60 ? 'red' : d2 >= 30 ? 'yellow' : 'green';
-      rooms.push({ id:b.id, name:b.name, icon:b.icon, status:st2, buildingName:b.name, cleaning:[] });
+      rooms.push({ id:b.id, name:b.name, icon:b.icon, status:st2, buildingName:b.name, buildingId:b.id, cleaning:[] });
     });
   }
   return rooms.sort(function(a,b) { return ({red:0,yellow:1,green:2})[a.status]-({red:0,yellow:1,green:2})[b.status]; });
