@@ -2315,3 +2315,14 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 **连带两隐患（应修/应查）**：`delete(MapLocation)` 会抹真实地图 blob（key="shared"），须收窄 `key.like('seed_%')` 或排除 shared；seed 的 journal/inventory 塞 MapLocation blob 而真实 Journal/InventoryItem 表不动——存储源与前端读取源一致性存疑，判据 3「填充可见」可能落空。
 **过项留档**：双闸独立 ✅、trim 全量替换 ✅、withdraw 零改动 ✅、非 admin 403 / 开关未设 404 ✅、?v= 单点递增 ✅。
 **丞相裁**：返修——端点 500 = 功能完全不可用，无可裁量。复验要求加码：实跑 `dev-seed`×2（验幂等 count 不增）+ soft/hard 各一遍，**贴真实输出**再交复验（deploy_check 静态检查抓不到运行时 ORM kwarg 错——实测关不可省的铁证）。
+
+## SM-3 二营复验通过 · 全卡只欠真机（2026-07-27 02:03 · commit `191012e`）
+
+三关全绿：逻辑关（三情形读写同键 `cl[b.id]` 独立复核，「各司其职」成立；死代码零残留）+ 实测关（**真跑非纸面**——node 抽真函数实点「完成打扫」，office_room1 red→green / study yellow→green，键落 cl[office]/cl[study] 无空串泄漏）+ 机检关（补 smoke 缺口，全四段 PASS，冒烟 首页200/未授权401/版本回显 18/19/20）。
+**SM-3 主体转正待真机③。**
+
+## SM-5 返修交付 · 丞相闸口核验（2026-07-27 02:03 · commits `0078925` + `1a1e496`）
+
+**形式三查**：① admin.py 73+/73- 四修项 diff 逐条对应（reason= ×3 ✅ / MapLocation 非法 kwarg 删净 ✅ / `SEED_KEY_PREFIXES=("seed_","presence:","config_changes","config_history")` 收窄 delete——**shared 地图 blob 不在清单内，真实地图保住** ✅ / journal→Journal 表、inventory→InventoryItem 表存储源对齐 ✅）；回执随 `1a1e496` ✅ ② 单文件纯服务端，前端零改动无需 ?v= ✅ ③ withdraw 逻辑零改动 ✅
+**⚠ 交付瑕疵（点名）**：一营只跑 py_compile + AST 静态扫描，**未执行丞相加码的「实跑贴输出」硬性要求**——其回执太傅注自书「只有真发请求才现原形」，自己却没跑，言行不一。处理：不打回多一轮（二营实测关本就是实跑岗），但入档记账；复验口令明确 dev-seed×2 幂等 + soft/hard 输出必须原样贴回执。
+**待二营复验（逻辑关存储源一致性复核 + 实测关实跑兜底）。**
