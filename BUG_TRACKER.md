@@ -1952,3 +1952,23 @@ setup: 用户余额 200 + Tenancy checkin_date=昨天 + pool last_tick_date=None
   实证：`TypeError: 'name' is an invalid keyword argument for User`
 - 裁定：打回二营返修——构造对齐 models.py（User/ledger/pool 全部），重跑全绿再交一营复验
 - 教训：SQLite 全绿掩盖了测试本身没对真实模型跑过——真 PG 首跑的价值第一枪打在测试自己身上
+
+---
+
+## ✅ D-21 施工完成（Claude Code 一营 · 2026-07-26 · 砚仁 15:58 批「同意删除」）
+
+**执行清单**（2 项）：
+1. `rm server/_reset_db.py` — sqlite3 直连删除本地 SQLite 文件的一次性工具，迁 PG 后永不可用
+2. `rm server/migrate_frozen_cv_20260721.py` — `UPDATE users SET frozen_cv = 0` 一次性迁移脚本，2026-07-21 已执行完毕
+
+**四验**：
+| 验 | 内容 | 结果 |
+|----|------|------|
+| ① | `grep -r "_reset_db\|migrate_frozen_cv" server/ --include="*.py"` | ✅ 零残留 |
+| ② | `pytest tests/ -v` | ✅ 27 passed, 3 skipped（PG 锁测试需 PG_DATABASE_URL），0 failed |
+| ③ | 前端联动自查 | ✅ 零前端引用，无需升 ?v= |
+| ④ | M1-M5 / mobile-bundle | ✅ 一律不碰（第一步已证伪为活跃代码/防御编码） |
+
+**commit**：不 push，待丞相差分复核后统一闸口。
+
+> **太傅注**：补课 `28`（墓碑代码——判断死活的唯一标准 = grep 全仓引用链，非直觉）。两块墓碑均为 sqlite3 标准库直连本地文件的一次性脚本，删除后 server/ 目录下所有 `.py` 文件零引用残留，pytest 零回归。M1-M5 和 mobile-bundle 经第一步 grep 引用链证伪——活跃生产路径上的兜底/持久层/脚手架，非墓碑。墓碑清理守则：只删死代码，不删丑代码。
