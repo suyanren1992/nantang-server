@@ -1846,3 +1846,101 @@ function getBuildings() {
 ### 结论
 
 **✅ 通过**。5 条回归测试全绿，变异断言有效，行锁对齐 D-5/D-17 标准，cron 事务隔离，补扣逐日可审计，G5 鉴权已收敛。跨端多余调用已清理。
+
+---
+
+## 🧪 K-2 验收记录（一营验收席 · 2026-07-26）
+
+**验收对象**：commit `d489867`（二营施工，conftest.py 方言 WARNING + test_pg_locks.py 三条 PG 锁测试）
+
+### 判据①：SQLite 方言 WARNING 可见
+
+`pytest tests/ -v` 启动时 warnings summary 中 **WARNING 可见** ✅：
+
+```
+tests\conftest.py:29
+  UserWarning: SQLite 方言：with_for_update() / populate_existing 行级锁在 SQLite 上静默无效。
+    并发锁测试（test_pg_locks.py）仅在 PostgreSQL 上运行——设置 PG_DATABASE_URL 以启用。
+    SQLite 单写者锁可能掩盖锁序错/漏锁——见到此警告即代表未在真 PG 上验证锁正确性。
+```
+
+### 判据②：三条 requires_pg 测试 SQLite 下 skipped + 零回归
+
+```
+tests/test_pg_locks.py::test_withdraw_concurrent_prevents_double_deduct SKIPPED [93%]
+tests/test_pg_locks.py::test_populate_existing_reads_fresh_after_concurrent_update SKIPPED [96%]
+tests/test_pg_locks.py::test_concurrent_daily_tick_only_one_executes SKIPPED [100%]
+```
+
+**27 passed, 3 skipped, 0 failed** ✅。全部现有测试零回归（D-19 12 条 + D-20 1 条 + D-26 5 条 + D-25 9 条 = **27 条全绿**）。
+
+skip 机制审查：
+- `conftest.py:43-52`：`pytest_collection_modifyitems` 在无 `PG_DATABASE_URL` 时自动 skip 所有 `requires_pg` 标记的测试
+- `test_pg_locks.py:31`：`pytestmark = pytest.mark.requires_pg` 全局标记
+- 逻辑正确：`os.environ.get("PG_DATABASE_URL","")` 为空 → skip ✅
+
+### 判据③：三条测试逻辑逐条挑刺
+
+#### 3a. D-5 `test_withdraw_concurrent_prevents_double_deduct`
+
+```
+setup: 用户余额 100 → 2 并发提现各 80 → sum(ok)==1 + 余额==20
+```
+
+**并发模型** ✅：`asyncio.gather()` 同时调度两个协程，第一个到达 `with_for_update()` 的获得 PG 行锁，第二个阻塞等待。asyncpg 的异步等待让事件循环在锁等待期间可切换——两个协程**真实竞争同一把锁**，非串行伪装。
+
+**余额断言** ✅：`u.nt_balance == 20`（100−80=20），与 `sum(ok)==1` 交叉验证。
+
+**挑刺**：余额断言硬编码 20，若初始化余额从 100 改为 200 则断言需同步改。🟡 微小——改为 `assert u.nt_balance == 100 - 80` 可自文档化。**不阻塞**。
+
+#### 3b. D-17 `test_populate_existing_reads_fresh_after_concurrent_update`
+
+```
+Session A 读余额 100（入 identity map）→ Session B 改为 50 并提交
+→ Session A 以 populate_existing 加锁重查 → 断言读到 50（非缓存 100）
+```
+
+**逻辑正确** ✅：这是 `populate_existing` 的精确验证——不加它时 SQLAlchemy 返回 identity map 缓存的旧对象（nt_balance=100），加了才刷新为 DB 最新值（50）。
+
+**挑刺**：测试是**时序先后**（B 在 A 两次读之间完成），非**真并发竞态**。这在 PG 上不影响结论——`populate_existing` 是否生效不依赖并发时序，B 先提交、A 后读即可验证。测试名 "concurrent_update" 略有误导（实际是 interleaved），但验证目标正确。🟡 **不阻塞**。
+
+#### 3c. D-26 `test_concurrent_daily_tick_only_one_executes`
+
+```
+setup: 用户余额 200 + Tenancy checkin_date=昨天 + pool last_tick_date=None
+→ 2 并发日结 → sum(ok)==1 + 余额==180
+```
+
+**幂等逻辑** ✅：两个协程竞争 `select(CommunityPool).limit(1).with_for_update()`。先到的设 `last_tick_date=today` 并扣款提交；后到的读到 `last_tick_date==today` → 返回 False（skipped）。
+
+**余额断言** ✅：`u.nt_balance == 180`（200−20=180）。
+
+**挑刺 1**：`limit(1)` 而非 `WHERE` 子句取 pool 行。若 DB 有多行 CommunityPool，可能锁到错误的行。当前生产只有一行，测试环境也只有一行，**实际安全**。🟢 无影响。
+
+**挑刺 2**：测试未验证 `pool.balance += 20`。只验了用户扣款，没验池入账。不影响锁正确性判定，但完整性略欠。🟡 **不阻塞**。
+
+### 判据④：真 PG 实跑 — 待补
+
+> 等待砚仁提供 `PG_DATABASE_URL` 连接串后补跑。预计命令：
+> `PG_DATABASE_URL=postgres://... pytest server/tests/test_pg_locks.py -v`
+> 预期：3 passed（skip 变 pass），现有 27 条全绿。
+
+### 汇总
+
+| 判据 | 结果 |
+|------|------|
+| ① 方言 WARNING | ✅ 可见 |
+| ② skipped + 零回归 | ✅ 3 skipped / 27 passed / 0 failed |
+| ③ 逻辑挑刺 | ✅ 三条均能抓住双花（3 处微小建议，均不阻塞） |
+| ④ PG 实跑 | ⏳ 待砚仁供 PG_DATABASE_URL |
+
+### 结论
+
+**🟢 K-2 验收 PASS（SQLite 端全过，待 PG 实跑盖章）**。
+
+三条测试的并发模型（`asyncio.gather` + `with_for_update()`）能真实验证 PG 行锁防双花——两个协程在 DB 层竞争同一把行锁，PG 保证只有一个胜出，测试断言 `sum(ok)==1` 精确捕获这一性质。`populate_existing` 测试虽为时序先后而非真并发，但验证目标（刷新 identity map 读到最新值）的结论不依赖并发时序。`conftest.py` 的 auto-skip + WARNING 机制干净：无 PG → skip + 警告可见，有 PG → 正常跑。
+
+> **太傅注**：对应补课 `14`（数据库设计——行锁在 SQLite 下静默失效是 SQLAlchemy 官方文档结论）+ `26`（测试——锁测试必须真 PG 实跑，SQLite 全绿不说明任何问题）。
+> 人话原理：SQLite 是「全村只有一条路」，同一时刻只能一个人走，天然不会撞车——所以你测不出红绿灯（行锁）到底装没装。PG 是「八车道高速」，两辆车同时抢同一个出口才会撞——这时红绿灯有没有用就一目了然了。K-2 的三条测试就是去 PG 高速上验证红绿灯真能拦住第二辆车。目前只在 SQLite 村道上跑（skipped），灯装没装对还不知道——等 PG 连接串一到，三条 skipped → passed，才算真验过。
+
+---
