@@ -2287,3 +2287,9 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 逻辑关 ✅（diff 三处对应处方零顺手改）+ 机检关 ✅（deploy_check 全绿、?v= 单点递增）→ **SM-4 双关过，转真机**。
 **矮屏疑义（二营复算，不阻塞但真机必盯）**：一营「剩 10px 余量」偏乐观——`.village-group` 是 flex column(gap:10) 挂 4 个子项（窗+dots-label+dots+footer），一营只算了窗一项，漏两道 gap 与标签行高；按 4 子项累加，360×640 无安全区最坏估净余量约 **-5px（临界略负）**。缓解：①最坏估，有 safe-inset 会抵消部分；②即便微溢出也是玩家卡贴底栏，轮播卡（270<300）完整可见；③若真机见红，微调方案备好：`footer margin-top 12→6` 或窗常数 `340→330`。
 **真机村口项更新**：除「标题与三卡零重叠」外，**重点盯 360×640 小屏玩家卡与底栏间距**。
+
+## SM-5 一营施工完成 · 丞相闸口核验（2026-07-27 01:31 · commits `d7cb977` + `a6ac217`）
+
+**形式三查（不越验收界）**：① 6 文件与卡面授权一致（跨端卡可动 server/routes/）：admin.py +218 行新端点、auth.py 14 行（trim+人话查重）、前端 4 文件 ✅；施工回执随 `a6ac217` 提交（SM-4 漏带教训已吸收）✅ ② `?v=` 升 3 个（api 12→13/core 19→20/app-data 13→14），声明与 diff 一致 ✅ ③ **敏感面核查：admin.py 的 withdraw/confirm/reject 提现逻辑零改动**（diff 仅 docstring + 新增端点），auth.py diff 干净 ✅
+**留二营重点**：dev-reset 清表清单完整性（soft 档清哪些表）、dev-seed 幂等实现、双闸真双缺、auth trim 后 `req.name` 旧引用是否全换 `name` 变量（漏一个白 trim）。
+**待二营四关验收，真机留砚仁。**
