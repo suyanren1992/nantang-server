@@ -55,3 +55,34 @@ version: 1.0
 - 端点属数据敏感：**不做批量删资金流水的隐藏路径**，nt_ledger 清空仅限 dev-reset 显式调用且写日志
 - seed 用户/数据一律 `_seed: true` 标记；不动现有任何业务逻辑
 - 单独 commit 不 push；commit message：`feat(SM-5): 测试台——dev-reset/dev-seed双端点+我的页测试台入口(admin+DEV_TOOLS_ENABLED双闸)`
+
+---
+
+## 四、砚仁 01:15 补充三问 · 实证与对策（v1.1，施工必须覆盖）
+
+### 问 1：旧重置键为什么清不干净（人名/用户信息残留）🔴
+
+**实证**：`AppData.reset()`（app-data.js:650-656）只删 **2 个** localStorage key（`nt_app_v2_{当前用户}` + `nt_app_v2_shared`）。而全仓 localStorage 调用 53 处、key 至少 15 个散落各文件：`nt_app_v2`（旧混合存储残留）、`nt_app_v2_{其他用户}`（**只删当前用户，其他用户私有数据全留**——「人名清不干净」的直接根因）、`nt_local_roles`（**角色权限缓存残留**）、`nt_mgmt_data`（大扫除/住宿/田地/厨房全部本地数据）、`nt_invites`、`nt_world_codes`、`nt_invite_codes`、`NT_SESSION_KEY`、`inbox_lastOpened`、`nt_virtual_ms`、streakKey、`SCHED_TPL_KEY`、`nantang_task_templates` 等。
+
+**对策（进卡）**：
+1. 前端重置**禁止逐 key 枚举删除**（枚举必漏——新增 key 的人不会记得回来更新重置函数，这正是本次病理），改 `localStorage.clear()` 全清（本 origin 无第三方共存）；
+2. 重置必须含服务端层：dev-reset `mode=hard` 清 users 表——登录页「选择账号」列表来自服务端（auth.js 拉 users），只清本地永远清不掉人名；
+3. 验收加一条：重置后开 DevTools → Application → Local Storage 应为空，登录页账号列表应为空。
+
+### 问 2：用户重复注册 🟡
+
+**实证**：服务端有查重（auth.py:75-76「用户名已存在」），**但 `RegisterRequest.name` 无 trim**——「张三」和「张三␣」（带空格/全角空格）是两个用户，影子账号由此产生；登录页列表里看着就像「重复注册」。
+
+**对策（进卡）**：register 端点 `req.name.strip()` 后再校验+查重（顺带过滤全角空格）；前端提交前同样 trim；查重提示文案改「这个名字已经被占用了，换一个试试」（人话）。
+
+### 问 3：密码填充奇怪 🟡
+
+**实证**：登录/注册密码框**无 autocomplete 规范属性**（loginName 反而写了 `autocomplete="off"`）——浏览器密码管理器失去提示，乱填/错位填（把存的旧密码填进注册框）。
+
+**对策（进卡）**：注册密码框 `autocomplete="new-password"`、登录密码框 `autocomplete="current-password"`、用户名框 `autocomplete="username"`；dev-seed 统一密码 `test12345` 是测试专用设计（卡面明示，非 bug）。
+
+### 追加验收判据（v1.1）
+
+7. 重置后 localStorage 全空（DevTools 实证）+ 登录页账号列表空（hard 档）
+8. 注册「张三␣」（尾随空格）后无法再注册「张三」——视为同一占用
+9. 浏览器密码管理器在登录/注册框填充行为正确（真机验）
