@@ -1944,3 +1944,11 @@ setup: 用户余额 200 + Tenancy checkin_date=昨天 + pool last_tick_date=None
 > 人话原理：SQLite 是「全村只有一条路」，同一时刻只能一个人走，天然不会撞车——所以你测不出红绿灯（行锁）到底装没装。PG 是「八车道高速」，两辆车同时抢同一个出口才会撞——这时红绿灯有没有用就一目了然了。K-2 的三条测试就是去 PG 高速上验证红绿灯真能拦住第二辆车。目前只在 SQLite 村道上跑（skipped），灯装没装对还不知道——等 PG 连接串一到，三条 skipped → passed，才算真验过。
 
 ---
+
+## K-2 判据④真 PG 首跑（2026-07-26 18:05 · 丞相实跑 lock-test 分支）
+
+- 环境：Neon dev 分支 lock-test（ep-purple-mountain-ayxdu8uy，砚仁供串）；临时 JWT_SECRET；去 channel_binding 参数（本机 asyncpg 不认）
+- 结果：**3/3 FAILED——根因非锁缺陷，是测试构造错**：`User(name=...)` 无效关键字（models.py User 无 name 字段，id 即用户名），三条全栽 setup（test_pg_locks.py:83/135/189）。
+  实证：`TypeError: 'name' is an invalid keyword argument for User`
+- 裁定：打回二营返修——构造对齐 models.py（User/ledger/pool 全部），重跑全绿再交一营复验
+- 教训：SQLite 全绿掩盖了测试本身没对真实模型跑过——真 PG 首跑的价值第一枪打在测试自己身上
