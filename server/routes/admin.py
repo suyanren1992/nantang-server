@@ -88,7 +88,7 @@ async def reject_withdraw(entry_id: str, admin: User = Depends(require_admin),
     return {"ok": True, "entry_id": entry_id, "refunded": True}
 
 
-# ══ SM-5: Dev Tools（admin + DEV_TOOLS_ENABLED 双闸） ══
+# ══ SM-5返修: Dev Tools（admin + DEV_TOOLS_ENABLED 双闸） ══
 
 def _dev_enabled():
     return os.environ.get("DEV_TOOLS_ENABLED", "").strip().lower() in ("1", "true", "yes")
@@ -105,50 +105,61 @@ def _seed_id(key: str) -> str:
     return "seed_" + hashlib.md5(key.encode()).hexdigest()[:8]
 
 
+SEED_KEY_PREFIXES = ("seed_", "presence:", "config_changes", "config_history")
+
+
 @router.post("/dev-reset")
 async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
                     db: AsyncSession = Depends(get_db)):
     _dev_gate(admin)
     now = datetime.utcnow().isoformat()
+    from models import Journal, InventoryItem, NewbieQuest, ActivityLog, CardDiscovery, CanteenOrder
 
     if mode == "hard":
-        # 全清
         await db.execute(delete(NTTask))
         await db.execute(delete(Verification))
         await db.execute(delete(NTLedger))
+        await db.execute(delete(Journal))
+        await db.execute(delete(InventoryItem))
+        await db.execute(delete(NewbieQuest))
+        await db.execute(delete(ActivityLog))
+        await db.execute(delete(CardDiscovery))
+        await db.execute(delete(CanteenOrder))
         await db.execute(delete(MapLocation))
         await db.execute(delete(Camp))
         await db.execute(delete(User))
-        # 重建社区池 + 初始化 500
         pool = await _get_pool(db)
         await db.execute(delete(CommunityPool).where(CommunityPool.singleton == True))
         await db.commit()
-        # 重新建池
         new_pool = CommunityPool(singleton=True, balance=500, total_issued=500, task_escrow=0,
                                   contribution_pool=0, camp_balance=0, reserve=0, frozen=0)
         db.add(new_pool)
         lid = _ledger_id()
-        ledger = NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
-                          amount=500, note="社区池初始化（dev-reset hard）", status="settled",
-                          created_at=now, settled_at=now)
-        db.add(ledger)
+        db.add(NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
+                        amount=500, reason="社区池初始化（dev-reset hard）", status="settled",
+                        created_at=now, settled_at=now))
     else:
         # soft: 保留 users，清业务表
         await db.execute(delete(NTTask))
         await db.execute(delete(Verification))
         await db.execute(delete(NTLedger))
-        await db.execute(delete(MapLocation))
+        await db.execute(delete(Journal))
+        await db.execute(delete(InventoryItem))
+        await db.execute(delete(NewbieQuest))
+        await db.execute(delete(ActivityLog))
+        await db.execute(delete(CardDiscovery))
+        await db.execute(delete(CanteenOrder))
+        # MapLocation: 只删 seed/presence/config 键，保留 shared(地图)等真实数据
+        for prefix in SEED_KEY_PREFIXES:
+            await db.execute(delete(MapLocation).where(MapLocation.key.like(f"{prefix}%")))
         await db.execute(delete(Camp))
-        # 社区池重置为初始态
         pool = await _get_pool(db)
         pool.balance = 500; pool.total_issued = 500; pool.task_escrow = 0
         pool.contribution_pool = 0; pool.camp_balance = 0; pool.reserve = 0; pool.frozen = 0
         lid = _ledger_id()
-        ledger = NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
-                          amount=500, note="社区池重置（dev-reset soft）", status="settled",
-                          created_at=now, settled_at=now)
-        db.add(ledger)
-        # 用户余额归零
+        db.add(NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
+                        amount=500, reason="社区池重置（dev-reset soft）", status="settled",
+                        created_at=now, settled_at=now))
         users = (await db.execute(select(User))).scalars().all()
         for u in users:
             u.nt_balance = 0; u.contribution_value = 0; u.experience_value = 0
@@ -165,10 +176,10 @@ async def dev_seed(admin: User = Depends(get_current_user),
     now = datetime.utcnow().isoformat()
     pwd_hash = hash_password("test12345")
     created = []
+    from models import Journal, InventoryItem
 
-    # ── 用户（幂等：按 name 查重）──
+    # ── 用户（幂等）──
     async def _ensure_user(uid, role, nt):
-        nonlocal created
         ex = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
         if ex:
             return ex
@@ -182,29 +193,27 @@ async def dev_seed(admin: User = Depends(get_current_user),
     u2 = await _ensure_user("测试乙", "adventurer", 100)
     u3 = await _ensure_user("测试丙", "visitor", 100)
 
-    # ── 营地（幂等：_seed 标记）──
+    # ── 营地（幂等）──
     sid1 = _seed_id("camp_active")
     sid2 = _seed_id("camp_upcoming")
     ex_camps = (await db.execute(select(Camp).where(Camp.id.in_([sid1, sid2])))).scalars().all()
     existing_camp_ids = {c.id for c in ex_camps}
     if sid1 not in existing_camp_ids:
-        c1 = Camp(id=sid1, name="第四期共创营", emoji="🏕️", theme="南塘有风，共创有光", date="7/20 — 7/27",
-                  status="active", people=5, max=16, location="南塘合作社大院",
-                  desc="七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。",
-                  highlights=json.dumps(["7/20 开营仪式", "7/22 工笔画大师课", "7/25 作品展览", "7/27 结营仪式"]),
-                  created_by="测试甲", created_at=now)
-        db.add(c1)
+        db.add(Camp(id=sid1, name="第四期共创营", emoji="🏕️", theme="南塘有风，共创有光", date="7/20 — 7/27",
+                    status="active", people=5, max=16, location="南塘合作社大院",
+                    desc="七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。",
+                    highlights=json.dumps(["7/20 开营仪式", "7/22 工笔画大师课", "7/25 作品展览", "7/27 结营仪式"]),
+                    created_by="测试甲", created_at=now))
         created.append("camp:第四期共创营")
     if sid2 not in existing_camp_ids:
-        c2 = Camp(id=sid2, name="夏季写生周", emoji="🎨", theme="户外写生+导师一对一点评", date="8/1 — 8/5",
-                  status="upcoming", people=3, max=10, location="大地书房",
-                  desc="五天集中写生，导师一对一点评。适合有基础的同学。",
-                  highlights=json.dumps(["8/1 开营", "8/2-4 写生+点评", "8/5 作品展"]),
-                  created_by="测试乙", created_at=now)
-        db.add(c2)
+        db.add(Camp(id=sid2, name="夏季写生周", emoji="🎨", theme="户外写生+导师一对一点评", date="8/1 — 8/5",
+                    status="upcoming", people=3, max=10, location="大地书房",
+                    desc="五天集中写生，导师一对一点评。适合有基础的同学。",
+                    highlights=json.dumps(["8/1 开营", "8/2-4 写生+点评", "8/5 作品展"]),
+                    created_by="测试乙", created_at=now))
         created.append("camp:夏季写生周")
 
-    # ── 任务（幂等：_seed 标记 task id 前缀）──
+    # ── 任务（幂等）──
     t1_id = _seed_id("task_personal")
     t2_id = _seed_id("task_camp")
     t3_id = _seed_id("task_community")
@@ -223,7 +232,7 @@ async def dev_seed(admin: User = Depends(get_current_user),
                       note="更新本周活动安排和天气提醒", slots=2, status="进行中", created_at=now))
         created.append("task:社区")
 
-    # ── 待校核（幂等：_seed id）──
+    # ── 待校核（幂等）──
     vfy_id = _seed_id("vfy_pending")
     ex_vfy = (await db.execute(select(Verification).where(Verification.id == vfy_id))).scalar_one_or_none()
     if not ex_vfy:
@@ -232,53 +241,42 @@ async def dev_seed(admin: User = Depends(get_current_user),
                             nt_amount=15, verifier_reward=5, status="pending", created_at=now))
         created.append("vfy:pending")
 
-    # ── 翻牌 presence（幂等：MapLocation key）──
+    # ── 翻牌 presence → MapLocation（sync_all 读 MapLocation key=presence:{uid}，正确源）──
     async def _ensure_presence(uid, loc):
         key = f"presence:{uid}"
         ex = (await db.execute(select(MapLocation).where(MapLocation.key == key))).scalar_one_or_none()
         if not ex:
-            db.add(MapLocation(key=key, data=json.dumps({"status":"onsite","location":loc,"updatedAt":now}),
-                               updated_at=now))
+            db.add(MapLocation(key=key, data=json.dumps({"status":"onsite","location":loc,"updatedAt":now})))
             created.append(f"presence:{uid}")
     await _ensure_presence("测试甲", "大地书房")
     await _ensure_presence("测试乙", "南塘")
 
-    # ── journal 时间线（幂等：MapLocation key）──
-    jkey = _seed_id("journal")
-    ex_j = (await db.execute(select(MapLocation).where(MapLocation.key == jkey))).scalar_one_or_none()
-    if not ex_j:
-        entries = [
-            {"user":"测试甲","type":"cleaning","content":"打扫了正厅","date":now[:10],"time":now[11:16]},
-            {"user":"测试乙","type":"cooking","content":"做了午餐——番茄炒蛋+米饭","date":now[:10],"time":now[11:16]},
-            {"user":"测试甲","type":"register","content":"加入了南塘云村","date":now[:10],"time":now[11:16]},
-        ]
-        db.add(MapLocation(key=jkey, data=json.dumps(entries), updated_at=now, _seed=True))
-        created.append("journal:3条")
+    # ── journal 时间线 → Journal 表（sync_all 读 Journal 表，正确源）──
+    async def _add_journal(uid, jtype, content):
+        jid = _seed_id(f"j_{uid}_{jtype}")
+        ex = (await db.execute(select(Journal).where(Journal.id == jid))).scalar_one_or_none()
+        if not ex:
+            db.add(Journal(id=jid, user=uid, type=jtype, content=content, time=now))
+            created.append(f"journal:{uid}/{jtype}")
+    await _add_journal("测试甲", "cleaning", "打扫了正厅")
+    await _add_journal("测试乙", "cooking", "做了午餐——番茄炒蛋+米饭")
+    await _add_journal("测试甲", "register", "加入了南塘云村")
 
-    # ── 物品/冰箱（幂等：MapLocation key）──
-    ikey = _seed_id("inventory_office")
-    ex_i = (await db.execute(select(MapLocation).where(MapLocation.key == ikey))).scalar_one_or_none()
-    if not ex_i:
-        items = [
-            {"name":"鸡蛋","putBy":"测试甲","putDate":now[:10],"expiryDays":7,"location":"fridge_upper"},
-            {"name":"牛奶","putBy":"测试乙","putDate":now[:10],"expiryDays":1,"location":"fridge_upper"},
-            {"name":"青菜","putBy":"测试甲","putDate":now[:10],"expiryDays":-1,"location":"fridge_lower"},
-            {"name":"豆腐","putBy":"测试丙","putDate":now[:10],"expiryDays":3,"location":"fridge_door"},
-            {"name":"大米","putBy":"测试甲","putDate":now[:10],"expiryDays":30,"location":"storage"},
-        ]
-        db.add(MapLocation(key=ikey, data=json.dumps(items), updated_at=now, _seed=True))
-        created.append("inventory:5件(含临期+过期)")
-
-    # ── 打扫脏污（幂等：MapLocation key）──
-    ckey = _seed_id("cleaning_spaces")
-    ex_c = (await db.execute(select(MapLocation).where(MapLocation.key == ckey))).scalar_one_or_none()
-    if not ex_c:
-        spaces = {
-            "office": {"dirtiness": 65},
-            "study": {"dirtiness": 35},
-        }
-        db.add(MapLocation(key=ckey, data=json.dumps(spaces), updated_at=now, _seed=True))
-        created.append("cleaning:2脏房(🔴office/🟡study)")
+    # ── 物品 → InventoryItem 表（sync_all 读此表返 data.items，正确源；
+    #     ⚠ 冰箱面板读 AppData._data.inventory.office（localStorage），不同源，seed 物品不在冰箱出现）──
+    async def _add_inv(uid, name, loc, expiry_days):
+        iid = _seed_id(f"inv_{uid}_{name}")
+        ex = (await db.execute(select(InventoryItem).where(InventoryItem.id == iid))).scalar_one_or_none()
+        if not ex:
+            db.add(InventoryItem(id=iid, user=uid, name=name, location=loc,
+                                 desc=f"expiry:{expiry_days}:putDate:{now[:10]}",
+                                 cat="seed", date=now[:10], status="storage"))
+            created.append(f"inv:{uid}/{name}")
+    await _add_inv("测试甲", "鸡蛋", "fridge_upper", 7)
+    await _add_inv("测试乙", "牛奶", "fridge_upper", 1)
+    await _add_inv("测试甲", "青菜", "fridge_lower", -1)
+    await _add_inv("测试丙", "豆腐", "fridge_door", 3)
+    await _add_inv("测试甲", "大米", "storage", 30)
 
     # ── 确保社区池 >= 500 ──
     pool = await _get_pool(db)
@@ -287,9 +285,11 @@ async def dev_seed(admin: User = Depends(get_current_user),
         pool.balance += diff; pool.total_issued += diff
         lid = _ledger_id()
         db.add(NTLedger(entry_id=lid, type="pool_seed", from_user="system", to_user="community_pool",
-                        amount=diff, note=f"社区池补至500（dev-seed +{diff}）", status="settled",
+                        amount=diff, reason=f"社区池补至500（dev-seed +{diff}）", status="settled",
                         created_at=now, settled_at=now))
-        created.append(f"pool:+{diff}→500")
+        created.append(f"pool:+{diff}->500")
+
+    # cleaning/spaces 为纯本地数据（仅 localStorage），无法通过 server 端点 seed——已跳过
 
     await db.commit()
     return {"ok": True, "created": created, "ts": now}
