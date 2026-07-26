@@ -28,7 +28,13 @@ from sqlalchemy import select, text
 
 from models import Base, User, CommunityPool, Tenancy
 
-pytestmark = pytest.mark.requires_pg
+# requires_pg: PG_DATABASE_URL 为空时 skip
+# loop_scope="module": pg_engine 是 module 级 fixture，测试必须同循环域
+#   否则 asyncpg 报 InterfaceError: another operation is in progress
+pytestmark = [
+    pytest.mark.requires_pg,
+    pytest.mark.asyncio(loop_scope="module"),
+]
 
 # ── PG URL 构建（对齐 database.py 的 postgres→asyncpg 转换）────────────
 PG_RAW = os.environ.get("PG_DATABASE_URL", "")

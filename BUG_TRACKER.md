@@ -1984,3 +1984,18 @@ setup: 用户余额 200 + Tenancy checkin_date=昨天 + pool last_tick_date=None
   ② `pg_engine` 降 function 级（每测试新引擎，慢一点但零错位）。
   另注意：连的是 Neon **pooler**（PgBouncer），若修后仍怪错，试直连 endpoint（去 `-pooler`）。
 - 裁定：**K-2 第二次打回**（同卡打回计数 2/3，≥3 升朝会——铁律 5）
+
+## K-2 判据④第三轮（2026-07-26 18:40 · 丞相实跑 lock-test 分支 + 刮卡实证）
+
+- 二营返修（pytestmark 加 `loop_scope="module"`，test_pg_locks.py:34-37）重跑：**仍 3 failed——同一 InterfaceError**。
+- 丞相坐实第三层根因：模块级 pytestmark 已对齐，但三个测试函数上**仍挂函数级裸 `@pytest.mark.asyncio`**（test_pg_locks.py:76/128/180）——pytest-asyncio 1.4.0 中函数级标记覆盖模块级，循环域退回 function 级 → 引擎（module 循环）与测试（function 循环）依旧错位。
+- **刮卡实证**（副本验证，不动仓库文件，验毕已删）：
+  - 删三行裸装饰器 → 真 PG 重跑 **2 passed**（D-5 提现双扣 / D-17 populate_existing **首次在真 PG 验绿**，锁语义本身无缺陷）；
+  - 第三条日结测试暴露**此前被掩盖的新 setup 缺陷**：`tenancies_user_id_fkey` 外键违例——Tenancy 只有表级 FK（models.py:284）无 ORM relationship，UOW 不保证 users 先于 tenancies 落库；SQLite 不强制 FK 故从未暴露，真 PG 一跑即现。setup 改两段式 commit（先 users/pool、后 tenancy）→ **3 passed / 52.6s，真 PG 三锁全绿**。
+- 修复处方（精确到行）：
+  1. 删 test_pg_locks.py:76/128/180 三行 `@pytest.mark.asyncio`（保留模块级 pytestmark）；
+  2. test 3 setup（L194-201）改两段式 commit：users+CommunityPool 先 `await s.commit()`，再 add Tenancy 二次 commit。
+- 裁定：**K-2 第三次打回**（3/3）→ **铁律 5 升朝会**。
+  朝会动议：K-2 改「丞相实跑闭环」——连败三轮的根因不是二营态度，是它**没有 PG 连接串只能盲改**；处方已刮卡实证到行。二营按处方修，丞相当场实跑即验收，不再走盲射-打回计数。
+
+> **太傅注**：补课 `17`（后端验收）再加一条注脚——**验收环境差一度，结论差一里**。SQLite 不强制 FK、行锁静默无效，两层缺陷在 SQLite 下全是隐形；真 PG 一上，连环三案（构造错→循环错位→FK 落库序）逐层现形。又：测试脚手架自身的 bug（装饰器覆盖、setup 顺序）与被测代码的 bug 要分清——本轮三案全在脚手架，业务锁逻辑反而是干净的。这恰是 K-2 存在的意义：若这三条测试就这么「绿」在 SQLite 假象里，D-5/D-17/D-26 将永远没有真正被验证过。
