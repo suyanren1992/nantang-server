@@ -2306,3 +2306,12 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 
 **形式三查**：① 4 文件（app.js 三处 push 补 `buildingId:b.id` + ui-phase4.js -18 行死代码删净 + index.html ?v= + 返修回执随 commit）✅ ② `?v=` app.js 18→19、ui-phase4.js 9→10 ✅ ③ 未碰 server/，diff 精确对应处方（三处 + 行与打回清单一致）✅
 **留二营复验**：逻辑关（房间级 id=r.id/buildingId=b.id 各司其职、建筑级同键、读写键一致性）+ 实测关（打扫→房间变绿——本地起服务实测，勿只读代码）+ 机检关（deploy_check **全量含 smoke**——一营跑的是 --skip-smoke）。
+
+## SM-5 二营验收打回 · 丞相裁返修（2026-07-27 01:45 · 验收 commit `faea94e`）
+
+**打回主因（实测实证，丞相复核属实）**：
+① `dev-reset` 双档 500——`NTLedger(note=...)`（admin.py:132/148）字段名错，models.py NTLedger 无 note 列、应为 `reason`；
+② `dev-seed` 500——`MapLocation(updated_at=..., _seed=True)`（admin.py:255），models.py MapLocation 仅 id/key/data 三列。
+**连带两隐患（应修/应查）**：`delete(MapLocation)` 会抹真实地图 blob（key="shared"），须收窄 `key.like('seed_%')` 或排除 shared；seed 的 journal/inventory 塞 MapLocation blob 而真实 Journal/InventoryItem 表不动——存储源与前端读取源一致性存疑，判据 3「填充可见」可能落空。
+**过项留档**：双闸独立 ✅、trim 全量替换 ✅、withdraw 零改动 ✅、非 admin 403 / 开关未设 404 ✅、?v= 单点递增 ✅。
+**丞相裁**：返修——端点 500 = 功能完全不可用，无可裁量。复验要求加码：实跑 `dev-seed`×2（验幂等 count 不增）+ soft/hard 各一遍，**贴真实输出**再交复验（deploy_check 静态检查抓不到运行时 ORM kwarg 错——实测关不可省的铁证）。
