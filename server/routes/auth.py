@@ -62,9 +62,11 @@ async def require_admin(user: User = Depends(get_current_user)):
 
 @router.post("/register")
 async def register(req: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
-    if not req.name or len(req.name) > 64: return JSONResponse({"ok": False, "error": "用户名需为1-64字符"})
+    # SM-5.5: trim 防「张三␣」影子账号
+    name = req.name.strip() if req.name else ""
+    if not name or len(name) > 64: return JSONResponse({"ok": False, "error": "用户名需为1-64字符"})
     # D-4 H-1: 用户名字符白名单（中英文/数字/下划线），堵 LIKE 通配符注入入口
-    if not re.fullmatch(r"[a-zA-Z0-9_一-龥]+", req.name): return JSONResponse({"ok": False, "error": "用户名仅限中英文、数字、下划线"})
+    if not re.fullmatch(r"[a-zA-Z0-9_一-龥]+", name): return JSONResponse({"ok": False, "error": "用户名仅限中英文、数字、下划线"})
     if len(req.password) < 8: return JSONResponse({"ok": False, "error": "密码至少8位"})
     # D-3 CR-2: 邀请制——INVITE_CODES 环境变量（逗号分隔码池）；未设置/为空=邀请制关闭，向后兼容
     _codes = os.environ.get("INVITE_CODES", "")
@@ -72,14 +74,14 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
         _pool = [c.strip() for c in _codes.split(",") if c.strip()]
         if req.invite_code not in _pool:
             return JSONResponse({"ok": False, "error": "邀请码无效"})
-    ex = await db.execute(select(User).where(User.id == req.name))
-    if ex.scalar_one_or_none(): return JSONResponse({"ok": False, "error": "用户名已存在"})
+    ex = await db.execute(select(User).where(User.id == name))
+    if ex.scalar_one_or_none(): return JSONResponse({"ok": False, "error": "这个名字已经被占用了，换一个试试"})
     c = await db.execute(select(func.count(User.id)))
     is_first = c.scalar() == 0
-    u = User(id=req.name, password_hash=hash_password(req.password),
+    u = User(id=name, password_hash=hash_password(req.password),
              role="admin" if is_first else "visitor",
              nt_balance=0,
-             avatar_seed=req.avatar_seed or req.name,
+             avatar_seed=req.avatar_seed or name,
              created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
     db.add(u)
     pool = await db.execute(select(CommunityPool).limit(1)); pool = pool.scalar_one_or_none()

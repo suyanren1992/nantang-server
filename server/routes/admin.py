@@ -1,12 +1,13 @@
-"""Admin routes: pending newbie review, community task publishing, withdraw management."""
+"""Admin routes: pending newbie review, community task publishing, withdraw management, dev tools."""
+import os, json, hashlib
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from database import get_db
-from models import Verification, User, NTLedger, CommunityPool
-from routes.auth import require_admin
-from nt_helpers import _get_pool
+from models import Verification, User, NTLedger, CommunityPool, NTTask, Camp, MapLocation
+from routes.auth import require_admin, get_current_user, hash_password
+from nt_helpers import _get_pool, _ledger_id
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -85,3 +86,210 @@ async def reject_withdraw(entry_id: str, admin: User = Depends(require_admin),
     entry.status = "cancelled"
     await db.commit()
     return {"ok": True, "entry_id": entry_id, "refunded": True}
+
+
+# ══ SM-5: Dev Tools（admin + DEV_TOOLS_ENABLED 双闸） ══
+
+def _dev_enabled():
+    return os.environ.get("DEV_TOOLS_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
+def _dev_gate(user: User):
+    if not _dev_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin required")
+
+
+def _seed_id(key: str) -> str:
+    return "seed_" + hashlib.md5(key.encode()).hexdigest()[:8]
+
+
+@router.post("/dev-reset")
+async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
+                    db: AsyncSession = Depends(get_db)):
+    _dev_gate(admin)
+    now = datetime.utcnow().isoformat()
+
+    if mode == "hard":
+        # 全清
+        await db.execute(delete(NTTask))
+        await db.execute(delete(Verification))
+        await db.execute(delete(NTLedger))
+        await db.execute(delete(MapLocation))
+        await db.execute(delete(Camp))
+        await db.execute(delete(User))
+        # 重建社区池 + 初始化 500
+        pool = await _get_pool(db)
+        await db.execute(delete(CommunityPool).where(CommunityPool.singleton == True))
+        await db.commit()
+        # 重新建池
+        new_pool = CommunityPool(singleton=True, balance=500, total_issued=500, task_escrow=0,
+                                  contribution_pool=0, camp_balance=0, reserve=0, frozen=0)
+        db.add(new_pool)
+        lid = _ledger_id()
+        ledger = NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
+                          amount=500, note="社区池初始化（dev-reset hard）", status="settled",
+                          created_at=now, settled_at=now)
+        db.add(ledger)
+    else:
+        # soft: 保留 users，清业务表
+        await db.execute(delete(NTTask))
+        await db.execute(delete(Verification))
+        await db.execute(delete(NTLedger))
+        await db.execute(delete(MapLocation))
+        await db.execute(delete(Camp))
+        # 社区池重置为初始态
+        pool = await _get_pool(db)
+        pool.balance = 500; pool.total_issued = 500; pool.task_escrow = 0
+        pool.contribution_pool = 0; pool.camp_balance = 0; pool.reserve = 0; pool.frozen = 0
+        lid = _ledger_id()
+        ledger = NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
+                          amount=500, note="社区池重置（dev-reset soft）", status="settled",
+                          created_at=now, settled_at=now)
+        db.add(ledger)
+        # 用户余额归零
+        users = (await db.execute(select(User))).scalars().all()
+        for u in users:
+            u.nt_balance = 0; u.contribution_value = 0; u.experience_value = 0
+            u.trust_score = 100; u.frozen_cv = 0
+
+    await db.commit()
+    return {"ok": True, "mode": mode, "ts": now}
+
+
+@router.post("/dev-seed")
+async def dev_seed(admin: User = Depends(get_current_user),
+                   db: AsyncSession = Depends(get_db)):
+    _dev_gate(admin)
+    now = datetime.utcnow().isoformat()
+    pwd_hash = hash_password("test12345")
+    created = []
+
+    # ── 用户（幂等：按 name 查重）──
+    async def _ensure_user(uid, role, nt):
+        nonlocal created
+        ex = (await db.execute(select(User).where(User.id == uid))).scalar_one_or_none()
+        if ex:
+            return ex
+        u = User(id=uid, password_hash=pwd_hash, role=role, nt_balance=nt,
+                 avatar_seed=uid, created_at=now, updated_at=now)
+        db.add(u)
+        created.append(f"user:{uid}")
+        return u
+
+    u1 = await _ensure_user("测试甲", "builder", 100)
+    u2 = await _ensure_user("测试乙", "adventurer", 100)
+    u3 = await _ensure_user("测试丙", "visitor", 100)
+
+    # ── 营地（幂等：_seed 标记）──
+    sid1 = _seed_id("camp_active")
+    sid2 = _seed_id("camp_upcoming")
+    ex_camps = (await db.execute(select(Camp).where(Camp.id.in_([sid1, sid2])))).scalars().all()
+    existing_camp_ids = {c.id for c in ex_camps}
+    if sid1 not in existing_camp_ids:
+        c1 = Camp(id=sid1, name="第四期共创营", emoji="🏕️", theme="南塘有风，共创有光", date="7/20 — 7/27",
+                  status="active", people=5, max=16, location="南塘合作社大院",
+                  desc="七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。",
+                  highlights=json.dumps(["7/20 开营仪式", "7/22 工笔画大师课", "7/25 作品展览", "7/27 结营仪式"]),
+                  created_by="测试甲", created_at=now)
+        db.add(c1)
+        created.append("camp:第四期共创营")
+    if sid2 not in existing_camp_ids:
+        c2 = Camp(id=sid2, name="夏季写生周", emoji="🎨", theme="户外写生+导师一对一点评", date="8/1 — 8/5",
+                  status="upcoming", people=3, max=10, location="大地书房",
+                  desc="五天集中写生，导师一对一点评。适合有基础的同学。",
+                  highlights=json.dumps(["8/1 开营", "8/2-4 写生+点评", "8/5 作品展"]),
+                  created_by="测试乙", created_at=now)
+        db.add(c2)
+        created.append("camp:夏季写生周")
+
+    # ── 任务（幂等：_seed 标记 task id 前缀）──
+    t1_id = _seed_id("task_personal")
+    t2_id = _seed_id("task_camp")
+    t3_id = _seed_id("task_community")
+    ex_tasks = (await db.execute(select(NTTask).where(NTTask.id.in_([t1_id, t2_id, t3_id])))).scalars().all()
+    existing_task_ids = {t.id for t in ex_tasks}
+    if t1_id not in existing_task_ids:
+        db.add(NTTask(id=t1_id, poster="测试甲", title="整理书房书架", reward=5, category="日常", scope="个人",
+                      note="把书房的书按分类整理好", slots=1, status="进行中", created_at=now))
+        created.append("task:个人")
+    if t2_id not in existing_task_ids:
+        db.add(NTTask(id=t2_id, poster="测试乙", title="营地宣传海报设计", reward=15, category="宣传", scope="营队",
+                      note="设计一张A3海报用于社区公告栏", slots=1, status="进行中", created_at=now))
+        created.append("task:营队")
+    if t3_id not in existing_task_ids:
+        db.add(NTTask(id=t3_id, poster="社区", title="村口公告栏更新", reward=10, category="宣传", scope="社区",
+                      note="更新本周活动安排和天气提醒", slots=2, status="进行中", created_at=now))
+        created.append("task:社区")
+
+    # ── 待校核（幂等：_seed id）──
+    vfy_id = _seed_id("vfy_pending")
+    ex_vfy = (await db.execute(select(Verification).where(Verification.id == vfy_id))).scalar_one_or_none()
+    if not ex_vfy:
+        db.add(Verification(id=vfy_id, type="cleaning", doer="测试甲", action="打扫了 正厅",
+                            detail=json.dumps({"roomId":"hall","roomName":"正厅","nt":15}),
+                            nt_amount=15, verifier_reward=5, status="pending", created_at=now))
+        created.append("vfy:pending")
+
+    # ── 翻牌 presence（幂等：MapLocation key）──
+    async def _ensure_presence(uid, loc):
+        key = f"presence:{uid}"
+        ex = (await db.execute(select(MapLocation).where(MapLocation.key == key))).scalar_one_or_none()
+        if not ex:
+            db.add(MapLocation(key=key, data=json.dumps({"status":"onsite","location":loc,"updatedAt":now}),
+                               updated_at=now))
+            created.append(f"presence:{uid}")
+    await _ensure_presence("测试甲", "大地书房")
+    await _ensure_presence("测试乙", "南塘")
+
+    # ── journal 时间线（幂等：MapLocation key）──
+    jkey = _seed_id("journal")
+    ex_j = (await db.execute(select(MapLocation).where(MapLocation.key == jkey))).scalar_one_or_none()
+    if not ex_j:
+        entries = [
+            {"user":"测试甲","type":"cleaning","content":"打扫了正厅","date":now[:10],"time":now[11:16]},
+            {"user":"测试乙","type":"cooking","content":"做了午餐——番茄炒蛋+米饭","date":now[:10],"time":now[11:16]},
+            {"user":"测试甲","type":"register","content":"加入了南塘云村","date":now[:10],"time":now[11:16]},
+        ]
+        db.add(MapLocation(key=jkey, data=json.dumps(entries), updated_at=now, _seed=True))
+        created.append("journal:3条")
+
+    # ── 物品/冰箱（幂等：MapLocation key）──
+    ikey = _seed_id("inventory_office")
+    ex_i = (await db.execute(select(MapLocation).where(MapLocation.key == ikey))).scalar_one_or_none()
+    if not ex_i:
+        items = [
+            {"name":"鸡蛋","putBy":"测试甲","putDate":now[:10],"expiryDays":7,"location":"fridge_upper"},
+            {"name":"牛奶","putBy":"测试乙","putDate":now[:10],"expiryDays":1,"location":"fridge_upper"},
+            {"name":"青菜","putBy":"测试甲","putDate":now[:10],"expiryDays":-1,"location":"fridge_lower"},
+            {"name":"豆腐","putBy":"测试丙","putDate":now[:10],"expiryDays":3,"location":"fridge_door"},
+            {"name":"大米","putBy":"测试甲","putDate":now[:10],"expiryDays":30,"location":"storage"},
+        ]
+        db.add(MapLocation(key=ikey, data=json.dumps(items), updated_at=now, _seed=True))
+        created.append("inventory:5件(含临期+过期)")
+
+    # ── 打扫脏污（幂等：MapLocation key）──
+    ckey = _seed_id("cleaning_spaces")
+    ex_c = (await db.execute(select(MapLocation).where(MapLocation.key == ckey))).scalar_one_or_none()
+    if not ex_c:
+        spaces = {
+            "office": {"dirtiness": 65},
+            "study": {"dirtiness": 35},
+        }
+        db.add(MapLocation(key=ckey, data=json.dumps(spaces), updated_at=now, _seed=True))
+        created.append("cleaning:2脏房(🔴office/🟡study)")
+
+    # ── 确保社区池 >= 500 ──
+    pool = await _get_pool(db)
+    if pool.balance < 500:
+        diff = 500 - pool.balance
+        pool.balance += diff; pool.total_issued += diff
+        lid = _ledger_id()
+        db.add(NTLedger(entry_id=lid, type="pool_seed", from_user="system", to_user="community_pool",
+                        amount=diff, note=f"社区池补至500（dev-seed +{diff}）", status="settled",
+                        created_at=now, settled_at=now))
+        created.append(f"pool:+{diff}→500")
+
+    await db.commit()
+    return {"ok": True, "created": created, "ts": now}

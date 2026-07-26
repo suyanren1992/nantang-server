@@ -174,5 +174,8 @@ var API = {
       nt_guesser: disc.ntGuesser || 5, nt_doer: disc.ntDoer || 10
     });
   },
+  // ── SM-5: 测试台 ──
+  devReset: function(mode) { return this.request('POST', '/api/admin/dev-reset?mode=' + (mode||'soft')); },
+  devSeed: function() { return this.request('POST', '/api/admin/dev-seed'); },
 };
 API.init();

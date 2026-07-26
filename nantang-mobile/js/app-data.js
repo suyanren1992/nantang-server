@@ -647,9 +647,9 @@ this._data.map_locations.people_on_site = [];
     this._saveShared();
   },
 
+  // SM-5.4: 全清替代逐key枚举（枚举必漏，如 nt_local_roles/nt_mgmt_data 等15+key）
   reset: function() {
-    if (this._currentUser) localStorage.removeItem('nt_app_v2_' + this._currentUser);
-    localStorage.removeItem('nt_app_v2_shared');
+    localStorage.clear();
     this._data = {};
     this._currentUser = '';
     this.init();

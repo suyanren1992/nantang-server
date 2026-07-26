@@ -51,8 +51,8 @@ if (window.location.protocol !== 'file:') {
       <h2>注册云村民</h2>
       <div class="reg-avatar" id="regAvatar" onclick="cycleAvatar()"></div>
       <button class="avatar-btn" onclick="cycleAvatar()">🎨 换头像</button>
-      <input type="text" id="regName" class="login-input" placeholder="你的名字">
-      <div style="position:relative"><input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少8位）" style="padding-right:38px"><span onclick="togglePwdEye('regPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
+      <input type="text" id="regName" class="login-input" placeholder="你的名字" autocomplete="username">
+      <div style="position:relative"><input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少8位）" style="padding-right:38px" autocomplete="new-password"><span onclick="togglePwdEye('regPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
       <div><div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:4px">邀请码（可选，填入后可解锁身份）</div><input type="text" id="regInviteCode" class="login-input" placeholder="输入邀请码"></div>
       <div class="login-error" id="regError"></div>
       <div class="login-btns"><button class="btn-pri" onclick="enterVillage()">确认注册 →</button></div>
@@ -62,8 +62,8 @@ if (window.location.protocol !== 'file:') {
       <h2>选择账号</h2>
       <div class="user-scroll" id="userScroll"></div>
       <div class="login-avatar-lg" id="loginAvatar"></div>
-      <input type="text" id="loginName" class="login-input" placeholder="输入名字或点击下方选择" oninput="renderLoginAvatar()" autocomplete="off">
-      <div style="position:relative"><input type="password" id="loginPwd" class="login-input" placeholder="密码" style="padding-right:38px"><span onclick="togglePwdEye('loginPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
+      <input type="text" id="loginName" class="login-input" placeholder="输入名字或点击下方选择" oninput="renderLoginAvatar()" autocomplete="username">
+      <div style="position:relative"><input type="password" id="loginPwd" class="login-input" placeholder="密码" style="padding-right:38px" autocomplete="current-password"><span onclick="togglePwdEye('loginPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
       <div class="login-error" id="loginError"></div>
       <button class="btn-pri btn-full" onclick="enterVillage()">✅ 登录 →</button>
     </div>
@@ -150,6 +150,14 @@ if (window.location.protocol !== 'file:') {
   </div>
   </div>
   <div id="myInboxPanel" style="display:none;padding:4px 14px;max-height:calc(100vh - 280px);overflow-y:auto" class="inbox-panel"></div>
+  <div id="devToolsPanel" style="display:none;padding:8px 14px;border-top:1px solid var(--green-border);text-align:center">
+    <div style="font-size:.6rem;color:#b84c38;margin-bottom:6px">🧪 测试台（仅管理员可见）</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn-sm sec" style="flex:1;font-size:.62rem;min-height:36px" onclick="devReset('soft')">🔄 软重置</button>
+      <button class="btn-sm sec" style="flex:1;font-size:.62rem;min-height:36px" onclick="devReset('hard')">💣 硬重置</button>
+      <button class="btn-sm pri" style="flex:1;font-size:.62rem;min-height:36px" onclick="devSeed()">📥 填充</button>
+    </div>
+  </div>
   <div class="my-tabbar">
     <div class="my-tab on" onclick="switchMyTab('tasks')">📋 任务</div>
     <div class="my-tab" onclick="switchMyTab('ledger')">💰 账本</div>
@@ -514,10 +522,10 @@ if (window.location.protocol !== 'file:') {
 <script src="js/auth.js?v=9"></script>
 <script src="js/seed-test-data.js?v=17"></script>
 <script src="js/nt-core.js?v=8"></script>
-<script src="js/app-data.js?v=13"></script>
-<script src="js/api.js?v=12"></script>
+<script src="js/app-data.js?v=14"></script>
+<script src="js/api.js?v=13"></script>
 <script src="js/data.js?v=13"></script>
-<script src="js/core.js?v=19"></script>
+<script src="js/core.js?v=20"></script>
 <script src="js/ui-village.js?v=17"></script>
 <script src="js/ui-camp.js?v=9"></script>
 <script src="js/ui-wizard.js?v=9"></script>

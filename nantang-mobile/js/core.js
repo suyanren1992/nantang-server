@@ -1288,6 +1288,47 @@ function showMy(opts){document.getElementById('villagePage').classList.add('hidd
     if (campChip) campChip.style.display = 'none';
   }
   updateInboxBadge();
+  // SM-5: 测试台——仅 admin 可见（不渲染，非置灰）
+  var devPanel = document.getElementById('devToolsPanel');
+  if (devPanel) {
+    var isAdmin = (typeof API !== 'undefined' && API.user && API.user.role === 'admin');
+    devPanel.style.display = isAdmin ? 'block' : 'none';
+  }
+}
+// ── SM-5: 测试台操作 ──
+function devReset(mode) {
+  var labels = {soft:'软重置：清空业务数据（任务/校核/物品/营地/时间线），保留账号，余额归零',hard:'💣 硬重置：清空全部数据包括账号，重建社区池 500 NT。需重新注册！'};
+  showConfirm(labels[mode]||mode, function() {
+    if (typeof API === 'undefined' || !API.token) { showToast('仅在线模式可用','warn'); return; }
+    API.devReset(mode).then(function(r) {
+      if (r && r.ok) {
+        localStorage.clear();
+        if (window.NT) NT._reset();
+        if (window.AppData) { AppData._data = {}; AppData._currentUser = ''; AppData.init(); }
+        showToast('已重置（'+mode+'），即将刷新','error');
+        setTimeout(function(){ location.reload(); }, 800);
+      } else {
+        showToast((r&&r.detail)||'重置失败（端点可能未开启）','error');
+      }
+    }).catch(function(){ showToast('重置失败（检查 DEV_TOOLS_ENABLED 开关）','error'); });
+  });
+}
+function devSeed() {
+  showConfirm('填充一套测试数据到服务端：3用户/2营地/3任务/5物品/2脏房/3时间线/1待校核。可重复点。', function() {
+    if (typeof API === 'undefined' || !API.token) { showToast('仅在线模式可用','warn'); return; }
+    API.devSeed().then(function(r) {
+      if (r && r.ok) {
+        var msg = '填充完成：' + ((r.created||[]).join('、')||'数据已就绪');
+        showToast(msg);
+        // 刷新数据
+        if (typeof API.syncAll === 'function') {
+          API.syncAll(function(data) { if (data && !data.detail) _mergeSyncData(data); });
+        }
+      } else {
+        showToast((r&&r.detail)||'填充失败（端点可能未开启）','error');
+      }
+    }).catch(function(){ showToast('填充失败（检查 DEV_TOOLS_ENABLED 开关）','error'); });
+  });
 }
 function renderMyTasks(){
   var items=Object.values(TASKS).filter(function(t){
