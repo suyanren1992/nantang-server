@@ -1972,3 +1972,15 @@ setup: 用户余额 200 + Tenancy checkin_date=昨天 + pool last_tick_date=None
 **commit**：不 push，待丞相差分复核后统一闸口。
 
 > **太傅注**：补课 `28`（墓碑代码——判断死活的唯一标准 = grep 全仓引用链，非直觉）。两块墓碑均为 sqlite3 标准库直连本地文件的一次性脚本，删除后 server/ 目录下所有 `.py` 文件零引用残留，pytest 零回归。M1-M5 和 mobile-bundle 经第一步 grep 引用链证伪——活跃生产路径上的兜底/持久层/脚手架，非墓碑。墓碑清理守则：只删死代码，不删丑代码。
+
+## K-2 判据④重跑（2026-07-26 18:20 · 丞相实跑 lock-test 分支）
+
+- 返修版（`052fb90`）重跑：**仍 3 failed + 1 error——新根因类**：
+  `asyncpg InterfaceError: cannot perform operation: another operation is in progress`
+  （单连接被并发使用）。丞相诊断：pytest-asyncio 事件循环错位——`pg_engine` 是
+  **module 级 fixture**（引擎+连接池在 fixture 的循环里创建），而测试默认 function 级
+  事件循环，池里的 asyncpg 连接绑定旧循环 → 第一条即炸。修法二选一：
+  ① pytest 配置对齐循环域（`asyncio_mode=auto` + fixture/test 同 `loop_scope="module"`）；
+  ② `pg_engine` 降 function 级（每测试新引擎，慢一点但零错位）。
+  另注意：连的是 Neon **pooler**（PgBouncer），若修后仍怪错，试直连 endpoint（去 `-pooler`）。
+- 裁定：**K-2 第二次打回**（同卡打回计数 2/3，≥3 升朝会——铁律 5）
