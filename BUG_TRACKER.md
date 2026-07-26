@@ -2118,3 +2118,96 @@ models.py:284 实地确认 `ForeignKey("users.id")` 仅表级约束无 ORM relat
 
 - 丞相初判修正：nt.py:517 注释非端点缺失——nt.py:515 明文「POST /api/nt/tasks 已废弃，使用 POST /api/tasks（tasks.py 版本）」；创建端点 = `tasks.py:84`，前端链路 `core.js:697 → api.js:145 → tasks.py:84`，列表 `api.js:152 GET /api/tasks?mode=hall`。
 - 丞相连夜实测被砚仁叫停：实测归施工单位——已开卡 `方案/任务卡/SM-1_批②冒烟五bug.md`（中卡，一营施工/二营验收，含实测方法与五步输出要求，验收必须真机无痕复测）。
+
+---
+
+## 🔧 SM-1 施工回执（Claude Code 一营 · 2026-07-27 · commit `5a13803`）
+
+### 影响面声明
+
+| 文件 | 改动 | 风险 |
+|------|------|------|
+| `nantang-mobile/js/core.js` | `doPublish()` HTTP 分支新增 `API.syncTask()` 调用（~15行） | **中**：改动了任务发布主链路。回调内收尾 UI 与原同步路径一致（clearPubForm/filterQuests/renderMyTasks/refreshUserUI/_publishing=false） |
+| `nantang-mobile/css/main.css` | `.village-brand` 加 `background:linear-gradient(...)` 1行 | **低**：纯视觉，不影响布局/交互 |
+| `nantang-mobile/js/ui-cardroom.js` | `_confirmWitness` 改颜色/字号 + onclick 内联 `_closeModal` 替换（~10行） | **低**：改弹窗内按钮样式和关闭逻辑，不影响数据流 |
+| `nantang-mobile/js/app.js` | `_openMgmtSheet` kitchen 分支 + `_rerenderKitchen` 加 try-catch（~4行） | **低**：仅加异常兜底，正常路径行为不变 |
+| `nantang-mobile/index.html` | 4 处 `?v=` 升级 | **极低**：缓存版本号 |
+
+- **资金路径**：未碰。`API.syncTask` 调用的 `POST /api/tasks` 端点（`server/routes/tasks.py:84`）已有完整的余额检查+with_for_update 行锁+escrow 冻结+账本写入，资金安全不依赖客户端。
+- **权限逻辑**：未碰。
+- **回滚**：`git revert 5a13803` 一键回滚，零数据迁移。
+
+### 爆炸半径四答
+
+1. **调用方**：`doPublish()` → 用户点「✅ 确认发布」按钮（`index.html:678`）。仅此一条调用路径，`publishDraft()`（草稿发布）已有正确的 API 调用，未受影响。
+2. **被依赖方**：`API.syncTask` 依赖 `API.request`（`api.js:12`）→ `fetch()` → `POST /api/tasks`。`API.request` 已有超时 + HTTP 错误处理 + token 过期自动刷新。`POST /api/tasks` 端点（`tasks.py:84`）已有完整校验链（余额/审核人/行锁/escrow/账本）。注：`API.syncTask` 内部 `.catch` 未处理——若网络/服务端异常，回调传 `null`，`doPublish` 的回调会 toast「发布失败」。
+3. **关联测试**：`deploy_check.py` 语法检查 + `?v=` 一致性 PASS。子项 1 全链路五步实测 PASS（见下）。
+4. **回滚路径**：`git revert 5a13803` → `index.html` 回 `?v=` → push。无 DB schema 变更，无数据迁移。
+
+### 子项 1 实测五步输出（2026-07-27 · uvicorn:8010 + 临时 SQLite · Python urllib）
+
+```
+=== ① POST /api/auth/register ===
+status=200  response={"ok":true,"token":"...","user":{"name":"t1","uid":"t1","role":"visitor","nt_balance":0,...}}
+
+=== ② 预置余额 (sqlite UPDATE users SET nt_balance=100 WHERE id='t1') ===
+User: t1, Balance: 100
+
+=== ③ POST /api/tasks ===
+status=200  ok=True  task_id=T260726163132-2c8420
+
+=== ④ GET /api/tasks?mode=hall ===
+task_count=1  found=True
+  [T260726163132-2c8420] SM-1冒烟测试任务 (进行中)
+
+=== ⑤ GET /api/tasks (我的任务) ===
+task_count=1  found=True
+
+Balance: 100 → 90 (deduction: 10 NT)  ← 扣款正确
+```
+
+**结论**：服务端创建+大厅查询+我的任务查询全链路 PASS。断点在前端 `doPublish()` 从未调 `API.syncTask()`——修复后，HTTP 模式下任务创建走 `API.syncTask(data, callback)`，回调内收尾 UI（与 `publishDraft` 同模式）。
+
+### 子项 2-5 施工要点
+
+| # | 根因 | 修法 | 文件:行 |
+|---|------|------|---------|
+| 1 | `doPublish()` HTTP 分支只做本地 `AppData.addTask`，从不 POST 服务端 | 加 `else { API.syncTask(data, cb) }` 分支（照 `publishDraft` 模式） | `core.js:697-718` |
+| 2 | `.village-brand` 无背景 → 白字 `#fff` 与卡片 `rgba(255,255,255,.80)` 底视觉重叠 | 加 `background:linear-gradient(to bottom, rgba(29,46,36,.92), rgba(29,46,36,.75) 65%, transparent)` | `main.css:95` |
+| 3 | 标题 `#2a4a30` 深绿撞白底对比度不足 + 按钮 `.65rem` 过小 | 标题→`#1a2a20`、描述→`#3a3a3a`、按钮→`.72rem` | `ui-cardroom.js:466-472` |
+| 4 | `onclick="_closeModal();..."` 但 `_closeModal` 函数不存在 → ReferenceError 中断执行，`verifyAction` 从未被调用 | onclick 内联 `document.querySelectorAll('.disc-modal-overlay').forEach(...)` 替换 `_closeModal()` 调用 | `ui-cardroom.js:471-472` |
+| 5 | `renderKitchenPanel()` 若抛异常 → `_showCardPopup` 不会被调用 → 用户看到「没反应」 | `_openMgmtSheet` kitchen 分支 + `_rerenderKitchen` 加 try-catch，异常时弹出错误提示壳 | `app.js:1173,1179-1183` |
+
+### 代码变更统计
+
+```
+nantang-mobile/css/main.css        |  2 +-
+nantang-mobile/index.html          |  8 +++----
+nantang-mobile/js/app.js           |  8 ++++---
+nantang-mobile/js/core.js          | 28 +++++++++++++++-------
+nantang-mobile/js/ui-cardroom.js   | 10 ++++----
+5 files changed, 34 insertions(+), 22 deletions(-)
+```
+
+### 🚦 上线闸口状态
+
+- `python server/scripts/deploy_check.py` → PASS（部署配置/?v=一致性/语法检查/服务冒烟 全绿）
+- **待二营验收**（真机无痕复测五子项 + 过验收判据四关）
+- **待丞相 push**
+
+> **太傅注**：补课 §17 验收四关。人话原理：验收四关的冒烟关是最后防线——批①省了它，五个「修了」在线上躺两天。本卡最致命的 bug 是子项 1——`doPublish` 直接发布路径完全忘了调 API，任务只在本地 `TASKS` 对象里活了不到一秒（`renderMyTasks` 读到、下次 `sync_all` 覆盖就没了）。子项 4 同理——`_closeModal` 是个幽灵函数，写在 onclick 里、从没被定义过，浏览器一行 `ReferenceError` 就把后面的 `verifyAction` 吞了。这两个都是「看起来应该有但实际上没有」的经典空指针模式：变量存在 ≠ 函数存在，HTML 写了 ≠ JS 有定义。
+
+## SM-1 一营施工完成（2026-07-27 00:35 · commit `5a13803`）
+
+五子项根因+修法（一营回执）：
+1. 发任务消失：`doPublish()` HTTP 模式只走本地 AppData.addTask 从未 POST 服务端 → 刷新/sync_all 即丢；修=加 `else { API.syncTask(data, cb) }` 分支
+2. 标题重叠：.village-brand 透明底白字与卡片白底视觉重叠；修=加渐变压底
+3. 校核字看不清：深绿撞色+.65rem 过小；修=标题 #1a2a20/描述 #3a3a3a/按钮 .72rem
+4. 按钮没反应：`onclick="_closeModal();..."` 幽灵函数 ReferenceError 吞掉后续调用；修=内联 querySelectorAll 替换
+5. 冰箱打不开：renderKitchenPanel() 异常吞掉弹窗；修=_openMgmtSheet+_rerenderKitchen 加 try-catch+错误提示壳
+
+**丞相闸口核验（形式三查，不越验收界）**：① commit 在、5 文件与影响面声明一致 ✅
+② `?v=` 同 commit 升 4 个（main.css 9→10/core.js 18→19/ui-cardroom 9→10/app.js 16→17）✅
+③ 34+/22- 小改动，未碰 server/ 资金权限 ✅。
+一营自报：deploy_check 全绿；子项 1 实测五步全绿（task_id=T260726163132-2c8420、大厅/我的任务可见、余额 100→90 扣款正确）。
+**待二营真机无痕复测（验收判据四关）→ 丞相 push。**
