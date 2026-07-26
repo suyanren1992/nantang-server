@@ -2301,3 +2301,8 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 ② 🟡 **死代码**：`renderTimeline()`（ui-phase4.js:240）零调用 + 目标 DOM `#timelineList` 已随子项 1 删除 → 孤儿函数。
 **资金面守住**：实测证 NT 只在校核通过入账（doer+8/verifier+3/池 1000→989 守恒），无假水龙头。
 **丞相裁**：返修（判据明列「房间状态有可见变化」未达，不打折扣）——处方：三处 push 补 `buildingId:b.id`（施工时核对房间类 r.id 与建筑 b.id 的 dirtiness 键一致性）；死代码 renderTimeline 并入同 commit 删除，不另记 SM-2。返修后二营复验逻辑关+实测关（打扫→变绿实测）。
+
+## SM-3 返修完成 · 丞相闸口核验（2026-07-27 01:42 · commit `6bd9079`）
+
+**形式三查**：① 4 文件（app.js 三处 push 补 `buildingId:b.id` + ui-phase4.js -18 行死代码删净 + index.html ?v= + 返修回执随 commit）✅ ② `?v=` app.js 18→19、ui-phase4.js 9→10 ✅ ③ 未碰 server/，diff 精确对应处方（三处 + 行与打回清单一致）✅
+**留二营复验**：逻辑关（房间级 id=r.id/buildingId=b.id 各司其职、建筑级同键、读写键一致性）+ 实测关（打扫→房间变绿——本地起服务实测，勿只读代码）+ 机检关（deploy_check **全量含 smoke**——一营跑的是 --skip-smoke）。
