@@ -80,7 +80,7 @@ async def test_withdraw_concurrent_prevents_double_deduct(pg_engine):
 
     # setup: 用户余额 100，池有 reserve
     async with factory() as s:
-        s.add(User(id="k2_d5", name="d5", password_hash="x",
+        s.add(User(id="k2_d5", password_hash="x",
                    nt_balance=100, trust_score=80))
         s.add(CommunityPool(balance=10000, total_issued=20000,
                             reserve=1000, frozen=0))
@@ -132,7 +132,7 @@ async def test_populate_existing_reads_fresh_after_concurrent_update(pg_engine):
     factory = _factory(pg_engine)
 
     async with factory() as s:
-        s.add(User(id="k2_d17", name="d17", password_hash="x", nt_balance=100))
+        s.add(User(id="k2_d17", password_hash="x", nt_balance=100))
         await s.commit()
 
     async with factory() as sA:
@@ -186,7 +186,7 @@ async def test_concurrent_daily_tick_only_one_executes(pg_engine):
     today = datetime.utcnow().strftime("%Y-%m-%d")
 
     async with factory() as s:
-        s.add(User(id="k2_d26", name="d26", password_hash="x",
+        s.add(User(id="k2_d26", password_hash="x",
                    nt_balance=200, role="villager"))
         s.add(CommunityPool(balance=10000, total_issued=20000,
                             reserve=1000, frozen=0, last_tick_date=None))
