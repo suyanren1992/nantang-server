@@ -301,9 +301,10 @@ function _renderMgmtCards() {
 }
 
 function _renderQuickEntryCards() {
-  // D 修复：「打扫卫生」快捷卡从全貌页移除（大扫除走管理面板入口，避免双入口混淆）
+  // SM-3.3: 恢复 🧹 快捷打扫卡——D 修复误删了真入口（openSelfReport 走校核闭环），留的假入口 _submitMyCleaning 只写本地历史不触发 NT
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
     '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:.65rem;font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
+    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:.65rem;font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
     '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:.65rem;font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>'+
   '</div>';
 }
@@ -1694,13 +1695,31 @@ function _submitMyCleaning() {
   var rr = rooms.find(function(r) { return r.id===roomId; });
   var p = _cleaningPricing();
   var nt = rr ? ({red:p.dirty,yellow:p.warning,green:p.clean}[rr.status]||0) : 0;
-  MGMT_DATA.cleaning.history.unshift({ date:_todayStr(), person:_me(), roomName:rr?rr.name:roomId, nt:nt, note:'' });
+  var roomName = rr ? rr.name : roomId;
+  // 保留本地历史记录
+  MGMT_DATA.cleaning.history.unshift({ date:_todayStr(), person:_me(), roomName:roomName, nt:nt, note:'' });
   MGMT_DATA._save();
+  // SM-3.5: 接入校核闭环——不再假报"+N NT"，走 addVerification 进校核室
+  if (window.AppData && typeof AppData.addVerification === 'function') {
+    var detail = { roomId: roomId, roomName: roomName, buildingName: rr?rr.buildingName:'', status: rr?rr.status:'', nt: nt };
+    AppData.addVerification('cleaning', _me(), '打扫了 '+roomName, detail, nt);
+    // 房间状态复位：提交校核后将脏污度归零
+    var cl = (AppData._data.cleaning && AppData._data.cleaning.spaces) ? AppData._data.cleaning.spaces : {};
+    if (!cl[rr.buildingId||'']) cl[rr.buildingId||''] = { dirtiness: 0 };
+    else cl[rr.buildingId||''].dirtiness = 0;
+    AppData._saveShared(true);
+    // 写 journal
+    if (typeof AppData.addJournal === 'function') {
+      AppData.addJournal(_me(), 'cleaning', '打扫了 '+roomName+'（待校核·+'+nt+' NT）');
+    }
+    if (window.Game&&Game.toast) Game.toast('已提交校核：'+roomName+'（待他人确认后 NT 到账）', 'info');
+  } else {
+    if (window.Game&&Game.toast) Game.toast('完成 '+roomName+' +'+nt+'NT');
+  }
   var sel = MGMT_DATA.cleaning.mySelections || [];
   var idx = sel.indexOf(roomId);
   if (idx>=0) sel.splice(idx,1);
   _mgmtFormType = '';
-  if (window.Game&&Game.toast) Game.toast('完成 '+ (rr?rr.name:'') +' +'+nt+'NT');
   renderMgmtPanel('cleaning');
 }
 

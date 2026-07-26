@@ -596,7 +596,7 @@ function closeOverlay(id,showVillage){
   if(prev){ document.getElementById(prev).classList.add('open'); }
   else{ document.getElementById('villagePage').classList.remove('hidden'); _unlockBodyIfAllClosed(); }
 }
-function openCommunityPage(){_pushOverlay('overlayCommunity'); document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub();renderTimeline()}
+function openCommunityPage(){_pushOverlay('overlayCommunity'); document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub()}
 // 营地数据——从 AppData 读取，服务端同步
 function getCamps(){ return (window.AppData&&AppData._data.camps) ? Object.values(AppData._data.camps) : []; }
 function renderCommunityHub() {
@@ -620,7 +620,7 @@ function renderCommunityHub() {
     } else {
       btns += '<button class=camp-btn-review onclick="showCampWindow(\''+c.id+'\')">查看回顾</button>';
     }
-    return '<div class="'+cls+'"><div class=camp-header><div class=camp-emoji>'+c.emoji+'</div><div class=camp-info><div class=camp-name>'+c.name+'</div><div class=camp-meta>'+c.date+' · '+(c.status==='active'?'进行中':c.status==='upcoming'?'招募中':'已结束')+' · '+c.people+'人</div></div></div><div class=camp-theme>'+c.theme+'</div><div class=camp-actions>'+btns+'</div></div>';
+    return '<div class="'+cls+'"><div class=camp-header><div class=camp-emoji>'+(c.emoji||'🏕️')+'</div><div class=camp-info><div class=camp-name>'+esc(c.name||'未命名')+'</div><div class=camp-meta>'+esc(c.date||'日期待定')+' · '+(c.status==='active'?'进行中':c.status==='upcoming'?'招募中':'已结束')+' · '+(c.people||0)+'人</div></div></div><div class=camp-theme>'+esc(c.theme||'')+'</div><div class=camp-actions>'+btns+'</div></div>';
   }
   if (active.length) { h += '<div class=event-section-label style=margin-top:0>🟢 进行中</div>'; active.forEach(function(c){ h += card(c, true); }); }
   if (upcoming.length) { h += '<div class=event-section-label>📅 即将开始</div>'; upcoming.forEach(function(c){ h += card(c, false); }); }

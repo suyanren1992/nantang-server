@@ -412,11 +412,33 @@ function toggleArchiveExpand(){
   var itemCount=MOCK_ITEMS.length;
   var logCount=(window.AppData&&AppData._data.activity_log)?AppData._data.activity_log.length:0;
   var countEl=document.getElementById('archiveCountText');if(countEl)countEl.textContent='登记'+total+'人 · 任务'+taskCount+' · 日志'+logCount;
+  // SM-3.1: 时间线从社区副本迁入个人归档展开区
+  var tl = _renderTimelineHTML();
   ex.innerHTML='<div style="font-size:.72rem;color:#5a6e5c;line-height:1.8;margin-bottom:10px">'+
     '<div>👤 <b>注册成员</b> — '+total+' 位</div>'+
     '<div>📋 <b>社区任务</b> — '+taskCount+' 个</div>'+
     '<div>📜 <b>运行日志</b> — '+logCount+' 条</div>'+
     '<div>📦 <b>物品</b> — '+itemCount+' 件登记</div>'+
     '</div>'+
-    '<div style="text-align:center;padding:8px;background:var(--green-primary);color:#fff;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer" onclick="closeMyPage();openArchive(\'log\')">📚 打开档案室 →</div>';
+    (tl ? '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px"><div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📜 我的时间线</div>'+tl+'</div>' : '')+
+    '<div style="text-align:center;padding:8px;background:var(--green-primary);color:#fff;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;margin-top:8px" onclick="closeMyPage();openArchive(\'log\')">📚 打开档案室 →</div>';
+}
+
+// SM-3.1: renderTimeline 本体抽成纯 HTML 生成器（不操作 DOM），供社区/个人两处复用
+function _renderTimelineHTML() {
+  var journal = (window.AppData && AppData._data.journal) ? AppData._data.journal : [];
+  if (!journal.length) return '';
+  var h = '';
+  journal.slice(0, 15).forEach(function(j) {
+    var jt = (typeof JOURNAL_TYPES!=='undefined' && JOURNAL_TYPES[j.type]) ? JOURNAL_TYPES[j.type] : { icon:'📋', label:j.type };
+    h += '<div style=display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.68rem;align-items:flex-start>'+
+      '<span style=font-size:1rem;flex-shrink:0>'+jt.icon+'</span>'+
+      '<div style=flex:1;min-width:0>'+
+        '<div><b>'+esc(j.user)+'</b> · <span style=color:#5a6e5c>'+jt.label+'</span></div>'+
+        '<div style=color:#1d2e24;margin-top:1px>'+esc(j.content)+'</div>'+
+        '<div style=font-size:.55rem;color:#aaa;margin-top:1px>'+j.date+' '+j.time+'</div>'+
+      '</div>'+
+    '</div>';
+  });
+  return h;
 }
