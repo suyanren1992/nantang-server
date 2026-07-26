@@ -105,7 +105,7 @@ def _seed_id(key: str) -> str:
     return "seed_" + hashlib.md5(key.encode()).hexdigest()[:8]
 
 
-SEED_KEY_PREFIXES = ("seed_", "presence:", "config_changes", "config_history")
+SEED_KEY_PREFIXES = ("seed_", "presence:")
 
 
 @router.post("/dev-reset")
@@ -113,7 +113,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
                     db: AsyncSession = Depends(get_db)):
     _dev_gate(admin)
     now = datetime.utcnow().isoformat()
-    from models import Journal, InventoryItem, NewbieQuest, ActivityLog, CardDiscovery, CanteenOrder
+    from models import Journal, InventoryItem, NewbieQuest, ActivityLog, CardDiscovery, MealOrder
 
     if mode == "hard":
         await db.execute(delete(NTTask))
@@ -124,7 +124,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         await db.execute(delete(NewbieQuest))
         await db.execute(delete(ActivityLog))
         await db.execute(delete(CardDiscovery))
-        await db.execute(delete(CanteenOrder))
+        await db.execute(delete(MealOrder))
         await db.execute(delete(MapLocation))
         await db.execute(delete(Camp))
         await db.execute(delete(User))
@@ -148,7 +148,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         await db.execute(delete(NewbieQuest))
         await db.execute(delete(ActivityLog))
         await db.execute(delete(CardDiscovery))
-        await db.execute(delete(CanteenOrder))
+        await db.execute(delete(MealOrder))
         # MapLocation: 只删 seed/presence/config 键，保留 shared(地图)等真实数据
         for prefix in SEED_KEY_PREFIXES:
             await db.execute(delete(MapLocation).where(MapLocation.key.like(f"{prefix}%")))
@@ -176,7 +176,7 @@ async def dev_seed(admin: User = Depends(get_current_user),
     now = datetime.utcnow().isoformat()
     pwd_hash = hash_password("test12345")
     created = []
-    from models import Journal, InventoryItem
+    from models import Journal
 
     # ── 用户（幂等）──
     async def _ensure_user(uid, role, nt):
@@ -253,30 +253,20 @@ async def dev_seed(admin: User = Depends(get_current_user),
 
     # ── journal 时间线 → Journal 表（sync_all 读 Journal 表，正确源）──
     async def _add_journal(uid, jtype, content):
-        jid = _seed_id(f"j_{uid}_{jtype}")
-        ex = (await db.execute(select(Journal).where(Journal.id == jid))).scalar_one_or_none()
+        # 幂等：Journal.id 为自增整数主键，不能塞字符串；按 user+type+content 查重
+        ex = (await db.execute(select(Journal).where(
+            Journal.user == uid, Journal.type == jtype, Journal.content == content
+        ))).scalar_one_or_none()
         if not ex:
-            db.add(Journal(id=jid, user=uid, type=jtype, content=content, time=now))
+            db.add(Journal(user=uid, type=jtype, content=content, time=now))
             created.append(f"journal:{uid}/{jtype}")
     await _add_journal("测试甲", "cleaning", "打扫了正厅")
     await _add_journal("测试乙", "cooking", "做了午餐——番茄炒蛋+米饭")
     await _add_journal("测试甲", "register", "加入了南塘云村")
 
-    # ── 物品 → InventoryItem 表（sync_all 读此表返 data.items，正确源；
-    #     ⚠ 冰箱面板读 AppData._data.inventory.office（localStorage），不同源，seed 物品不在冰箱出现）──
-    async def _add_inv(uid, name, loc, expiry_days):
-        iid = _seed_id(f"inv_{uid}_{name}")
-        ex = (await db.execute(select(InventoryItem).where(InventoryItem.id == iid))).scalar_one_or_none()
-        if not ex:
-            db.add(InventoryItem(id=iid, user=uid, name=name, location=loc,
-                                 desc=f"expiry:{expiry_days}:putDate:{now[:10]}",
-                                 cat="seed", date=now[:10], status="storage"))
-            created.append(f"inv:{uid}/{name}")
-    await _add_inv("测试甲", "鸡蛋", "fridge_upper", 7)
-    await _add_inv("测试乙", "牛奶", "fridge_upper", 1)
-    await _add_inv("测试甲", "青菜", "fridge_lower", -1)
-    await _add_inv("测试丙", "豆腐", "fridge_door", 3)
-    await _add_inv("测试甲", "大米", "storage", 30)
+    # ── 冰箱/物品 seed：卡面 v1.2 删除。
+    #     实证前端冰箱面板读 localStorage（AppData._data.inventory.office），非 InventoryItem 表；
+    #     服务端 seed 填不进冰箱 UI，改真机手动录入 1 件验证录入链路。
 
     # ── 确保社区池 >= 500 ──
     pool = await _get_pool(db)
