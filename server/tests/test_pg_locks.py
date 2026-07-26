@@ -73,7 +73,6 @@ def _factory(engine):
 # ══════════════════════════════════════════════════════════════════════
 # D-5: 提现并发双扣
 # ══════════════════════════════════════════════════════════════════════
-@pytest.mark.asyncio
 async def test_withdraw_concurrent_prevents_double_deduct(pg_engine):
     """D-5: 2 并发提现各 80 NT，只有 1 个成功，余额 100→20。
 
@@ -125,7 +124,6 @@ async def test_withdraw_concurrent_prevents_double_deduct(pg_engine):
 # ══════════════════════════════════════════════════════════════════════
 # D-17: populate_existing 读到最新值
 # ══════════════════════════════════════════════════════════════════════
-@pytest.mark.asyncio
 async def test_populate_existing_reads_fresh_after_concurrent_update(pg_engine):
     """D-17: with_for_update().populate_existing() 让加锁重查读到并发提交的最新值。
 
@@ -177,7 +175,6 @@ async def test_populate_existing_reads_fresh_after_concurrent_update(pg_engine):
 # ══════════════════════════════════════════════════════════════════════
 # D-26: 日结行锁
 # ══════════════════════════════════════════════════════════════════════
-@pytest.mark.asyncio
 async def test_concurrent_daily_tick_only_one_executes(pg_engine):
     """D-26: 2 并发日结，只有 1 个执行扣款，另 1 个 skipped。
 
@@ -196,6 +193,7 @@ async def test_concurrent_daily_tick_only_one_executes(pg_engine):
                    nt_balance=200, role="villager"))
         s.add(CommunityPool(balance=10000, total_issued=20000,
                             reserve=1000, frozen=0, last_tick_date=None))
+        await s.commit()  # 两段式：先落 users/pool 再落 tenancies——Tenancy 仅表级 FK 无 ORM relationship，UOW 不保证落库序，PG 真 FK 会拒（models.py:284）
         s.add(Tenancy(user_id="k2_d26", room_id="dorm101", bed_num=1,
                       checkin_date=yesterday, status="active", debt=0))
         await s.commit()
