@@ -2244,3 +2244,11 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 | ⑤ core.js:633 加核 | ✅（丞相只读核验补） | 633 = `saveDraft()` 存草稿，**非发任务第二入口**；草稿正式发布走 `publishDraft()`（core.js:722-748），HTTP 模式有 `API.syncTask`（core.js:730）、离线走 `NT.createTask`（core.js:740）——两条正式发布路径同步链路均完整。可议点：草稿本身只活本地、跨设备不同步——设计取舍非 bug，记入 SM-2 模式 C 候选标注「设计取舍」 |
 
 **待办**：砚仁准 push → Render 部署 → 真机无痕五项复测（发任务大厅可见/标题不重叠/校核文字可读/校核按钮有反应/冰箱能打开）→ 全绿销账。
+
+## SM-1 上线实证（2026-07-27 00:58 · 砚仁 00:53 准 push）
+
+- push：`348eeaa..025d116`（9 commits，含 5a13803 修复 + SM-2/SM-3 档）
+- Render 部署完成，线上探活 home:200
+- 版本号实证（线上 index.html 抓取）：main.css?v=10 ✅ / app.js?v=17 ✅ / core.js?v=19 ✅ / ui-cardroom.js?v=10 ✅ ——SM-1 四个 ?v= 升级全部在线
+- 移动端入口路径 = 站点根 `/`（`/nantang-mobile/index.html` 返 404，勿用）
+- **待砚仁真机无痕五项复测** → 全绿销账；见红回滚 = git revert 5a13803
