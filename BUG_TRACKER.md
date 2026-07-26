@@ -2293,3 +2293,11 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 **形式三查（不越验收界）**：① 6 文件与卡面授权一致（跨端卡可动 server/routes/）：admin.py +218 行新端点、auth.py 14 行（trim+人话查重）、前端 4 文件 ✅；施工回执随 `a6ac217` 提交（SM-4 漏带教训已吸收）✅ ② `?v=` 升 3 个（api 12→13/core 19→20/app-data 13→14），声明与 diff 一致 ✅ ③ **敏感面核查：admin.py 的 withdraw/confirm/reject 提现逻辑零改动**（diff 仅 docstring + 新增端点），auth.py diff 干净 ✅
 **留二营重点**：dev-reset 清表清单完整性（soft 档清哪些表）、dev-seed 幂等实现、双闸真双缺、auth trim 后 `req.name` 旧引用是否全换 `name` 变量（漏一个白 trim）。
 **待二营四关验收，真机留砚仁。**
+
+## SM-3 二营验收打回 · 丞相裁返修（2026-07-27 01:36 · 验收 commit `43aea59`）
+
+**二营双关过（实测/机检）+ 逻辑关两发现**：
+① 🔴 **真缺陷（卡面判据未达）**：子项 3 房间脏污度复位写错键——`_submitMyCleaning`（app.js:1708-1709）用 `rr.buildingId`，但 `_collectCleaningRooms` 三处 push（仅 id/name/icon/status/buildingName/cleaning）**不含 buildingId** → 恒 undefined → 复位写空键 `cl['']`，房间 🔴/🟡 不会变绿。**丞相复核属实**（另一采集器 app.js:1029 有 `buildingId:b.id`，此处漏）。
+② 🟡 **死代码**：`renderTimeline()`（ui-phase4.js:240）零调用 + 目标 DOM `#timelineList` 已随子项 1 删除 → 孤儿函数。
+**资金面守住**：实测证 NT 只在校核通过入账（doer+8/verifier+3/池 1000→989 守恒），无假水龙头。
+**丞相裁**：返修（判据明列「房间状态有可见变化」未达，不打折扣）——处方：三处 push 补 `buildingId:b.id`（施工时核对房间类 r.id 与建筑 b.id 的 dirtiness 键一致性）；死代码 renderTimeline 并入同 commit 删除，不另记 SM-2。返修后二营复验逻辑关+实测关（打扫→变绿实测）。
