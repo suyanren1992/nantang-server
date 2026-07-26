@@ -1664,6 +1664,140 @@ arch_check.py 是架构现状图的**脐带**——脐带本身必须强健。�
 
 ---
 
+---
+## 🪦 D-21 墓碑清单（一营只读分析 · 2026-07-26）
+
+> 卡面 `方案/任务卡/D-21.md`，第一步只读。每项标处置建议，第二步丞相复核→砚仁批准后动手。
+> 已读文件：`server/_reset_db.py`（3行）、`server/migrate_frozen_cv_20260721.py`（24行）、
+> `nantang-mobile/js/mobile-bundle.js`（300行）、`nantang-mobile/js/app.js`（15-27行 M1、35行 M5、930+行 M2）、
+> `nantang-mobile/index.html`（456-463行 M4）
+
+### A. `_reset_db.py` 引用链
+
+| # | 文件 | 行号 | 引用内容 | 类型 |
+|---|------|------|---------|------|
+| A1 | `server/_reset_db.py` | 1-13 | **本体**：`os.remove('nantang_fresh.db')` SQLite 本地文件删除工具，迁 PG 后永不可用 | 🪦 墓碑本体 |
+| A2 | `BUG_TRACKER.md` | 297 | "记录即可，不阻塞" | 📋 文档记录 |
+| A3 | `BUG_TRACKER.md` | 1109 | "迁PG后失效但未删" | 📋 文档记录 |
+| A4 | `BUG_TRACKER.md` | 1182,1289 | 教程 28 篇引用案例 | 📋 教程用例 |
+| A5 | `方案/丞相读书笔记.md` | 106 | "D-21 墓碑清理卡…_reset_db.py 已被点名" | 📋 文档记录 |
+| A6 | `方案/任务卡/模板_月度安全复核.md` | 44 | 月度检查项 | 📋 模板引用 |
+
+**结论**：零业务代码引用，六处引用全部是文档/模板。**处置：删除**（无残留风险）。
+
+### B. `migrate_frozen_cv_20260721.py`
+
+| # | 文件 | 行号 | 引用内容 | 类型 |
+|---|------|------|---------|------|
+| B1 | `server/migrate_frozen_cv_20260721.py` | 1-24 | **本体**：`UPDATE users SET frozen_cv = 0`，sqlite3 直连，2026-07-21 一次性迁移，已执行完毕 | 🪦 墓碑本体 |
+| B2 | `BUG_TRACKER.md` | 297 | "记录即可，不阻塞" | 📋 文档记录 |
+| B3 | `BUG_TRACKER.md` | 1109 | "迁PG后失效但未删" | 📋 文档记录 |
+
+**结论**：零业务代码引用，一次性迁移脚本已执行完毕。**处置：删除**。
+
+### C. M1 — `HARDCODED_BUILDINGS`（app.js:15-27）
+
+| # | 文件:行号 | 引用方式 | 活跃度 |
+|---|----------|---------|--------|
+| C1 | `app.js:15` | **定义**：8 个建筑的名称/图标/photo/状态/楼层/房间/物品/打扫任务 | 数据本体 |
+| C2 | `app.js:35` | `getBuildings()` 兜底 `return HARDCODED_BUILDINGS` | 🔴 生产路径（AppData 空时） |
+| C3 | `app.js:2709` | `ml.buildings = HARDCODED_BUILDINGS`（seed 初始化） | 🔴 生产路径 |
+| C4 | `ui-cardroom.js:233` | `typeof HARDCODED_BUILDINGS !== 'undefined' ? HARDCODED_BUILDINGS : []` | 🔴 生产路径（fallback） |
+| C5 | `ui-cardroom.js:260` | 同模式从 HARDCODED_BUILDINGS 取 plots | 🔴 生产路径 |
+| C6 | `prototype/deep-cleaning.html:149` | 注释引用 | 🔵 原型文件 |
+
+**结论**：**活跃代码，非墓碑**。`getBuildings()` 优先走 `AppData.map_locations.buildings`（已上线验证），`HARDCODED_BUILDINGS` 为离线/首次加载兜底。删则离线模式地图崩溃。
+**处置：保留**（技术债：应改为从服务端 seed，但属架构改造非墓碑清理。触发条件：服务端 map_locations 端点就绪后，可改为 API fetch + localStorage 缓存替代硬编码 seed）。
+
+### D. M2 — `MGMT_DATA`（app.js:930-1014）
+
+| # | 文件:行号 | 引用方式 | 活跃度 |
+|---|----------|---------|--------|
+| D1 | `app.js:930` | **定义**：`cleaning/selections/mySelections/history` + `stay/myRoom/myCheckIn/myCheckOut/history` + `field/_tmpSelections/history` + `kitchen/history` + `dailyContainers` + `_save()`/`_load()` 持久化方法 | 数据本体 |
+| D2-D43 | `app.js:261,1037-1057,1064-1066,1603-1612,1659-1697,1714-1755,1809,1895,1943-1958,2047-2079,2129` | ~40 处读写（大扫除选位/历史/提交、住宿入住/退房/历史、田地播种/收割/历史、厨房操作/历史） | 🔴 生产核心路径 |
+
+**结论**：**活跃持久层，非墓碑**。`MGMT_DATA` 是地图管理功能的 localStorage 持久层，不是"死硬编码数据"——它是用户操作记录（谁打扫了哪间房、哪天入住退房、田地操作日志等）的运行时状态。BUG_TRACKER:316 已确认「四卡动态数据已全部从 AppData 活源读取，MGMT_DATA 只剩历史记录/日程/选位薄壳」。
+**处置：保留**（技术债：应并入 AppData 统一存储，消除双 localStorage key，但属架构改造非墓碑清理）。
+
+### E. M3 — placehold.co 占位图（app.js:16-26）
+
+| # | 文件:行号 | 引用方式 | 活跃度 |
+|---|----------|---------|--------|
+| E1-E10 | `app.js:16-26` | 10 个 `HARDCODED_BUILDINGS[].photo` 字段 = `https://placehold.co/...` | 🔵 占位视觉 |
+
+**结论**：占位图是 M1 的数据字段，非独立墓碑。当前无真实照片资源替换。
+**处置：保留**（触发条件：有真实建筑照片后替换；替换只需改 URL，非代码清理）。
+
+### F. M4 — `ubStats`（index.html:456-463）
+
+| # | 文件:行号 | 引用方式 | 活跃度 |
+|---|----------|---------|--------|
+| F1 | `index.html:456-463` | 6 个 `<div class="ub-stat">` 初始值 `—` | 🟢 DOM 脚手架 |
+| F2 | `index.html:324-463` | `ubRole`/`ubName`/`ubAvatar` 同模式 | 🟢 同模式 |
+
+**结论**：**不是硬编码数据**。`—` 是 HTML 初始占位文本，页面 JS 加载后立即被动态数据覆盖（`ubStatDate`→今天日期、`ubStatPeople`→在线人数等）。删掉 `—` 会导致加载闪烁空白。
+**处置：保留**（正常 UI 模式，非墓碑）。
+
+### G. M5 — `getBuildings()` 兜底（app.js:29-36）
+
+```javascript
+function getBuildings() {
+  var data = (window.Game && window.Game.getData) ? window.Game.getData() : null;
+  if (data && data.map_locations && data.map_locations.buildings && data.map_locations.buildings.length > 0) {
+    return data.map_locations.buildings;
+  }
+  return HARDCODED_BUILDINGS;  // 兜底
+}
+```
+
+| # | 文件:行号 | 引用方式 | 活跃度 |
+|---|----------|---------|--------|
+| G1 | `app.js:29-36` | **定义**：优先 AppData，空则 HARDCODED_BUILDINGS | 🔴 生产路径 |
+| G2 | `app.js:42` | `getPlots()` 内部调用 `getBuildings()` | 🔴 生产路径 |
+| G3 | `app.js:139,142,146,159...` | ~20+ 处 `getBuildings()` 调用（地图渲染全路径） | 🔴 生产路径 |
+| G4 | `ui-cardroom.js:233` | 直接读 `HARDCODED_BUILDINGS` 不经过 `getBuildings()` | 🟡 旁路 |
+
+**结论**：**活跃兜底函数，非墓碑**。上线路径优先走 AppData（`map_locations.buildings.length > 0` 条件），硬编码仅在首次加载/离线时触发。ui-cardroom.js:233 绕过了 `getBuildings()` 直接读全局变量——这是旁路债，不是墓碑。
+**处置：保留**（旁路债：ui-cardroom.js 应统一走 `getBuildings()`，归入架构整改非墓碑清理）。
+
+### H. mobile-bundle.js `if(window.NM)` 分支
+
+| # | 文件:行号 | 模式 | 数量 |
+|---|----------|------|------|
+| H1-H13 | `mobile-bundle.js:112,114,128,132,169,180-190,253,277,281,294-296` | `if(window.NM) { NM.xxx() }` | 12 处单分支 + 1 处 if/else |
+
+**唯一 else 分支**（line 187-190）：
+```javascript
+} else {
+  if (!confirm('确认结算...')) return;
+  bills.forEach(function(b) { try { executeSettlement(...); } catch(e) {} });
+  setStatus('结算完成');
+}
+```
+
+**结论**：**防御性编码，非死分支**。`if(window.NM)` 是标准的前端守卫模式——移动端 NM 永远存在时 else 不走，但删除 else 后若页面在非 NM 环境加载（测试/开发），用户将无任何反馈。防御性代码符合开闭原则，零维护成本。
+**处置：保留**（删不删均无行为变化，删了增加非 NM 环境静默失败风险，ponytail：不改）。
+
+---
+
+### 📊 D-21 处置汇总
+
+| 项 | 类型 | 处置 | 补课章节 |
+|----|------|------|---------|
+| `_reset_db.py` | 🪦 真墓碑 | **删除** | 28（墓碑代码——一次性脚本上线后即废，留着误导 AI） |
+| `migrate_frozen_cv_20260721.py` | 🪦 真墓碑 | **删除** | 28（同上；迁移脚本执行完就是活墓碑） |
+| M1 HARDCODED_BUILDINGS | 🔴 活跃兜底 | 保留 | 10.1（可信单一来源——结构数据应从服务端 seed，不硬编码） |
+| M2 MGMT_DATA | 🔴 活跃持久层 | 保留 | 10.1（双 localStorage key 分裂真源，应统一 AppData） |
+| M3 placehold.co | 🔵 占位图 | 保留 | 非代码问题，有真实照片即替换 |
+| M4 ubStats `—` | 🟢 DOM 脚手架 | 保留 | 非墓碑，正常 UI 模式 |
+| M5 getBuildings() 兜底 | 🔴 活跃兜底 | 保留 | 13（前端骨架——模块间不应绕公共函数直读全局变量） |
+| mobile-bundle NM 守卫 | 🛡️ 防御编码 | 保留 | 26（防御性编程——不删不会死的代码才是好守卫） |
+
+> **太傅总注**：D-21 点名三项，实墓仅两块（两个 `.py` 一次性脚本）。M1-M5 和 mobile-bundle 是技术债/架构债，不是墓碑——它们仍在生产路径上跑，删了会崩。墓碑清理的正确姿势是区分「死代码」（可删）和「丑代码」（应改但不可盲删），把丑代码的改造触发条件写清楚，留给对应架构卡（AR-1/数据库设计/前端重构）而非一刀切。
+> 补课要点：教程 28 篇的核心不是「看到硬编码就删」，而是「判断死活的唯一标准 = grep 全仓引用链」——本次分析即此法的实弹演练。
+
+---
+
 ## D-26 验收记录（2026-07-26 · Claude Code 一营验收席）
 
 **验收依据**：Codex 施工 commit c7613e9（cron 接入+补扣历史+鉴权收敛）
