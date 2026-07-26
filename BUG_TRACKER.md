@@ -2326,3 +2326,14 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 **形式三查**：① admin.py 73+/73- 四修项 diff 逐条对应（reason= ×3 ✅ / MapLocation 非法 kwarg 删净 ✅ / `SEED_KEY_PREFIXES=("seed_","presence:","config_changes","config_history")` 收窄 delete——**shared 地图 blob 不在清单内，真实地图保住** ✅ / journal→Journal 表、inventory→InventoryItem 表存储源对齐 ✅）；回执随 `1a1e496` ✅ ② 单文件纯服务端，前端零改动无需 ?v= ✅ ③ withdraw 逻辑零改动 ✅
 **⚠ 交付瑕疵（点名）**：一营只跑 py_compile + AST 静态扫描，**未执行丞相加码的「实跑贴输出」硬性要求**——其回执太傅注自书「只有真发请求才现原形」，自己却没跑，言行不一。处理：不打回多一轮（二营实测关本就是实跑岗），但入档记账；复验口令明确 dev-seed×2 幂等 + soft/hard 输出必须原样贴回执。
 **待二营复验（逻辑关存储源一致性复核 + 实测关实跑兜底）。**
+
+## SM-5 二次打回 · 丞相裁二次返修（2026-07-27 02:17 · 复验 commit `57f7bc8`）
+
+**复验实证（真起 uvicorn 隔离库，输出原样贴回执）**：首验双 500 已修，但返修补清表引入两处新崩溃，双端点仍 100% 500——
+③ `Journal(id=_seed_id(...))`（admin.py:259）字符串塞 Integer autoincrement 主键（models.py:150）→ IntegrityError；
+④ `from models import ... CanteenOrder`（admin.py:116/127/151）——models 无此类（实际 MealOrder:224 + CanteenMenu:216）→ ImportError。
+**丞相复核属实**（models.py 抽查两处的列定义/类名对得上）。
+**设计级发现（丞相认账）**：冰箱 UI 读 localStorage 非 InventoryItem 表 → 判据 3「冰箱 5 件」服务端 seed 永远填不出——SM-5 卡面升 **v1.2**：删冰箱 seed，改真机手动录入 1 件验证录入链路。
+**过项**：reason 三处 ✅ / MapLocation 仅 key+data ✅ / 收窄保住 shared ✅ / config 前缀存疑已列（返修清单③移出 soft）。
+**丞相裁**：二次返修，返修清单照二营五条（Journal 去 id 自增+幂等改 user+type+content 查重 / CanteenOrder→MealOrder ×2 / config 前缀移出 soft / 冰箱源写清 / **第三次必须真跑贴输出，不接受纯静态扫描**）。
+** push 闸口**：SM-5 未过不齐件，25+ commits 继续 hold——答二营末问：不放行，无需逐卡复核落盘（丞相逐棒核过）。
