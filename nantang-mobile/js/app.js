@@ -1170,15 +1170,17 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 
 // 管理卡片点击 → 弹窗
 function _openMgmtSheet(type) {
-  if (type === 'kitchen') { _showCardPopup('🍳 厨房 · 冰箱', renderKitchenPanel()||'', null, true); return; }  // J 修复：统一用 B-2 双开门面板，废弃旧储物区弹层
+  if (type === 'kitchen') { try { var kp = renderKitchenPanel(); _showCardPopup('🍳 厨房 · 冰箱', kp||'', null, true); } catch(e) { console.error(e); _showCardPopup('🍳 厨房 · 冰箱', '<div style="padding:20px;text-align:center;color:#b84c38;font-size:.75rem">⚠ 面板加载失败<br><span style="font-size:.6rem;color:#999">请刷新页面后重试</span></div>', null, true); } return; }  // J 修复 + SM-1.5: try-catch 兜底——renderKitchenPanel 异常时至少弹出面板壳而非静默无反应
   if (type === 'field')   { _showFieldSheet(); return; }
   if (type === 'cleaning') { _showCardPopup('🧹 大扫除管理', renderCleaningPanel()||'', null, true); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
 }
 // J 修复：厨房面板可能开在建筑页 mgmtOverlay 或全貌页弹层（.mgmt-sheet），重绘时按当前容器选择
 function _rerenderKitchen() {
-  if (document.querySelector('.mgmt-sheet')) { _openMgmtSheet('kitchen'); }
-  else { renderMgmtPanel('kitchen'); }
+  try {
+    if (document.querySelector('.mgmt-sheet')) { _openMgmtSheet('kitchen'); }
+    else { renderMgmtPanel('kitchen'); }
+  } catch(e) { console.error(e); }
 }
 
 function _showFridgeSheet() {

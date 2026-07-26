@@ -463,13 +463,13 @@ function _renderVerifyTab() {
 // B-10: 校核作证确认弹窗
 function _confirmWitness(vId, vfyUser, closeAfter) {
   var h = '<div style="text-align:center;padding:8px">';
-  h += '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:#2a4a30">你正在为这件事作证</div>';
-  h += '<div style="font-size:.72rem;color:#5a6e5c;line-height:1.6;margin-bottom:6px">校核 = 证明劳动成果真实发生，</div>';
-  h += '<div style="font-size:.72rem;color:#5a6e5c;line-height:1.6;margin-bottom:14px">是你亲眼看见了别人的付出。</div>';
+  h += '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:#1a2a20">你正在为这件事作证</div>';
+  h += '<div style="font-size:.75rem;color:#3a3a3a;line-height:1.6;margin-bottom:6px">校核 = 证明劳动成果真实发生，</div>';
+  h += '<div style="font-size:.75rem;color:#3a3a3a;line-height:1.6;margin-bottom:14px">是你亲眼看见了别人的付出。</div>';
   h += '<div style="font-size:.62rem;color:#b84c38;margin-bottom:16px">⚠ 作假证会失去社区对你的信任。</div>';
   h += '<div style="display:flex;gap:8px">';
-  h += '<button onclick="_closeModal();AppData.verifyAction(\''+vId+'\',\''+vfyUser+'\',true);'+(closeAfter?'closeDiscoveryForm();':'')+'" style="flex:1;padding:10px 8px;border-radius:8px;border:none;background:var(--green-primary);color:#fff;font-size:.65rem;font-weight:600;cursor:pointer">我亲眼所见，确认作证</button>';
-  h += '<button onclick="_closeModal()" style="flex:1;padding:10px 8px;border-radius:8px;border:1px solid #d0d9ce;background:#fff;color:#5a6e5c;font-size:.65rem;cursor:pointer">再想想</button>';
+  h += '<button onclick="var modals=document.querySelectorAll(\'.disc-modal-overlay\');for(var i=0;i<modals.length;i++)modals[i].remove();AppData.verifyAction(\''+vId+'\',\''+vfyUser+'\',true);'+(closeAfter?'closeDiscoveryForm();':'')+'" style="flex:1;padding:10px 8px;border-radius:8px;border:none;background:var(--green-primary);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer">我亲眼所见，确认作证</button>';
+  h += '<button onclick="var modals=document.querySelectorAll(\'.disc-modal-overlay\');for(var i=0;i<modals.length;i++)modals[i].remove()" style="flex:1;padding:10px 8px;border-radius:8px;border:1px solid #d0d9ce;background:#fff;color:#5a6e5c;font-size:.72rem;cursor:pointer">再想想</button>';
   h += '</div></div>';
   _showModal(h);
 }

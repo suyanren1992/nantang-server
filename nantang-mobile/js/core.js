@@ -694,20 +694,30 @@ function doPublish(){
   // 先校验 AppData，失败不扣 NT
   var addResult=AppData.addTask(data);
   if(!addResult.ok){showToast(addResult.error,'error');return;}
-  // C2: HTTP 模式服务端已在 POST /api/tasks 中处理扣款+冻结，客户端不再重复
-  if(!data._ntTaskId&&window.NT){
-    var isOffline = (typeof API === 'undefined' || !API.token);
-    if (isOffline) {
+  // SM-1.1: 离线走 NT.createTask，HTTP 走 API.syncTask（原版 HTTP 路径只做本地 addTask，服务端从未收到任务 → 刷新即消失）
+  var isOffline = (typeof API === 'undefined' || !API.token);
+  if (isOffline) {
+    if(!data._ntTaskId&&window.NT&&nt>0){
       var ntR=NT.createTask(CURRENT_USER, name, nt, 'other', null, data.slots||1);
-      if(!ntR){showToast('NT 余额不足（需 '+(nt*(data.slots||1))+' NT，请先赚取或充值）','error');return}
-      if(!ntR.taskId){showToast('NT 系统异常，请重试','error');return}
+      if(!ntR){showToast('NT 余额不足（需 '+(nt*(data.slots||1))+' NT，请先赚取或充值）','error');_publishing=false;return}
+      if(!ntR.taskId){showToast('NT 系统异常，请重试','error');_publishing=false;return}
       data._ntTaskId=ntR.taskId;
       AppData.updateTask(name, {_ntTaskId: ntR.taskId});
     }
+    document.getElementById('pubConfirm').style.display='none';
+    clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
+    _publishing = false;
+  } else {
+    // C2: 服务端 POST /api/tasks 处理扣款+冻结，成功后回调收尾
+    API.syncTask(data, function(srvId) {
+      if (!srvId) { showToast('发布失败，请检查余额或重试', 'error'); _publishing = false; return; }
+      data._ntTaskId = srvId; data._srvId = srvId;
+      AppData.updateTask(name, {_ntTaskId: srvId, _srvId: srvId});
+      document.getElementById('pubConfirm').style.display='none';
+      clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
+      _publishing = false;
+    });
   }
-  document.getElementById('pubConfirm').style.display='none';
-  clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
-  _publishing = false;
 }
 function publishDraft(name){
   name = decodeURIComponent(name);
