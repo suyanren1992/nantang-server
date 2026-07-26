@@ -2014,3 +2014,63 @@ setup: 用户余额 200 + Tenancy checkin_date=昨天 + pool last_tick_date=None
   - **三条锁路径首次在真 PostgreSQL 验绿，业务锁语义零缺陷**——三轮连败全案在测试脚手架（构造错/循环错位/落库序），不在业务代码。
 - **SQLite 回归**：27 passed + 3 skipped（requires_pg 无串自动跳过），零回归。
 - **K-2 四判据全绿 → K-2 全卡 PASS**。批②最后一张在战卡收口，待一营复验判据④（贴本轮输出即可）后批②正式鸣金。
+
+---
+
+### 🔍 K-2 判据④ 复验（一营验收席 · 2026-07-26 19:10）
+
+> 复验对象：commit `ee971b2` + BUG_TRACKER 「K-2 判据④ 销账」节 + 真 PG 输出摘要。
+> 复验方式：文档+diff+输出自洽性审查（一营无 PG 串，不重跑）。
+
+**① diff 与处方是否一致？** ✅
+
+实看 `git show ee971b2 -- server/tests/test_pg_locks.py`，变更精确符合处方，无多改无漏改：
+
+| 处方 | diff 实现 | 行号 |
+|------|----------|------|
+| 删三行函数级裸 `@pytest.mark.asyncio` | `-@pytest.mark.asyncio` × 3 | 原 L76/128/180 → 当前文件 L76/127/175 行已无装饰器 |
+| 保留模块级 pytestmark | `pytestmark = [pytest.mark.requires_pg, pytest.mark.asyncio(loop_scope="module")]` | L34-37，未动 |
+| test 3 改两段式 commit | `await s.commit()`（users+pool 先落）→ `s.add(Tenancy(...))` → `await s.commit()`（tenancy 后落） | L196-199 |
+| 行内注释注明根因 | `# 两段式：先落 users/pool 再落 tenancies——Tenancy 仅表级 FK 无 ORM relationship，UOW 不保证落库序，PG 真 FK 会拒（models.py:284）` | L196 |
+
+models.py:284 实地验证：`Column(String, ForeignKey("users.id"), nullable=False)` — **仅表级 FK，无 ORM relationship**。SQLAlchemy UOW 按 Python `session.add()` 顺序 flush 不保证 PG INSERT 顺序——原代码三行 `s.add()` 合并一个 commit，PG 上 Tenancy 可能在 User 前落库，FK 约束拒绝。两段式 commit 是正确解法。
+
+**② 真 PG 输出 3 passed 是否对应 D-5/D-17/D-26？** ✅
+
+销账节记录的三条断言与 test_pg_locks.py 源码完全对应：
+
+| 路径 | PG 断言（销账节原文） | 源码行号 |
+|------|---------------------|---------|
+| D-5 提现双扣 | "2 协程各提 80/余额 100 → 仅 1 成功，余额 20" | L76-117: `sum(ok)==1` + `nt_balance==20` |
+| D-17 populate_existing | "B 提交 50 后 A 加锁重查读 50 非缓存 100" | L127-170: `uA2.nt_balance==50` |
+| D-26 日结行锁 | "2 并发 tick → 仅 1 扣款，余额 200→180" | L175-246: `sum(ok)==1` + `nt_balance==180` |
+
+**三条锁路径首次在真 PostgreSQL 验绿，业务锁语义零缺陷**——三轮连败全在测试脚手架，不在业务代码。与丞相销账结论一致。
+
+**③ SQLite 端 3 skipped 是否合理？** ✅
+
+实跑验证：`pytest tests/test_pg_locks.py -v` → `3 skipped`，方言 WARNING 可见。
+
+- `pytestmark = [pytest.mark.requires_pg, ...]`（L34）+ `pytest_collection_modifyitems`（conftest.py:43-52）→ 无 PG_DATABASE_URL 时自动 skip ✅
+- conftest.py:24-29 `warnings.warn(_SQLITE_WARNING)` → 每次启动 stdout 可见 ✅
+- 全量回归 `pytest tests/ -v` → 27 passed, 3 skipped, 0 failed ✅
+
+### 结论
+
+**🟢 K-2 判据④ 复验 PASS**。diff = 处方（3 删 1 加，精确到行），PG 断言 = 源码（三条路径逐条对账），SQLite skip = 正确（auto-skip + WARNING）。K-2 四判据全绿。
+
+批②最后一张战卡收口，K-2 **全卡正式转正**。
+
+> **太傅注**：对应补课 `14`（数据库设计——FK 只有表级约束没有 ORM relationship 时，SQLAlchemy UOW 不保证 INSERT 顺序，PG 真 FK 会拒；两段式 commit 是最小 fix）+ `26`（测试——真 PG 实跑是锁测试的唯一定音锤，脚手架 bug 会让业务代码背上「锁坏了」的黑锅三轮）。
+> 人话原理：SQLAlchemy 的 `session.add()` 顺序不等于 SQL INSERT 顺序。Tenancy 引用 User 的外键，但 ORM 不知道这个关系（没人告诉它 `relationship()`），它就按 flush 时机乱排——Tenancy 可能插在 User 前面，PG 立刻翻脸。修法不是「加 relationship」（那会触发懒加载链，动到生产模型），而是「先 commit User，再 add Tenancy」——最小 diff，只动测试，不动业务代码。
+
+---
+
+## 🟢 K-2 判据④ 一营复验 PASS（2026-07-26 18:56 · Claude Code 一营）
+
+三问全过：① `git show ee971b2` 逐行对照=处方（3 行装饰器删 + 两段式 commit + 注释，无多改无漏改）✅；
+② 销账节三断言 ↔ 源码对应（D-5 sum(ok)==1/余额 20 · D-17 ==50 · D-26 sum(ok)==1/余额 180）✅；
+③ SQLite 实跑 3 skipped + 方言 WARNING + 27 passed 零回归 ✅。
+models.py:284 实地确认 `ForeignKey("users.id")` 仅表级约束无 ORM relationship——两段式 commit 是最小正确 fix。
+
+**K-2 四判据全绿，全卡正式转正。批②在战卡清零。**
