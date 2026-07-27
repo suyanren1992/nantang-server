@@ -12,6 +12,8 @@ TASK_STATUSES = {
     "settled": "已结算",
     "cancelled": "已取消",
     "disputed": "已争议",
+    "draft": "草稿",
+    "retract_requested": "撤回申请中",
 }
 TASK_STATUS_LIST = list(TASK_STATUSES.values())
 TASK_STATUS_DEFAULT = TASK_STATUSES["open"]

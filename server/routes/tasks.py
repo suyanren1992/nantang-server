@@ -1,5 +1,5 @@
 """Task CRUD routes."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import secrets
 import json
 from database import get_db
-from models import NTTask, User, TASK_STATUSES
+from models import NTTask, User, ActivityLog, TASK_STATUSES
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _adjust_trust, _get_pool
 from nt_helpers import _safe_assignees
@@ -207,3 +207,174 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
     await db.delete(task)
     await db.commit()
     return {"ok": True}
+
+
+# ══════════════════════════════════════════════════════════════════
+# P1-1 任务撤回与退领端点（retract / retract-request / retract-review / unclaim）
+# 来源：实测议单 T4 + T4T5C2 二营情报回执（00e51a4）——confirmUnclaim 死链、服务端无退领端点。
+# 命名纪律：一律 retract/unclaim，禁 withdraw（避免与提现资金端点混淆）。
+# 钱随单走：每笔解冻退款必写 nt_ledger，nt_balance 与 pool.task_escrow 同步增减。
+# 禁区：withdraw/confirm/reject 零改动。
+# ══════════════════════════════════════════════════════════════════
+
+# 终态：不可撤回/不可退领（钱已流走或单已闭合）
+_TERMINAL_STATUSES = ("待结算", "已结算", "已取消", "已争议")
+
+
+async def _refund_task_escrow(db, task, reason_type, reason_text):
+    """解冻退款铁律：task.escrow_amount → 发布者 nt_balance（发布者不存在或=社区则回社区池），
+    pool.task_escrow 同步减，写 1 条 settled ledger。返回退款额（0 表示无托管金）。"""
+    amount = task.escrow_amount or 0
+    if amount <= 0:
+        return 0
+    pool = await _get_pool(db, lock=True)
+    if task.poster == "社区":
+        pool.balance += amount
+        refund_target = "community_pool"
+    else:
+        poster = (await db.execute(
+            select(User).where(User.id == task.poster)
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalar_one_or_none()
+        if poster:
+            poster.nt_balance += amount
+            refund_target = task.poster
+        else:
+            pool.balance += amount
+            refund_target = "community_pool"
+    pool.task_escrow -= amount
+    lid = _ledger_id()
+    await _add_ledger(db, lid, "escrow", refund_target, amount,
+                      reason_type, reason_text, task.id, status="settled")
+    task.escrow_amount = 0
+    return amount
+
+
+async def _log_activity(db, type_, text):
+    """写活动日志（管理员经 /api/data/sync_all 的 activity 段 + /api/data/activity_log 可见）。"""
+    db.add(ActivityLog(time=datetime.utcnow().isoformat(), type=type_, text=text))
+
+
+@router.post("/{task_id}/retract")
+async def retract_task(task_id: str, user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
+    """发布者撤回。无人领→回草稿箱+解冻全额退款；已领未提交→409转申请制；已提交→409。"""
+    task = (await db.execute(
+        select(NTTask).where(NTTask.id == task_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.poster != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="只能撤回自己发布的任务")
+    if task.status in _TERMINAL_STATUSES:
+        raise HTTPException(status_code=409, detail=f"任务状态不可撤回: {task.status}")
+    if task.status == "草稿":
+        raise HTTPException(status_code=409, detail="任务已在草稿箱")
+    if task.status == "撤回申请中":
+        raise HTTPException(status_code=409, detail="已有撤回申请，请等待管理员审批")
+    if task.status == "待审核":
+        raise HTTPException(status_code=409, detail="任务已提交待审核，不可撤回，请走校核/拒绝")
+    assignees = _safe_assignees(task)
+    if assignees:
+        raise HTTPException(status_code=409, detail="任务已被领取，请使用 /retract-request 申请撤回")
+    # 无人领 → 回草稿箱 + 解冻全额退款
+    refunded = await _refund_task_escrow(db, task, "task_retract",
+                                         f"撤回未领任务: {task.title}")
+    task.status = "草稿"
+    task.assignee = None
+    task.assignees = None
+    await _log_activity(db, "task_retract",
+                        f"发布者「{user.id}」撤回未领任务「{task.title}」，解冻退款 {refunded} NT")
+    await db.commit()
+    return {"ok": True, "status": task.status, "refunded": refunded}
+
+
+@router.post("/{task_id}/retract-request")
+async def retract_request(task_id: str, user: User = Depends(get_current_user),
+                          db: AsyncSession = Depends(get_db)):
+    """已领未提交时，发布者申请撤回 → 状态『撤回申请中』，托管金保持冻结，待 admin 审批。"""
+    task = (await db.execute(
+        select(NTTask).where(NTTask.id == task_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.poster != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="只能对自己发布的任务申请撤回")
+    if task.status in _TERMINAL_STATUSES:
+        raise HTTPException(status_code=409, detail=f"任务状态不可撤回: {task.status}")
+    if task.status == "撤回申请中":
+        raise HTTPException(status_code=409, detail="已在撤回申请中")
+    if task.status == "待审核":
+        raise HTTPException(status_code=409, detail="任务已提交待审核，不可撤回，请走校核/拒绝")
+    assignees = _safe_assignees(task)
+    if not assignees:
+        raise HTTPException(status_code=400, detail="任务无人领取，请直接使用 /retract 撤回")
+    task.status = "撤回申请中"
+    await _log_activity(db, "task_retract_request",
+                        f"发布者「{user.id}」申请撤回已领任务「{task.title}」（领取者: {', '.join(assignees)}），待管理员审批")
+    await db.commit()
+    return {"ok": True, "status": task.status}
+
+
+@router.post("/{task_id}/retract-review")
+async def retract_review(task_id: str, approved: bool = Body(..., embed=True),
+                         admin: User = Depends(require_admin),
+                         db: AsyncSession = Depends(get_db)):
+    """管理员审批撤回申请。批准=解冻退款+回草稿箱+通知领取者；拒绝=任务继续（回进行中）。"""
+    task = (await db.execute(
+        select(NTTask).where(NTTask.id == task_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    if task.status != "撤回申请中":
+        raise HTTPException(status_code=400, detail=f"任务不在撤回申请中: {task.status}")
+    assignees = _safe_assignees(task)
+    if approved:
+        refunded = await _refund_task_escrow(db, task, "task_retract",
+                                             f"管理员批准撤回任务: {task.title}")
+        task.status = "草稿"
+        task.assignee = None
+        task.assignees = None
+        await _log_activity(db, "task_retract_approved",
+                            f"管理员「{admin.id}」批准撤回任务「{task.title}」，解冻退款 {refunded} NT，"
+                            f"领取者收到通知: {', '.join(assignees) or '无'}")
+        await db.commit()
+        return {"ok": True, "status": task.status, "refunded": refunded, "notified": assignees}
+    # 拒绝 → 任务继续（回进行中，托管金原样冻结）
+    task.status = "进行中"
+    await _log_activity(db, "task_retract_rejected",
+                        f"管理员「{admin.id}」拒绝撤回任务「{task.title}」，任务继续")
+    await db.commit()
+    return {"ok": True, "status": task.status}
+
+
+@router.post("/{task_id}/unclaim")
+async def unclaim_task(task_id: str, user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
+    """领取者退领 → 移除自己、任务回大厅、记取消日志（管理员可见，v1 不限次数）。
+    不动托管金：钱是发布者的、仍冻结，仅释放名额。"""
+    task = (await db.execute(
+        select(NTTask).where(NTTask.id == task_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    assignees = _safe_assignees(task)
+    if user.id not in assignees:
+        raise HTTPException(status_code=409, detail="你未领取此任务")
+    if task.status == "待审核":
+        raise HTTPException(status_code=409, detail="已提交待审核，不可退领")
+    if task.status in _TERMINAL_STATUSES:
+        raise HTTPException(status_code=409, detail=f"任务状态不可退领: {task.status}")
+    assignees = [a for a in assignees if a != user.id]
+    task.assignees = json.dumps(assignees) if assignees else None
+    task.assignee = assignees[0] if assignees else None
+    if task.status != "撤回申请中":
+        task.status = "进行中"  # 回大厅
+    await _log_activity(db, "task_unclaim",
+                        f"「{user.id}」退领任务「{task.title}」，名额已释放回大厅")
+    await db.commit()
+    return {"ok": True, "status": task.status, "remaining_assignees": assignees}
