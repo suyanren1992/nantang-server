@@ -390,9 +390,25 @@ function unclaimTask(name){
 function confirmUnclaim(name){
   name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
-  t.unclaimRequest=CURRENT_USER;t.unclaimRequestedAt=today();
-  document.querySelectorAll('.unclaim-expand,.card-expand').forEach(function(c){c.remove()});
-  filterQuests();renderMyTasks();refreshUserUI();
+  // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/unclaim —— 移除 claimant、任务回大厅
+  var ctx={name:name,t:t};
+  var _done=function(){
+    t.claimants=(t.claimants||[]).filter(function(c){return c.name!==CURRENT_USER});
+    AppData.updateTask(name,{claimants:t.claimants});
+    showToast('已取消认领，任务已回大厅','ok');
+    document.querySelectorAll('.unclaim-expand,.card-expand').forEach(function(c){c.remove()});
+    filterQuests();renderMyTasks();refreshUserUI();
+  };
+  var isOffline=(typeof API==='undefined'||!API.token);
+  var srvId=t._srvId||t._ntTaskId;
+  if(!isOffline&&srvId){
+    API.request('POST','/api/tasks/'+srvId+'/unclaim').then(function(r){
+      if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'取消认领失败','error');}
+    }).catch(function(){showToast('网络错误，请重试','error')});
+    return;
+  }
+  // 离线：本地移除 claimant
+  _done();
 }
 function reviewTask(name,action){
   name = decodeURIComponent(name);
@@ -450,32 +466,36 @@ function editTask(name){
 function withdrawTask(name){
   name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
+  // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/retract —— 无人领直接退回草稿箱
   var submitters=(t.claimants||[]).filter(function(c){return c.status==='submitted'||c.status==='completed'});
   if(submitters.length>0){
-    // 有人已提交 → 扣 50% NT 补偿认领者
-    var penalty=Math.round(t.nt/2);
-    var each=Math.round(penalty/submitters.length);
-    var names=submitters.map(function(c){return c.name}).join('、');
-    showConfirm('⚠️ '+names+' 已提交成果。撤回将扣除 '+penalty+' NT（50%）作为补偿。确认？',function(){
-      if(t._ntTaskId&&window.NT){
-        var isOffline=(typeof API==='undefined'||!API.token);
-        if(isOffline){
-          NT.cancelTask(t._ntTaskId,'发布者撤回（已提交，罚50%）');
-          submitters.forEach(function(c){NT.transfer(CURRENT_USER,c.name,each,'撤回补偿: '+t.name)});
-        }else{
-          API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId)+'/cancel').catch(function(){});
-          submitters.forEach(function(c){API.request('POST','/api/nt/transfer',{to:c.name,amount:each,reason:'撤回补偿: '+t.name}).catch(function(){})});
-        }
-      }
-      // 标记已取消保留记录（大厅/工作台「已取消/已争议」分组可见），不再直接删除
-      t.status='已取消';AppData.updateTask(name,{status:'已取消'});filterQuests();renderMyTasks();refreshUserUI();
-    });
-  }else{
-    showConfirm('确认撤回任务「'+name+'」？',function(){
-      if(t._ntTaskId&&window.NT){NT.cancelTask(t._ntTaskId,'发布者撤回');}
-      t.status='已取消';AppData.updateTask(name,{status:'已取消'});filterQuests();renderMyTasks();refreshUserUI();
-    });
+    // 已有人提交 → 不允许自助撤回，提示走申请制
+    showToast('已有人提交成果，无法撤回。请走申请制或联系管理员','error');return;
   }
+  var hasClaimants=(t.claimants||[]).length>0;
+  if(hasClaimants){
+    // 有人领取但未提交 → 走申请撤回（P1-1 retract-request）
+    requestWithdraw(encodeURIComponent(name));return;
+  }
+  // 无人领 → 直接撤回到草稿箱
+  showConfirm('确认撤回任务「'+name+'」？撤回后将退回到草稿箱。',function(){
+    var _done=function(){
+      t.status='draft';t.action='edit';
+      AppData.updateTask(name,{status:'draft',action:'edit'});
+      showToast('已撤回到草稿箱','ok');
+      filterQuests();renderMyTasks();renderDrafts();refreshUserUI();
+    };
+    var isOffline=(typeof API==='undefined'||!API.token);
+    var srvId=t._srvId||t._ntTaskId;
+    if(!isOffline&&srvId){
+      API.request('POST','/api/tasks/'+srvId+'/retract').then(function(r){
+        if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'撤回失败','error');}
+      }).catch(function(){showToast('网络错误，请重试','error')});
+      return;
+    }
+    if(t._ntTaskId&&window.NT){try{NT.cancelTask(t._ntTaskId,'发布者撤回');}catch(e){}}
+    _done();
+  });
 }
 function requestWithdraw(name){
   name = decodeURIComponent(name);
@@ -486,11 +506,67 @@ function requestWithdraw(name){
   expandCard(name,'withdraw-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
 }
 function confirmWithdraw(name){
+  // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/retract-request —— 已领未提交时申请撤回
   var reason=document.getElementById('withdrawReason').value.trim();if(!reason){showToast('请填写撤回理由','error');return}
   var t=TASKS[name];if(!t)return;
-  t.withdrawRequest=reason;t.withdrawRequestedBy=CURRENT_USER;
-  document.querySelectorAll('.withdraw-expand,.card-expand').forEach(function(c){c.remove()});
-  filterQuests();renderMyTasks();refreshUserUI();
+  var _done=function(){
+    t.withdrawRequest=reason;t.withdrawRequestedBy=CURRENT_USER;t.withdrawRequestedAt=today();
+    AppData.updateTask(name,{withdrawRequest:reason,withdrawRequestedBy:CURRENT_USER,withdrawRequestedAt:t.withdrawRequestedAt});
+    showToast('已申请，等管理员处理','ok');
+    document.querySelectorAll('.withdraw-expand,.card-expand').forEach(function(c){c.remove()});
+    filterQuests();renderMyTasks();refreshUserUI();
+  };
+  var isOffline=(typeof API==='undefined'||!API.token);
+  var srvId=t._srvId||t._ntTaskId;
+  if(!isOffline&&srvId){
+    API.request('POST','/api/tasks/'+srvId+'/retract-request',{reason:reason}).then(function(r){
+      if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'申请失败','error');}
+    }).catch(function(){showToast('网络错误，请重试','error')});
+    return;
+  }
+  _done();
+}
+function adminRetractReview(name,action){
+  // P1-2 T4: 管理员批准/拒绝撤回申请 —— 对接 P1-1 POST /api/tasks/{id}/retract-review
+  name=decodeURIComponent(name);
+  var t=TASKS[name];if(!t)return;
+  if(action==='approve'){
+    showConfirm('批准「'+name+'」的撤回申请？任务将退回草稿箱，托管金解冻退回发布者。',function(){
+      var _done=function(){
+        t.status='draft';t.action='edit';delete t.withdrawRequest;delete t.withdrawRequestedBy;delete t.withdrawRequestedAt;
+        AppData.updateTask(name,{status:'draft',action:'edit',withdrawRequest:'',withdrawRequestedBy:'',withdrawRequestedAt:''});
+        showToast('已批准撤回，任务退回草稿箱','ok');
+        filterQuests();renderMyTasks();renderDrafts();refreshUserUI();
+      };
+      var isOffline=(typeof API==='undefined'||!API.token);
+      var srvId=t._srvId||t._ntTaskId;
+      if(!isOffline&&srvId){
+        API.request('POST','/api/tasks/'+srvId+'/retract-review',{action:'approve'}).then(function(r){
+          if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'批准失败','error');}
+        }).catch(function(){showToast('网络错误，请重试','error')});
+        return;
+      }
+      _done();
+    });
+  }else{
+    showConfirm('拒绝「'+name+'」的撤回申请？任务将继续进行。',function(){
+      var _done=function(){
+        delete t.withdrawRequest;delete t.withdrawRequestedBy;delete t.withdrawRequestedAt;
+        AppData.updateTask(name,{withdrawRequest:'',withdrawRequestedBy:'',withdrawRequestedAt:''});
+        showToast('已拒绝撤回申请','ok');
+        filterQuests();renderMyTasks();refreshUserUI();
+      };
+      var isOffline=(typeof API==='undefined'||!API.token);
+      var srvId=t._srvId||t._ntTaskId;
+      if(!isOffline&&srvId){
+        API.request('POST','/api/tasks/'+srvId+'/retract-review',{action:'reject'}).then(function(r){
+          if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'拒绝失败','error');}
+        }).catch(function(){showToast('网络错误，请重试','error')});
+        return;
+      }
+      _done();
+    });
+  }
 }
 function settleTask(name){
   name = decodeURIComponent(name);

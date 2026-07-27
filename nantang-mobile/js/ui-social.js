@@ -208,7 +208,7 @@ function _getCampMessages(c) {
   var pendingReview = _getPendingReview(c);
   pendingReview.forEach(function(item){
     msgs.push({
-      icon:'🔍', type:'pending_review', text:item.task.publisher+' 提交了「'+item.task.name+'」',
+      icon:'🔍', type:'待审核', text:item.task.publisher+' 提交了「'+item.task.name+'」',
       sub:'等你审核', jump:'mgmtBlock1', time:new Date().toISOString(),
       isNew:true
     });

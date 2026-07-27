@@ -491,13 +491,16 @@ function toggleQuestCard(el,name){
   // 操作按钮
   var btns='';var inHall=el.closest('#questHallBody')!==null;
   var isMyClaim=cs.some(function(c){return c.name===CURRENT_USER});
-  var isReviewer=t.reviewer===CURRENT_USER||(!t.reviewer&&t.publisher===CURRENT_USER);
+  var isReviewer=t.reviewer===CURRENT_USER||(!t.reviewer&&t.publisher===CURRENT_USER)||(typeof getRoleInfo==='function'&&getRoleInfo().isAdmin);
   var isPublisher=t.publisher===CURRENT_USER;
   var isSettler=(t.settler||t.settler_id||t.publisher)===CURRENT_USER;
   if(t.status==='draft') btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="publishDraft(\''+encodeURIComponent(t.name)+'\')">✅ 发布草稿</button><button class="btn-sm danger" onclick="deleteDraft(\''+encodeURIComponent(t.name)+'\')">🗑️ 删除</button></div>';
   else if(t.status==='进行中'||t.status==='待提交'){
     if(isPublisher&&cs.length===0) btns='<button class="btn-sm pri" style=margin-right:6px onclick="editTask(\''+encodeURIComponent(t.name)+'\')">✏️ 编辑</button><button class="btn-sm danger" onclick="withdrawTask(\''+encodeURIComponent(t.name)+'\')">🗑️ 撤回</button>';
-    else if(isPublisher&&cs.length>0&&!inHall) btns='<button class="btn-sm danger" onclick="requestWithdraw(\''+encodeURIComponent(t.name)+'\')">📩 申请撤回</button>';
+    else if(isPublisher&&cs.length>0&&!inHall){
+      var hasSubmitted=cs.some(function(c){return c.status==='submitted'||c.status==='completed'});
+      if(!hasSubmitted) btns='<button class="btn-sm danger" onclick="requestWithdraw(\''+encodeURIComponent(t.name)+'\')">📩 申请撤回</button>';
+    }
     else if(isMyClaim&&!cs.some(function(c){return c.name===CURRENT_USER&&c.submission})){
       if(isTaskOverdue(t)) btns='<span style=font-size:.62rem;color:var(--red);background:#fde8e8;padding:4px 10px;border-radius:8px">⏰ 已逾期，无法提交</span>';
       else btns='<div style=display:flex;justify-content:space-between;gap:12px><button class="btn-sm pri" onclick="openSubmit(this,\''+encodeURIComponent(t.name)+'\')">📤 提交</button><button class="btn-sm sec" onclick="unclaimTask(\''+encodeURIComponent(t.name)+'\')">📩 取消认领</button></div>';
@@ -1350,6 +1353,22 @@ function renderMyTasks(){
     {label:'🚫 已取消/争议',color:'#999',key:'closed',filter:function(t){return t.status==='已取消'||t.status==='已争议'}}
   ];
   var h='';
+  // P1-2 T4: 管理员撤回申请审核区块
+  var isAdmin=(typeof getRoleInfo==='function'&&getRoleInfo().isAdmin);
+  if(isAdmin){
+    var retractReqs=Object.values(TASKS).filter(function(t){return t.withdrawRequest&&t.withdrawRequestedBy});
+    if(retractReqs.length){
+      h+='<div style="border-top:2px solid #c8892e;margin-top:6px" id="my-sec-retract"></div>';
+      h+='<div class="section-head" style="color:#c8892e;cursor:default"><span>📩 撤回申请 ('+retractReqs.length+')</span></div>';
+      retractReqs.forEach(function(t){
+        h+='<div style="background:#fff8e8;border:1px solid #e8d890;border-radius:10px;padding:8px 12px;margin:4px 0;font-size:.72rem">';
+        h+='<div style="font-weight:700;margin-bottom:2px">'+esc(t.name)+'</div>';
+        h+='<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:4px">申请人：'+esc(t.withdrawRequestedBy)+' · 理由：'+esc(t.withdrawRequest||'无')+'</div>';
+        h+='<div style="display:flex;gap:4px"><button class="btn-sm pri" style=flex:1;font-size:.6rem;padding:4px 8px onclick="event.stopPropagation();adminRetractReview(\''+encodeURIComponent(t.name)+'\',\'approve\')">✅ 批准撤回</button>';
+        h+='<button class="btn-sm danger" style=flex:1;font-size:.6rem;padding:4px 8px onclick="event.stopPropagation();adminRetractReview(\''+encodeURIComponent(t.name)+'\',\'reject\')">✕ 拒绝</button></div></div>';
+      });
+    }
+  }
   secs.forEach(function(s){
     var arr=items.filter(s.filter);if(!arr.length)return;
     var fold=_secFold['my'+s.key];

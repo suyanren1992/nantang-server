@@ -980,7 +980,8 @@ function _ensureCampTaskClaimants(c) {
 function _getPendingReview(c) {
   var tasks = c.tasks || [];
   return tasks.filter(function(t){
-    return t.status==='pending_review' && t.reviewer===CURRENT_USER;
+    // P1-2 T5: 对齐 doSubmit 写入的 '待审核'（原 pending_review 永不命中）
+    return t.status==='待审核';
   }).map(function(t){return {task:t};});
 }
 
@@ -1036,7 +1037,7 @@ function _renderNTPoolStats(c) {
   var totalPool = (budget.lodgingNT||0)*people*days + (budget.mealNT||0)*people*days;
   var remaining = totalPool - issuedNT - unpaidNT - pendingReviewNT;
   var remainColor = remaining >= 0 ? 'positive' : 'negative';
-  var communityPool = (window.NT && typeof NT.getCommunityPool === 'function') ? NT.getCommunityPool() : 0;
+  var communityPool = (window.AppData && AppData._data._poolBalance != null) ? AppData._data._poolBalance : ((window.NT && typeof NT.getCommunityPool === 'function') ? NT.getCommunityPool() : 0);
 
   return '<div class="mgmt-section" id="mgmtBlock5">'+
     '<div class="mgmt-section-head">📊 NT 池统计 <span style="font-size:.58rem;color:'+(communityPool<500?'#b84c38':'#5a6e5c')+'">社区池 '+(communityPool||0)+' NT</span></div>'+

@@ -423,8 +423,8 @@ this._data.map_locations.people_on_site = [];
       }).catch(function(err) {
         var msg = (err && err.detail) || '网络错误';
         if (err && err.status === 429) {
-          msg = msg.indexOf('1h') !== -1 ? '你在 1 小时内已经验证过 TA 了' :
-                msg.indexOf('10') !== -1 ? '今天已验证 10 次，明天再来吧' : msg;
+          msg = msg.indexOf('1h') !== -1 ? '你刚为这位成员作过证，1 小时后再来' :
+                msg.indexOf('10') !== -1 ? '你今天已验证 10 次，明天再来吧' : msg;
         }
         showToast(msg, 'warn');
         vfy.status = 'pending'; vfy.verifier = null; vfy.verifiedAt = null;
