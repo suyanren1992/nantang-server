@@ -891,6 +891,9 @@ function _mergeNTSyncData(data) {
   if (data.tasks && window.AppData) {
     data.tasks.forEach(function(t) {
       t.publisher = t.poster || t.publisher;
+      // P1-2v1.2 D6: 状态归一与 _mergeSyncData 对齐——60s 轮询 /api/nt/sync 路径也翻译中文态
+      if (t.status === '草稿') t.status = 'draft';
+      else if (t.status === '撤回申请中') t.status = 'retract_requested';
       var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
       var srvC = (t.assignees||[]).map(function(id){ return {name:id}; });
       if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:srvC, action:'', is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' };
