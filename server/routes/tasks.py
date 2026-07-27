@@ -3,11 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timedelta
 import secrets
 import json
 from database import get_db
-from models import NTTask, User
+from models import NTTask, User, TASK_STATUSES
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _adjust_trust, _get_pool
 from nt_helpers import _safe_assignees
@@ -87,6 +87,29 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     if req.reward <= 0:
         raise HTTPException(status_code=400, detail="奖励必须大于0")
 
+    task_poster = req.poster or user.id
+
+    # P0-2 幂等防重：同 poster+title+reward+slots+scope 在 60s 窗口内已存在任务，
+    # 直接幂等返回既有 task_id（HTTP 200），不新建、不二次冻结——前端无感。
+    # 排除已取消任务，允许撤单后重发；窗口外同名任务可正常创建。
+    # 结论理由：P0-1 已删前端双调用，本层为第二道锁，兜住网络重试/双击等重复 POST；
+    # 选 200 幂等返回而非 409——因为任务确已存在，返回错误会误导前端弹“发布失败”。
+    _idem_window_sec = 60
+    _idem_cutoff = (datetime.utcnow() - timedelta(seconds=_idem_window_sec)).isoformat()
+    _dup = (await db.execute(
+        select(NTTask).where(
+            NTTask.poster == task_poster,
+            NTTask.title == req.title,
+            NTTask.reward == req.reward,
+            NTTask.slots == req.slots,
+            NTTask.scope == req.scope,
+            NTTask.status != TASK_STATUSES["cancelled"],
+            NTTask.created_at >= _idem_cutoff,
+        ).order_by(NTTask.created_at.desc())
+    )).scalars().first()
+    if _dup is not None:
+        return {"ok": True, "task_id": _dup.id, "idempotent": True}
+
     user_locked = None  # X2: 行锁引用，personal 分支内赋值
 
     # R1.4: poster='社区' 分支——从社区池扣款
@@ -111,7 +134,6 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         if not rv: raise HTTPException(status_code=400, detail="审核人不存在")
 
     task_id = _task_id()
-    task_poster = req.poster or user.id
     task = NTTask(
         id=task_id, poster=task_poster, title=req.title, reward=req.reward,
         category=req.category, scope=req.scope, note=req.note,
