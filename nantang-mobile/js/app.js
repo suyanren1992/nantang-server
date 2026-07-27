@@ -605,7 +605,7 @@ function _doReject(vfyId, reason) {
 }
 
 function _renderPoolCard() {
-  var pool = (window.NT && typeof NT.getCommunityPool === 'function') ? NT.getCommunityPool() : 0;
+  var pool = (window.AppData && AppData._data._poolBalance != null) ? AppData._data._poolBalance : ((window.NT && typeof NT.getCommunityPool === 'function') ? NT.getCommunityPool() : 0);
   // R14: 当月流水（加日期过滤）
   var thisMonth = new Date().toISOString().slice(0,7);
   var monthlyIn = 0, monthlyOut = 0;

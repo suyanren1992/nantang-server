@@ -708,15 +708,10 @@ function doPublish(){
     clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
     _publishing = false;
   } else {
-    // C2: 服务端 POST /api/tasks 处理扣款+冻结，成功后回调收尾
-    API.syncTask(data, function(srvId) {
-      if (!srvId) { showToast('发布失败，请检查余额或重试', 'error'); _publishing = false; return; }
-      data._ntTaskId = srvId; data._srvId = srvId;
-      AppData.updateTask(name, {_ntTaskId: srvId, _srvId: srvId});
-      document.getElementById('pubConfirm').style.display='none';
-      clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
-      _publishing = false;
-    });
+    // P0-1: addTask（app-data.js:127）已是唯一门，此处不再重复 POST；srvId 由 addTask 回调写回
+    document.getElementById('pubConfirm').style.display='none';
+    clearPubForm();closeOverlay('overlayPublishTask');filterQuests();renderMyTasks();refreshUserUI();
+    _publishing = false;
   }
 }
 function publishDraft(name){
@@ -934,7 +929,7 @@ function _mergeSyncData(data) {
     t.publisher = t.poster || t.publisher;
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
     var srvClaimants = (t.assignees||[]).map(function(id){ return {name:id}; });
-    if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'' };
+    if (!dup) AppData._data.tasks[t.id] = { name:t.title || '未命名任务', title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'' };
     else { var keep=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id }); dup.claimants=_mergeClaimants(keep, t.assignees||[]); }
   });}
   if (data.journal) {
@@ -1195,6 +1190,7 @@ function refreshUserUI(){
     API.request('GET', '/api/nt/balance', null).then(function(srv) {
       if (srv && !srv.detail && !srv._offline) {
         b = srv.balance || 0; cv = srv.cv || 0; xp = srv.xp || 0;
+        if (window.AppData) { AppData._data._serverBalance = b; AppData._data._serverCv = cv; AppData._data._serverXp = xp; }
         if (_balEl) _balEl.innerHTML = '<img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:18px;height:18px;vertical-align:middle;margin-right:2px>'+b+'<span style=font-size:.55rem;color:#5a6e5c;margin-left:4px>💠'+cv+' ⭐'+xp+'</span><span style=font-size:.55rem;color:var(--green-primary);margin-left:6px;cursor:pointer" onclick="event.stopPropagation();renderWeeklySettlement()">📊</span>';
         if (_cardEl) _cardEl.textContent = b;
         if (_barEl) _barEl.style.width = Math.min(100, Math.round(b/1250*100))+'%';
@@ -1392,7 +1388,7 @@ function renderProfile(mode){
   if(mode==='view'){
     var u=getUsers()[CURRENT_USER]||{};var rl=u.role||'visitor';var rn=roleName(rl);
     // NT 余额 + 充值/提现
-    var ntBal=window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0;
+    var ntBal=(window.AppData&&AppData._data._serverBalance!=null)?AppData._data._serverBalance:(window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0);
     h+='<div style="background:linear-gradient(135deg,#e8f0e4,#dce8d8);border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center">';
     h+='<div style="font-size:.6rem;color:#5a6e5c;margin-bottom:2px">💰 NT 余额</div>';
     h+='<div style="font-size:1.6rem;font-weight:700;color:#2a4a30">'+ntBal+'</div>';
@@ -1445,7 +1441,7 @@ function showRechargeForm(){
 }
 function showWithdrawForm(){
   var el=document.getElementById('profileTxForm');if(!el)return;
-  var ntBal=window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0;
+  var ntBal=(window.AppData&&AppData._data._serverBalance!=null)?AppData._data._serverBalance:(window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0);
   el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
     '<div style="font-size:.62rem;color:#5a5a5a;margin-bottom:4px">可提现余额：'+ntBal+' NT</div>'+
     '<input id="withdrawAmount" type="number" min="1" max="'+ntBal+'" placeholder="提现 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.75rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
@@ -1471,7 +1467,7 @@ function submitRecharge(){
 function submitWithdraw(){
   var amt=parseInt(document.getElementById('withdrawAmount').value,10)||0;
   if(amt<=0){showToast('请输入有效金额','error');return}
-  var ntBal=window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0;
+  var ntBal=(window.AppData&&AppData._data._serverBalance!=null)?AppData._data._serverBalance:(window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0);
   if(amt>ntBal){showToast('余额不足（当前 '+ntBal+' NT）','error');return}
   var note=document.getElementById('withdrawNote').value.trim();
   var el=document.getElementById('profileTxForm');

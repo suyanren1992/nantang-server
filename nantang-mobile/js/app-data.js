@@ -125,7 +125,7 @@ window.AppData = {
     if (typeof API !== 'undefined' && API.token) {
       var self = this;
       API.syncTask(task, function(srvId) {  // syncTask 是回调风格，无返回值
-        if (srvId && typeof srvId === 'string') { task._srvId = srvId; task._ntTaskId = srvId; self._data.tasks[srvId] = task; self._saveShared(); }
+        if (srvId && typeof srvId === 'string') { task._srvId = srvId; task._ntTaskId = srvId; self._saveShared(); }
         else { delete self._data.tasks[task.name]; self._saveShared(); if (typeof showToast === 'function') showToast('发布失败：服务端拒绝（余额不足或参数无效）', 'error'); }  // 服务端拒绝→回滚本地
       });
     }
