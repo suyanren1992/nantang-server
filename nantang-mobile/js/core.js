@@ -929,11 +929,14 @@ function _mergeSyncData(data) {
     AppData._data._poolBalance = data.pool_balance;
   }
   if (data.tasks) { data.tasks.forEach(function(t) {
+    // P1-2v1.1 D2: 服务端中文状态归一为前端英文 token
+    if (t.status === '草稿') t.status = 'draft';
+    else if (t.status === '撤回申请中') t.status = 'retract_requested';
     t.publisher = t.poster || t.publisher;
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
     var srvClaimants = (t.assignees||[]).map(function(id){ return {name:id}; });
-    if (!dup) AppData._data.tasks[t.id] = { name:t.title || '未命名任务', title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'' };
-    else { var keep=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id }); dup.claimants=_mergeClaimants(keep, t.assignees||[]); }
+    if (!dup) AppData._data.tasks[t.id] = { name:t.title || '未命名任务', title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'', _srvId:t.id, _ntTaskId:t.id };
+    else { var keep=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id, _srvId:t.id, _ntTaskId:t.id }); dup.claimants=_mergeClaimants(keep, t.assignees||[]); }
   });}
   if (data.journal) {
     AppData._data.journal = AppData._data.journal || [];
@@ -1353,10 +1356,10 @@ function renderMyTasks(){
     {label:'🚫 已取消/争议',color:'#999',key:'closed',filter:function(t){return t.status==='已取消'||t.status==='已争议'}}
   ];
   var h='';
-  // P1-2 T4: 管理员撤回申请审核区块
+  // P1-2v1.1 D2+D3: 管理员撤回申请审核区块（本地标记 + 服务端 retract_requested 状态）
   var isAdmin=(typeof getRoleInfo==='function'&&getRoleInfo().isAdmin);
   if(isAdmin){
-    var retractReqs=Object.values(TASKS).filter(function(t){return t.withdrawRequest&&t.withdrawRequestedBy});
+    var retractReqs=Object.values(TASKS).filter(function(t){return (t.withdrawRequest&&t.withdrawRequestedBy)||t.status==='retract_requested';});
     if(retractReqs.length){
       h+='<div style="border-top:2px solid #c8892e;margin-top:6px" id="my-sec-retract"></div>';
       h+='<div class="section-head" style="color:#c8892e;cursor:default"><span>📩 撤回申请 ('+retractReqs.length+')</span></div>';

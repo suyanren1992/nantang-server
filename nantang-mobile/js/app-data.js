@@ -334,7 +334,9 @@ this._data.map_locations.people_on_site = [];
     this._saveShared(true);
     // R2.3: HTTP 模式同步写服务端
     if (typeof API !== 'undefined' && API.token) {
-      API.request('POST', '/api/data/verifications', vfy).catch(function(){});
+      API.request('POST', '/api/data/verifications', vfy).then(function(r){
+        if(!r||!r.ok) showToast('校核提交失败'+(r&&r.detail?': '+r.detail:'，请重试'),'error');
+      }).catch(function(){showToast('校核提交失败，网络错误','error')});
     }
     return vfy;
   },

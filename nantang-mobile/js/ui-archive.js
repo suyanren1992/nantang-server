@@ -278,7 +278,7 @@ function renderArchiveMembers(el) {
     var u = users[name];
     var group = groups.find(function(g) { return g.role === u.role; }) || groups[4];
     var nt = 0;
-    try { var ntu = (window.AppData&&AppData._data._serverBalance!=null) ? {ntBalance:AppData._data._serverBalance} : (window.NT && NT.getUser(name)); if (ntu) nt = ntu.ntBalance || 0; } catch(e) {}
+    try { var ntu = (name===CURRENT_USER&&window.AppData&&AppData._data._serverBalance!=null) ? {ntBalance:AppData._data._serverBalance} : (window.NT && NT.getUser(name)); if (ntu) nt = ntu.ntBalance || 0; } catch(e) {}
     group.members.push({
       name: name,
       role: u.role,

@@ -541,7 +541,7 @@ function adminRetractReview(name,action){
       var isOffline=(typeof API==='undefined'||!API.token);
       var srvId=t._srvId||t._ntTaskId;
       if(!isOffline&&srvId){
-        API.request('POST','/api/tasks/'+srvId+'/retract-review',{action:'approve'}).then(function(r){
+        API.request('POST','/api/tasks/'+srvId+'/retract-review',{approved:true}).then(function(r){
           if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'批准失败','error');}
         }).catch(function(){showToast('网络错误，请重试','error')});
         return;
@@ -559,7 +559,7 @@ function adminRetractReview(name,action){
       var isOffline=(typeof API==='undefined'||!API.token);
       var srvId=t._srvId||t._ntTaskId;
       if(!isOffline&&srvId){
-        API.request('POST','/api/tasks/'+srvId+'/retract-review',{action:'reject'}).then(function(r){
+        API.request('POST','/api/tasks/'+srvId+'/retract-review',{approved:false}).then(function(r){
           if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'拒绝失败','error');}
         }).catch(function(){showToast('网络错误，请重试','error')});
         return;
@@ -588,7 +588,9 @@ function confirmSettle(name){
   AppData.updateTask(name, {status:'已结算', settler:CURRENT_USER, completedAt:t.completedAt||today()});
   // C2.6: HTTP 模式同步服务端结算
   if(typeof API!=='undefined'&&API.token){
-    API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId||name)+'/settle').catch(function(){});
+    API.request('POST','/api/nt/tasks/'+(t._srvId||t._ntTaskId||name)+'/settle').then(function(r){
+      if(!r||!r.ok) showToast('结算失败'+(r&&r.detail?': '+r.detail:'，请重试'),'error');
+    }).catch(function(){showToast('结算失败，网络错误，请重试','error')});
   }
   // 营队任务完成后，认领者自动升级为共建者
   if(t.scope==='营队'){(t.claimants||[]).forEach(function(c){var u=getUsers()[c.name];if(u&&u.role==='visitor'&&c.status==='completed')upgradeRole(c.name,'builder','')})}
