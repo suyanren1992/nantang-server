@@ -981,6 +981,8 @@ async def earn_sync(req: EarnSyncRequest, user: User = Depends(get_current_user)
 # ══ 每日 tick（C2.6：替代客户端 _dailyTick）══
 # 房费率公约定价（大地书房2F dorm101-106）；卡面裁定：G3 费率分叉不动，BED_RATES 数值不改
 BED_RATES = {"dorm101":20,"dorm102":30,"dorm103":30,"dorm104":60,"dorm105":30,"dorm106":35}
+# G-3: 住宿费计费模式 config（不硬编码；accrual=日记账退房总结算 / deduct=旧日扣可回滚）
+ACCOMMODATION_DAILY_MODE = os.environ.get("ACCOMMODATION_DAILY_MODE", "accrual")
 
 system_router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -1000,8 +1002,8 @@ async def _run_daily_settlement(db, today: str | None = None):
     if pool.last_tick_date == today:
         return {"ok": True, "skipped": True, "date": today}
 
-    results = {"date": today, "accommodation_fees": 0, "pool_refill": 0,
-               "caught_up_days": 0}
+    results = {"date": today, "accommodation_fees": 0, "accommodation_accrued": 0,
+               "pool_refill": 0, "caught_up_days": 0}
 
     # 1. 住宿费扣款（补扣漏扣天数）
     tenancies_r = await db.execute(
@@ -1036,18 +1038,27 @@ async def _run_daily_settlement(db, today: str | None = None):
 
         for day_offset in range(days_passed):
             due_date = (last + _td(days=day_offset + 1)).isoformat()
-            if tenant_user.nt_balance >= rate:
-                tenant_user.nt_balance -= rate
-                pool.balance += rate
-                lid = _ledger_id()
-                await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
-                                  "accommodation_fee", f"住宿费 {due_date}", status="settled")
-                results["accommodation_fees"] += rate
+            if ACCOMMODATION_DAILY_MODE == "deduct":
+                # 旧日扣分支（保留可回滚）：够则扣 nt_balance，不足记欠费
+                if tenant_user.nt_balance >= rate:
+                    tenant_user.nt_balance -= rate
+                    pool.balance += rate
+                    lid = _ledger_id()
+                    await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
+                                      "accommodation_fee", f"住宿费 {due_date}", status="settled")
+                    results["accommodation_fees"] += rate
+                else:
+                    t.debt += rate
+                    lid = _ledger_id()
+                    await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
+                                      "debt_accrued", f"住宿费欠费 {due_date}", status="pending")
             else:
-                t.debt += rate
+                # G-3 accrual 日记账：只累计 accommodation_due，不动 nt_balance/pool（退房总结算）
+                t.accommodation_due = (t.accommodation_due or 0) + rate
                 lid = _ledger_id()
                 await _add_ledger(db, lid, tenant_user.id, "community_pool", rate,
-                                  "debt_accrued", f"住宿费欠费 {due_date}", status="pending")
+                                  "accommodation_accrued", f"住宿费记账 {due_date}", status="pending")
+                results["accommodation_accrued"] += rate
             results["caught_up_days"] += 1
         t.last_deducted = today
 

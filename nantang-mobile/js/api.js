@@ -138,6 +138,7 @@ var API = {
   rejectWithdraw: function(entryId) { return this.request('POST', '/api/admin/withdraw/reject?entry_id=' + encodeURIComponent(entryId)); },
   // ── 住宿 ──
   checkout: function() { return this.request('POST', '/api/accommodation/checkout'); },
+  accommodationStatus: function() { return this.request('GET', '/api/accommodation/status'); },  // G-3 记账/欠费状态
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
   // ── 任务同步 ──
   syncTask: function(task, callback) {

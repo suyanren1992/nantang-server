@@ -287,8 +287,9 @@ class Tenancy(Base):
     room_id = Column(String, nullable=False)       # 引用 map_locations 中的 roomId
     bed_num = Column(Integer, default=1)
     checkin_date = Column(String, nullable=False)
-    last_deducted = Column(String, nullable=True)  # 上次扣费日期（幂等）
-    debt = Column(Integer, default=0)
+    last_deducted = Column(String, nullable=True)  # 上次扣费/记账日期（幂等）
+    debt = Column(Integer, default=0)              # 未结欠费（退房结算后未清部分留存，可追缴）
+    accommodation_due = Column(Integer, default=0) # G-3: 住宿费应计记账累计（退房一次性结算，不动 nt_balance）
     status = Column(String, default="active")      # active / checked_out
 
 

@@ -63,6 +63,12 @@ async def init_db():
             await session.commit()
         except Exception:
             await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
+        # G-3: Tenancy.accommodation_due（住宿费日记账累计；存量表补列默认 0）
+        try:
+            await session.execute(text("ALTER TABLE tenancies ADD COLUMN accommodation_due INTEGER DEFAULT 0"))
+            await session.commit()
+        except Exception:
+            await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
         # Step 1: 社区资金系统 — reserve/frozen 列
         try:
             await session.execute(text("ALTER TABLE community_pool ADD COLUMN reserve INTEGER DEFAULT 0"))

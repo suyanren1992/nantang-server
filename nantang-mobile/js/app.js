@@ -1465,6 +1465,30 @@ function _showFieldSheet() {
 var _selectedBed = null, _expandedRoom = null, _expandedBed = null;
 var _showCheckinCard = false, _calYear, _calMonth, _calStart, _calEnd;
 
+// G-3: 拉取住宿记账状态，填充「已记账 X NT（退房时结算）」横幅 + 欠费提醒
+function _loadAccDueBanner() {
+  var el = document.getElementById('accDueBanner');
+  if (!el) return;
+  if (typeof API === 'undefined' || !API.token) { el.innerHTML = ''; return; }
+  API.accommodationStatus().then(function(r){
+    var el2 = document.getElementById('accDueBanner'); if (!el2) return;
+    if (!r || !r.tenant) { el2.innerHTML = ''; return; }
+    var due = r.tenant.accommodation_due || 0;
+    var debt = r.tenant.debt || 0;
+    var html = '';
+    if (due > 0 || debt > 0) {
+      var bg = r.overdue_limit ? '#fde8e8' : (r.overdue_remind ? '#fef4e0' : '#eef6ee');
+      var bd = r.overdue_limit ? 'var(--red,#d05050)' : (r.overdue_remind ? '#d99a2b' : 'var(--gp,#5d8c52)');
+      html += '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:8px 10px;font-size:.62rem;color:#5a4a2a">';
+      html += '<b>🧾 已记账 '+due+' NT</b>（退房时一次性结算）';
+      if (debt > 0) html += '<br>⚠ 历史欠费 '+debt+' NT 未结';
+      if (r.overdue_remind && !r.overdue_limit) html += '<br>🔴 已超 '+r.remind_days+' 天房费，请及时结清';
+      if (r.overdue_limit) { html += '<br>🔴 已达 '+r.limit_days+' 天房费上限，新预定将被限制'; if (navigator.vibrate) navigator.vibrate([200,100,200]); }
+      html += '</div>';
+    }
+    el2.innerHTML = html;
+  }).catch(function(){});
+}
 function _showStaySheet() {
   var mapData = (window.AppData && AppData._data && AppData._data.map_locations) ? AppData._data.map_locations : {};
   var accs = (mapData.accommodations && Object.keys(mapData.accommodations).length) ? mapData.accommodations : (_ml().accommodations || {});
@@ -1543,6 +1567,9 @@ function _showStaySheet() {
   h += '.rm-items-row span{margin-right:6px}';
   h += '.rm-add-item{color:var(--gp);cursor:pointer;text-decoration:underline}';
   h += '</style>';
+
+  // G-3: 已记账住宿费横幅（退房时结算）
+  h += '<div id="accDueBanner" style="margin-bottom:8px"></div>';
 
   // ── 房间卡片网格 ──
   h += '<div class="rm-grid">';
@@ -1625,6 +1652,7 @@ function _showStaySheet() {
   }
 
   _showCardPopup('🛏️ 住宿', h, null, true);
+  _loadAccDueBanner();
 }
 function _pickRoom(id) { _expandedRoom = id; _expandedBed = null; _selectedBed = null; _showCheckinCard = false; _showStaySheet(); }
 function _openCheckinCard(roomId, bedNum) { _selectedBed = { room: roomId, bed: bedNum }; _showCheckinCard = true; _expandedRoom = roomId; _expandedBed = null; _showStaySheet(); }
@@ -2041,6 +2069,13 @@ function _doCheckout() {
         if (users[_me()]) users[_me()].role = r.role;
       }
       var msg = '已退房 '+roomNum+'室 · 状态已切为云在线';
+      // G-3 退房结算单：住了 X 天 · 每天 Y · 合计 Z · 已付/欠费
+      var st = r.settlement;
+      if (st && st.total > 0) {
+        var sMsg = '📋 退房结算单\n住了 '+st.days+' 天 · 每天 '+st.rate+' NT · 合计 '+st.total+' NT\n已付 '+st.paid+' NT'+(st.debt>0?(' · ⚠ 欠费 '+st.debt+' NT 未结'):'');
+        if (typeof showToast==='function') showToast('已结算 '+st.paid+' NT'+(st.debt>0?('，欠费 '+st.debt+' NT'):''), st.debt>0?'warn':'ok');
+        if (typeof _promptDialog==='function' || typeof alert==='function') { try{ (window.showConfirm||alert)(sMsg); }catch(e){} }
+      }
       if (r.remaining_debt > 0) msg += ' · ⚠ 欠费 '+r.remaining_debt+' NT 未结';
       if (window.Game&&Game.toast) Game.toast(msg);
     } else {

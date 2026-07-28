@@ -1,10 +1,11 @@
-"""D-26 回归：住宿费日扣（cron + HTTP 端点 + 补扣历史 + 鉴权收敛）。
+"""G-3 回归：住宿费日「记账」（accrual 模式：cron + HTTP + 补记 + 鉴权收敛）。
 
-四断言对齐勘察段骨架：
-  1. 余额够 → 扣费率、写 accommodation_fee ledger、last_deducted 更新
-  2. 余额不足 → debt += rate，余额不动
-  3. 同一天重复触发 → 幂等，不重复扣
-  4. 漏扣 N 天 → tick 后补扣 N 天
+G-3 后日 tick 默认 accrual——不动 nt_balance，只累计 Tenancy.accommodation_due，退房总结算。
+四断言（对齐 accrual 语义）：
+  1. 余额够 → 不扣余额、accommodation_due += rate、写 accommodation_accrued(pending) ledger、last_deducted 更新
+  2. 余额=0 → 同样只记账（due += rate），余额不动、不产生 debt（欠费只在退房结算时才可能出现）
+  3. 同一天重复触发 → 幂等，due 不重复累计
+  4. 漏记 N 天 → tick 后补记 N 天（due == rate*N）
 外加：G5 鉴权收敛——普通用户调 /api/system/daily-tick 应 403。
 """
 import pytest
@@ -77,18 +78,19 @@ async def test_daily_tick_deducts_when_balance_sufficient(client: AsyncClient):
 
     async with async_session() as s:
         alice = (await s.execute(select(User).where(User.id == alice_id))).scalar_one()
-        assert alice.nt_balance == 200 - BED_RATE, f"应扣 {BED_RATE}，实扣 {200 - alice.nt_balance}"
+        assert alice.nt_balance == 200, f"accrual 不动余额，实为 {alice.nt_balance}"
         ten = (await s.execute(
             select(Tenancy).where(Tenancy.user_id == alice_id, Tenancy.status == "active")
         )).scalar_one()
         assert ten.last_deducted == today
+        assert ten.accommodation_due == BED_RATE, f"应记账 {BED_RATE}，实为 {ten.accommodation_due}"
         ledgers = list((await s.execute(
-            select(NTLedger).where(NTLedger.type == "accommodation_fee",
+            select(NTLedger).where(NTLedger.type == "accommodation_accrued",
                                    NTLedger.from_user == alice_id)
         )).scalars())
         assert len(ledgers) >= 1
         assert ledgers[-1].amount == BED_RATE
-        assert ledgers[-1].status == "settled"
+        assert ledgers[-1].status == "pending"
 
 
 @pytest.mark.asyncio
@@ -104,13 +106,14 @@ async def test_daily_tick_accumulates_debt_when_insufficient(client: AsyncClient
 
     async with async_session() as s:
         bob = (await s.execute(select(User).where(User.id == bob_id))).scalar_one()
-        assert bob.nt_balance == 0, "余额不足不应扣款"
+        assert bob.nt_balance == 0, "accrual 不动余额"
         ten = (await s.execute(
             select(Tenancy).where(Tenancy.user_id == bob_id, Tenancy.status == "active")
         )).scalar_one()
-        assert ten.debt == BED_RATE
+        assert ten.accommodation_due == BED_RATE, "余额0也只记账"
+        assert ten.debt == 0, "记账期不产生 debt（欠费只在退房结算才可能）"
         ledgers = list((await s.execute(
-            select(NTLedger).where(NTLedger.type == "debt_accrued", NTLedger.from_user == bob_id)
+            select(NTLedger).where(NTLedger.type == "accommodation_accrued", NTLedger.from_user == bob_id)
         )).scalars())
         assert len(ledgers) >= 1
 
@@ -130,7 +133,11 @@ async def test_daily_tick_idempotent_same_day(client: AsyncClient):
 
     async with async_session() as s:
         carol = (await s.execute(select(User).where(User.id == carol_id))).scalar_one()
-        assert carol.nt_balance == 200 - BED_RATE, "幂等失败：扣了两次"
+        assert carol.nt_balance == 200, "accrual 不动余额"
+        ten = (await s.execute(
+            select(Tenancy).where(Tenancy.user_id == carol_id, Tenancy.status == "active")
+        )).scalar_one()
+        assert ten.accommodation_due == BED_RATE, "幂等失败：记账累计了两次"
 
 
 @pytest.mark.asyncio
@@ -160,10 +167,11 @@ async def test_daily_tick_catches_up_missed_days(client: AsyncClient):
 
     async with async_session() as s:
         dave = (await s.execute(select(User).where(User.id == dave_id))).scalar_one()
-        assert dave.nt_balance == 500 - BED_RATE * 3
+        assert dave.nt_balance == 500, "accrual 不动余额"
         ten = (await s.execute(
             select(Tenancy).where(Tenancy.user_id == dave_id, Tenancy.status == "active")
         )).scalar_one()
+        assert ten.accommodation_due == BED_RATE * 3, f"应补记3天={BED_RATE*3}，实为 {ten.accommodation_due}"
         assert ten.last_deducted == datetime.utcnow().strftime("%Y-%m-%d")
 
 
