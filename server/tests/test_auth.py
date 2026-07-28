@@ -108,3 +108,47 @@ class TestLikeWildcard:
         serialized = str(r.json())
         assert "alice_w" not in serialized
         assert "bob_w" not in serialized
+
+    @pytest.mark.asyncio
+    async def test_underscore_user_sees_own_tasks(self, client):
+        """方案A：下划线转义后 LIKE 正确匹配合法用户名，不丢字。"""
+        import json, uuid
+        from models import NTTask
+        await _create_user("user_x")
+        r = await client.post("/api/auth/login", json={"name": "user_x", "password": "Passw0rd!"})
+        tok = r.json()["token"]
+        tid = f"task_{uuid.uuid4().hex[:8]}"
+        # 直接写库造任务：user_x 在 assignees JSON 数组中
+        async with async_session() as s:
+            t = NTTask(id=tid, poster="other_guy", title="测试下划线用户可见",
+                       assignees=json.dumps(["user_x"], ensure_ascii=False),
+                       status="open", reward=5)
+            s.add(t)
+            await s.commit()
+        # user_x 查任务——assignees LIKE 应命中
+        r = await client.get("/api/tasks", headers=_h(tok))
+        assert r.status_code == 200
+        task_ids = [t["id"] for t in r.json()] if isinstance(r.json(), list) else []
+        assert tid in task_ids, f"下划线用户 user_x 应能看到自己的任务，got={task_ids}"
+
+    @pytest.mark.asyncio
+    async def test_underscore_not_wildcard_leak(self, client):
+        """方案A：下划线转义后 _ 不匹配任意单字符，不泄其他用户任务。"""
+        import json, uuid
+        from models import NTTask
+        await _create_user("u1_x")
+        await _create_user("u2_x")
+        r = await client.post("/api/auth/login", json={"name": "u1_x", "password": "Passw0rd!"})
+        tok1 = r.json()["token"]
+        tid = f"task_{uuid.uuid4().hex[:8]}"
+        async with async_session() as s:
+            t = NTTask(id=tid, poster="other_guy", title="u2_x 专属任务",
+                       assignees=json.dumps(["u2_x"], ensure_ascii=False),
+                       status="open", reward=5)
+            s.add(t)
+            await s.commit()
+        # u1_x 查任务——不应看到仅 u2_x 的任务（_ 不是 LIKE 单字符通配）
+        r = await client.get("/api/tasks", headers=_h(tok1))
+        assert r.status_code == 200
+        task_ids = [t["id"] for t in r.json()] if isinstance(r.json(), list) else []
+        assert tid not in task_ids, f"u1_x 不应看到 u2_x 的任务，got={task_ids}"

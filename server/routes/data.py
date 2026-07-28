@@ -448,11 +448,11 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
 @router.get("/sync_all")
 async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     # 我的任务
-    # D-16: LIKE 拼接前剔除通配符（存量 %/_ 用户名账号兜底）
-    _uid = user.id.replace('%', '').replace('_', '')
+    # D-16: LIKE 拼接前转义通配符（存量 %/_ 用户名不丢字，防注入看全量）
+    _uid = user.id.replace('%', r'\%').replace('_', r'\_')
     tasks_r = await db.execute(
         select(NTTask).where(
-            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{_uid}"%'))
+            (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{_uid}"%', escape='\\'))
         ).order_by(NTTask.created_at.desc())
     )
     my_tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,

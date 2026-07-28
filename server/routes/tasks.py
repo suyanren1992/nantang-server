@@ -61,11 +61,11 @@ async def list_tasks(scope: str = None, status: str = None, mode: str = Query(No
         if not is_onsite:
             tasks = [t for t in tasks if not t.is_system_generated]
     else:
-        # D-4: LIKE 拼接前剔除通配符（存量 %/_ 用户名账号兜底）
-        uid = user.id.replace('%', '').replace('_', '')
+        # D-4 方案A: LIKE 拼接前转义通配符（存量 %/_ 用户名不丢字，防注入看全量）
+        uid = user.id.replace('%', r'\%').replace('_', r'\_')
         result = await db.execute(
             select(NTTask).where(
-                (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{uid}"%'))
+                (NTTask.poster == user.id) | (NTTask.assignee == user.id) | (NTTask.assignees.like(f'%"{uid}"%', escape='\\'))
             ).order_by(NTTask.created_at.desc())
         )
         tasks = [t for t in result.scalars()]
