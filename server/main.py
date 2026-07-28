@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from database import init_db, async_session
-from routes import auth, nt, tasks, camps, data, accommodation, admin
+from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant
 
 # 前端文件目录（nantang-mobile）
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "nantang-mobile"
@@ -86,6 +86,7 @@ app.include_router(data.router)
 app.include_router(accommodation.router)
 app.include_router(accommodation.role_router)
 app.include_router(admin.router)
+app.include_router(covenant.router)  # G-1 公约签署
 app.include_router(nt.system_router)
 
 

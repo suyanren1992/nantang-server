@@ -1,5 +1,5 @@
 """SQLAlchemy models for Nantang Cloud Village."""
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float, Boolean
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float, Boolean, UniqueConstraint
 from database import Base
 
 # D1: 任务状态统一词汇表
@@ -290,3 +290,15 @@ class Tenancy(Base):
     last_deducted = Column(String, nullable=True)  # 上次扣费日期（幂等）
     debt = Column(Integer, default=0)
     status = Column(String, default="active")      # active / checked_out
+
+
+# G-1: 公约签署凭证
+class CovenantSignature(Base):
+    __tablename__ = "covenant_signatures"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, nullable=False)
+    covenant_version = Column(String, nullable=False)  # 对应 covenant_text config 的 version
+    sign_type = Column(String, default="新入住")       # 新入住 / 老成员补签 / 续签
+    reward_granted = Column(Boolean, default=False)    # 是否发过 10 NT（每人只发一次首签）
+    signed_at = Column(String, nullable=False)
+    __table_args__ = (UniqueConstraint("user_id", "covenant_version", name="uq_covenant_user_version"),)
