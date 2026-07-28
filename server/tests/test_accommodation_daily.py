@@ -181,3 +181,49 @@ async def test_daily_tick_requires_admin(client: AsyncClient):
     villager_tok, _ = await _make_user(client, "d26_villager_z", balance=100, role="villager")
     r = await client.post("/api/system/daily-tick", headers=_h(villager_tok))
     assert r.status_code in (401, 403), f"普通用户应被拒，实际 {r.status_code}"
+
+
+# ===== ZX-2：deduct 模式回归（mode 开关兜底验证）=====
+@pytest.mark.asyncio
+async def test_deduct_mode_charges_balance_and_idempotent(client: AsyncClient, monkeypatch):
+    """ZX-2: ACCOMMODATION_DAILY_MODE=deduct 旧日扣语义——
+    余额够→扣 nt_balance+accommodation_fee(settled)流水+last_deducted更新+同日幂等。"""
+    from routes import nt
+    monkeypatch.setattr(nt, "ACCOMMODATION_DAILY_MODE", "deduct")
+
+    admin_tok, _ = await _make_user(client, "zx2_admin", role="admin", balance=10000)
+    eve_tok, eve_id = await _make_user(client, "zx2_eve", balance=200)
+    await _checkin(client, eve_tok, "dorm101")
+    await _backdate_checkin(eve_id)
+
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    r = await client.post("/api/system/daily-tick", headers=_h(admin_tok))
+    assert r.status_code == 200 and r.json()["ok"] is True, r.json()
+    body = r.json()
+    assert body.get("accommodation_fees", 0) >= BED_RATE, f"deduct 应出 accommodation_fees，实得 {body}"
+
+    async with async_session() as s:
+        eve = (await s.execute(select(User).where(User.id == eve_id))).scalar_one()
+        # deduct: 扣 nt_balance
+        assert eve.nt_balance == 200 - BED_RATE, f"deduct 应扣余额{BED_RATE}，实为 {eve.nt_balance}"
+        # last_deducted 更新
+        ten = (await s.execute(
+            select(Tenancy).where(Tenancy.user_id == eve_id, Tenancy.status == "active")
+        )).scalar_one()
+        assert ten.last_deducted == today
+        # accommodation_fee ledger (settled)
+        ledgers = list((await s.execute(
+            select(NTLedger).where(NTLedger.type == "accommodation_fee",
+                                   NTLedger.from_user == eve_id)
+        )).scalars())
+        assert len(ledgers) >= 1, "应有 accommodation_fee 流水"
+        assert ledgers[-1].amount == BED_RATE
+        assert ledgers[-1].status == "settled"
+
+    # 同日幂等：再 tick → 整体 skipped（pool.last_tick_date == today）
+    r2 = await client.post("/api/system/daily-tick", headers=_h(admin_tok))
+    assert r2.json().get("skipped") is True, "同日应 skipped"
+
+    async with async_session() as s:
+        eve = (await s.execute(select(User).where(User.id == eve_id))).scalar_one()
+        assert eve.nt_balance == 200 - BED_RATE, "幂等失败：余额多扣了"
