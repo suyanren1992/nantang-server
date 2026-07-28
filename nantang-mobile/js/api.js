@@ -128,6 +128,9 @@ var API = {
   approveVerification: function(id, data) { return this.request('POST', '/api/nt/verifications/' + id + '/approve', data); },
   rejectVerification: function(id, reason) { return this.request('POST', '/api/nt/verifications/' + id + '/reject', {reject_reason: reason}); },
   withdraw: function(amount, toAddress) { return this.request('POST', '/api/nt/withdraw', {amount: amount, to_address: toAddress||''}); },
+  // ── 公约签署 ──
+  covenantStatus: function() { return this.request('GET', '/api/covenant/status'); },
+  covenantSign: function() { return this.request('POST', '/api/covenant/sign'); },
   // ── Admin 审批 ──
   pendingWithdraws: function() { return this.request('GET', '/api/admin/withdraws/pending'); },
   confirmWithdraw: function(entryId) { return this.request('POST', '/api/admin/withdraw/confirm?entry_id=' + encodeURIComponent(entryId)); },

@@ -44,7 +44,7 @@ function _orderMeal(date, meal) {
   }
 
   _mealOrders[key] = true;
-  if (typeof _completeNewbieQuest === 'function') _completeNewbieQuest(CURRENT_USER, 'join_meal');
+  // C5: 饭局不再属于新手引导任务
 
   // 持久化订单到 AppData
   if (!AppData._data.mealOrders) AppData._data.mealOrders = {};

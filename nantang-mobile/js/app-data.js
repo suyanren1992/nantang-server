@@ -413,7 +413,7 @@ this._data.map_locations.people_on_site = [];
         vfy.status = 'verified'; vfy.verifier = verifierName; vfy.verifiedAt = new Date().toISOString();
         self.addAnnouncement(vfy.type, vfy.doer, verifierName, vfy.action, ntAmt);
         if (typeof _trumpet === 'function') _trumpet(verifierName + ' 确认了 ' + vfy.doer + ' 的 ' + (vfy.action||'劳动') + ' ✅ +' + ntAmt + 'NT', 'golden');
-        if (vfy.type === 'cleaning' && typeof _completeNewbieQuest === 'function') _completeNewbieQuest(vfy.doer, 'join_cleaning');
+        // C5: 大扫除不再属于新手引导任务
         if (!self._data.discoveries) self._data.discoveries = [];
         self._data.discoveries.unshift({ id: vfy.id, type: vfy.type, doer: vfy.doer, verifier: verifierName, action: vfy.action, ntAmount: ntAmt, verifiedAt: vfy.verifiedAt, status: 'active' });
         self._saveShared(true);

@@ -46,12 +46,12 @@ function addJournal(user, type, content, opts) {
   return entry;
 }
 // Step 5: 新手任务 + CV抵押
+// C5: 按公约附页C重配——签署/认地方/认人/认物品，引导人奖励5
 var NEWBIE_QUESTS = [
-  { id:'sign_covenant', name:'签署社区公约', desc:'阅读并签署南塘在地社区公约', nt:5 },
-  { id:'meet_3', name:'认识3位在地成员', desc:'和3位在地成员交换名字和一句话介绍', nt:15 },
-  { id:'checkin_5', name:'社区空间打卡', desc:'参观并打卡5个社区空间', nt:20 },
-  { id:'join_meal', name:'参加1次饭局', desc:'报名参加一次社区饭局', nt:10 },
-  { id:'join_cleaning', name:'参加1次大扫除', desc:'参加第一次大扫除', nt:15 }
+  { id:'sign_covenant', name:'签署共居约定', desc:'阅读并签署南塘合作大院共居公约', nt:10 },
+  { id:'know_places', name:'认地方', desc:'引导人带你走遍附页A各个区域，知道每处是干什么的', nt:15 },
+  { id:'know_people', name:'认人', desc:'认识常住成员和生活组的伙伴，知道有事找谁', nt:5 },
+  { id:'know_items', name:'认物品', desc:'知道农具、厨房物品、三轮车钥匙在哪、用完归哪', nt:10 }
 ];
 function _initNewbieQuests(userName) {
   if (!window.AppData) return;
@@ -60,7 +60,7 @@ function _initNewbieQuests(userName) {
   // CV抵押：新人CV先冻结
   if (window.NT) {
     var u = NT.getUser(userName);
-    if (u) { u.frozenCV = 75; u.contributionValue = 0; }
+    if (u) { u.frozenCV = 40; u.contributionValue = 0; }
   }
   AppData._save();
 }
@@ -75,7 +75,7 @@ function _completeNewbieQuest(userName, questId) {
   // 每完成一个新手任务，解冻 15 CV
   var u2 = NT.getUser(userName);
   if (u2 && u2.frozenCV > 0) {
-    var release = Math.min(15, u2.frozenCV);
+    var release = Math.min(10, u2.frozenCV);
     u2.frozenCV -= release;
     u2.contributionValue = (u2.contributionValue||0) + release;
   }

@@ -16,12 +16,12 @@ var HARDCODED_BUILDINGS = [
   { id:'toilet_b',name:'公共厕所',icon:'🚻',meta:'1F',photo:'https://placehold.co/600x360/d8c8b8/5a3a3a?text=厕所',photoBg:'linear-gradient(160deg,#e8e0d0,#d8d0b8)',status:'green',summary:{status:'📍办公楼1F'},floors:{},plots:[]},
   { id:'parking',name:'B门·停车',icon:'🅿️',meta:'🟢正常',photo:'https://placehold.co/600x360/c8c0a8/5a4a3a?text=停车场',photoBg:'linear-gradient(160deg,#e0dcc8,#d0c8b0)',status:'green',summary:{},floors:{},plots:[]},
   { id:'gate_a',name:'A门',icon:'🚪',meta:'入口·🟢正常',photo:'https://placehold.co/600x360/d8d0c0/5a4a3a?text=A门',photoBg:'linear-gradient(160deg,#e8e0d0,#d8d0b8)',status:'green',summary:{status:'📍主入口·🟢正常',note:'📋无特殊事项'},floors:{},plots:[]},
-  { id:'office',name:'社区大楼',icon:'🏢',meta:'3层·15间·🟢整洁',photo:'https://placehold.co/600x360/e8d8c0/8a7a60?text=办公楼',photoBg:'linear-gradient(160deg,#f0e8d8,#e0d4b8)',status:'green',summary:{cleanliness:'🟢',items:'',onsite:'',cleaning:'',alert:''},floors:{'1F':[{id:'community_hall',name:'社区大厅',icon:'🏛️',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'community_market',name:'社区超市',icon:'🛒',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'storage',name:'小仓库',icon:'📦',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'kitchen',name:'厨房',icon:'🍳',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'public_office',name:'公共办公室',icon:'💼',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'toilet_r',name:'卫生间',icon:'🚻',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'backyard_corridor',name:'通往后院的走廊',icon:'🚶',status:'green',sub:'',items:[],people:[],cleaning:[]}],'2F':[{id:'studio',name:'画室',icon:'🎨',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'washroom',name:'洗浴室',icon:'🚿',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'farm_equipment',name:'农机室',icon:'🔧',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'biao_office',name:'标哥办公室',icon:'👔',status:'green',sub:'',items:[],people:[],cleaning:[]}],'3F':[{id:'rooftop',name:'天台',icon:'🌤️',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'laundry_room',name:'晾衣间',icon:'👕',status:'green',sub:'',items:[],people:[],cleaning:[]}]}},
+  { id:'office',name:'社区大楼',icon:'🏢',meta:'3层·15间·🟢整洁',photo:'https://placehold.co/600x360/e8d8c0/8a7a60?text=办公楼',photoBg:'linear-gradient(160deg,#f0e8d8,#e0d4b8)',status:'green',summary:{cleanliness:'🟢',items:'',onsite:'',cleaning:'',alert:''},floors:{'1F':[{id:'community_hall',name:'社区大厅',icon:'🏛️',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'community_market',name:'社区超市',icon:'🛒',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'storage',name:'小仓库',icon:'📦',status:'green',sub:'',items:['农具（锄头、镰刀、铁锹等）'],people:[],cleaning:[]},{id:'kitchen',name:'厨房',icon:'🍳',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'public_office',name:'公共办公室',icon:'💼',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'toilet_r',name:'卫生间',icon:'🚻',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'backyard_corridor',name:'通往后院的走廊',icon:'🚶',status:'green',sub:'',items:['部分农具和物品'],people:[],cleaning:[]}],'2F':[{id:'studio',name:'画室',icon:'🎨',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'washroom',name:'洗浴室',icon:'🚿',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'farm_equipment',name:'阅览室（原农机室）',icon:'📖',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'biao_office',name:'标哥办公室',icon:'👔',status:'green',sub:'',items:[],people:[],cleaning:[]}],'3F':[{id:'rooftop',name:'天台',icon:'🌤️',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'laundry_room',name:'晾衣间',icon:'👕',status:'green',sub:'',items:[],people:[],cleaning:[]}]}},
   { id:'info',name:'南塘全貌',icon:'📍',meta:'10个空间',photo:'https://placehold.co/600x360/a0b8d0/4a6080?text=南塘全貌',photoBg:'linear-gradient(160deg,#d0dce8,#b0c8d8)',status:'green',summary:{isInfo:true},floors:{},plots:[]},
-  { id:'study',name:'大地书房',icon:'🏯',meta:'3层·14间·🟢整洁',photo:'https://placehold.co/600x360/c8b898/6a5a40?text=大地书房',photoBg:'linear-gradient(160deg,#d8d0c0,#c8b898)',status:'green',summary:{cleanliness:'🟢4 🟡1',items:'📚200册',stay:'🛏️住宿'},floors:{'1F':[{id:'bar',name:'吧台',icon:'🍸',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'main_hall',name:'正厅',icon:'🏛️',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'toilet_study',name:'卫生间',icon:'🚻',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'wash_study',name:'洗漱台',icon:'🪥',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'corridor_study',name:'走廊楼梯',icon:'🚶',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'mahjong',name:'麻将室',icon:'🀄',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'kitchen_study',name:'大地厨房',icon:'🍳',status:'green',sub:'',items:[],people:[],cleaning:[]}],'2F':[{id:'dorm101',name:'A室·三人大通铺',icon:'🛏',status:'green',sub:'20NT/床·无空调',items:[],people:[],cleaning:[]},{id:'dorm102',name:'B室·四人大通铺',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm103',name:'C室·上下床+大床',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm104',name:'D室·单间大床房',icon:'🛏',status:'green',sub:'60NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm105',name:'E室·两个上下床',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm106',name:'F室·四人间上下床',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]}],'阁楼':[{id:'attic',name:'阁楼储物',icon:'📦',status:'green',sub:'',items:[],people:[],cleaning:[]}]}},
+  { id:'study',name:'大地书房',icon:'🏯',meta:'3层·14间·🟢整洁',photo:'https://placehold.co/600x360/c8b898/6a5a40?text=大地书房',photoBg:'linear-gradient(160deg,#d8d0c0,#c8b898)',status:'green',summary:{cleanliness:'🟢4 🟡1',items:'📚200册',stay:'🛏️住宿'},floors:{'1F':[{id:'bar',name:'吧台',icon:'🍸',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'main_hall',name:'正厅',icon:'🏛️',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'toilet_study',name:'卫生间',icon:'🚻',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'wash_study',name:'洗漱台',icon:'🪥',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'corridor_study',name:'走廊楼梯',icon:'🚶',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'mahjong',name:'麻将室',icon:'🀄',status:'green',sub:'',items:[],people:[],cleaning:[]},{id:'kitchen_study',name:'大地厨房',icon:'🍳',status:'green',sub:'',items:[],people:[],cleaning:[]}],'2F':[{id:'dorm101',name:'A室·三人大通铺',icon:'🛏',status:'green',sub:'20NT/床·无空调',items:[],people:[],cleaning:[]},{id:'dorm102',name:'B室·四人大通铺',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm103',name:'C室·上下床+大床',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm104',name:'D室·单间大床房',icon:'🛏',status:'green',sub:'60NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm105',name:'E室·两个上下床',icon:'🛏',status:'green',sub:'30NT/床·有空调',items:[],people:[],cleaning:[]},{id:'dorm106',name:'F室·四人间上下床',icon:'🛏',status:'green',sub:'35NT/床·有空调',items:[],people:[],cleaning:[]}],'阁楼':[{id:'attic',name:'阁楼储物',icon:'📦',status:'green',sub:'',items:[],people:[],cleaning:[]}]}},
   { id:'field',name:'田地A-E',icon:'🌿',meta:'5个种植区',photo:'https://placehold.co/600x360/a0c870/4a6830?text=田地',photoBg:'linear-gradient(160deg,#c0d8a0,#a8c880)',status:'green',summary:{totalPlots:5,planted:0},floors:{},plots:[{id:'fa',name:'A区',icon:'🥬',crops:[]},{id:'fb',name:'B区',icon:'🌽',crops:[]},{id:'fc',name:'C区',icon:'🍠',crops:[]},{id:'fd',name:'D区',icon:'🌳',crops:[]},{id:'fe',name:'E区',icon:'🍂',crops:[]}]},
   { id:'stage',name:'戏台·花坛',icon:'🎭',meta:'1区·🟢整洁',photo:'https://placehold.co/600x360/e8d0b0/6a4a3a?text=戏台',photoBg:'linear-gradient(160deg,#f0e0d0,#e0c8b0)',status:'green',summary:{status:'📍1区'},floors:{},plots:[]},
-  { id:'plaza',name:'硕区广场',icon:'🏛️',meta:'开放·🟢整洁',photo:'https://placehold.co/600x360/d8c8a8/6a5a40?text=广场',photoBg:'linear-gradient(160deg,#e8dcc8,#d8c8a8)',status:'green',summary:{status:'📍开放空间·🟢整洁',onsite:'👤无人',cleaning:'📋每周六清扫'},floors:{},plots:[]},
+  { id:'plaza',name:'硕区广场',icon:'🏛️',meta:'开放·🟢整洁',photo:'https://placehold.co/600x360/d8c8a8/6a5a40?text=广场',photoBg:'linear-gradient(160deg,#e8dcc8,#d8c8a8)',status:'green',summary:{status:'📍开放空间·🟢整洁',onsite:'👤无人',cleaning:'📋每周一 15:00 大扫除'},floors:{},plots:[]},
   { id:'jingzi_pavilion',name:'敬字亭',icon:'🛕',meta:'1区·🟢整洁',photo:'https://placehold.co/600x360/d8c0a0/6a4a30?text=敬字亭',photoBg:'linear-gradient(160deg,#e8d8c8,#d8c0a0)',status:'green',summary:{status:'📍1区'},floors:{},plots:[]},
   { id:'lawn',name:'大地草坪',icon:'🌿',meta:'开放·🟢整洁',photo:'https://placehold.co/600x360/a0c870/4a6830?text=大地草坪',photoBg:'linear-gradient(160deg,#c0d8a0,#a8c880)',status:'green',summary:{status:'📍开放空间·🟢整洁'},floors:{},plots:[]}
 ];
@@ -51,7 +51,7 @@ function _defaultConfig() { return {
   farming_pricing: { harvest:15, plant:5, water:3, weed:5, fertilize:5, view:2 },
   kitchen_pricing: { stock_in:2, stock_out:1, detail:5 },
   cooking_pricing: { chef:15, helper:5, wash:5 },
-  verifier_reward_pct: 0.25,  // M1: 20%→25%，小社区更需激励校核供给
+  verifier_reward_pct: 0.15,  // C1: 25%→15%，以公约附页B为准
   accommodation_pricing: {
     dorm101:{ perBed:20, ac:false }, dorm102:{ perBed:30, ac:true },
     dorm103:{ perBed:30, ac:true }, dorm104:{ perRoom:60, ac:true },
@@ -66,20 +66,100 @@ function _defaultConfig() { return {
   labor_pricing: {
     sweep_mop:10, wipe_surface:8, take_trash:5, organize_items:8, clean_window:10,
     clean_toilet:15, clean_kitchen:15, clean_public:12,
-    water:5, fertilize:8, weed:10, sow:8, harvest:15, turn_soil:12,
+    water:3, fertilize:15, weed:15, sow:5, harvest:15, turn_soil:12,
     trellis:10, pest_control:8, mulch:8, prune:8,
     chef:20, sous_chef:12, wash_dishes:10, prep_food:8, clean_stove:12, grocery:5, serve_meal:5,
-    repair:15, move_goods:12, organize_warehouse:10, waste_sort:8, compost:8, change_light:8,
+    repair:15, move_goods:12, organize_warehouse:10, waste_sort:8, compost:5, change_light:8,
     reception:8, tour_guide:10, event_setup:12, event_cleanup:10, animal_care:8, notice_board:5,
     painting:15, calligraphy:10, craft:12, photo_video:8, writing:8,
     mow_lawn:12, weed_pick:8
   },
   camp_creation_fee: 50,
   maintenance_xp: 30,
-  maintenance_badge: '🧹整洁守护者'
+  maintenance_badge: '🧹整洁守护者',
+  // C6: 岗位津贴——公约附页D，1500=900保底+600绩效
+  leader_stipend: { base: 900, performance: 600, total: 1500, role: '生活组组长', unit: 'NT/月' },
+  // 公约文本 — 从 config 渲染，禁止硬编码到 JS 逻辑中
+  covenant_text: { version:'v12', updated:'2026-07-27', sign_clauses:[
+    '我知道大院各个区域的情况，也知晓流浪猫狗、农具、车辆、公共区域活动的安全风险，自己的安全自己负责',
+    '我知道 NT 是大院的劳动积分，不能购买物资、不能兑换人民币；空间使用费按公约 4.2 的标准，用 NT 支付',
+    '我愿意承担每周一集体大扫除和突击整理的参与义务；这跟 NT 余额多少无关，不想亲手做可以付 NT 请人代',
+    '我愿意遵守共享空间的规则：安静时段、厨房、农具、公共空间、退房恢复原状',
+    '我同意「个人行为个人负责」的责任边界，也同意公约的修订程序'
+  ], chapters:[
+    {num:'一',title:'我们是谁',body:'南塘合作大院位于安徽阜阳颍州区三合镇三星村（原南塘村）。入住即视为愿意加入这个共同生活体。我们都是共同空间的共同管理者，没有谁是谁的房东，也没有谁是谁的租客。本公约由常住成员共同约定，经线下会议过半数表决通过。'},
+    {num:'二',title:'区域一览',body:'大院由社区大楼（3 层）、大地书房（住宿区，A–F 六间卧室）、田地（A–E 五个种植区）、戏台·花坛、硕区广场、敬字亭、大地草坪、后院等区域组成。完整介绍见附页 A。'},
+    {num:'三',title:'安全须知',body:'周边有流浪猫狗出没，已发生入住成员被咬伤的情况。农具（锄头、镰刀、铁锹等）因个人操作不当造成的伤害由使用者自行负责。借用大院车辆期间的事故、车损、人伤由借用人承担全部责任。公共区域因个人疏忽造成的意外由当事人自行负责。'},
+    {num:'四',title:'NT 与空间使用费',body:'NT（南塘豆）是大院内部的劳动积分，不能购买物资、不能兑换人民币，只记录你为大院做了多少贡献。空间使用费只收 NT，按公约 4.2 标准（A-F 室 20-60 NT/床/晚）。结房费时一次性转入社区资金池（多签钱包），转账截图发给生活组组长校核入账。线上只能预定，不能付款。'},
+    {num:'五',title:'劳动与贡献',body:'每周一下午 3 点集体大扫除。自愿劳动按 L1-L4 四级计酬。校核他人劳动得该次劳动 NT 的 15%。新人引导：签署后由生活组组长或其委托的成员带你完成引导任务。详见附页 B、C。'},
+    {num:'六',title:'共享空间',body:'安静时段 22:00-08:00。厨房用完清洁归位。公共区域物品不长期堆放。农具用完清洁归位到 1F 小仓库或后院走廊。退房前把房间恢复原状、带走个人物品。'}
+  ],
+  appendices:{
+    A:{title:'区域介绍',sections:[
+      {title:'社区大楼 1F',rows:[['社区大厅','活动、休息、开会'],['社区超市','公共物资兑换、补给'],['小仓库','公共物资、农具存放，取用请登记'],['厨房','含冰箱、灶台、厨具、餐具'],['公共办公室','办公、讨论'],['卫生间','共同维护'],['通往后院的走廊','放有部分农具和物品（整理这里有 NT）']]},
+      {title:'社区大楼 2F',rows:[['画室','绘画、创作'],['洗浴室','洗浴'],['阅览室（原农机室）','阅读、自习'],['标哥办公室','办公']]},
+      {title:'社区大楼 3F',rows:[['天台','晾晒、活动'],['晾衣间','晾衣']]},
+      {title:'大地书房 1F',rows:[['吧台','茶水、接待'],['正厅','阅读、会客'],['卫生间/洗漱台','共同维护'],['走廊楼梯','保持畅通'],['麻将室','休闲'],['大地厨房','大地书房侧厨房']]},
+      {title:'大地书房 2F（住宿区）',rows:[['A-F 六间卧室','房型与价格见公约 4.2']]},
+      {title:'田地',rows:[['A-E 五个种植区','种植、农活；农具在 1F 小仓库和后院走廊']]},
+      {title:'院落与周边',rows:[['戏台·花坛','活动、演出'],['社区广场','开放空间，活动、集会'],['敬字亭','请保持敬重、整洁'],['大地草坪','休闲，请勿长期堆放个人物品'],['后院','经办公楼 1F 走廊可达'],['A门/B门·停车','主入口/车辆停放']]}
+    ]},
+    B:{title:'劳动定价与劳动标准',sections:[
+      {title:'B-1 自愿劳动定价（L1-L4 分级）',rows:[
+        ['L1·随手','不到10分钟','浇水、消耗标记、简单整理','1-3 NT'],
+        ['L2·日常','10-30分钟','日常打扫、洗碗备菜、冰箱物品录入、整理小仓库/后院走廊','5 NT'],
+        ['L3·专项','30-60分钟','主厨（3-5人餐）、标准量除草/收割','10-15 NT'],
+        ['L4·重劳','1小时以上','大扫除、大面积施肥、多人帮厨（6人以上）','15-20 NT'],
+        ['校核','现场确认劳动属实、达到标准','—','该次劳动NT的15%'],
+        ['连续3次维护达标','—','—','+30 XP + 徽章']
+      ]},
+      {title:'B-2 农活量化标准',rows:[
+        ['除草','平方米','10平方米','15 NT'],
+        ['浇水','区域','完成指定区域一轮浇水','3 NT'],
+        ['施肥','平方米','10平方米，均匀撒施','15 NT'],
+        ['收割','畦/行','一畦/一行收割+初步整理','15 NT'],
+        ['种植','株数','20株，挖坑放苗覆土浇水','5 NT'],
+        ['翻堆肥','堆','翻堆一次，确保通气','5 NT']
+      ]},
+      {title:'B-3 各区域打扫合格标准',rows:[
+        ['厨房','台面无油污，餐具洗净归位，地面无积水'],
+        ['卫生间/洗浴室','无异味，无积水，垃圾清空'],
+        ['卧室','床铺整洁，个人物品不占用公共区域'],
+        ['大厅/正厅','无垃圾，桌椅归位，地面干净'],
+        ['走廊/楼道','畅通，无杂物堆放'],
+        ['小仓库/后院走廊','物品分类归位，农具清洁后放回'],
+        ['院落（广场/草坪/戏台）','无垃圾，无长期堆放的私人物品']
+      ]}
+    ]},
+    C:{title:'新人引导（一页工单）',sections:[
+      {title:'引导任务',rows:[
+        ['签署共居约定','读完公约并签字','10 NT'],
+        ['认地方','引导人带你走遍附页A各个区域','15 NT'],
+        ['认人','认识常住成员和生活组的伙伴','5 NT'],
+        ['认物品','知道农具、厨房物品、三轮车钥匙在哪','10 NT']
+      ]},
+      {title:'引导人',rows:[['引导人完成一次完整引导，获 5 NT']]}
+    ]},
+    D:{title:'生活组组长：职责、权限与报酬',sections:[
+      {title:'岗位津贴',rows:[['每月 1500 NT：900 保底 + 600 绩效']]},
+      {title:'职责',rows:[['NT记账与发放','向社区资金池申领公用支出额度'],['组织劳动','划定每周一大扫除区域，组织突击整理'],['新人引导','亲自带或委托成员带'],['收存档案','签署的约定、账目记录'],['日常杂务','公用物资登记、线上预定管理']]},
+      {title:'兜底边界',rows:[['组长只兜"没人认领但又必须有人做的事"']]}
+    ]},
+    E:{title:'公约解释（为什么这样设计）',sections:[
+      {title:'核心原则',rows:[
+        ['NT与人民币关系','NT不可换钱，是劳动可见度积分，不是货币'],
+        ['劳动定价','按"花多少时间、费多大力"分L1-L4四级，而非具体动作'],
+        ['大扫除义务','与NT余额无关——再有钱也不能免，这是共居的前提'],
+        ['签署即承诺','签字发10NT，转账记录即签署凭证，每人只发一次']
+      ]}
+    ]}
+  }
 };}
 function _deepMerge(def, cfg) { var r = {}; Object.keys(def).forEach(function(k) { if (cfg[k] && typeof def[k] === 'object' && !Array.isArray(def[k])) { r[k] = _deepMerge(def[k], cfg[k]); } else { r[k] = (k in cfg) ? cfg[k] : def[k]; } }); Object.keys(cfg).forEach(function(k) { if (!(k in r)) r[k] = cfg[k]; }); return r; }
 function _mlConfig() { return _deepMerge(_defaultConfig(), _ml().config||{}); }
+// 公约文本 — 从 config 读取，无硬编码
+function _covenantText() { return _mlConfig().covenant_text || _defaultConfig().covenant_text; }
+function _covenantVersion() { var ct=_covenantText(); return ct?ct.version:'v12'; }
 function _todayStr() { var ct = (typeof Clock !== 'undefined' && Clock.today) ? Clock.today() : null; return ct ? ct.slice(5,10) : new Date().toISOString().slice(5,10); }
 function _roomItems(roomId) { return (_mlState().room_items||[]).filter(function(i){return i.room===roomId;}); }
 // 种子数据灰显：_seed 标记的示例数据用虚线灰显
@@ -310,45 +390,114 @@ function _renderQuickEntryCards() {
 }
 
 function _renderCovenantCard() {
-  return '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px 12px;margin:4px 0;cursor:pointer;display:flex;align-items:center;gap:8px" onclick="_openCovenantOverlay()"><span style="font-size:1.3rem">📜</span><div style="flex:1"><div style="font-weight:700;font-size:.72rem">南塘社区公约</div><div style="font-size:.58rem;color:#999">定价标准 · 行为准则 · 修改记录</div></div><span style="color:#999;font-size:.7rem">查看 ▸</span></div>';
+  return '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px 12px;margin:4px 0;cursor:pointer;display:flex;align-items:center;gap:8px" onclick="_openCovenantOverlay()"><span style="font-size:1.3rem">📜</span><div style="flex:1"><div style="font-weight:700;font-size:.72rem">南塘社区公约</div><div style="font-size:.58rem;color:#999">行为准则 · 定价标准 · 修改记录</div></div><span style="color:#999;font-size:.7rem">查看 ▸</span></div>';
 }
+// G-2: 公约 overlay 两页签 — 📜行为准则 + 💰定价标准
+var _covenantTab = 'rules'; // 'rules' | 'pricing'
 function _openCovenantOverlay() {
+  _covenantTab = 'rules';
+  _renderCovenantOverlay();
+}
+function _renderCovenantOverlay() {
+  var ct = _covenantText();
   var cfg = _mlConfig();
-  var pricing = [
-    { section:'住宿定价', items:[
-      'A室·三人大通铺(无空调): '+cfg.accommodation_pricing.dorm101.perBed+' NT/床',
-      'B室·四人大通铺(有空调): '+cfg.accommodation_pricing.dorm102.perBed+' NT/床',
-      'C室·上下床+大床(有空调): '+cfg.accommodation_pricing.dorm103.perBed+' NT/床',
-      'D室·单间大床房(有空调): '+cfg.accommodation_pricing.dorm104.perRoom+' NT/床',
-      'E室·两个上下床(有空调): '+cfg.accommodation_pricing.dorm105.perBed+' NT/床',
-      'F室·四人间上下床(有空调): '+cfg.accommodation_pricing.dorm106.perBed+' NT/床']},
-    { section:'劳动定价', items:[
-      '大扫除(超时🔴): '+cfg.cleaning_pricing.dirty+' NT',
-      '大扫除(注意🟡): '+cfg.cleaning_pricing.warning+' NT',
-      '日常打扫(维护🟢): '+cfg.cleaning_pricing.clean+' NT',
-      '农活(收割/除草/施肥): '+cfg.farming_pricing.harvest+' NT',
-      '轻量农活(种植): '+cfg.farming_pricing.plant+' NT',
-      '浇水: '+cfg.farming_pricing.water+' NT',
-      '查看: '+cfg.farming_pricing.view+' NT',
-      '帮厨/主厨: '+cfg.cooking_pricing.chef+' NT',
-      '洗碗/备菜: '+cfg.cooking_pricing.helper+' NT',
-      '冰箱物品录入: '+cfg.kitchen_pricing.stock_in+' NT',
-      '物品消耗标记: '+cfg.kitchen_pricing.stock_out+' NT',
-      '详细录入(含拍照): '+cfg.kitchen_pricing.detail+' NT',
-      '校核奖励: '+(cfg.verifier_reward_pct*100)+'% of 动作NT',
-      '维护者奖励: +'+cfg.maintenance_xp+' XP + '+cfg.maintenance_badge,
-      '营地创建费: '+cfg.camp_creation_fee+' NT']}
-  ];
+  var body = '';
+
+  // ── 两页签切换 ──
+  body += '<div style="display:flex;border-bottom:2px solid #e8ede6;margin-bottom:10px">';
+  body += '<div style="flex:1;text-align:center;padding:10px 0;font-size:.72rem;font-weight:700;cursor:pointer;'+
+    (_covenantTab==='rules'?'color:var(--green-primary);border-bottom:2px solid var(--green-primary);margin-bottom:-2px':'color:#999')+
+    '" onclick="_covenantTab=\'rules\';_renderCovenantOverlay()">📜 行为准则</div>';
+  body += '<div style="flex:1;text-align:center;padding:10px 0;font-size:.72rem;font-weight:700;cursor:pointer;'+
+    (_covenantTab==='pricing'?'color:var(--green-primary);border-bottom:2px solid var(--green-primary);margin-bottom:-2px':'color:#999')+
+    '" onclick="_covenantTab=\'pricing\';_renderCovenantOverlay()">💰 定价标准</div>';
+  body += '</div>';
+
+  if (_covenantTab === 'rules') {
+    // ── 📜 行为准则：正文+附页A–E ──
+    body += '<div style="font-size:.58rem;color:#999;margin-bottom:6px">南塘合作大院共居公约 · '+_covenantVersion()+' · '+(ct.updated||'')+'</div>';
+    // 正文十章折叠条
+    if (ct.chapters) {
+      body += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin:8px 0 4px">📋 正文</div>';
+      ct.chapters.forEach(function(ch){
+        var cid = 'cov_ch_'+ch.num;
+        body += '<div style="border:1px solid #e8ede6;border-radius:8px;margin-bottom:4px;overflow:hidden">';
+        body += '<div style="padding:8px 10px;background:#f9faf6;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:.65rem;font-weight:600;color:#1d2e24" onclick="var el=document.getElementById(\''+cid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
+        body += '<span>'+ch.num+'. '+ch.title+'</span><span style="font-size:.55rem;color:#999">▾</span></div>';
+        body += '<div id="'+cid+'" style="display:none;padding:8px 10px;font-size:.6rem;color:#5a6e5c;line-height:1.6;border-top:1px solid #e8ede6">'+esc(ch.body)+'</div>';
+        body += '</div>';
+      });
+    }
+    // 附页 A–E 抽屉
+    if (ct.appendices) {
+      body += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin:10px 0 4px">📎 附页</div>';
+      ['A','B','C','D','E'].forEach(function(key){
+        var ap = ct.appendices[key]; if (!ap) return;
+        var aid = 'cov_apx_'+key;
+        body += '<div style="border:1px solid #e8ede6;border-radius:8px;margin-bottom:4px;overflow:hidden">';
+        body += '<div style="padding:8px 10px;background:#faf8f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:.65rem;font-weight:600;color:#8a6a30" onclick="var el=document.getElementById(\''+aid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
+        body += '<span>附页 '+key+' · '+ap.title+'</span><span style="font-size:.55rem;color:#999">▾</span></div>';
+        body += '<div id="'+aid+'" style="display:none;padding:8px 10px;font-size:.58rem;color:#5a6e5c;line-height:1.5;border-top:1px solid #e8ede6">';
+        (ap.sections||[]).forEach(function(sec){
+          body += '<div style="font-weight:600;color:#5a6e5c;margin:6px 0 2px;font-size:.62rem">'+sec.title+'</div>';
+          if (sec.rows && sec.rows.length) {
+            body += '<table style="width:100%;border-collapse:collapse;font-size:.55rem">';
+            sec.rows.forEach(function(row){
+              body += '<tr style="border-bottom:1px dotted #f0f0f0">';
+              row.forEach(function(cell,i){
+                body += '<td style="padding:3px 4px;'+(i===0?'font-weight:600;color:#1d2e24;white-space:nowrap':'color:#5a6e5c')+'">'+cell+'</td>';
+              });
+              body += '</tr>';
+            });
+            body += '</table>';
+          }
+        });
+        body += '</div></div>';
+      });
+    }
+    // 签署入口
+    body += '<button class="btn-pri btn-full" style="margin-top:10px;font-size:.68rem" onclick="_openSignPage()">✍️ 签署公约</button>';
+  } else {
+    // ── 💰 定价标准：现有 _mlConfig 实时表不动 ──
+    var pricing = [
+      { section:'住宿定价', items:[
+        'A室·三人大通铺(无空调): '+cfg.accommodation_pricing.dorm101.perBed+' NT/床',
+        'B室·四人大通铺(有空调): '+cfg.accommodation_pricing.dorm102.perBed+' NT/床',
+        'C室·上下床+大床(有空调): '+cfg.accommodation_pricing.dorm103.perBed+' NT/床',
+        'D室·单间大床房(有空调): '+cfg.accommodation_pricing.dorm104.perRoom+' NT/床',
+        'E室·两个上下床(有空调): '+cfg.accommodation_pricing.dorm105.perBed+' NT/床',
+        'F室·四人间上下床(有空调): '+cfg.accommodation_pricing.dorm106.perBed+' NT/床']},
+      { section:'劳动定价', items:[
+        '大扫除(超时🔴): '+cfg.cleaning_pricing.dirty+' NT',
+        '大扫除(注意🟡): '+cfg.cleaning_pricing.warning+' NT',
+        '日常打扫(维护🟢): '+cfg.cleaning_pricing.clean+' NT',
+        '农活(收割/除草/施肥): '+cfg.farming_pricing.harvest+' NT',
+        '轻量农活(种植): '+cfg.farming_pricing.plant+' NT',
+        '浇水: '+cfg.farming_pricing.water+' NT',
+        '帮厨/主厨: '+cfg.cooking_pricing.chef+' NT',
+        '洗碗/备菜: '+cfg.cooking_pricing.helper+' NT',
+        '冰箱物品录入: '+cfg.kitchen_pricing.stock_in+' NT',
+        '物品消耗标记: '+cfg.kitchen_pricing.stock_out+' NT',
+        '校核奖励: '+(cfg.verifier_reward_pct*100)+'% of 动作NT',
+        '维护者奖励: +'+cfg.maintenance_xp+' XP + '+cfg.maintenance_badge,
+        '营地创建费: '+cfg.camp_creation_fee+' NT']}
+    ];
+    if (cfg.leader_stipend) {
+      var ls = cfg.leader_stipend;
+      pricing.push({ section:'岗位津贴', items:[ls.role+': '+ls.total+' '+ls.unit+'（'+ls.base+'保底+'+ls.performance+'绩效）']});
+    }
+    body += pricing.map(function(s){ return '<div style="margin-bottom:10px"><div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:4px">'+s.section+'</div>'+s.items.map(function(i){ return '<div style="font-size:.62rem;padding:2px 0;border-bottom:1px dotted #f0f0f0">'+i+'</div>'; }).join('')+'</div>'; }).join('');
+  }
+
+  // ── 修改记录+提案（两页共用，沉底）──
   var history = (window.AppData && AppData._data.configHistory) ? AppData._data.configHistory.slice(0,5) : [];
-  var body = pricing.map(function(s){ return '<div style="margin-bottom:10px"><div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:4px">'+s.section+'</div>'+s.items.map(function(i){ return '<div style="font-size:.62rem;padding:2px 0;border-bottom:1px dotted #f0f0f0">'+i+'</div>'; }).join('')+'</div>'; }).join('');
   if (history.length) {
     body += '<div style="margin-top:10px"><div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:4px">📝 修改记录</div>';
     history.forEach(function(h){
-      body += '<div style="font-size:.58rem;padding:3px 0;border-bottom:1px dotted #f0f0f0">'+h.appliedAt.slice(0,10)+' 校核人:'+(h.verifiedBy||[]).join('+')+' · '+(h.note||'')+'</div>';
+      body += '<div style="font-size:.58rem;padding:3px 0;border-bottom:1px dotted #f0f0f0">'+(h.appliedAt||'').slice(0,10)+' 校核人:'+(h.verifiedBy||[]).join('+')+' · '+(h.note||'')+'</div>';
     });
     body += '</div>';
   }
-  // D-15: 待校核修改展示
   var pendingCfgs = (window.AppData && AppData._data.pendingConfigChanges) ? AppData._data.pendingConfigChanges.filter(function(c){ return c.status === 'pending'; }) : [];
   if (pendingCfgs.length) {
     body += '<div style="margin-bottom:10px"><div style="font-weight:700;font-size:.68rem;color:#c8892e;margin-bottom:4px">⏳ 待校核修改 ('+pendingCfgs.length+')</div>';
@@ -360,7 +509,6 @@ function _openCovenantOverlay() {
     });
     body += '</div>';
   }
-  // D-15: 管理员修改提案按钮
   if (_me().role === 'admin') {
     body += '<button class="btn-sm pri" style="width:100%;margin-top:6px;font-size:.65rem" onclick="closeQuickSheet();_openCovenantProposal()">📝 发起修改提案</button>';
   }
@@ -405,6 +553,104 @@ function _verifyCovenantProposal(changeId) {
   } else {
     showToast(result.error, 'warn');
   }
+}
+
+// ── G-2: 签署页 ──
+var _signChecked = {}; // 五□勾选状态
+var _signStatus = null;  // cached covenant status
+function _openSignPage() {
+  if (!CURRENT_USER) { showToast('请先登录', 'warn'); return; }
+  var ct = _covenantText();
+  var clauses = ct.sign_clauses || [];
+  // 初始化勾选
+  clauses.forEach(function(_,i){ if (!(i in _signChecked)) _signChecked[i] = false; });
+  // 先查签署状态
+  _signStatus = null;
+  _fetchCovenantStatus(function(signed, version, signedAt) {
+    var body = '';
+    if (signed) {
+      body += '<div style="text-align:center;padding:20px 0">';
+      body += '<div style="font-size:2rem;margin-bottom:8px">✅</div>';
+      body += '<div style="font-weight:700;font-size:.78rem;color:#5d8c52">已签署 '+_covenantVersion()+'</div>';
+      body += '<div style="font-size:.6rem;color:#999;margin-top:4px">签署日期：'+(signedAt||'—')+'</div>';
+      body += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:8px">如有疑问请联系生活组</div>';
+      body += '</div>';
+    } else {
+      body += '<div style="font-size:.65rem;color:#5a6e5c;margin-bottom:10px;line-height:1.5">请逐条阅读并勾选以下全部条款后签署：</div>';
+      clauses.forEach(function(clause, i) {
+        var cid = 'sign_clause_'+i;
+        body += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0;cursor:pointer" onclick="var cb=document.getElementById(\''+cid+'\');_signChecked['+i+']=!_signChecked['+i+'];cb.checked=_signChecked['+i+'];cb.style.accentColor=_signChecked['+i+']?\'var(--green-primary)\':\'#ccc\';_updateSignBtn()">';
+        body += '<input type="checkbox" id="'+cid+'" style="margin-top:2px;flex-shrink:0;accent-color:#ccc;pointer-events:none" '+(false?'checked':'')+'>';
+        body += '<span style="font-size:.62rem;color:#1d2e24;line-height:1.5">'+esc(clause)+'</span>';
+        body += '</div>';
+      });
+      body += '<button id="signSubmitBtn" class="btn-pri btn-full" style="margin-top:12px;font-size:.68rem;opacity:.4;cursor:default" disabled onclick="_doSignCovenant()">✍️ 确认签署</button>';
+      body += '<div style="font-size:.55rem;color:#999;margin-top:6px;text-align:center">签署后 +10 NT 将到账你的钱包</div>';
+    }
+    body += '<button class="btn-sm sec" style="width:100%;margin-top:8px;font-size:.6rem" onclick="closeQuickSheet()">关闭</button>';
+    _openQuickSheet('✍️ 签署公约 · '+_covenantVersion(), body);
+    if (!signed) _updateSignBtn();
+  });
+}
+function _updateSignBtn() {
+  var btn = document.getElementById('signSubmitBtn'); if (!btn) return;
+  var ct = _covenantText(); var clauses = ct.sign_clauses||[];
+  var allChecked = clauses.every(function(_,i){ return _signChecked[i]; });
+  btn.disabled = !allChecked;
+  btn.style.opacity = allChecked ? '1' : '.4';
+  btn.style.cursor = allChecked ? 'pointer' : 'default';
+}
+function _doSignCovenant() {
+  var ct = _covenantText(); var clauses = ct.sign_clauses||[];
+  var allChecked = clauses.every(function(_,i){ return _signChecked[i]; });
+  if (!allChecked) { showToast('请勾选全部条款后再签署', 'warn'); return; }
+  // 调用 G-1 签署端点（mock 兼容：离线/未部署时本地标记）
+  var isOffline = (typeof API === 'undefined' || !API.token);
+  if (!isOffline) {
+    API.covenantSign().then(function(r) {
+      if (r && r.ok) {
+        showToast('签署成功', 'ok');
+        if (r.nt_earned) showToast('+'+r.nt_earned+' NT 已到账', 'warn');
+        _signStatus = { signed: true, version: _covenantVersion(), signedAt: r.signed_at || _todayStr() };
+        closeQuickSheet();
+        if (typeof refreshUserUI === 'function') refreshUserUI();
+      } else {
+        showToast((r&&r.error)||'签署失败，请重试', 'error');
+      }
+    }).catch(function(){ showToast('网络错误，请重试', 'error'); });
+  } else {
+    // 离线 mock：本地标记已签
+    _signStatus = { signed: true, version: _covenantVersion(), signedAt: _todayStr() };
+    if (!window.AppData._data._covenantSignatures) AppData._data._covenantSignatures = {};
+    AppData._data._covenantSignatures[CURRENT_USER] = { version: _covenantVersion(), signedAt: _todayStr() };
+    AppData._saveShared(true);
+    showToast('签署成功（离线模式）', 'ok');
+    showToast('+10 NT 已到账', 'warn');
+    closeQuickSheet();
+    if (typeof refreshUserUI === 'function') refreshUserUI();
+  }
+}
+// 查签署状态（G-1 GET /api/covenant/status，离线走本地缓存）
+function _fetchCovenantStatus(callback) {
+  var isOffline = (typeof API === 'undefined' || !API.token);
+  if (!isOffline) {
+    API.covenantStatus().then(function(r) {
+      if (r && r.ok) { _signStatus = r; callback(r.signed, r.version, r.signed_at); }
+      else { _checkLocalCovenant(callback); }
+    }).catch(function(){ _checkLocalCovenant(callback); });
+  } else { _checkLocalCovenant(callback); }
+}
+function _checkLocalCovenant(callback) {
+  var sigs = (window.AppData&&AppData._data._covenantSignatures) ? AppData._data._covenantSignatures : {};
+  var mine = sigs[CURRENT_USER];
+  var signed = mine && mine.version === _covenantVersion();
+  callback(!!signed, _covenantVersion(), mine?mine.signedAt:'');
+}
+function _isCovenantSigned(callback) {
+  if (_signStatus && _signStatus.signed && _signStatus.version === _covenantVersion()) {
+    callback(true); return;
+  }
+  _fetchCovenantStatus(function(signed) { callback(signed); });
 }
 
 // ── 全貌页：卡片室+校核室并列 ──
@@ -839,14 +1085,11 @@ function goTo(i) {
   currentIdx = i; selectedRoomId = null; currentFloor = 0; overviewOpen = false;
   var bld = getBuildings()[i];
   if (bld && window.Game && window.Game.setMemberLocation) { window.Game.setMemberLocation(bld.id); }
-  // E3.4: checkin_5 quest hook — 进入社区空间
+  // C5: 空间访问追踪保留（数据用），不再自动完成新手任务（引导任务改人工确认）
   if (bld && bld.id && window.AppData) {
     if (!AppData._data.visitedSpaces) AppData._data.visitedSpaces = [];
     if (AppData._data.visitedSpaces.indexOf(bld.id) === -1) {
       AppData._data.visitedSpaces.push(bld.id);
-      if (AppData._data.visitedSpaces.length >= 5 && typeof _completeNewbieQuest === 'function') {
-        _completeNewbieQuest(CURRENT_USER, 'checkin_5');
-      }
       AppData._save();
     }
   }
@@ -1521,6 +1764,18 @@ function _confirmCheckin() {
     if(idx>=0){ oldRoom = rr; oldBed = rr.tenants[idx]; }
   });
   var isSwitch = !!oldRoom;
+
+  // G-2: 未签拦截 —— 入住前必须签署公约
+  var self = this;
+  _isCovenantSigned(function(signed) {
+    if (!signed && !isSwitch) {
+      // 🔴 拒绝必出声：振动+toast
+      if (navigator.vibrate) navigator.vibrate([200,100,200]);
+      showToast('签署公约后才能入住', 'error');
+      _openSignPage();
+      return;
+    }
+
   var confirmMsg = isSwitch
     ? '🏠 换房确认\n\n从 '+oldRoom.label+' 床'+oldBed.bed+' → '+room.label+' 床'+_selectedBed.bed+'\n'+checkIn+' → '+checkOut+' · '+totalD+'天 · '+totalP+' NT\n\n旧房间欠费将自动结算'
     : '📜 签署公约并入住？\n\n'+checkIn+' → '+checkOut+' · '+totalD+'天 · '+totalP+' NT\n\n入住即表示同意遵守社区公约';
@@ -1548,6 +1803,7 @@ function _confirmCheckin() {
     _refreshTopBar();
   };
   showConfirm(confirmMsg, doCheckin);
+  }); // _isCovenantSigned callback
 }
 
 function _renderCheckinTip(room) {
@@ -2230,7 +2486,7 @@ function _doCleaning(spaceId) {
   if (window.AppData) AppData.addVerification('cleaning', me, '打扫了 '+spaceId, { space: spaceId }, cleanReward, Math.ceil(cleanReward/5));
   // Step 5: 大扫除触发 CV 解冻 + 新手任务
   if (typeof _unfreezeCV === 'function') _unfreezeCV(me);
-  if (typeof _completeNewbieQuest === 'function') _completeNewbieQuest(me, 'join_cleaning');
+  // C5: 大扫除不再属于新手引导任务
   // Step 6: 时间线记录
   if (typeof addJournal === 'function') addJournal(me, 'cleaning', '打扫了 '+spaceId, { space: spaceId });
   if (window.Game&&Game.toast) Game.toast('打扫完成，等待校核 (+'+cleanReward+' NT)');

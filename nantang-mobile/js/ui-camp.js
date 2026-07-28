@@ -602,13 +602,13 @@ function toggleCampMemberGroup(el) {
 function toggleCampMemberDetail(el, name) {
   var existing = el.nextElementSibling;
   if (existing && existing.className === 'camp-member-detail') { existing.remove(); return; }
-  // E3.4: meet_3 quest hook — 查看其他成员 profile
+  // C5: meet_3 → know_people — 认识3位成员
   if (name !== CURRENT_USER && window.AppData) {
     if (!AppData._data.viewedMembers) AppData._data.viewedMembers = [];
     if (AppData._data.viewedMembers.indexOf(name) === -1) {
       AppData._data.viewedMembers.push(name);
       if (AppData._data.viewedMembers.length >= 3 && typeof _completeNewbieQuest === 'function') {
-        _completeNewbieQuest(CURRENT_USER, 'meet_3');
+        _completeNewbieQuest(CURRENT_USER, 'know_people');
       }
       AppData._save();
     }
