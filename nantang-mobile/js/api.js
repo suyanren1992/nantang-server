@@ -131,6 +131,7 @@ var API = {
   // ── 公约签署 ──
   covenantStatus: function() { return this.request('GET', '/api/covenant/status'); },
   covenantSign: function() { return this.request('POST', '/api/covenant/sign'); },
+  covenantText: function() { return this.request('GET', '/api/covenant/text'); },
   // ── Admin 审批 ──
   pendingWithdraws: function() { return this.request('GET', '/api/admin/withdraws/pending'); },
   confirmWithdraw: function(entryId) { return this.request('POST', '/api/admin/withdraw/confirm?entry_id=' + encodeURIComponent(entryId)); },

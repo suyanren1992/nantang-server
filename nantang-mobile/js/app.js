@@ -157,8 +157,9 @@ function _defaultConfig() { return {
 };}
 function _deepMerge(def, cfg) { var r = {}; Object.keys(def).forEach(function(k) { if (cfg[k] && typeof def[k] === 'object' && !Array.isArray(def[k])) { r[k] = _deepMerge(def[k], cfg[k]); } else { r[k] = (k in cfg) ? cfg[k] : def[k]; } }); Object.keys(cfg).forEach(function(k) { if (!(k in r)) r[k] = cfg[k]; }); return r; }
 function _mlConfig() { return _deepMerge(_defaultConfig(), _ml().config||{}); }
-// 公约文本 — 从 config 读取，无硬编码
-function _covenantText() { return _mlConfig().covenant_text || _defaultConfig().covenant_text; }
+// 公约文本 — 服务端权威 → config 兜底（D3: 对接 GET /api/covenant/text）
+var _covenantTextCache = null;
+function _covenantText() { return _covenantTextCache || _mlConfig().covenant_text || _defaultConfig().covenant_text; }
 function _covenantVersion() { var ct=_covenantText(); return ct?ct.version:'v12'; }
 function _todayStr() { var ct = (typeof Clock !== 'undefined' && Clock.today) ? Clock.today() : null; return ct ? ct.slice(5,10) : new Date().toISOString().slice(5,10); }
 function _roomItems(roomId) { return (_mlState().room_items||[]).filter(function(i){return i.room===roomId;}); }
@@ -610,8 +611,9 @@ function _doSignCovenant() {
     API.covenantSign().then(function(r) {
       if (r && r.ok) {
         showToast('签署成功', 'ok');
-        if (r.nt_earned) showToast('+'+r.nt_earned+' NT 已到账', 'warn');
-        _signStatus = { signed: true, version: _covenantVersion(), signedAt: r.signed_at || _todayStr() };
+        // D2: sign 响应无 nt_earned，改读 reward + reward_granted
+        if (r.reward_granted && r.reward) showToast('+'+r.reward+' NT 已到账', 'warn');
+        _signStatus = { signed: true, version: _covenantVersion(), signedAt: _todayStr() };
         closeQuickSheet();
         if (typeof refreshUserUI === 'function') refreshUserUI();
       } else {
@@ -630,15 +632,17 @@ function _doSignCovenant() {
     if (typeof refreshUserUI === 'function') refreshUserUI();
   }
 }
-// 查签署状态（G-1 GET /api/covenant/status，离线走本地缓存）
+// 查签署状态（G-1 GET /api/covenant/status，服务端权威，不落本地缓存）
 function _fetchCovenantStatus(callback) {
   var isOffline = (typeof API === 'undefined' || !API.token);
   if (!isOffline) {
     API.covenantStatus().then(function(r) {
-      if (r && r.ok) { _signStatus = r; callback(r.signed, r.version, r.signed_at); }
-      else { _checkLocalCovenant(callback); }
-    }).catch(function(){ _checkLocalCovenant(callback); });
-  } else { _checkLocalCovenant(callback); }
+      // D1: 服务端 status 无 ok 键，判 r.signed !== undefined
+      if (r && typeof r.signed !== 'undefined') { _signStatus = r; callback(r.signed, r.version, r.signed_at); }
+      // D5: 请求失败/无 signed 字段 → 不退回本地缓存，显示联网提示
+      else { showToast('签署状态未知，请联网后重试', 'warn'); callback(false, '', ''); }
+    }).catch(function(){ showToast('签署状态未知，请联网后重试', 'warn'); callback(false, '', ''); });
+  } else { showToast('签署状态未知，请联网后重试', 'warn'); callback(false, '', ''); }
 }
 function _checkLocalCovenant(callback) {
   var sigs = (window.AppData&&AppData._data._covenantSignatures) ? AppData._data._covenantSignatures : {};
@@ -2604,6 +2608,12 @@ function _initMap(){
     _growDirtiness();
     // 章7: 日常清理容器到期检查
     _checkDailyContainers();
+    // D3: 启动时拉取服务端公约文本（异步，不阻塞渲染）
+    if (typeof API !== 'undefined' && API.token) {
+      API.covenantText().then(function(r) {
+        if (r && r.version) _covenantTextCache = r;  // 服务端直接返回 config 对象
+      }).catch(function(){ /* 静默失败，_covenantText() 回落 config */ });
+    }
     if(!_mapContainer){currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false;_bindEvents();}
     else { currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false; }
     goTo(4);
