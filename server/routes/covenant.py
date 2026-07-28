@@ -154,7 +154,8 @@ async def covenant_sign(version: str = Body(default="", embed=True),
             raise HTTPException(status_code=400, detail="社区池余额不足，无法发放签署 NT")
         pool.balance -= reward
         u = (await db.execute(
-            select(User).where(User.id == user.id).with_for_update()
+            select(User).where(User.id == user.id)
+            .with_for_update().execution_options(populate_existing=True)
         )).scalar_one()
         u.nt_balance += reward
         balance = u.nt_balance

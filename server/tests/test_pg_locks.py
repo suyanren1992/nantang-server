@@ -248,3 +248,62 @@ async def test_concurrent_daily_tick_only_one_executes(pg_engine):
         await s.execute(text("DELETE FROM users WHERE id = 'k2_d26'"))
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# P1-3: 公约签署发 NT 路径行锁（covenant.py:157 补 populate_existing）
+# ══════════════════════════════════════════════════════════════════════
+async def test_covenant_sign_populate_existing_reads_fresh(pg_engine):
+    """P1-3: covenant_sign 发首签 NT 前 select(User).with_for_update()
+    .populate_existing() 必须读到并发提交的最新余额，否则 u.nt_balance += reward
+    基于陈旧缓存值写回 → 覆盖并发扣款（安慰剂锁脏写）。
+
+    复现 covenant.py:156-158 的锁模式：
+      pool = _get_pool(lock=True) → select(User).with_for_update().populate_existing()
+    Session A 先读余额 100（缓存 identity map）。
+    Session B 并发把余额改 30 提交（模拟同期提现/扣费）。
+    Session A 加锁重查 → 应读 30（非旧值 100）→ +10 reward 得 40（非 110）。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(User(id="k2_p13", password_hash="x", nt_balance=100))
+        await s.commit()
+
+    async with factory() as sA:
+        # A 首次读——缓存旧值 100 到 session identity map
+        uA = (await sA.execute(
+            select(User).where(User.id == "k2_p13")
+        )).scalar_one()
+        assert uA.nt_balance == 100
+
+        # B 并发扣费到 30 并提交
+        async with factory() as sB:
+            uB = (await sB.execute(
+                select(User).where(User.id == "k2_p13")
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            uB.nt_balance = 30
+            await sB.commit()
+
+        # A 以 covenant_sign 的锁模式加锁重查 → populate_existing 读到 B 的 30
+        uA2 = (await sA.execute(
+            select(User).where(User.id == "k2_p13")
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalar_one()
+        assert uA2.nt_balance == 30, (
+            f"P1-3 covenant_sign 锁: populate_existing 应读到并发提交值 30，实得 {uA2.nt_balance}。"
+            f"若为 100 → 锁形同虚设，+reward 将脏写覆盖并发扣款。"
+        )
+        # 模拟发首签 NT：+10 → 应基于最新值 30 得 40
+        uA2.nt_balance += 10
+        await sA.commit()
+
+    async with factory() as s:
+        u = (await s.execute(select(User).where(User.id == "k2_p13"))).scalar_one()
+        assert u.nt_balance == 40, f"P1-3: 40=30+10 reward（非110=100+10脏写），实得 {u.nt_balance}"
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM users WHERE id = 'k2_p13'"))
+        await s.commit()
