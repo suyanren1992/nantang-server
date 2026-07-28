@@ -1,9 +1,12 @@
 """SQLite database connection and session management."""
+import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import select, text
 from datetime import datetime
 import os
+
+logger = logging.getLogger("nantang.db")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "nantang_fresh.db")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{DB_PATH}")
@@ -138,9 +141,9 @@ async def init_db():
                     })
                 await session.execute(text("DROP TABLE IF EXISTS camp_tasks"))
                 await session.commit()
-                print(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
+                logger.info(f"[T7 migration] migrated {len(rows)} camp_tasks to NTTask")
             except Exception as e:
-                print(f"[T7 migration] skipped: {e}")
+                logger.warning(f"[T7 migration] skipped: {e}")
                 await session.rollback()  # PG: 回滚恢复事务，避免影响后续迁移
         # T8: card_discoveries 加 doer_name_snapshot 列
         try:

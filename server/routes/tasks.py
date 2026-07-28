@@ -45,9 +45,11 @@ def _task_id():
 
 @router.get("")
 async def list_tasks(scope: str = None, status: str = None, mode: str = Query(None),
+                     limit: int = 50, offset: int = 0,
                      user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
     # ponytail: O(n) 全量扫描。用户数 <100 时无感，超百人后加 SQLite JSON 函数或关联表 assignee_tasks。
+    # BE-2③: 过滤后在内存切片分页（limit 上限 200），先治"返回无上限"，全表扫描留待关联表方案。
     if mode == "hall":
         # R1.3: 任务大厅模式——进行中的任务 + 在地过滤
         result = await db.execute(
@@ -71,6 +73,7 @@ async def list_tasks(scope: str = None, status: str = None, mode: str = Query(No
         tasks = [t for t in tasks if t.scope == scope]
     if status:
         tasks = [t for t in tasks if t.status == status]
+    tasks = tasks[offset:offset + min(limit, 200)]
     return [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
              "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee, "assignees": t.assignees,
              "slots": t.slots, "deadline": t.deadline, "reviewer": t.reviewer,

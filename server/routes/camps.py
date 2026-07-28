@@ -43,8 +43,12 @@ def _camp_id():
 
 
 @router.get("")
-async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Camp).order_by(Camp.created_at.desc()))
+async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+                     limit: int = 50, offset: int = 0):
+    # BE-2③: 补分页（照 auth.py /users 写法），limit 上限 200
+    result = await db.execute(
+        select(Camp).order_by(Camp.created_at.desc()).limit(min(limit, 200)).offset(offset)
+    )
     camps = list(result.scalars())
     items = []
     for c in camps:

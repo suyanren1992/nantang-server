@@ -1,5 +1,7 @@
 # Python
 server/venv/
+server/logs/
+*.log
 server/__pycache__/
 server/routes/__pycache__/
 *.pyc

@@ -1,13 +1,28 @@
 """FastAPI application entry point — serves API + frontend static files."""
 import os
 import asyncio
+import logging
+import time
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from database import init_db, async_session
 from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant
+
+# BE-2②: 日志写文件——INFO 级以上落盘，cron 等模块的 logger 自动接入根配置
+LOG_DIR = Path(__file__).resolve().parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+logging.basicConfig(
+    filename=str(LOG_DIR / "app.log"),
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    encoding="utf-8",
+)
+logger = logging.getLogger("nantang")
 
 # 前端文件目录（nantang-mobile）
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "nantang-mobile"
@@ -27,7 +42,7 @@ async def lifespan(app: FastAPI):
             scanner_task = asyncio.create_task(scanner.start())
             app.state.chain_scanner = scanner
     except Exception as e:
-        print(f"[scanner] 初始化失败: {e}")
+        logger.error(f"[scanner] 初始化失败: {e}")
     # P5: 启动 cron（每日 00:05 触发，asyncio sleep loop）
     cron_task = None
     try:
@@ -35,7 +50,7 @@ async def lifespan(app: FastAPI):
         cron_task = asyncio.create_task(run_cron())
         app.state.cron_task = cron_task
     except Exception as e:
-        print(f"[cron] 初始化失败: {e}")
+        logger.error(f"[cron] 初始化失败: {e}")
     yield
     if scanner_task:
         scanner_task.cancel()
@@ -91,10 +106,27 @@ app.include_router(nt.system_router)
 
 
 @app.middleware("http")
-async def add_security_headers(request, call_next):
+async def add_security_headers(request: Request, call_next):
+    t0 = time.time()
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
+    # BE-2②: 每请求一行记录（时间由日志格式自带）
+    logger.info(f"{request.method} {request.url.path} {response.status_code} {(time.time()-t0)*1000:.0f}ms")
     return response
+
+
+# BE-2①: 全局异常兜底——只接"漏网之鱼"，现有手工 raise HTTPException 不受影响
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    fields = [{"loc": [str(x) for x in e.get("loc", [])], "msg": e.get("msg", "")} for e in exc.errors()]
+    logger.warning(f"参数校验失败 {request.method} {request.url.path}: {fields}")
+    return JSONResponse(status_code=422, content={"ok": False, "error": "参数有误", "fields": fields})
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"未捕获异常 {request.method} {request.url.path}")
+    return JSONResponse(status_code=500, content={"ok": False, "error": "系统开小差了，请稍后再试"})
 
 
 @app.get("/api/health")

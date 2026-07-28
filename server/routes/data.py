@@ -238,8 +238,12 @@ async def update_verification(vfy_id: str, req: VerificationUpdateReq, user: Use
 
 # ── Newbie Quests ──
 @router.get("/newbie_quests")
-async def get_newbie_quests(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(NewbieQuest).where(NewbieQuest.user == user.id))
+async def get_newbie_quests(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+                            limit: int = 50, offset: int = 0):
+    # BE-2③: 补分页，limit 上限 200
+    result = await db.execute(
+        select(NewbieQuest).where(NewbieQuest.user == user.id).limit(min(limit, 200)).offset(offset)
+    )
     return [{"quest_id": q.quest_id, "name": q.name, "desc": q.desc,
              "nt": q.nt, "done": bool(q.done), "done_at": q.done_at} for q in result.scalars()]
 
@@ -269,11 +273,13 @@ async def complete_newbie_quest(quest_id: str, user: User = Depends(get_current_
 
 # ── Canteen ──
 @router.get("/canteen_menu")
-async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db)):
+async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db),
+                           limit: int = 50, offset: int = 0):
+    # BE-2③: 补分页，limit 上限 200
     q = select(CanteenMenu)
     if date:
         q = q.where(CanteenMenu.date == date)
-    result = await db.execute(q.order_by(CanteenMenu.date.desc()))
+    result = await db.execute(q.order_by(CanteenMenu.date.desc()).limit(min(limit, 200)).offset(offset))
     items = []
     for m in result.scalars():
         try: lunch = json.loads(m.lunch) if m.lunch else []
@@ -296,8 +302,13 @@ async def set_canteen_menu(req: CanteenMenuReq, user: User = Depends(get_current
 
 
 @router.get("/meal_orders")
-async def get_meal_orders(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(MealOrder).where(MealOrder.user == user.id).order_by(MealOrder.date.desc()))
+async def get_meal_orders(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+                          limit: int = 50, offset: int = 0):
+    # BE-2③: 补分页，limit 上限 200
+    result = await db.execute(
+        select(MealOrder).where(MealOrder.user == user.id)
+        .order_by(MealOrder.date.desc()).limit(min(limit, 200)).offset(offset)
+    )
     return [{"date": o.date, "meal": o.meal, "status": o.status,
              "ordered_at": o.ordered_at} for o in result.scalars()]
 
@@ -356,8 +367,12 @@ async def add_announcement(req: AnnouncementReq, user: User = Depends(require_ad
 
 # ── Inventory ──
 @router.get("/inventory")
-async def get_inventory(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(InventoryItem).where(InventoryItem.user == user.id))
+async def get_inventory(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+                        limit: int = 50, offset: int = 0):
+    # BE-2③: 补分页，limit 上限 200
+    result = await db.execute(
+        select(InventoryItem).where(InventoryItem.user == user.id).limit(min(limit, 200)).offset(offset)
+    )
     return [{"id": i.id, "name": i.name, "cat": i.cat, "status": i.status,
              "price": i.price, "location": i.location, "desc": i.desc, "date": i.date}
             for i in result.scalars()]
