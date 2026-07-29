@@ -1,7 +1,7 @@
 """Camp CRUD routes."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from datetime import datetime
 import json
@@ -71,23 +71,40 @@ def visible_camp_filter(user: User, query):
     return query.where(Camp.id.in_(_membership_subquery(user)))
 
 
+async def _camp_people_count(db: AsyncSession, camp_id: str) -> int:
+    """C-B-2: 单营地在册人数读时聚合——count(active membership)。禁写时 ±1。"""
+    return (await db.execute(
+        select(func.count()).select_from(CampMembership).where(
+            CampMembership.camp_id == camp_id,
+            CampMembership.status == "active",
+        )
+    )).scalar_one()
+
+
 @router.get("")
 async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                      limit: int = 50, offset: int = 0):
     # BE-2③: 补分页（照 auth.py /users 写法），limit 上限 200
     # C-B-1: 营地可见性收口——admin 全通、非 admin 过渡放行（唯一入口 visible_camp_filter）
-    q = visible_camp_filter(user, select(Camp))
+    # C-B-2: people 读时聚合——active membership 计数子查询单查询 outerjoin（防 N+1）
+    cnt_subq = (
+        select(CampMembership.camp_id.label("cid"), func.count().label("cnt"))
+        .where(CampMembership.status == "active")
+        .group_by(CampMembership.camp_id)
+        .subquery()
+    )
+    base = select(Camp, cnt_subq.c.cnt).outerjoin(cnt_subq, Camp.id == cnt_subq.c.cid)
+    q = visible_camp_filter(user, base)
     result = await db.execute(
         q.order_by(Camp.created_at.desc()).limit(min(limit, 200)).offset(offset)
     )
-    camps = list(result.scalars())
     items = []
-    for c in camps:
+    for c, cnt in result.all():
         try: highlights = json.loads(c.highlights) if c.highlights else []
         except (json.JSONDecodeError, TypeError): highlights = []
         items.append({
             "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
-            "date": c.date, "status": c.status, "people": c.people, "max": c.max,
+            "date": c.date, "status": c.status, "people": cnt or 0, "max": c.max,
             "location": c.location, "desc": c.desc,
             "highlights": highlights,
             "created_by": c.created_by, "launched_at": c.launched_at,
@@ -146,6 +163,47 @@ async def create_camp(req: CampCreateRequest, user: User = Depends(require_admin
 
     await db.commit()
     return {"ok": True, "camp_id": camp.id}
+
+
+@router.post("/{camp_id}/checkin")
+async def camp_checkin(camp_id: str, user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
+    """C-B-2 营地报到（照设计稿 §3.1）：写 CampMembership 并回真实人数。
+
+    幂等：membership 已存在→返回既有，不重复建行（uq_camp_member 亦保底）。
+    不存在→写 status=active/joined_at=now。本期不开审批（设计稿明文）。
+    鉴权沿既有：未登录 401（get_current_user）；camp 不存在 404。
+    """
+    camp = (await db.execute(select(Camp).where(Camp.id == camp_id))).scalar_one_or_none()
+    if not camp:
+        raise HTTPException(status_code=404, detail="营地不存在")
+    existing = (await db.execute(
+        select(CampMembership).where(
+            CampMembership.user_id == user.id,
+            CampMembership.camp_id == camp_id,
+        )
+    )).scalar_one_or_none()
+    if existing:
+        already = True
+        m = existing
+    else:
+        already = False
+        m = CampMembership(user_id=user.id, camp_id=camp_id,
+                           camp_role="member", status="active",
+                           joined_at=datetime.utcnow().isoformat())
+        db.add(m)
+        await db.commit()
+    people = await _camp_people_count(db, camp_id)
+    return {
+        "ok": True,
+        "already_member": already,
+        "membership": {
+            "user_id": m.user_id, "camp_id": m.camp_id,
+            "camp_role": m.camp_role, "status": m.status,
+            "joined_at": m.joined_at,
+        },
+        "people": people,
+    }
 
 
 @router.put("/{camp_id}")
@@ -216,7 +274,7 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
     builders = list(builders_result.scalars())
     return {
         "camp": {"id": camp.id, "name": camp.name, "theme": camp.theme, "date": camp.date,
-                 "status": camp.status, "people": camp.people, "location": camp.location},
+                 "status": camp.status, "people": await _camp_people_count(db, camp_id), "location": camp.location},
         "stats": {"total_tasks": len(camp_tasks), "done_tasks": len(done),
                   "pct": round(len(done) / max(1, len(camp_tasks)) * 100),
                   "total_nt": sum(t.reward for t in done)},
