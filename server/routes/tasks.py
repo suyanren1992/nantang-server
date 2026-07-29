@@ -53,11 +53,11 @@ async def list_tasks(response: Response, scope: str = None, status: str = None, 
     if mode == "hall":
         # R1.3: 任务大厅模式——进行中的任务 + 在地过滤
         result = await db.execute(
-            select(NTTask).order_by(NTTask.created_at.desc())
+            select(NTTask).where(NTTask.status == "进行中").order_by(NTTask.created_at.desc())
         )
         from routes.nt import _is_onsite
         is_onsite = await _is_onsite(db, user)
-        tasks = [t for t in result.scalars() if t.status == "进行中"]
+        tasks = [t for t in result.scalars()]
         if not is_onsite:
             tasks = [t for t in tasks if not t.is_system_generated]
     else:
@@ -121,7 +121,7 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     if req.poster == "社区":
         if user.role not in ("admin", "builder"):
             raise HTTPException(status_code=403, detail="仅管理员可发布社区任务")
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # 行锁：防并发社区任务超额扣池（对齐全项目锁型）
         if pool.balance < req.reward * req.slots:
             raise HTTPException(status_code=400, detail="社区池余额不足")
         pool.balance -= req.reward * req.slots
