@@ -1,5 +1,6 @@
 # 南塘云村 · 生产依赖源清单（人编辑这个文件）
-# 锁定命令: python -m piptools compile requirements.in -o requirements.txt --strip-extras
+# 锁定命令: python -m uv pip compile requirements.in -o requirements.txt --universal
+# 必须用 --universal 跨平台锁（Windows 编译不带此参数会把 pywin32 写死进去，Linux 部署必炸）
 # 生成的 requirements.txt 是唯一安装源（部署/本地/CI），不要手改 requirements.txt
 fastapi
 uvicorn

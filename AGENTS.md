@@ -37,7 +37,7 @@ cd server && python -m pytest tests/test_pg_locks.py -x -v
 ```
 
 依赖统一源：`requirements.txt`（部署/本地/CI 都用这个，不要各自硬编码列表）。
-**requirements.txt 是 pip-compile 从 `requirements.in` 生成的锁文件，禁止手改**——加/删/升级依赖只改 `requirements.in`，再跑锁定命令重新生成（见「依赖变更流程」）。
+**requirements.txt 是从 `requirements.in` 编译生成的跨平台锁文件，禁止手改**——加/删/升级依赖只改 `requirements.in`，再跑锁定命令重新生成（见「依赖变更流程」）。
 开发依赖：`requirements-dev.txt`（pytest + pytest-asyncio + httpx）。
 
 ## 环境诊断与启动
@@ -75,7 +75,7 @@ nantang-mobile/start.bat          # Windows
 ### 依赖变更流程
 
 1. 改 `requirements.in`（人编辑的源清单；**不许直接改 requirements.txt**，它是生成物）
-2. 重新锁定：`python -m piptools compile requirements.in -o requirements.txt --strip-extras`（需 `pip install pip-tools`）
+2. 重新锁定：`python -m uv pip compile requirements.in -o requirements.txt --universal`（需 `pip install uv`；**必须带 --universal**，否则 Windows 上编译会把 pywin32 写死，Linux 部署必炸）
 3. `pip install -r requirements.txt` 本地验证
 4. 跑 `python server/scripts/check_env.py` 确认依赖完整
 5. 跑 `cd server && python -m pytest tests/ -x -q` 确认测试通过
