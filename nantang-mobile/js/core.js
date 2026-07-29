@@ -689,7 +689,9 @@ function publishTask(){
 var _publishing = false;
 function doPublish(){
   if (_publishing) return; _publishing = true;
-  var name=document.getElementById('pubName').value.trim();if(!name){_publishing=false;return}
+  var name=document.getElementById('pubName').value.trim();if(!name){showToast('请填写任务标题','warn');_publishing=false;return}
+  var desc=document.getElementById('pubNote').value.trim();if(!desc){showToast('请填写任务描述','warn');_publishing=false;return}
+  var reviewer=document.getElementById('pubReviewer').value.trim();if(!reviewer){showToast('请指定校核人','warn');_publishing=false;return}
   var target=document.getElementById('pubTarget');var scope=document.getElementById('pubScope').value;
   if(scope==='specific'&&target)scope=target.value;
   var nt=parseInt(document.getElementById('pubNT').value,10)||5;

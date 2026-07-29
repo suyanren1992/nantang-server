@@ -41,12 +41,18 @@ var API = {
           var retryOpts = { method: method, headers: retryHeaders, credentials: 'include' };
           if (body) retryOpts.body = JSON.stringify(body);
           var retryResp = await fetch(url, retryOpts);
-          if (retryResp.status !== 401) { self._consecutiveFailures = 0; return await retryResp.json(); }
+          if (retryResp.status !== 401) { self._consecutiveFailures = 0; var _rr=await retryResp.json(); if (retryResp.status>=400&&_rr.detail){if(typeof showToast==='function')showToast(_rr.detail,'error');_rr.ok=false;_rr.error=_rr.detail;} return _rr; }
         }
         self.token = null;
         return { ok: false, error: '登录过期', _offline: false };
       }
-      return await resp.json();
+      var result = await resp.json();
+      // B-8: 400+ 服务端错误透传——detail 映射到 error 字段，toast 提示
+      if (resp.status >= 400 && result.detail) {
+        if (typeof showToast === 'function') showToast(result.detail, 'error');
+        result.ok = false; result.error = result.detail;
+      }
+      return result;
     } catch(e) {
       this._consecutiveFailures++;
       if (this._consecutiveFailures >= 3 && this._serverOnline) {

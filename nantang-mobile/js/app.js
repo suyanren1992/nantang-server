@@ -421,7 +421,11 @@ function _renderCovenantOverlay() {
     // 正文十章折叠条
     if (ct.chapters) {
       body += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin:8px 0 4px">📋 正文</div>';
-      ct.chapters.forEach(function(ch){
+      var _cnNum=['一','二','三','四','五','六','七','八','九','十'];
+      ct.chapters.forEach(function(ch,idx){
+        ch.num = ch.num || _cnNum[idx] || (idx+1);
+        ch.title = ch.title || '';
+        ch.body = ch.body || '';
         var cid = 'cov_ch_'+ch.num;
         body += '<div style="border:1px solid #e8ede6;border-radius:8px;margin-bottom:4px;overflow:hidden">';
         body += '<div style="padding:8px 10px;background:#f9faf6;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:.65rem;font-weight:600;color:#1d2e24" onclick="var el=document.getElementById(\''+cid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
