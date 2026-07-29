@@ -580,6 +580,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
             if a:
                 a.nt_balance += task.reward
                 a.experience_value += task.reward
+                a.contribution_value = (a.contribution_value or 0) + task.reward  # P1-3: 劳动结算同步记 CV
                 await _adjust_trust(a, 5)
         task.status = "待结算"
         task.verifier_id = user.id
@@ -877,6 +878,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     )).scalar_one_or_none()
     if doer and nt_amount > 0:
         doer.nt_balance += nt_amount
+        doer.contribution_value = (doer.contribution_value or 0) + nt_amount  # P1-3: 校核结算同步记 CV
         lid = _ledger_id()
         await _add_ledger(db, lid, "community_pool", vfy.doer, nt_amount, "earn",
                           f"校核通过: {vfy.action}", status="settled")
