@@ -1339,6 +1339,7 @@ function _me() {
 function _collectCleaningRooms() {
   var rooms = [];
   var cl = (window.AppData && AppData._data.cleaning && AppData._data.cleaning.spaces) ? AppData._data.cleaning.spaces : {};
+  if (!Object.keys(cl).length && window.AppData) { AppData._data.cleaning = AppData._data.cleaning || {}; AppData._data.cleaning.spaces = cl; }
   getBuildings().forEach(function(b) {
     if (b.id === 'info' || b.id === 'gate_a' || b.id === 'parking') return;
     var d = (cl[b.id]) ? cl[b.id].dirtiness || 0 : 0;
@@ -1455,7 +1456,7 @@ function _showFieldSheet() {
     if (!p.crops) p.crops = [];
     if (p.crop && p.crop !== '—' && !p.crops.length) { p.crops.push({ name:p.crop, icon:p.icon, planted:p.planted, days:p.days, remain:p.remain, harvest:p.harvest }); }
     var ci = p.crops.length ? p.crops.map(function(c){ return c.icon+' '+c.name+(c.remain<=0?' ✅':' 剩'+c.remain+'天'); }).join(' · ') : '空闲';
-    h += '<div style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:4px;cursor:pointer;font-size:.65rem" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;selectRoom(\''+p.id+'\');render()}">'+
+    h += '<div style="padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:4px;cursor:pointer;font-size:.65rem" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
       '<span style="font-size:1.1rem">'+p.icon+'</span> <b>'+p.name+'</b> <span style="color:#999">'+ci+'</span></div>';
   });
   _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:.65rem" onclick="_openFarmQuick()">＋ 记录农活</button>', true);

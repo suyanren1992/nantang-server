@@ -2,6 +2,7 @@ function avatarURL(seed,size){var ver=typeof DICEBEAR_VER!=='undefined'?DICEBEAR
 function avatarImg(seed,size){return '<img src="'+avatarURL(seed,size)+'" width="'+(size||40)+'" height="'+(size||40)+'" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.opacity=\'0\'">'}
 function roleIcon(r){return r==='admin'?'🛡️':r==='builder'?'🧱':r==='adventurer'?'⚔️':r==='npc'?'🏠':'☁️'}
 function roleName(r){return r==='admin'?'管理员':r==='builder'?'共建者':r==='adventurer'?'冒险者':r==='npc'?'在地伙伴':'云村民'}
+function getRoleInfo(){var role=(typeof API!=='undefined'&&API.user&&API.user.role)?API.user.role:(typeof getUsers==='function'&&getUsers()[CURRENT_USER])?getUsers()[CURRENT_USER].role||'':'';return{isAdmin:role==='admin'};}
 // ═══ 公共工具函数 ═══
 // R8: 合并客户端 claimants（含 submission 字段）与服务端 assignees（纯 ID 数组）
 function _mergeClaimants(existing, serverIds) {
@@ -197,7 +198,7 @@ function openAdminConfig(){
   _cfgOverlay.addEventListener('click',function(e){if(e.target===_cfgOverlay)_cfgOverlay.remove()});
   document.body.appendChild(_cfgOverlay);
   // 先克隆再在克隆层内填值：克隆后 getElementById 命中的仍是隐藏模板，必须用 overlay 作用域
-  var q=function(id){return _cfgOverlay.querySelector('#'+id);};
+  var q=function(id){return _cfgOverlay.querySelector('#'+String(id).replace(/^#/,''));};
   var p = cfg.cleaning_pricing||{}; q('#cfgCleanDirty').value=p.dirty||20; q('#cfgCleanWarn').value=p.warning||15; q('#cfgCleanOk').value=p.clean||5;
   var r = cfg.nt_rewards||{}; q('#cfgStockIn').value=r.stock_in||2; q('#cfgStockOut').value=r.stock_out||1; q('#cfgCleanReward').value=r.cleaning||10;
   q('#cfgExpiryDays').value=cfg.item_expiry_days||5;

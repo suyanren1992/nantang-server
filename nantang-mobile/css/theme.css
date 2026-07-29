@@ -466,7 +466,7 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 .mgmt-card {
   background:var(--g-content); border:1px solid var(--g-card-border); border-radius:var(--g-radius-sm);
   padding:7px 8px; cursor:pointer; transition:var(--g-trans);
-  position:relative;
+  position:relative; min-height:44px; touch-action:manipulation;
 }
 .mgmt-card:hover { border-color:var(--g-accent); }
 .mgmt-card.selected { border-color:var(--g-accent); background:var(--g-accent-bg); }
