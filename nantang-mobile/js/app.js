@@ -1331,7 +1331,7 @@ function _checkDailyContainers() {
         return v.type === 'daily_container' && v.detail && v.detail.containerId === c.id && v.status === 'pending';
       }) : [];
       if (!existing.length && window.AppData) {
-        AppData.addVerification('daily_container', null, '清理 '+c.icon+' '+c.name+' ('+c.location+')', { containerId: c.id }, reward, Math.ceil(reward/5));
+        AppData.addVerification('daily_container', null, '清理 '+c.icon+' '+c.name+' ('+c.location+')', { containerId: c.id }, reward, AppData._verifierReward(reward));
       }
     }
   });
@@ -2015,6 +2015,10 @@ function _submitMyCleaning() {
   if (window.AppData && typeof AppData.addVerification === 'function') {
     var detail = { roomId: roomId, roomName: roomName, buildingName: rr?rr.buildingName:'', status: rr?rr.status:'', nt: nt };
     AppData.addVerification('cleaning', _me(), '打扫了 '+roomName, detail, nt);
+    // 写入卡片室
+    var discs = AppData._data.cardDiscoveries || (AppData._data.cardDiscoveries = []);
+    discs.unshift({ id:'sr_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), spaceId:roomId, spaceName:roomName, actionId:'cleaning', actionLabel:'打扫了 '+roomName, description:'打扫了 '+roomName+(rr&&rr.buildingName?' @'+rr.buildingName:''), guesser:CURRENT_USER, guessedPerson:CURRENT_USER, guessedAt:new Date().toISOString(), status:'pending', ntGuesser:0, ntDoer:nt, isSelfReport:true, createdAt:new Date().toISOString() });
+    if (discs.length > 200) discs.length = 200;
     // 房间状态复位：提交校核后将脏污度归零
     var cl = (AppData._data.cleaning && AppData._data.cleaning.spaces) ? AppData._data.cleaning.spaces : {};
     if (!cl[rr.buildingId||'']) cl[rr.buildingId||''] = { dirtiness: 0 };
@@ -2547,6 +2551,10 @@ function _doCleaning(spaceId) {
   var prices = _cleaningPricing();
   var cleanReward = (st2==='red'||st2==='urgent') ? prices.dirty : st2==='yellow' ? prices.warning : prices.clean;
   if (window.AppData) AppData.addVerification('cleaning', me, '打扫了 '+spaceId, { space: spaceId }, cleanReward, AppData._verifierReward(cleanReward));
+  // 写入卡片室
+  var discs = AppData._data.cardDiscoveries || (AppData._data.cardDiscoveries = []);
+  discs.unshift({ id:'sr_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), spaceId:spaceId, spaceName:spaceId, actionId:'cleaning', actionLabel:'打扫了 '+spaceId, description:'打扫了 '+spaceId, guesser:CURRENT_USER, guessedPerson:CURRENT_USER, guessedAt:new Date().toISOString(), status:'pending', ntGuesser:0, ntDoer:cleanReward, isSelfReport:true, createdAt:new Date().toISOString() });
+  if (discs.length > 200) discs.length = 200;
   // Step 5: 大扫除触发 CV 解冻 + 新手任务
   if (typeof _unfreezeCV === 'function') _unfreezeCV(me);
   // C5: 大扫除不再属于新手引导任务
@@ -2925,7 +2933,14 @@ function _submitKitchenEntry() {
     var actionMap = { stock_in: '放入物品', stock_out: '取出/消耗', store_in: '放入物品' };
     // skipVerify=true：校核记录只由下面这条写，避免一次动作两条记录
     _syncItemToAppData(actionMap[act.action] || act.action, sel.name, '', true, ((curBuilding()||{}).id === 'study' ? 'study' : 'office'));
-    AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: ((curBuilding()||{}).id === 'study' ? 'study' : 'office') }, act.nt, 1);
+    AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: ((curBuilding()||{}).id === 'study' ? 'study' : 'office') }, act.nt, AppData._verifierReward(act.nt));
+    // 写入卡片室
+    var spaceId = (curBuilding()||{}).id === 'study' ? 'study' : 'office';
+    var bld = getBuildings().find(function(b){ return b.id === spaceId; });
+    var spaceName = bld ? bld.name : spaceId;
+    var discs = AppData._data.cardDiscoveries || (AppData._data.cardDiscoveries = []);
+    discs.unshift({ id:'sr_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), spaceId:spaceId, spaceName:spaceName, actionId:act.action, actionLabel:act.label, description:act.label+' '+name+(note?' · '+note:''), guesser:CURRENT_USER, guessedPerson:CURRENT_USER, guessedAt:new Date().toISOString(), status:'pending', ntGuesser:0, ntDoer:act.nt, isSelfReport:true, createdAt:new Date().toISOString() });
+    if (discs.length > 200) discs.length = 200;
   }
   _closeQuickSheet();
   showToast('✅ '+act.label+' '+name, 'ok');
@@ -2960,7 +2975,11 @@ function _submitFarmEntry() {
   var desc = action + (plot ? ' @'+plot : '') + (note ? ' · '+note : '');
   var pricing = _mlConfig().farming_pricing;
   var nt = actionKey ? (pricing[actionKey] || 5) : 5;
-  if (window.AppData) AppData.addVerification('field_action', _me(), desc, { action:action, plot:plot, actionKey:actionKey }, nt, Math.ceil(nt/5));
+  if (window.AppData) AppData.addVerification('field_action', _me(), desc, { action:action, plot:plot, actionKey:actionKey }, nt, AppData._verifierReward(nt));
+  // 写入卡片室
+  var discs = AppData._data.cardDiscoveries || (AppData._data.cardDiscoveries = []);
+  discs.unshift({ id:'sr_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), spaceId:plot, spaceName:plot, actionId:actionKey, actionLabel:action, description:action+' @'+plot+(note?' · '+note:''), guesser:CURRENT_USER, guessedPerson:CURRENT_USER, guessedAt:new Date().toISOString(), status:'pending', ntGuesser:0, ntDoer:nt, isSelfReport:true, createdAt:new Date().toISOString() });
+  if (discs.length > 200) discs.length = 200;
   _closeQuickSheet();
   _undoToast('field_action');
 }
@@ -3009,7 +3028,11 @@ function _submitCleanEntry() {
     var _winStart = new Date(_today + 'T00:00:00').getTime() - 2*86400000;  // 3 天窗口（含今天）
     var recentN = ((AppData._data.cleaning||{}).log||[]).filter(function(l){ return l.cleanedBy === _me() && l.date && new Date(l.date + 'T00:00:00').getTime() >= _winStart; }).length;
     if (recentN >= maxPer3d) { showToast('打扫太频繁了：每 3 天最多 '+maxPer3d+' 次（按在地 '+maxPer3d+' 人计）','warn'); return; }
-    AppData.addVerification('cleaning', _me(), '打扫了 '+spaceName, { space: spaceName }, reward, Math.ceil(reward/5));
+    AppData.addVerification('cleaning', _me(), '打扫了 '+spaceName, { space: spaceName }, reward, AppData._verifierReward(reward));
+    // 写入卡片室
+    var discs = AppData._data.cardDiscoveries || (AppData._data.cardDiscoveries = []);
+    discs.unshift({ id:'sr_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), spaceId:spaceId, spaceName:spaceName, actionId:'cleaning', actionLabel:'打扫了 '+spaceName, description:'打扫了 '+spaceName, guesser:CURRENT_USER, guessedPerson:CURRENT_USER, guessedAt:new Date().toISOString(), status:'pending', ntGuesser:0, ntDoer:reward, isSelfReport:true, createdAt:new Date().toISOString() });
+    if (discs.length > 200) discs.length = 200;
     // 持久化：与 _doCleaning 一致的字段
     var cl = AppData._data.cleaning;
     var sp = (cl && cl.spaces) ? cl.spaces[spaceId] : null;
