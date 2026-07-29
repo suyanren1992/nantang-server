@@ -1291,7 +1291,7 @@ function confirmDiscovery(discId) {
   // M-2b-ii: HTTP 模式走 /card-confirm 端点（服务端取金额+执行 NT 操作）
   if (typeof API !== 'undefined' && API.token) {
     var _discId = discId;
-    API.request('POST', '/api/nt/card-confirm', { discovery_id: _discId }).then(function(r) {
+    API.request('POST', '/api/nt/card-confirm', { disc_id: _discId }).then(function(r) {
       if (r && r.ok) {
         d.status = 'confirmed';
         d.doerConfirmedAt = new Date().toISOString();
