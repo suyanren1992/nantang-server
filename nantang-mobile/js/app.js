@@ -2824,9 +2824,9 @@ function _doVerify(vfyId) {
   if (!window.AppData) return;
   var result = AppData.verifyAction(vfyId, me);
   if (result && result.async) {
-    // HTTP 模式：异步，禁用按钮等待服务端响应
-    var btns = document.querySelectorAll('button[onclick*="_doVerify"]');
-    btns.forEach(function(b){ b.disabled = true; b.textContent = '⏳ 处理中…'; });
+    // D-5: HTTP 模式——toast 反馈 + 关闭 popup，消按钮 disabled 无声
+    showToast('⏳ 校核已提交，等待确认', 'ok');
+    var _vp = document.querySelector('.vfy-popup'); if (_vp) _vp.remove();
     return;
   }
   if (!result || !result.ok) { if (window.Game&&Game.toast) Game.toast(result?result.error:'校核失败','warn'); return; }

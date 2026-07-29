@@ -236,12 +236,7 @@ if (window.location.protocol !== 'file:') {
     <span class="overlay-title">✓ 校核室</span>
     <button class="overlay-close" onclick="if(typeof renderVerifyRoom==='function')renderVerifyRoom()" style="font-size:.65rem">🔄</button>
   </div>
-  <div class="overlay-body" id="verifyRoomBody" style="padding-bottom:60px"></div>
-  <div style="position:fixed;bottom:0;left:0;right:0;padding:8px 14px;padding-bottom:max(8px,env(safe-area-inset-bottom,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--green-border);z-index:10;display:flex;gap:8px">
-    <button class="btn-pri" style="flex:1;font-size:.72rem;padding:8px" onclick="if(typeof openPathChooser==='function')openPathChooser()">📝 上报劳动</button>
-    <button class="btn-outline" style="flex:1;font-size:.72rem;padding:8px;color:var(--green-primary);border-color:var(--green-primary)" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()">🔍 发起发现</button>
-    <button class="btn-sm sec" style="font-size:.65rem;padding:8px;flex-shrink:0" onclick="if(typeof _openCardRules==='function')_openCardRules()">📜</button>
-  </div>
+  <div class="overlay-body" id="verifyRoomBody"></div>
 </div>
 <!-- ══ 新手引导浮层 ══ -->
 <div id="newbieGuideOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:280;animation:spcPop .2s ease-out">
@@ -533,8 +528,8 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-phase4.js?v=12"></script>
 <script src="js/ui-social.js?v=19"></script>
 <script src="js/ui-archive.js?v=21"></script>
-<script src="js/ui-cardroom.js?v=10"></script>
-<script src="js/app.js?v=28"></script>
+<script src="js/ui-cardroom.js?v=11"></script>
+<script src="js/app.js?v=29"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
@@ -769,8 +764,10 @@ function closeInbox() {
 }
 
 function _inboxJump(type, id) {
+  // D-5: 先取 id 再关 inbox——消关闭后入口丢失+参数湮灭
+  var targetId = id;
   closeInbox();
-  if (type === 'verify' && typeof _openVerificationPanel === 'function') { _openVerificationPanel(); return; }
+  if (type === 'verify' && typeof _openVerificationPanel === 'function') { _openVerificationPanel(targetId); return; }
   if (type === 'discovery' && typeof openDiscoveryDetail === 'function') { openDiscoveryDetail(id); return; }
   if (type === 'ledger' && typeof openLedger === 'function') { openLedger('all'); return; }
 }
