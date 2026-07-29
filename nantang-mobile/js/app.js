@@ -1,6 +1,6 @@
 // ═══ Bridge: postMessage to parent ═══
 // v2 — carousel sync fix
-if(typeof _post==='undefined'){window._post=function(data){if(window.parent!==window)window.parent.postMessage(data,'*')}}
+if(typeof _post==='undefined'){window._post=function(data){if(window.parent!==window)window.parent.postMessage(data,window.location.origin||'*')}}
 // ═══ DOM helper ═══
 var _mapContainer=null;
 // _q: 查地图内部元素（_mapContainer 内），未设容器时查 document
@@ -255,10 +255,13 @@ function renderInfoPage() {
 
   var sections = [
     function(){ return _s('announceTicker', _renderAnnounceTicker()); },
+    function(){ return _s('statusPills', _renderStatusPills()); },
+    function(){ return _s('newbieCard', _renderNewbieCard()); },
     function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
     function(){ return _s('cardVerifyRow', _renderCardVerifyRow()); },
     function(){ return _s('mgmtGrid', _renderMgmtCards()); },
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
+    function(){ return _s('covenantCard', _renderCovenantCard()); },
     function(){ return _s('poolCard', _renderPoolCard()); }
   ];
   var h = sections.map(function(fn){ try { return fn(); } catch(e) { console.error('[U-1b] renderInfoPage 板块异常:', e); return '<div style="color:var(--g-red);padding:8px;font-size:.6rem">⚠ 板块加载失败</div>'; } }).join('');
@@ -1111,6 +1114,7 @@ function goTo(i) {
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ _progScroll = false; }); });
   }
 }
+function renderOverview() { goTo(0); }
 function setFloor(f) { currentFloor = f; selectedRoomId = null; render(); }
 function selectRoom(id) { selectedRoomId = (selectedRoomId === id) ? null : id; render(); }
 function closeRoom() { selectedRoomId = null; render(); }

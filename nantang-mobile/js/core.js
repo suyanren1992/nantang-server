@@ -1271,7 +1271,7 @@ function refreshUserUI(){
   // 通知地图 iframe — 推送完整用户数据
   var mapFrame=document.querySelector('#overlayMap iframe');
   if(mapFrame&&mapFrame.contentWindow){
-    try{mapFrame.contentWindow.postMessage({type:'userData',data:Game.getUser()},'*')}catch(e){}
+    try{mapFrame.contentWindow.postMessage({type:'userData',data:Game.getUser()},window.location.origin||'*')}catch(e){}
   }
   // Phase 2: 管理员入口（角色以服务端为准，本地 users 字典可能缺 role 字段导致按钮永不显示）
   var cfgBtn=document.getElementById('ubAdminCfgBtn');
@@ -1821,12 +1821,12 @@ window.addEventListener('message',function(e){
   if((d.type==='ntEarn'||d.type==='ntSpend')&&(typeof d.amount!=='number'||d.amount<=0||d.amount>10000))return;
   if(d.type==='getUser'){
     var u = Game.getUser();
-    e.source.postMessage({type:'userData', data:u, _bridgeNonce:window._APP_NONCE}, '*');
+    e.source.postMessage({type:'userData', data:u, _bridgeNonce:window._APP_NONCE}, window.location.origin||'*');
   }
   else if(d.type==='openTask'){openQuestHallPage()}
   else if(d.type==='openMe'){document.getElementById('myPage').style.zIndex='200';showMy()}
   else if(d.type==='toast'){showToast(d.msg)}
-  else if(d.type==='confirm'){showConfirm(d.title+'\n\n'+d.msg,function(){e.source.postMessage({type:'confirmResult',result:true},'*')},function(){e.source.postMessage({type:'confirmResult',result:false},'*')})}
+  else if(d.type==='confirm'){showConfirm(d.title+'\n\n'+d.msg,function(){e.source.postMessage({type:'confirmResult',result:true},window.location.origin||'*')},function(){e.source.postMessage({type:'confirmResult',result:false},window.location.origin||'*')})}
   else if(d.type==='closeMap'){closeOverlay('overlayMap')}
   // 阶段 1 前置B：地图建筑 → 档案室
   else if(d.type==='openArchive'){openArchive(d.tab||'members')}
@@ -1834,7 +1834,7 @@ window.addEventListener('message',function(e){
   // NT 桥接
   else if(d.type==='ntEarn'){var r=NT.earn(CURRENT_USER,d.amount,d.reason,d.scope);if(r){var t=document.createElement('div');t.textContent='+'+d.amount+' NT · '+d.reason;t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green-primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999';document.body.appendChild(t);setTimeout(function(){t.remove()},2000)}}
   else if(d.type==='ntSpend'){NT.spend(CURRENT_USER,d.amount,d.reason,d.scope)}
-  else if(d.type==='ntGetBalance'){var u=NT.getUser(CURRENT_USER);e.source.postMessage({type:'ntBalance',balance:u?u.ntBalance:0},'*')}
+  else if(d.type==='ntGetBalance'){var u=NT.getUser(CURRENT_USER);e.source.postMessage({type:'ntBalance',balance:u?u.ntBalance:0},window.location.origin||'*')}
 });
 // 审计修复：统一 NT 池计算公式
 function _calcCampTotalNT(c) {
