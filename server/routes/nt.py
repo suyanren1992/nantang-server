@@ -164,11 +164,30 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
               "settler_id": t.settler_id, "settled_at": t.settled_at} for t in all_tasks]
 
     cron_active = os.environ.get("CRON_ACTIVE", "").lower() in ("1", "true", "yes")
+
+    # NT-P0-4a: 资金分布视图三字段数据源
+    # my_escrow = 本人发布且未释放任务的 escrow 合计（= 现况 frozen_balance 语义，复用上方 frozen）
+    my_escrow = frozen
+    # my_frozen = 本人 pending 状态提现流水合计（真‘提现待审’语义）
+    my_frozen = (await db.execute(
+        select(func.coalesce(func.sum(NTLedger.amount), 0)).where(
+            NTLedger.from_user == user.id,
+            NTLedger.type == "withdraw",
+            NTLedger.status == "pending",
+        )
+    )).scalar() or 0
+    # my_accommodation_due = 本人活跃入住的住宿应付（无入住=0；沿任务卡取 Tenancy.debt）
+    _my_ten = (await db.execute(
+        select(_Tenancy).where(_Tenancy.user_id == user.id, _Tenancy.status == "active")
+    )).scalars().first()
+    my_accommodation_due = (_my_ten.debt or 0) if _my_ten else 0
     return {
         "balance": user.nt_balance, "cv": user.contribution_value,
         "xp": user.experience_value, "role": user.role,
         "cron_active": cron_active,
         "trust_score": user.trust_score, "frozen_balance": frozen,
+        "my_escrow": my_escrow, "my_frozen": my_frozen,
+        "my_accommodation_due": my_accommodation_due,
         "wallet_address": user.wallet_address,
         "ledger": ledger, "tasks": tasks, "deposit_intents": deposit_intents,
         "task_statuses": TASK_STATUSES,
