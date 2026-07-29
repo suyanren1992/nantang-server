@@ -154,7 +154,7 @@ function _defaultConfig() { return {
       ]}
     ]}
   }
-};}
+}}}
 function _deepMerge(def, cfg) { var r = {}; Object.keys(def).forEach(function(k) { if (cfg[k] && typeof def[k] === 'object' && !Array.isArray(def[k])) { r[k] = _deepMerge(def[k], cfg[k]); } else { r[k] = (k in cfg) ? cfg[k] : def[k]; } }); Object.keys(cfg).forEach(function(k) { if (!(k in r)) r[k] = cfg[k]; }); return r; }
 function _mlConfig() { return _deepMerge(_defaultConfig(), _ml().config||{}); }
 // 公约文本 — 服务端权威 → config 兜底（D3: 对接 GET /api/covenant/text）
@@ -261,7 +261,8 @@ function renderInfoPage() {
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
     function(){ return _s('poolCard', _renderPoolCard()); }
   ];
-  var h = sections.map(function(fn){ try { return fn(); } catch(e) { console.error(e); return '<div style="color:var(--g-red);padding:8px;font-size:.6rem">⚠ 板块加载失败</div>'; } }).join('');
+  var h = sections.map(function(fn){ try { return fn(); } catch(e) { console.error('[U-1b] renderInfoPage 板块异常:', e); return '<div style="color:var(--g-red);padding:8px;font-size:.6rem">⚠ 板块加载失败</div>'; } }).join('');
+  console.log('[U-1b] renderInfoPage: sections HTML 长度=', h.length, 'roomsGrid=', !!_q('roomsGrid'), 'scrollArea=', !!_q('scrollArea'));
   _q('roomsGrid').innerHTML = '<div class="info-wrapper">'+h+'</div>';
   _bindCrToggles();  // C-5: 折叠区事件委托绑定
   _q('roomsGrid').style.display = 'block';
@@ -2614,6 +2615,7 @@ window.VillageMap = {
 // ═══ 自动初始化 ═══
 function _initMap(){
   try{
+    console.log('[U-1b] _initMap 开始, AppData._data.map_locations: acc=', (window.AppData&&AppData._data.map_locations&&AppData._data.map_locations.accommodations)?Object.keys(AppData._data.map_locations.accommodations).length:'N/A', 'plots=', (window.AppData&&AppData._data.map_locations&&AppData._data.map_locations.plots)?AppData._data.map_locations.plots.length:'N/A', 'buildings=', (window.AppData&&AppData._data.map_locations&&AppData._data.map_locations.buildings)?AppData._data.map_locations.buildings.length:'N/A');
     // F22: 移除加载骨架
     var sk = document.getElementById('scrollSkeleton'); if (sk) sk.remove();
     _unbindEvents(); // R3: 防止重复绑定事件监听
@@ -2651,6 +2653,7 @@ function _initMap(){
     }
     if(!_mapContainer){currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false;_bindEvents();}
     else { currentIdx=4;currentFloor=0;selectedRoomId=null;overviewOpen=false; }
+    console.log('[U-1b] _initMap → goTo(4), getBuildings()=', getBuildings().length, '个建筑, getPlots()=', getPlots().length, '个地块');
     goTo(4);
     if(typeof refreshUserUI==='function') refreshUserUI();
     _refreshTopBar();

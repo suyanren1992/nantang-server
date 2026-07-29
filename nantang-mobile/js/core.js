@@ -90,10 +90,13 @@ window.Game = {
     if (u && u.name) name = u.name;
     var users = (typeof getUsers === 'function') ? getUsers() : {};
     var role = (u && u.role) ? u.role : ((users[name] && users[name].role) || 'visitor');
-    // avatar_seed 优先级: AppData > nt_users > 用户名
-    var seed = (u && u.avatar_seed != null) ? u.avatar_seed
-             : ((users[name] && users[name].avatar_seed != null) ? users[name].avatar_seed : (name||_avatarSeedPool[0]));
-    return { name: name, role: role, avatar_seed: seed, avatar_url: avatarURL(seed, 80) };
+    // avatar_seed 优先级: AppData > nt_users > 用户名（U-1b: NaN 视为无效）
+    var _ok = function(s) { return s != null && s === s; };  // s===s 排除 NaN
+    var seed = (u && _ok(u.avatar_seed)) ? u.avatar_seed
+             : ((users[name] && _ok(users[name].avatar_seed)) ? users[name].avatar_seed : (name||_avatarSeedPool[0]));
+    var url = avatarURL(seed, 80);
+    if (!Game._avatarLogged) { Game._avatarLogged = true; console.log('[U-1b] Game.getUser avatar: seed=', seed, 'url=', url, 'DICEBEAR_VER=', typeof DICEBEAR_VER!=='undefined'?DICEBEAR_VER:'undefined', 'AVATAR_STYLE=', typeof AVATAR_STYLE!=='undefined'?AVATAR_STYLE:'undefined'); }
+    return { name: name, role: role, avatar_seed: seed, avatar_url: url };
   },
   getData: function() {
     var ad = (window.AppData && AppData._data) ? AppData._data : {};
@@ -972,9 +975,21 @@ function _mergeSyncData(data) {
     });
     AppData._data.pendingVerifications = localVfys;
   }
-  // U-1: 空对象守卫——服务端返回 {} 时保留本地种子数据
-  if (data.map_locations && Object.keys(data.map_locations).length > 0 && window.AppData) {
-    AppData._data.map_locations = data.map_locations;
+  // U-1b: 智能合并——逐字段检查服务端数据，非空才覆盖，保留本地种子数据
+  console.log('[U-1b] _mergeSyncData sync_all 返回: map_locations keys=', data.map_locations?Object.keys(data.map_locations):'N/A', 'camps len=', data.camps?data.camps.length:'N/A');
+  if (data.map_locations && window.AppData) {
+    var srvMl = data.map_locations;
+    var localMl = AppData._data.map_locations;
+    var srvKeys = Object.keys(srvMl);
+    console.log('[U-1b] 合并前本地: acc=', localMl.accommodations?Object.keys(localMl.accommodations).length:0, 'plots=', (localMl.plots||[]).length, 'buildings=', (localMl.buildings||[]).length);
+    // 只有服务端字段确实有内容时才覆盖；空数组/空对象保留本地种子
+    if (srvMl.buildings && srvMl.buildings.length) localMl.buildings = srvMl.buildings;
+    if (srvMl.plots && srvMl.plots.length) localMl.plots = srvMl.plots;
+    if (srvMl.accommodations && typeof srvMl.accommodations === 'object' && Object.keys(srvMl.accommodations).length) localMl.accommodations = srvMl.accommodations;
+    if (srvMl.state && typeof srvMl.state === 'object' && Object.keys(srvMl.state).length) localMl.state = srvMl.state;
+    if (srvMl.config && typeof srvMl.config === 'object' && Object.keys(srvMl.config).length) localMl.config = srvMl.config;
+    if (srvMl.people_on_site) localMl.people_on_site = srvMl.people_on_site;
+    console.log('[U-1b] 合并后本地: acc=', localMl.accommodations?Object.keys(localMl.accommodations).length:0, 'plots=', (localMl.plots||[]).length, 'buildings=', (localMl.buildings||[]).length);
   }
   if (data.camps && window.AppData) {
     data.camps.forEach(function(c) { AppData._data.camps[c.id] = c; });

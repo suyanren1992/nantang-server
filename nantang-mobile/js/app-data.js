@@ -9,6 +9,7 @@ window.AppData = {
 
   // ══ 初始化（加载共享数据，不依赖当前用户）══
   init: function() {
+    console.log('[U-1b] AppData.init 开始, localStorage共享=', !!localStorage.getItem('nt_app_v2_shared'));
     this._data = this._load('nt_app_v2_shared') || {};
     if (!this._data.tasks)  this._data.tasks  = {};
     if (!this._data.camps)  this._data.camps  = {};
@@ -71,15 +72,19 @@ window.AppData = {
     this._data.journal = priv.journal || [];
     this._data.newbieQuests = priv.newbieQuests || {};
     this._data.cleaning = priv.cleaning || { lastCheckDate: '', spaces: {}, log: [] };
-    // 同步用户信息
-    var u2 = (typeof getUsers === 'function') ? getUsers() : {};
-    var au = u2[name] || {};
+    // 同步用户信息（U-1b: avatar_seed 从 nt_local_users 兜底）
+    var u2        = (typeof getUsers === 'function') ? getUsers() : {};
+    var au        = u2[name] || {};
+    var _localUsers = {}; try { _localUsers = JSON.parse(localStorage.getItem('nt_local_users')||'{}'); } catch(e) {}
+    var _localSeed  = _localUsers[name] || null;
+    var avatarSeed  = au.avatar_seed != null ? au.avatar_seed : (_localSeed && _localSeed !== name ? _localSeed : null);
     if (!this._data.users[name]) {
-      this._data.users[name] = { name: name, type: au.role||'visitor', role: au.role||'', avatar_seed: au.avatar_seed, created: (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10)), camp: '' };
+      this._data.users[name] = { name: name, type: au.role||'visitor', role: au.role||'', avatar_seed: avatarSeed, created: (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10)), camp: '' };
     } else {
-      if (au.avatar_seed !== undefined && au.avatar_seed !== null) this._data.users[name].avatar_seed = au.avatar_seed;
+      if (avatarSeed != null) this._data.users[name].avatar_seed = avatarSeed;
       if (au.role) this._data.users[name].role = au.role;
     }
+    console.log('[U-1b] switchUser:', name, 'avatar_seed=', avatarSeed, 'role=', this._data.users[name].role);
     this._saveShared();
     if (typeof refreshUserUI === 'function') refreshUserUI();
   },
@@ -254,6 +259,7 @@ window.AppData = {
 
   // ══ 种子数据 ══
   _seedIfEmpty: function() {
+    console.log('[U-1b] _seedIfEmpty 入口: ml_acc=', this._data.map_locations&&this._data.map_locations.accommodations?Object.keys(this._data.map_locations.accommodations).length:0, 'camps=', this._data.camps?Object.keys(this._data.camps).length:0, 'buildings=', this._data.map_locations&&this._data.map_locations.buildings?this._data.map_locations.buildings.length:'N/A');
     var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
     if (!this._data.canteenMenu || Object.keys(this._data.canteenMenu).length === 0) {
       this._data.canteenMenu = {};
@@ -304,6 +310,7 @@ this._data.map_locations.people_on_site = [];
       };
     }
     this._saveShared();
+    console.log('[U-1b] _seedIfEmpty 完成: acc=', Object.keys(this._data.map_locations.accommodations||{}).length, 'plots=', (this._data.map_locations.plots||[]).length, 'camps=', Object.keys(this._data.camps||{}).length, 'buildings=', (this._data.map_locations.buildings||[]).length);
   },
 
   // ══ 日记（私有） ══
