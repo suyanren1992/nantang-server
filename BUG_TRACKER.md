@@ -2422,3 +2422,6 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 **教训入法**：发卡前必核真源现行代码（git log 相关文件 + 现行实现），勘察报告保质期 24 小时。丞相发卡未核真源，自劾记档（总账 34）。
 
 **连带记档 · JS 机检门**（同日砚仁批）：app.js 语法错误事故（219ce8b 引入，`};}` 整文件 parse 死）暴露 JS 无机检门——deploy_check 将增 `node --check` 全 JS 检（另卡施工）。
+
+### D-9 结案销记 — 丞相府 2026-07-29（TD-1 commit 5b47201）
+打回点（一键结算原生 confirm）实证落在死函数 `batchSettleAll`（mobile-bundle F7，零活引用）内；TD-1 墓碑清理已将其随 13 死函数一并删除（326→127 行），活体一键结算走 ui-camp.js mgmtSettleAll 不受影响。**D-9 随葬消解，结案。**
