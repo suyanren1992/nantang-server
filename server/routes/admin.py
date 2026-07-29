@@ -52,8 +52,12 @@ async def pending_withdraws(admin: User = Depends(require_admin), db: AsyncSessi
 async def confirm_withdraw(entry_id: str, admin: User = Depends(require_admin),
                             db: AsyncSession = Depends(get_db)):
     """管理员确认提现——从 frozen 销毁 NT，减少 total_issued"""
+    # P0-1: entry 行锁 + populate_existing——双 admin 并发 confirm 时，第二事务阻塞等锁，
+    # 锁释放后重查 status='pending' 不再命中（已 settled）→ 返回 404「已处理」，frozen/total_issued 只减一次。
+    # 同 D-17/P1-3 锁型。
     entry = (await db.execute(
         select(NTLedger).where(NTLedger.entry_id == entry_id, NTLedger.status == "pending")
+        .with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not entry:
         raise HTTPException(404, "提现记录不存在或已处理")
@@ -71,8 +75,10 @@ async def confirm_withdraw(entry_id: str, admin: User = Depends(require_admin),
 async def reject_withdraw(entry_id: str, admin: User = Depends(require_admin),
                            db: AsyncSession = Depends(get_db)):
     """管理员拒绝提现——退回冻结资金到储备池和用户余额"""
+    # P0-1: 同型行锁——reject 同样销/退冻结资金，双并发 reject 会双退，同款补锁。
     entry = (await db.execute(
         select(NTLedger).where(NTLedger.entry_id == entry_id, NTLedger.status == "pending")
+        .with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not entry:
         raise HTTPException(404, "提现记录不存在或已处理")

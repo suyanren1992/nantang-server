@@ -26,7 +26,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select, text
 
-from models import Base, User, CommunityPool, Tenancy
+from models import Base, User, CommunityPool, Tenancy, NTLedger
 
 # requires_pg: PG_DATABASE_URL 为空时 skip
 # loop_scope="module": pg_engine 是 module 级 fixture，测试必须同循环域
@@ -306,4 +306,64 @@ async def test_covenant_sign_populate_existing_reads_fresh(pg_engine):
     # cleanup
     async with factory() as s:
         await s.execute(text("DELETE FROM users WHERE id = 'k2_p13'"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# P0-1: 提现 confirm 并发双过 —— entry 行锁防 frozen/total_issued 双减
+# ══════════════════════════════════════════════════════════════════════
+async def test_withdraw_confirm_concurrent_single_settle(pg_engine):
+    """P0-1: 2 并发 confirm 同一 pending 提现，只有 1 个成功结算，
+    frozen 只减一次（100→60），另一个读到「已处理」。
+
+    复现 admin.py confirm_withdraw 的锁模式：
+      select(NTLedger).where(entry_id, status=='pending')
+        .with_for_update().execution_options(populate_existing=True)
+    第一个事务持锁 settle → 第二个阻塞 → 锁释放后重查 status='pending'
+    不再命中（EvalPlanQual 重评 WHERE）→ None → 「已处理」。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(CommunityPool(balance=10000, total_issued=20000,
+                            reserve=0, frozen=100))
+        s.add(NTLedger(entry_id="k2_p01", type="withdraw", from_user="k2_p01_u",
+                       amount=40, reason="test", status="pending",
+                       created_at=datetime.utcnow().isoformat()))
+        await s.commit()
+
+    async def _confirm(sf):
+        async with sf() as s:
+            entry = (await s.execute(
+                select(NTLedger).where(
+                    NTLedger.entry_id == "k2_p01", NTLedger.status == "pending"
+                ).with_for_update().execution_options(populate_existing=True)
+            )).scalar_one_or_none()
+            if not entry:
+                await s.rollback()
+                return False  # 已处理
+            pool = (await s.execute(
+                select(CommunityPool).limit(1).with_for_update()
+            )).scalar_one()
+            pool.frozen = (pool.frozen or 0) - entry.amount
+            pool.total_issued -= entry.amount
+            entry.status = "settled"
+            entry.settled_at = datetime.utcnow().isoformat()
+            await s.commit()
+            return True  # settled
+
+    ok = await asyncio.gather(_confirm(factory), _confirm(factory))
+
+    assert sum(ok) == 1, f"P0-1 confirm 并发: 应只有1个结算，实际 {ok}"
+    async with factory() as s:
+        pool = (await s.execute(select(CommunityPool).limit(1))).scalar_one()
+        assert pool.frozen == 60, f"P0-1: frozen 应只减一次 100→60，实得 {pool.frozen}"
+        assert pool.total_issued == 19960, f"P0-1: total_issued 应只减一次，实得 {pool.total_issued}"
+        e = (await s.execute(select(NTLedger).where(NTLedger.entry_id == "k2_p01"))).scalar_one()
+        assert e.status == "settled"
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM nt_ledger WHERE entry_id = 'k2_p01'"))
+        await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
