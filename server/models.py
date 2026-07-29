@@ -143,6 +143,19 @@ class CampBuilder(Base):
     confirmed = Column(Integer, default=0)
 
 
+# C-B-1: 营地级成员关系（照 C-B 设计稿 §2.2）——立机制。camp_role='manager' 承载
+# 宿舍/营地管理员（≠平台 admin=User.role）。本期只建表，缩权待 C-B-2 回填数据后另卡开启。
+class CampMembership(Base):
+    __tablename__ = "camp_memberships"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    camp_id = Column(String, ForeignKey("camps.id"), nullable=False)
+    camp_role = Column(String, default="member")   # member | manager
+    status = Column(String, default="active")      # active | left | pending
+    joined_at = Column(String, nullable=True)
+    __table_args__ = (UniqueConstraint("user_id", "camp_id", name="uq_camp_member"),)
+
+
 # ponytail: CampTask 表已废弃，改用 NTTask(scope='camp', camp_ref_id=camp_id)。模型类保留注释避免 import 断裂。
 
 

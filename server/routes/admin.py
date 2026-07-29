@@ -121,7 +121,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
     now = datetime.utcnow().isoformat()
     from models import Journal, InventoryItem, NewbieQuest, ActivityLog, CardDiscovery, MealOrder
     # U-2: 后加 4 表未入删表清单——删 camps/users 时 FK 引用尚存致 500
-    from models import CampBuilder, DepositIntent, Tenancy, CovenantSignature
+    from models import CampBuilder, DepositIntent, Tenancy, CovenantSignature, CampMembership
 
     if mode == "hard":
         await db.execute(delete(NTTask))
@@ -134,6 +134,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         await db.execute(delete(CardDiscovery))
         await db.execute(delete(MealOrder))
         await db.execute(delete(MapLocation))
+        await db.execute(delete(CampMembership))  # C-B-1: FK->camps & users，先于 delete(Camp)/delete(User)
         await db.execute(delete(CampBuilder))   # U-2: FK->camps，先于 delete(Camp)
         await db.execute(delete(Camp))
         await db.execute(delete(DepositIntent))    # U-2: FK->users，先于 delete(User)
@@ -164,6 +165,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         # MapLocation: 只删 seed/presence/config 键，保留 shared(地图)等真实数据
         for prefix in SEED_KEY_PREFIXES:
             await db.execute(delete(MapLocation).where(MapLocation.key.like(f"{prefix}%")))
+        await db.execute(delete(CampMembership))  # C-B-1: FK->camps，先于 delete(Camp)（soft 删 camps 故须清子行；users 保留）
         await db.execute(delete(CampBuilder))   # U-2: FK->camps，先于 delete(Camp)（soft 不删 users，其余三表不动）
         await db.execute(delete(Camp))
         pool = await _get_pool(db)

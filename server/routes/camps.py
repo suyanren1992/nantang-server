@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import json
 from database import get_db
-from models import Camp, CampBuilder, NTTask, User
+from models import Camp, CampBuilder, CampMembership, NTTask, User
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
 
@@ -42,12 +42,43 @@ def _camp_id():
     return f"camp_{datetime.utcnow().strftime('%y%m%d%H%M%S')}"
 
 
+def _membership_subquery(user: User):
+    """当前用户 active membership 的 camp_id 子查询（缩权激活时使用）。"""
+    return select(CampMembership.camp_id).where(
+        CampMembership.user_id == user.id,
+        CampMembership.status == "active",
+    )
+
+
+# C-B-1: 过渡期缩权总开关。本期 False=只立机制不缩权（全库无 membership 数据，
+# 非 admin 全集放行，与现状一致）。C-B-2 回填报到数据后另卡改 True 激活缩权。
+CAMP_SCOPE_ENFORCED = False
+
+
+def visible_camp_filter(user: User, query):
+    """C-B-1 唯一收口：营地可见性过滤（照 C-B 设计稿 §2.3 admin 全通原则）。
+
+    admin：一律绕过，返回全集（砚仁明令：无视一切限制全可见）。
+    非 admin：机制已就位（按 CampMembership active 过滤），但受 CAMP_SCOPE_ENFORCED
+    总开关控制——本期 False，故'过渡放行'返回全集（防爆条款：全库无 membership
+    数据，缩权会误伤，与现状一致）。缩权待 C-B-2 回填数据后另卡置 True 开启。
+    camps.py 不得有第二处手写过滤——所有营地查询都走此收口。
+    """
+    if user.role == "admin":
+        return query
+    if not CAMP_SCOPE_ENFORCED:
+        return query  # 过渡放行：本期只立机制不缩权
+    return query.where(Camp.id.in_(_membership_subquery(user)))
+
+
 @router.get("")
 async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                      limit: int = 50, offset: int = 0):
     # BE-2③: 补分页（照 auth.py /users 写法），limit 上限 200
+    # C-B-1: 营地可见性收口——admin 全通、非 admin 过渡放行（唯一入口 visible_camp_filter）
+    q = visible_camp_filter(user, select(Camp))
     result = await db.execute(
-        select(Camp).order_by(Camp.created_at.desc()).limit(min(limit, 200)).offset(offset)
+        q.order_by(Camp.created_at.desc()).limit(min(limit, 200)).offset(offset)
     )
     camps = list(result.scalars())
     items = []
