@@ -1,5 +1,6 @@
 """NT economy routes: transfer, earn, spend, topup, verify."""
 import os
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -13,6 +14,8 @@ from routes.auth import get_current_user, require_admin
 from nt_helpers import _ledger_id, _add_ledger, _get_pool, _safe_assignees
 
 router = APIRouter(prefix="/api/nt", tags=["nt"])
+
+logger = logging.getLogger("nt")
 
 PLATFORM_WALLET = os.environ.get("PLATFORM_WALLET_ADDRESS", "")
 
@@ -344,11 +347,26 @@ async def card_confirm(req: CardConfirmRequest, user: User = Depends(get_current
     if amount <= 0:
         raise HTTPException(status_code=400, detail="发现记录奖励额非法")
 
-    result = await _grant_from_pool(
-        db, to_user, amount,
-        reason=f"卡片室发现: {disc.description or disc.id}",
-        scope="personal",
-    )
+    # NT-P0-1: 池余额不足时不卡死确认流程——返回明确 400 + 日志提醒 admin 注资。
+    # 授奖权威校验（锁池/并发）仍由 _grant_from_pool 内部保障；此处只捕其池不足 400 加提醒。
+    try:
+        result = await _grant_from_pool(
+            db, to_user, amount,
+            reason=f"卡片室发现: {disc.description or disc.id}",
+            scope="personal",
+        )
+    except HTTPException as exc:
+        if exc.status_code == 400 and "社区池余额不足" in str(exc.detail):
+            logger.warning(
+                "[NT-P0-1] card-confirm 社区池不足，需 admin 注资："
+                "disc=%s to=%s need=%s detail=%s",
+                disc.id, to_user, amount, exc.detail,
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=f"社区池余额不足，请联系管理员注资（{exc.detail}）",
+            )
+        raise
     disc.status = "confirmed"
     disc.doer_confirmed_at = datetime.utcnow().isoformat()
     await db.commit()
