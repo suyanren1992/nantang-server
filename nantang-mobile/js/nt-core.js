@@ -458,7 +458,10 @@ function earnFromPool(userId, amount, reason, pool, scope) {
   var u = _getUser(userId); if (!u) return null;
   scope = scope || 'personal';
   // 检查池子余额
-  if (pool === 'community' && COMMUNITY_POOL < amount) {
+  // M-3: HTTP 模式短路池余额检查（线上余额在服务端，本地 COMMUNITY_POOL 为模拟值）
+  if (pool === 'community' && window.location.protocol !== 'file:' && COMMUNITY_POOL < amount) {
+    // 线上模式静默跳过——真实余额由服务端保证
+  } else if (pool === 'community' && COMMUNITY_POOL < amount) {
     console.error('[NT] 社区公共池余额不足！当前:'+COMMUNITY_POOL+' 需要:'+amount);
     return null;
   }
