@@ -45,6 +45,7 @@ window.AppData = {
     this._data.journal = [];
     this._data.newbieQuests = {};
     this._data.cleaning = { lastCheckDate: '', spaces: {}, log: [] };
+    if (!this._data.activity_log) this._data.activity_log = [];
   },
 
   _load: function(key) {
@@ -228,7 +229,7 @@ window.AppData = {
   _timerS: null, _timerP: null,
   _saveShared: function(immediate) {
     clearTimeout(this._timerS);
-    var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, _lastAccommodationDeduction: this._data._lastAccommodationDeduction, _lastPoolRefill: this._data._lastPoolRefill };
+    var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, activity_log: this._data.activity_log, _lastAccommodationDeduction: this._data._lastAccommodationDeduction, _lastPoolRefill: this._data._lastPoolRefill };
     if (immediate) { this._saveKey('nt_app_v2_shared', data); return; }
     // 服务器同步：在 _saveShared 末尾统一推送
     if (typeof API !== 'undefined' && API.token) {

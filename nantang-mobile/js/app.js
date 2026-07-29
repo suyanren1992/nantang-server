@@ -1530,12 +1530,12 @@ function _showStaySheet() {
   h += '.bd-num{font-size:.6rem;font-weight:700;color:var(--tx)}.bd-name{font-size:.52rem;color:var(--t2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
   h += '.bd-date{font-size:.45rem;color:#999;margin-top:1px}.bd-price{font-size:.52rem;color:var(--gp);font-weight:600;margin-top:2px}';
   // 入住弹窗
-  h += '.ci-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}';
-  h += '.ci-card{background:#fff;border-radius:16px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);animation:ciPop .25s ease-out}';
-  h += '@keyframes ciPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}';
-  h += '.ci-head{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid #e8ede6}';
-  h += '.ci-title{font-size:.75rem;font-weight:700;color:var(--tx);flex:1}';
-  h += '.ci-close{font-size:1.1rem;cursor:pointer;color:#999;padding:4px 8px;border:none;background:none}';
+  h += '.stay-ci-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}';
+  h += '.stay-ci-card{background:#fff;border-radius:16px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);animation:stayCiPop .25s ease-out}';
+  h += '@keyframes stayCiPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}';
+  h += '.stay-ci-head{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid #e8ede6}';
+  h += '.stay-ci-title{font-size:.75rem;font-weight:700;color:var(--tx);flex:1}';
+  h += '.stay-ci-close{font-size:1.1rem;cursor:pointer;color:#999;padding:4px 8px;border:none;background:none}';
   h += '.cal-wrap{padding:12px 16px}';
   h += '.cal-month{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}';
   h += '.cal-month-title{font-size:.72rem;font-weight:700;color:var(--tx)}';
@@ -1650,7 +1650,7 @@ function _showStaySheet() {
 
   // ── 入住弹窗 ──
   if (_showCheckinCard && activeRoom) {
-    h += '<div class="ci-overlay" onclick="_closeCheckinCard()">' + _renderCheckinCard(activeRoom) + '</div>';
+    h += '<div class="stay-ci-overlay" onclick="_closeCheckinCard()">' + _renderCheckinCard(activeRoom) + '</div>';
   }
 
   _showCardPopup('🛏️ 住宿', h, null, true);
@@ -1659,7 +1659,7 @@ function _showStaySheet() {
 function _pickRoom(id) { _expandedRoom = id; _expandedBed = null; _selectedBed = null; _showCheckinCard = false; _showStaySheet(); }
 function _openCheckinCard(roomId, bedNum) { _selectedBed = { room: roomId, bed: bedNum }; _showCheckinCard = true; _expandedRoom = roomId; _expandedBed = null; _showStaySheet(); }
 function _expandBed(roomId, bedNum) { _expandedRoom = roomId; _showCheckinCard = false; _expandedBed = (_expandedBed&&_expandedBed.room===roomId&&_expandedBed.bed===bedNum) ? null : {room:roomId,bed:bedNum}; _showStaySheet(); }
-function _closeCheckinCard() { _showCheckinCard = false; _selectedBed = null; _calStart = null; _calEnd = null; var ov = document.querySelector('.ci-overlay'); if (ov) ov.remove(); }
+function _closeCheckinCard() { _showCheckinCard = false; _selectedBed = null; _calStart = null; _calEnd = null; var ov = document.querySelector('.stay-ci-overlay'); if (ov) ov.remove(); }
 
 function _renderCheckinCard(activeRoom) {
   if (!_selectedBed || !activeRoom) return '';
@@ -1671,8 +1671,8 @@ function _renderCheckinCard(activeRoom) {
   var totalPrice = totalDays * pricePerDay;
 
   var h = '';
-  h += '<div class="ci-card" onclick="event.stopPropagation()">';
-  h += '<div class="ci-head"><span style="font-size:1.3rem">🛏</span><div class="ci-title">'+r.label+' · 床'+bed+'<br><span style="font-size:.55rem;color:#999">'+pricePerDay+'NT/天</span></div><button class="ci-close" onclick="_closeCheckinCard()">✕</button></div>';
+  h += '<div class="stay-ci-card" onclick="event.stopPropagation()">';
+  h += '<div class="stay-ci-head"><span style="font-size:1.3rem">🛏</span><div class="stay-ci-title">'+r.label+' · 床'+bed+'<br><span style="font-size:.55rem;color:#999">'+pricePerDay+'NT/天</span></div><button class="stay-ci-close" onclick="_closeCheckinCard()">✕</button></div>';
   h += _renderMiniCalendar();
   h += '<div class="ci-info">';
   h += '<div class="ci-info-row"><span>📅 入住</span><b>' + (_calStart ? _calStart.y+'-'+String(_calStart.m).padStart(2,'0')+'-'+String(_calStart.d).padStart(2,'0') : '点击日历选择') + '</b></div>';
@@ -1730,9 +1730,13 @@ function _renderMiniCalendar() {
 }
 function _calNav(dir) {
   _calMonth += dir; if (_calMonth > 12) { _calMonth = 1; _calYear++; } if (_calMonth < 1) { _calMonth = 12; _calYear--; }
-  // 翻月需要重建日历格子（月份变了），但只换日历 wrap 的 innerHTML
-  var wrap = document.querySelector('.cal-wrap');
-  if (wrap) wrap.outerHTML = _renderMiniCalendar();
+  // B-4: 增量更新月份标题+日历格子，不动 .cal-wrap DOM 节点，消 outerHTML 闪烁
+  var wrap = document.querySelector('.cal-wrap'); if (!wrap) return;
+  var tmp = document.createElement('div'); tmp.innerHTML = _renderMiniCalendar();
+  var g = wrap.querySelector('.cal-grid'), ng = tmp.querySelector('.cal-grid');
+  if (g && ng) g.innerHTML = ng.innerHTML;
+  var t = wrap.querySelector('.cal-month-title'), nt = tmp.querySelector('.cal-month-title');
+  if (t && nt) t.textContent = nt.textContent;
 }
 function _calPick(y, m, d) {
   if (!_calStart || (_calStart && _calEnd)) { _calStart = {y:y, m:m, d:d}; _calEnd = null; }

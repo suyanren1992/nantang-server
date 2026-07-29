@@ -953,8 +953,15 @@ function _mergeSyncData(data) {
       if (!_jExisting.has(key)) { AppData._data.journal.push({type:j.type, content:j.content, time:j.time, space_id:j.space_id}); _jExisting.add(key); }
     });
   }
-  // sync_all: 社区活动日志以服务端为准整体覆盖（activity_log 仅由服务端写入，客户端只读）
-  if (data.activity) { AppData._data.activity_log = data.activity; }
+  // B-5: activity_log 智能合并——按 time+type+text 去重追加，不覆盖本地未同步条目
+  if (data.activity) {
+    AppData._data.activity_log = AppData._data.activity_log || [];
+    var _aExisting = new Set(AppData._data.activity_log.map(function(a){return a.time+a.type+(a.text||'');}));
+    data.activity.forEach(function(a) {
+      var key = a.time + a.type + (a.text||'');
+      if (!_aExisting.has(key)) { AppData._data.activity_log.push(a); _aExisting.add(key); }
+    });
+  }
   if (data.items && Array.isArray(data.items)) {
     if (!AppData._data.items[AppData._currentUser]) AppData._data.items[AppData._currentUser] = [];
     var existing = AppData._data.items[AppData._currentUser];
@@ -1171,7 +1178,7 @@ function refreshVillageCards(){
   // 社区副本：活动数量
   el=document.getElementById('vpCommunityInfo');
   if(el){
-    var campCount=window.AppData&&AppData._data.camps?Object.keys(AppData._data.camps).length:1;
+    var campCount=window.AppData&&AppData._data.camps?Object.keys(AppData._data.camps).length:0;
     if(campCount>0)el.textContent=campCount+' 个活动 · 点击查看';
     else el.textContent='暂无活动 · 敬请期待';
   }
