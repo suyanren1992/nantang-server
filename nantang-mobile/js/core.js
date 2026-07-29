@@ -1413,6 +1413,16 @@ function toggleProfile(){
   document.body.appendChild(m);
   renderProfile('view');
 }
+// U-1b/A-10: 设置面板入口——直接进入编辑模式
+function openSettings(){
+  if (!CURRENT_USER) { showToast('请先登录','warn'); return; }
+  var m=document.getElementById('profileCard'); if (m) m.remove();
+  m=document.createElement('div'); m.id='profileCard';
+  m.style.cssText='position:fixed;inset:0;z-index:310;display:flex;align-items:center;justify-content:center';
+  m.innerHTML='<div id="profileBg" style="position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out" onclick="document.getElementById(\'profileCard\').remove()"></div><div id="profileInner" style="position:relative;width:300px;max-width:90vw;background:#fff;border-radius:16px;padding:20px;box-shadow:0 16px 48px rgba(0,0,0,.3);animation:spcPop .25s ease-out;max-height:80vh;overflow-y:auto"></div>';
+  document.body.appendChild(m);
+  renderProfile('edit');
+}
 var _profileSeed=null;  // null="未选头像",注册/渲染时从池子随机取
 var _avatarStyles=['avataaars','bottts','fun-emoji','pixel-art','micah','lorelei','adventurer','big-ears','big-smile','croodles','identicon','personas'];
 var _avatarStyleIdx=0;
