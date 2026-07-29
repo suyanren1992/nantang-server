@@ -1288,32 +1288,46 @@ function confirmDiscovery(discId) {
   var d = discs.find(function(x) { return x.id === discId; });
   if (!d || d.status !== 'pending') return;
 
+  // M-2b-ii: HTTP 模式走 /card-confirm 端点（服务端取金额+执行 NT 操作）
+  if (typeof API !== 'undefined' && API.token) {
+    var _discId = discId;
+    API.request('POST', '/api/nt/card-confirm', { discovery_id: _discId }).then(function(r) {
+      if (r && r.ok) {
+        d.status = 'confirmed';
+        d.doerConfirmedAt = new Date().toISOString();
+        // 按返回契约刷新 HUD
+        if (typeof refreshUserUI === 'function') refreshUserUI();
+        if (r.balance !== undefined && window.NT) { var _u = NT.getUser(CURRENT_USER); if (_u) _u.ntBalance = r.balance; }
+        _saveDiscoveries();
+        _finishConfirmDiscovery(d, discs);
+      } else if (r) {
+        if (r.status === 403) {
+          showToast('发现不能由本人确认，请其他伙伴校核', 'warn');
+        } else {
+          showToast(r.detail || '确认失败，请稍后重试', 'error');
+        }
+      }
+    }).catch(function(e) { showToast('网络异常，请重试', 'error'); });
+    return;
+  }
+  // file:// 离线模式：本地模拟（保留既有逻辑）
   d.status = 'confirmed';
   d.doerConfirmedAt = new Date().toISOString();
-
-  // NT: 做事者按公约定价，猜对者每人 +1 NT
   if (window.NT) {
     NT.earn(d.guessedPerson, d.ntDoer, '被发现: ' + (d.actionLabel||d.description), 'personal');
-    // HTTP 模式：转账到 doer
-    if (typeof API !== 'undefined' && API.token) {
-      API.request('POST', '/api/nt/transfer', {to: d.guessedPerson, amount: d.ntDoer, reason: '卡片室发现: ' + (d.actionLabel||d.description)}).catch(function(e){console.warn('[cardroom] transfer failed',e)});
-    }
-    // 所有猜对的人 +1 NT
     (d.guesses || []).forEach(function(g) {
-      if (g.guessedPerson === d.guessedPerson) {
-        NT.earn(g.name, 1, '猜中奖励: ' + (d.actionLabel||d.description), 'personal');
-      } else {
-        NT.spend(g.name, 1, '猜错: ' + (d.actionLabel||d.description), 'personal');
-      }
+      if (g.guessedPerson === d.guessedPerson) NT.earn(g.name, 1, '猜中奖励: ' + (d.actionLabel||d.description), 'personal');
+      else NT.spend(g.name, 1, '猜错: ' + (d.actionLabel||d.description), 'personal');
     });
-    // 如果发现者也猜了
     if (d.guesser && !(d.guesses||[]).some(function(g){ return g.name === d.guesser; })) {
       NT.earn(d.guesser, d.ntGuesser, '发现奖励: ' + (d.actionLabel||d.description), 'personal');
     }
   }
-
   _saveDiscoveries();
-
+  _finishConfirmDiscovery(d, discs);
+}
+// M-2b-ii: 确认成功后的公共收尾（trumpet/log/卡片标记）
+function _finishConfirmDiscovery(d, discs) {
   if (typeof logActivity === 'function') {
     logActivity('discovery_confirmed', d.guessedPerson + ' 确认了发现 → +'+d.ntDoer+' NT');
   }
