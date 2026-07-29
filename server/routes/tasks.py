@@ -143,18 +143,24 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         id=task_id, poster=task_poster, title=req.title, reward=req.reward,
         category=req.category, scope=req.scope, note=req.note,
         slots=req.slots, deadline=req.deadline, reviewer=req.reviewer,
-        location_id=req.location_id, escrow_amount=req.reward * req.slots,
+        location_id=req.location_id, escrow_amount=(0 if req.scope == "camp" else req.reward * req.slots),
         status="进行中", created_at=datetime.utcnow().isoformat(),
     )
     # 仅个人发布时从用户余额扣款（社区任务已在上面从池扣款）
-    if req.poster != "社区":
+    if req.poster != "社区" and req.scope != "camp":
         (user_locked if user_locked is not None else user).nt_balance -= req.reward * req.slots
         pool = await _get_pool(db)
         pool.task_escrow += req.reward * req.slots
     db.add(task)
     lid = _ledger_id()
-    freeze_from = "community_pool" if req.poster == "社区" else user.id
-    await _add_ledger(db, lid, freeze_from, "escrow", req.reward * req.slots, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
+    if req.poster == "社区":
+        freeze_from = "community_pool"
+    elif req.scope == "camp":
+        freeze_from = "camp_pool"
+    else:
+        freeze_from = user.id
+    freeze_amount = 0 if req.scope == "camp" else req.reward * req.slots
+    await _add_ledger(db, lid, freeze_from, "escrow", freeze_amount, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
     await db.commit()
     return {"ok": True, "task_id": task_id}
 
