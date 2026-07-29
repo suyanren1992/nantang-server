@@ -1282,7 +1282,7 @@ function refreshUserUI(){
   if(ml){
     var cl=AppData._data.cleaning; var dc=0;
     if(cl&&cl.spaces){ Object.keys(cl.spaces).forEach(function(s){ var d=cl.spaces[s].dirtiness||0; if(d>60)dc++; }); }
-    var dirtEl=document.getElementById('ubStatDirt'); if(dirtEl){ dirtEl.textContent=dc>0?'🔴'+dc+'处需清洁':'🟢整洁'; }
+    var dirtEl=document.getElementById('ubStatDirt'); if(dirtEl){ var dirtyCnt=0; Object.keys(cl.spaces).forEach(function(s){ var d=cl.spaces[s].dirtiness||0; if(d>30)dirtyCnt++; }); if(dirtyCnt>0){ dirtEl.textContent='⚠️ '+dirtyCnt+'处需处理'; dirtEl.style.cursor='pointer'; dirtEl.style.color='#c8892e'; dirtEl.title='点击查看打扫管理'; dirtEl.onclick=function(){ if(typeof _openMgmtSheet==='function')_openMgmtSheet('cleaning'); }; } else { dirtEl.textContent=''; dirtEl.style.cursor=''; dirtEl.onclick=null; } }
     var presence = (window.AppData && AppData._data.presence) ? AppData._data.presence : {};
     var pplCount = Object.values(presence).filter(function(p){return p.status==='onsite'||p.status==='在地';}).length || 0;
     var pplEl=document.getElementById('ubStatPeople'); if(pplEl) pplEl.textContent='👤'+pplCount+'人在线';
