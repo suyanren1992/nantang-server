@@ -255,7 +255,6 @@ function renderInfoPage() {
 
   var sections = [
     function(){ return _s('announceTicker', _renderAnnounceTicker()); },
-    function(){ return _s('statusPills', _renderStatusPills()); },
     function(){ return _s('newbieCard', _renderNewbieCard()); },
     function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
     function(){ return _s('cardVerifyRow', _renderCardVerifyRow()); },
