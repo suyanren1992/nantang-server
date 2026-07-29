@@ -970,7 +970,8 @@ function _mergeSyncData(data) {
     });
     AppData._data.pendingVerifications = localVfys;
   }
-  if (data.map_locations && window.AppData) {
+  // U-1: 空对象守卫——服务端返回 {} 时保留本地种子数据
+  if (data.map_locations && Object.keys(data.map_locations).length > 0 && window.AppData) {
     AppData._data.map_locations = data.map_locations;
   }
   if (data.camps && window.AppData) {
