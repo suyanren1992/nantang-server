@@ -302,7 +302,7 @@ function renderArchiveMembers(el) {
     g.members.forEach(function(m) {
       var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + m.seed + '&size=56';
       var onlineDot = m.online ? '🟢' : '🔴';
-      h += '<div class="archive-member-row" onclick="showToast(\'' + m.name + ' · ' + roleName(m.role) + ' · ' + (m.nt || 0) + ' NT\',\'\')">'+
+      h += '<div class="archive-member-row" onclick="openMemberArchive(\'' + encodeURIComponent(m.name) + '\',\'' + m.role + '\',' + (m.nt || 0) + ',\'' + m.seed + '\')">'+
         '<img src="' + avatarUrl + '" width="32" height="32" class="archive-member-avatar" alt="" onerror="this.outerHTML=\'<div style=width:32px;height:32px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#5a6e5c;flex-shrink:0>\'+(\'' + m.name + '\').charAt(0)+\'</div>\'">'+
         '<div class="archive-member-info"><div class="archive-member-name">' + m.name + '</div><div class="archive-member-sub">' + roleName(m.role) + '</div></div>'+
         '<span class="archive-member-nt">' + (m.nt ? m.nt + ' NT' : '') + '</span>'+
@@ -315,6 +315,48 @@ function renderArchiveMembers(el) {
 
   if (!h) h = '<div class="archive-empty">📂 暂无注册成员</div>';
   el.innerHTML = h;
+}
+
+// ZX-4 F12: 点成员→下钻个人沉淀面板（口径①保守：仅公开计数，不露 NT 明细/欠费）
+function openMemberArchive(nameEnc, role, nt, seed) {
+  var name = decodeURIComponent(nameEnc);
+  var avatarUrl = avatarURL(seed, 72);
+  var head = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
+    '<img src="'+avatarUrl+'" width="56" height="56" style="border-radius:50%;background:#e8ede6" onerror="this.style.display=\'none\'">'+
+    '<div><div style="font-weight:700;font-size:.9rem">'+esc(name)+'</div>'+
+    '<div style="font-size:.65rem;color:#5a6e5c">'+(typeof roleName==="function"?roleName(role):role)+'</div></div></div>';
+  var loading = '<div id="memberArchiveBody" style="text-align:center;padding:24px;color:#5a6e5c;font-size:.7rem">加载沉淀记录…</div>';
+  _showCardPopup("📇 " + esc(name) + " 的沉淀", head + loading, null, false);
+
+  function _stat(icon, label, val, unit) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f7f5f0;border-radius:10px;margin-bottom:8px">'+
+      '<span style="font-size:1.3rem">'+icon+'</span>'+
+      '<div style="flex:1"><div style="font-size:.68rem;color:#5a6e5c">'+label+'</div>'+
+      '<div style="font-size:1.1rem;font-weight:700;color:#1d2e24">'+val+'<span style="font-size:.6rem;font-weight:400;color:#8a8a8a;margin-left:2px">'+unit+'</span></div></div></div>';
+  }
+  function _render(d) {
+    var body = document.getElementById("memberArchiveBody");
+    if (!body) return;
+    var stayLine = d.accommodation_stays + ' 次';
+    if (d.accommodation_days > 0) stayLine = d.accommodation_stays + ' 次 · 当前在住 ' + d.accommodation_days + ' 天';
+    body.innerHTML =
+      _stat('🛠️', '完成任务', d.tasks_completed, '个') +
+      _stat('✅', '完成校核', d.verifications_done, '次') +
+      _stat('🛏️', '住宿记录', stayLine, '') +
+      '<div style="font-size:.55rem;color:#aaa;text-align:center;margin-top:6px">仅展示公开计数 · 不含 NT 金额明细</div>';
+  }
+  if (typeof API !== "undefined" && API.token) {
+    API.archiveSummary(name).then(function(d){
+      if (d && !d.error) _render(d);
+      else { var b=document.getElementById("memberArchiveBody"); if(b) b.innerHTML='<div style="text-align:center;padding:20px;color:#8a8a8a;font-size:.68rem">暂无沉淀记录</div>'; }
+    }).catch(function(){
+      var b=document.getElementById("memberArchiveBody");
+      if(b) b.innerHTML='<div style="text-align:center;padding:20px;color:#b84c38;font-size:.68rem">加载失败，请联网后重试</div>';
+    });
+  } else {
+    var b=document.getElementById("memberArchiveBody");
+    if(b) b.innerHTML='<div style="text-align:center;padding:20px;color:#8a8a8a;font-size:.68rem">离线态无法加载沉淀记录</div>';
+  }
 }
 
 function toggleArchiveGroup(el) {

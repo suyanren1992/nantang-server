@@ -1,12 +1,12 @@
 """Data layer routes: journal, discoveries, canteen, map, verifications, etc."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from datetime import datetime
 import json
 from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
-                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, CommunityPool, TASK_STATUSES)
+                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, CommunityPool, Tenancy, TASK_STATUSES)
 from routes.auth import get_current_user, require_admin
 from pydantic import BaseModel, Field, AliasChoices
 from nt_helpers import _safe_assignees
@@ -526,3 +526,56 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
             "presence": presence,
             "pendingConfigChanges": pendingConfigChanges,
             "configHistory": configHistory}
+
+
+# ── ZX-4 F12: 档案室个人内容沉淀（口径①保守：仅公开计数，不露 NT 金额明细/欠费）──
+@router.get("/archive_summary/{target_id}")
+async def archive_summary(target_id: str, user: User = Depends(get_current_user),
+                          db: AsyncSession = Depends(get_db)):
+    """按 user 聚合公开计数：完成任务数 / 完成校核数 / 住宿信息。
+    砚仁终裁口径①：只吐非敏感计数，隐私边界与社区动态 Feed 一致——不含任何 NT 金额、欠费、流水明细。
+    纯读，不改任何现有读/写口径；ledger/verification 敏感字段不出现在返回体。"""
+    # 目标用户存在性（不存在也返回零计数，避免枚举报错）
+    target = (await db.execute(select(User).where(User.id == target_id))).scalar_one_or_none()
+    # LIKE ESCAPE：转义通配符 %/_ 而非删除（删除会破坏含下划线的合法用户名匹配，
+    # 优于 D-4/D-16 的 replace 删字符法——既防注入又不损匹配）
+    _esc = target_id.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+    # 劳动：完成（已结算）任务数——user 为 assignee 或在 assignees JSON 中
+    tasks_completed = (await db.execute(
+        select(func.count()).select_from(NTTask).where(
+            NTTask.status == "已结算",
+            (NTTask.assignee == target_id) | (NTTask.assignees.like(f'%"{_esc}"%', escape='\\'))
+        )
+    )).scalar() or 0
+
+    # 校核：作为校核员完成（verified）的校核数
+    verifications_done = (await db.execute(
+        select(func.count()).select_from(Verification).where(
+            Verification.verifier == target_id, Verification.status == "verified"
+        )
+    )).scalar() or 0
+
+    # 住宿：入住次数（tenancy 条数）+ 当前在住天数（active 记录 today-checkin）
+    accommodation_stays = (await db.execute(
+        select(func.count()).select_from(Tenancy).where(Tenancy.user_id == target_id)
+    )).scalar() or 0
+    accommodation_days = 0
+    active = (await db.execute(
+        select(Tenancy).where(Tenancy.user_id == target_id, Tenancy.status == "active")
+    )).scalar_one_or_none()
+    if active and active.checkin_date:
+        try:
+            ci = datetime.fromisoformat(active.checkin_date[:10]).date()
+            accommodation_days = max((datetime.utcnow().date() - ci).days, 0)
+        except (ValueError, TypeError):
+            accommodation_days = 0
+
+    return {
+        "user_id": target_id,
+        "exists": target is not None,
+        "tasks_completed": tasks_completed,
+        "verifications_done": verifications_done,
+        "accommodation_stays": accommodation_stays,
+        "accommodation_days": accommodation_days,
+    }

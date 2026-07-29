@@ -140,6 +140,7 @@ var API = {
   checkout: function() { return this.request('POST', '/api/accommodation/checkout'); },
   accommodationStatus: function() { return this.request('GET', '/api/accommodation/status'); },  // G-3 记账/欠费状态
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
+  archiveSummary: function(userId) { return this.request('GET', '/api/data/archive_summary/' + encodeURIComponent(userId)); },  // ZX-4 F12 个人沉淀公开计数
   // ── 任务同步 ──
   syncTask: function(task, callback) {
     var data = { title: task.name || task.title, reward: task.nt || task.reward || 5,
