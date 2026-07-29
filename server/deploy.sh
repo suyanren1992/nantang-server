@@ -19,11 +19,12 @@ mkdir -p $APP_DIR
 # 3. 复制文件（从当前目录，排除 venv/__pycache__/db）
 cp -r ../nantang-mobile $APP_DIR/
 rsync -av --exclude='venv' --exclude='__pycache__' --exclude='*.db' . $APP_DIR/server/
+cp ../requirements.txt $APP_DIR/requirements.txt
 
 # 4. 创建虚拟环境
 python3 -m venv $VENV_DIR
 source $VENV_DIR/bin/activate
-pip install fastapi uvicorn sqlalchemy aiosqlite python-jose[cryptography] passlib[bcrypt] bcrypt pydantic
+pip install -r $APP_DIR/requirements.txt
 
 # 5. systemd 服务
 cat > /etc/systemd/system/nantang.service << EOF

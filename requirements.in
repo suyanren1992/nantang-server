@@ -1,0 +1,12 @@
+# 南塘云村 · 生产依赖源清单（人编辑这个文件）
+# 锁定命令: python -m piptools compile requirements.in -o requirements.txt --strip-extras
+# 生成的 requirements.txt 是唯一安装源（部署/本地/CI），不要手改 requirements.txt
+fastapi
+uvicorn
+sqlalchemy
+aiosqlite
+asyncpg
+PyJWT
+bcrypt
+pydantic
+web3

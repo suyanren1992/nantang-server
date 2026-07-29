@@ -2,10 +2,10 @@ services:
   - type: web
     name: nantang-cloud-village
     runtime: python
-    buildCommand: pip install fastapi uvicorn sqlalchemy aiosqlite asyncpg python-jose[cryptography] bcrypt pydantic
+    buildCommand: pip install -r requirements.txt && python server/scripts/deploy_check.py --skip-smoke
     startCommand: cd server && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12
+        value: 3.14.0
       - key: DATABASE_URL
         sync: false

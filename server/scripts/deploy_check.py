@@ -47,6 +47,11 @@ def _collect_imports(py_file):
     return names
 
 
+def _norm_pkg(name):
+    """PEP 503 包名归一：小写 + -_.统一成 -（pip-compile 会把 PyJWT 写成 pyjwt）。"""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
 def _parse_requirements(req_file):
     pkgs = set()
     if not req_file.exists(): return pkgs
@@ -54,7 +59,7 @@ def _parse_requirements(req_file):
         line = line.strip()
         if not line or line.startswith("#") or line.startswith("-"): continue
         name = re.split(r"[<>=!~\[]", line, maxsplit=1)[0].strip()
-        pkgs.add(name)
+        pkgs.add(_norm_pkg(name))
     return pkgs
 
 
@@ -99,7 +104,7 @@ def check_deps():
         if req_name is None:
             print(f"  {YEL}? {imp} 不在 PACKAGE_TO_REQ 映射里, 请确认{RST}")
             continue
-        if req_name not in req_pkgs:
+        if _norm_pkg(req_name) not in req_pkgs:
             missing.append((imp, req_name))
     if missing:
         for imp, req in missing:

@@ -1,0 +1,60 @@
+# 南塘云村 · CI 机器闸门
+# 每次 push / PR 到 main 自动跑：后端(pytest + 六检) + 前端(vitest)
+# 红灯 = 不许出闸（丞相 push 前看这里的绿灯）
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: 后端 pytest + 部署前六检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 版本对齐本地与锁文件（requirements.txt 由 Python 3.14 pip-compile 生成）
+      # 若 Render 实际版本核实为 3.12，此处与锁文件需一并对齐
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: 安装依赖（锁文件 + 开发依赖）
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: 环境诊断 check_env.py
+        run: python server/scripts/check_env.py
+
+      - name: 部署前六检（跳过冒烟）
+        run: python server/scripts/deploy_check.py --skip-smoke
+
+      - name: 后端测试（基线 102 passed / 7 skipped）
+        working-directory: server
+        run: python -m pytest tests/ -x -q
+
+  frontend:
+    name: 前端 vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nantang-mobile/tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: nantang-mobile/tests/package-lock.json
+
+      - name: 安装测试依赖
+        run: npm ci
+
+      - name: 前端测试（基线 34 passed）
+        run: npm test
