@@ -786,7 +786,7 @@ function _renderDiscoverySection() {
   return discs.map(function(d){
     var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', field_harvest:'🌿', field_action:'🌿', quest:'📋', stay:'🛏️', other:'⭐' };
     var time = d.verifiedAt ? d.verifiedAt.slice(11,16) : '';
-    return '<div class="disc-card" style="padding:6px 0;border-bottom:1px dotted #f0f0f0;font-size:.65rem;cursor:pointer" onclick="alert(\''+d.doer+' '+d.action+'\\n校核: '+d.verifier+'\\nNT: +'+d.ntAmount+'\\n时间: '+d.verifiedAt+'\')">'+
+    return '<div class="disc-card" style="padding:6px 0;border-bottom:1px dotted #f0f0f0;font-size:.65rem;cursor:pointer" onclick="_showAlertCard({title:\''+esc(d.doer)+' '+esc(d.action)+'\',message:\'校核: '+esc(d.verifier)+'  NT +'+d.ntAmount+'\n'+d.verifiedAt+'\'})">'+
       '<span>'+icons[d.type]+'</span> <b>'+d.doer+'</b> '+d.action+' <span style="color:#999">✅ '+d.verifier+'校核 +'+d.ntAmount+'NT</span> <span style="color:#999;float:right">'+time+'</span></div>';
   }).join('');
 }
@@ -1411,6 +1411,25 @@ function closeMgmt() {
 function renderMgmtPanel(type) {
   var fn = { cleaning:renderCleaningPanel, stay:_showStaySheet, field:renderFieldPanel, fieldPlant:renderFieldPanel, kitchen:renderKitchenPanel, kitchenAdd:renderKitchenPanel }[type];
   _d('mgmtBody').innerHTML = fn ? fn() : '';
+}
+
+// ── IA-6: 统一弹窗卡片替代浏览器 alert ──
+function _showAlertCard(opts) {
+  var icon = opts.icon || '💬';
+  var title = opts.title || '';
+  var message = opts.message || '';
+  var okText = opts.okText || '知道了';
+  var el = document.createElement('div');
+  el.style.cssText = 'position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out';
+  el.onclick = function(e) { if (e.target === el) { el.remove(); if (opts.onOk) opts.onOk(); } };
+  el.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:24px 20px;width:300px;max-width:88vw;box-shadow:0 12px 40px rgba(0,0,0,.2);text-align:center;animation:spcPop .2s ease-out">' +
+    '<div style="font-size:2rem;margin-bottom:8px">' + icon + '</div>' +
+    (title ? '<div style="font-weight:700;font-size:.82rem;margin-bottom:6px;color:#1d2e24">' + esc(title) + '</div>' : '') +
+    '<div style="font-size:.68rem;color:#5a6e5c;line-height:1.7;margin-bottom:16px;white-space:pre-line">' + esc(message) + '</div>' +
+    '<button id="_alertCardBtn" style="width:100%;padding:10px 0;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:.75rem;font-weight:700;min-height:44px;cursor:pointer" onclick="var o=this.parentElement.parentElement;if(o)o.remove()">' + okText + '</button>' +
+    '</div>';
+  document.body.appendChild(el);
 }
 
 // ── 卡片弹窗通用壳（fullscreen=true 全屏）──
@@ -2792,7 +2811,7 @@ function _openVerificationPanel() {
   var doneCount = quests.length ? steps.filter(function(s){ var q = quests.find(function(x){ return x.id === s.id; }); return q && q.done; }).length : 0;
   if (steps.length && doneCount < steps.length) {
     var pct = Math.round(doneCount / steps.length * 100);
-    h += '<div style="background:#f0f8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer" onclick="var el=document.querySelector(\'.vfy-popup\');if(el)el.remove();alert(\'新手引导在首页下方查看\')"><div style="font-weight:700;font-size:.7rem">🌱 新手引导 ('+doneCount+'/'+steps.length+')</div><div style="height:4px;background:#ddd;border-radius:2px;margin:4px 0"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:2px"></div></div><div style="font-size:.55rem;color:#999">点击查看详情</div></div>';
+    h += '<div style="background:#f0f8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer" onclick="var el=document.querySelector(\'.vfy-popup\');if(el)el.remove();_showAlertCard({message:\'新手引导在首页下方查看\'})"><div style="font-weight:700;font-size:.7rem">🌱 新手引导 ('+doneCount+'/'+steps.length+')</div><div style="height:4px;background:#ddd;border-radius:2px;margin:4px 0"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:2px"></div></div><div style="font-size:.55rem;color:#999">点击查看详情</div></div>';
   }
   // ── 整洁度 ──
   var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
