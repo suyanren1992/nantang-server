@@ -258,7 +258,7 @@ function pickChip(el){el.parentElement.querySelectorAll('.my-fchip').forEach(fun
 function openSub(t){document.getElementById('subTitle').textContent=t.name;document.getElementById('subPage').classList.add('open');
   document.body.classList.add('ov-locked');
   var h='<span class="sub-badge sb-gold">'+t.type+'</span> ';
-  h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';
+  if (t.status) h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';
   h+='<div style="font-size:1.1rem;font-weight:700;margin-top:8px">'+esc(t.name)+'</div>';
   h+='<div style="font-size:1.2rem;font-weight:700;color:var(--green-primary);margin:4px 0"><img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
   if(t.note) h+='<div class="sub-section"><h3>任务说明</h3><p style="font-size:.85rem;line-height:1.6;color:#1d2e24">'+esc(t.note)+'</p></div>';

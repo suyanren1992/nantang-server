@@ -23,7 +23,7 @@ function openCampHome(campId) {
   // Bottom bar role switch
   var inboxBtn = document.getElementById('cbBtnInbox');
   var plusBtn = document.getElementById('cbBtnPlus');
-  if (isAdventurer) {
+  if (isAdventurer || isBuilder) {
     inboxBtn.innerHTML = '<span style="font-size:1.2rem">🥬</span><span class="cb-label">订餐</span>';
     inboxBtn.onclick = function(){ openCanteen(); };
     plusBtn.innerHTML = '<span style="font-size:1.2rem">🃏</span><span class="cb-label">卡片</span>';
@@ -151,7 +151,7 @@ function renderCampOverview(el) {
       '<span style="color:#d0d9ce">→</span></div>'+
 
     // 🏨 住宿
-    '<div class="camp-nav-card" onclick="showToast(\'住宿功能将在阶段4上线\',\'warn\')"><span>🏨</span>'+
+    '<div class="camp-nav-card" onclick="openInn()"><span>🏨</span>'+
       '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">住宿</div>'+
       '<div style="font-size:.58rem;color:'+(lodgingRmb?'#5a6e5c':'#aaa')+';margin-top:2px">'+(lodgingRmb?lodgingNT+' NT/天 · ¥'+lodgingRmb+'/天':'暂无客栈数据')+'</div></div>'+
       (lodgingRmb ? '<span style="font-size:.6rem;background:#e8f0e4;color:#3d6b52;padding:3px 8px;border-radius:10px">查看</span>' : '')+

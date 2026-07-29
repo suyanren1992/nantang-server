@@ -1198,6 +1198,8 @@ function refreshUserUI(){
   var mn=document.querySelector('.my-topbar .my-name');if(mn)mn.textContent=u||'未登录';
   // 动态角色 + 注册日期（仅工作台顶栏显示）
   var role='云村民';var users=getUsers();if(users[u]){var r=users[u].role;role=roleName(r)}
+  // C-1b: 头像边框动态角色色
+  var ma2=document.querySelector('.my-avatar');if(ma2&&users[u]){ma2.className='my-avatar role-'+(users[u].role||'builder');}
   var created='';
   if(appUser&&appUser.created)created=appUser.created;
   if(!created){var gu=getUsers()[u];if(gu&&gu.created)created=gu.created;}
@@ -1235,7 +1237,8 @@ function refreshUserUI(){
       }
     });
   }
-  if (!b && window.NT){var bal=NT.getUser(u);b=bal?bal.ntBalance:0;cv=bal?bal.contributionValue||0:0;xp=bal?bal.experienceValue||0:0;
+  // C-1a: 本地 NT 余额兜底（API 路径失败/离线时用），不再仅当 b===0 才触发——避免 API 未返回时 bar 宽 0%
+  if (window.NT){var bal=NT.getUser(u);var _b=bal?bal.ntBalance:0;if(!b||_b>b)b=_b;cv=bal?bal.contributionValue||0:0;xp=bal?bal.experienceValue||0:0;
     var ntVal=document.querySelector('.my-nt-val');if(ntVal)ntVal.innerHTML='<img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:18px;height:18px;vertical-align:middle;margin-right:2px>'+b+'<span style=font-size:.55rem;color:#5a6e5c;margin-left:4px>💠'+cv+' ⭐'+xp+'</span><span style=font-size:.55rem;color:var(--green-primary);margin-left:6px;cursor:pointer" onclick="event.stopPropagation();renderWeeklySettlement()">📊</span>';
     var ntCard=document.getElementById('myNtBalance');if(ntCard)ntCard.textContent=b;
     var ntBar=document.getElementById('myNtBar');if(ntBar)ntBar.style.width=Math.min(100,Math.round(b/1250*100))+'%';

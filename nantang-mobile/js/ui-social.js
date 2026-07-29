@@ -317,7 +317,7 @@ function openDossier(name) {
   h += '<div class="dossier-stat"><span>已完成</span><span>'+completedTasks+' 项</span></div>';
   h += '<div class="dossier-stat"><span>累计 NT</span><span style="font-weight:700;color:var(--green-primary)">'+cumulativeNT+'</span></div>';
   h += '<div class="dossier-stat"><span>完成率</span><span>'+completionRate+'%</span></div>';
-  h += '<div style="height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin-top:6px"><div style="height:100%;width:'+completionRate+'%;background:#3d6b52;border-radius:2px"></div></div>';
+  h += '<div style="height:4px;background:#f0f0f0;border-radius:2px;overflow:hidden;margin-top:6px"><div style="height:100%;width:'+(completionRate||0)+'%;background:#3d6b52;border-radius:2px"></div></div>';
   h += '</div>';
 
   h += '<div class="dossier-section"><h3>📋 任务记录</h3>';

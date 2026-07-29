@@ -12,6 +12,8 @@ function closeInn() {
 }
 
 var _mealOrders = {};
+// C-4: 启动时从 AppData 回填订单状态（解决刷新丢失）
+(function(){ if(window.AppData&&AppData._data.mealOrders){ Object.keys(AppData._data.mealOrders).forEach(function(k){ var o=AppData._data.mealOrders[k]; if(o.status==='ordered')_mealOrders[k]=true; }); } })();
 function _orderMeal(date, meal) {
   if (!CURRENT_USER) { showToast('请先登录', 'error'); return; }
   var mealCost = (window.CAMP_ECONOMY && window.CAMP_ECONOMY.canteenMealCost) || 10;
