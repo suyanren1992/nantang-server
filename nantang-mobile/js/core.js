@@ -949,6 +949,7 @@ function _mergeSyncData(data) {
       if (!_jExisting.has(key)) { AppData._data.journal.push({type:j.type, content:j.content, time:j.time, space_id:j.space_id}); _jExisting.add(key); }
     });
   }
+  // sync_all: 社区活动日志以服务端为准整体覆盖（activity_log 仅由服务端写入，客户端只读）
   if (data.activity) { AppData._data.activity_log = data.activity; }
   if (data.items && Array.isArray(data.items)) {
     if (!AppData._data.items[AppData._currentUser]) AppData._data.items[AppData._currentUser] = [];
@@ -957,6 +958,7 @@ function _mergeSyncData(data) {
       if (!existing.find(function(e) { return e.id === it.id; })) existing.push(it);
     });
   }
+  // D-6: 新手任务以服务端为准整体覆盖——服务端说无新手任务即清空本地
   if (data.newbie && Array.isArray(data.newbie)) {
     AppData._data.newbieQuests = {};
     data.newbie.forEach(function(q) { AppData._data.newbieQuests[q.quest_id] = q; });
@@ -985,6 +987,7 @@ function _mergeSyncData(data) {
   if (data.pendingConfigChanges && Array.isArray(data.pendingConfigChanges) && window.AppData) {
     AppData._data.pendingConfigChanges = data.pendingConfigChanges;
   }
+  // D-15: 公约定价修改记录以服务端为准整体覆盖——服务端空数组=无修改记录
   if (data.configHistory && Array.isArray(data.configHistory) && window.AppData) {
     AppData._data.configHistory = data.configHistory;
   }
