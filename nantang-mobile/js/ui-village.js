@@ -11,14 +11,10 @@ function enterCamp(campId) {
   // 非成员→四步报到告知流
   _showBriefingSheet(campId);
 }
-// C-B-3: 进营地时尝试拉后端真实 people 计数（端点未就位则静默 fallback）
+// C-B-3: people 直接读 sync 既有数据（C-B-2 后 list_camps 已是真实聚合），不调额外端点
 function _enterCampFetchPeople(campId) {
-  if (typeof API === 'undefined' || !API.token) return;
-  API.campStats(campId).then(function(r) {
-    if (r && r.ok && r.people !== undefined && window.AppData && AppData._data.camps && AppData._data.camps[campId]) {
-      AppData._data.camps[campId].people = r.people;
-    }
-  }).catch(function(){ /* 静默——端点未就位不阻塞 */ });
+  // people 已在 AppData._data.camps[campId].people 中由 sync_all/_saveShared 维护
+  // C-B-2 后端 list_camps 返回真实聚合计数后此处自动生效，无需额外端点
 }
 // ══ C-B-3: 四步报到告知流（活动须知→安全提示→日程确认→确认加入）══
 var _briefingStep = 0, _briefingCampId = null;

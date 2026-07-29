@@ -147,7 +147,6 @@ var API = {
   accommodationStatus: function() { return this.request('GET', '/api/accommodation/status'); },  // G-3 记账/欠费状态
   // ── C-B-3: 营地报到（幂等）──
   campCheckin: function(campId) { return this.request('POST', '/api/camps/' + encodeURIComponent(campId) + '/checkin'); },
-  campStats: function(campId) { return this.request('GET', '/api/camps/' + encodeURIComponent(campId) + '/stats'); },
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
   archiveSummary: function(userId) { return this.request('GET', '/api/data/archive_summary/' + encodeURIComponent(userId)); },  // ZX-4 F12 个人沉淀公开计数
   // ── 任务同步 ──
