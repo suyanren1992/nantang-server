@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from pydantic import BaseModel, Field
 from datetime import datetime
 from database import get_db
-from models import User, Tenancy, NTTask
+from models import User, Tenancy, NTTask, InnRoom
 import json
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool, BED_RATES
@@ -48,9 +48,19 @@ async def _settle_tenancy(db, user, t, occasion):
             "total": amount, "paid": paid, "debt": remaining}
 
 
+def _intervals_overlap(a_in: str, a_out: str, b_in: str, b_out: str) -> bool:
+    """C-B-4 区间重叠判定（PC inn_bookings 原型逻辑重写，非搬运）。
+    半开区间 [in, out)：重叠 ⇔ a_in < b_out 且 a_out > b_in。
+    相邻不重叠（a_out == b_in）与同日进出（零长区间）均判不重叠。"""
+    return a_in < b_out and a_out > b_in
+
+
 class CheckinRequest(BaseModel):
     room_id: str = Field(min_length=1)
     bed_num: int = 1
+    track: str = "coop"                 # C-B-4: coop | inn
+    check_in: str | None = None         # inn 轨必填（YYYY-MM-DD）
+    check_out: str | None = None        # inn 轨必填（YYYY-MM-DD）
 
 
 class RoleChangeRequest(BaseModel):
@@ -58,10 +68,50 @@ class RoleChangeRequest(BaseModel):
     role: str  # visitor | npc | builder | adventurer | admin
 
 
+async def _inn_checkin(req: "CheckinRequest", user: User, db: AsyncSession):
+    """C-B-4 素社民宿区间预订：InnRoom 房型 + 区间重叠占用判定（beds 上限）。
+    结算沿 G-3 应计路径（退房时 _settle_tenancy），本函数不新造钱路。"""
+    if not req.check_in or not req.check_out:
+        raise HTTPException(status_code=400, detail="民宿预订需提供 check_in / check_out 日期")
+    if req.check_in >= req.check_out:
+        raise HTTPException(status_code=400, detail="check_out 必须晚于 check_in")
+    room = (await db.execute(select(InnRoom).where(InnRoom.id == req.room_id))).scalar_one_or_none()
+    if not room or room.status != "active":
+        raise HTTPException(status_code=404, detail="民宿房间不存在或未开放")
+    # 区间重叠占用判定（带行锁防并发超卖）——同房 active inn 预订逐条比对
+    existing_r = await db.execute(
+        select(Tenancy).where(
+            Tenancy.room_id == req.room_id,
+            Tenancy.track == "inn",
+            Tenancy.status == "active",
+        ).with_for_update()
+    )
+    overlaps = [t for t in existing_r.scalars()
+                if _intervals_overlap(req.check_in, req.check_out,
+                                      t.checkin_date, t.check_out_date or t.checkin_date)]
+    if len(overlaps) >= (room.beds or 1):
+        raise HTTPException(status_code=400, detail="该房间在所选日期已满")
+    t = Tenancy(user_id=user.id, room_id=req.room_id, bed_num=req.bed_num,
+                checkin_date=req.check_in, check_out_date=req.check_out,
+                track="inn", room_type=room.room_type, status="active")
+    db.add(t)
+    if user.role == "visitor":
+        user.role = "npc"
+    await db.commit()
+    return {"ok": True, "track": "inn", "room_id": req.room_id,
+            "room_type": room.room_type, "room_label": room.label,
+            "check_in": req.check_in, "check_out": req.check_out,
+            "role": user.role}
+
+
 @router.post("/checkin")
 async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
                   db: AsyncSession = Depends(get_db)):
-    """入住——原子化：子查询防超额。已入住则自动换房。"""
+    """入住——原子化：子查询防超额。已入住则自动换房。
+    C-B-4: track=inn 走素社民宿区间预订引擎；coop（default）路径一字不变。
+    """
+    if req.track == "inn":
+        return await _inn_checkin(req, user, db)
     # 已有入住 → 自动退旧房（换房场景）
     existing = await db.execute(
         select(Tenancy).where(Tenancy.user_id == user.id, Tenancy.status == "active")

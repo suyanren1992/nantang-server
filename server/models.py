@@ -300,10 +300,27 @@ class Tenancy(Base):
     room_id = Column(String, nullable=False)       # 引用 map_locations 中的 roomId
     bed_num = Column(Integer, default=1)
     checkin_date = Column(String, nullable=False)
+    check_out_date = Column(String, nullable=True)  # C-B-4: inn 轨预订退房日（coop 轨留空；区间重叠占用判定用）
+    track = Column(String, default="coop")          # C-B-4: coop 合作社实景 | inn 素社民宿；default coop 向后兼容零迁移
+    room_type = Column(String, nullable=True)       # C-B-4: single | quad（inn 轨房型快照；coop 留空）
     last_deducted = Column(String, nullable=True)  # 上次扣费/记账日期（幂等）
     debt = Column(Integer, default=0)              # 未结欠费（退房结算后未清部分留存，可追缴）
     accommodation_due = Column(Integer, default=0) # G-3: 住宿费应计记账累计（退房一次性结算，不动 nt_balance）
     status = Column(String, default="active")      # active / checked_out
+
+
+# C-B-4: 素社民宿房型配置（照 C-B 设计稿 §4 / §6 PC inn_rooms 参考重写，非搬运）
+# 素社规格：单人间×4（梅/兰/竹/菊 beds=1）+ 四人间×2（A/B beds=4）。rate 为展示/配置字段，
+# 实际 G-3 应计结算沿既有 BED_RATES 路径（不新造钱路）。
+class InnRoom(Base):
+    __tablename__ = "inn_rooms"
+    id = Column(String, primary_key=True)          # mei/lan/zhu/ju/quadA/quadB
+    label = Column(String, nullable=False)         # 梅/兰/竹/菊/四人间A/四人间B
+    room_type = Column(String, nullable=False)     # single | quad
+    beds = Column(Integer, default=1)              # single=1 | quad=4
+    rate = Column(Integer, default=0)              # 每晚 NT（展示/配置，不直连钱路）
+    dietary = Column(String, default="vegetarian")  # 素食标签
+    status = Column(String, default="active")      # active | closed
 
 
 # G-1: 公约签署凭证

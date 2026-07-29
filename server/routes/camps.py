@@ -260,6 +260,37 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
     }
 
 
+@router.get("/{camp_id}/members")
+async def camp_members(camp_id: str, user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db),
+                       limit: int = 50, offset: int = 0):
+    """C-B-4（C-B-3 前端依赖）：营地成员名录。
+
+    走 visible_camp_filter 收口——admin 全通（可见任意营地名录）；
+    非 admin 过渡期照 CAMP_SCOPE_ENFORCED（本期 False=放行，与 list_camps 一致）。
+    名录含 user 基本字段 + camp_role + joined_at，分页沿 list_camps 惯例。
+    """
+    camp = (await db.execute(select(Camp).where(Camp.id == camp_id))).scalar_one_or_none()
+    if not camp:
+        raise HTTPException(status_code=404, detail="营地不存在")
+    # 收口鉴权：admin 全通；非 admin 过渡放行时该营地对其可见即放行
+    visible = visible_camp_filter(user, select(Camp.id).where(Camp.id == camp_id))
+    if not (await db.execute(visible)).scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="无权查看该营地成员")
+    rows = (await db.execute(
+        select(CampMembership, User)
+        .join(User, User.id == CampMembership.user_id)
+        .where(CampMembership.camp_id == camp_id, CampMembership.status == "active")
+        .order_by(CampMembership.joined_at.asc())
+        .limit(min(limit, 200)).offset(offset)
+    )).all()
+    return [{
+        "user_id": u.id, "role": u.role, "avatar_seed": u.avatar_seed,
+        "nt_balance": u.nt_balance, "contribution_value": u.contribution_value,
+        "camp_role": m.camp_role, "joined_at": m.joined_at,
+    } for m, u in rows]
+
+
 @router.get("/{camp_id}/report")
 async def camp_report(camp_id: str, user: User = Depends(get_current_user),
                       db: AsyncSession = Depends(get_db)):

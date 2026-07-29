@@ -151,3 +151,35 @@ async def init_db():
             await session.commit()
         except Exception:
             await session.rollback()  # PG: 同上，回滚恢复事务
+        # C-B-4: Tenancy 加 track/room_type/check_out_date（存量表补列，向后兼容默认值）
+        for _ddl in (
+            "ALTER TABLE tenancies ADD COLUMN track VARCHAR DEFAULT 'coop'",
+            "ALTER TABLE tenancies ADD COLUMN room_type VARCHAR",
+            "ALTER TABLE tenancies ADD COLUMN check_out_date VARCHAR",
+        ):
+            try:
+                await session.execute(text(_ddl))
+                await session.commit()
+            except Exception:
+                await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
+        # C-B-4: 素社 InnRoom 种子（幂等——空表才播；沿 CommunityPool 池初始化惯例）
+        try:
+            from models import InnRoom
+            _has_inn = (await session.execute(select(InnRoom).limit(1))).scalar_one_or_none()
+            if not _has_inn:
+                _seed_rooms = [
+                    ("mei", "梅·单人间", "single", 1, 40),
+                    ("lan", "兰·单人间", "single", 1, 40),
+                    ("zhu", "竹·单人间", "single", 1, 40),
+                    ("ju", "菊·单人间", "single", 1, 40),
+                    ("quadA", "四人间A", "quad", 4, 25),
+                    ("quadB", "四人间B", "quad", 4, 25),
+                ]
+                for _rid, _label, _rtype, _beds, _rate in _seed_rooms:
+                    session.add(InnRoom(id=_rid, label=_label, room_type=_rtype,
+                                        beds=_beds, rate=_rate, dietary="vegetarian", status="active"))
+                await session.commit()
+                logger.info("[C-B-4] seeded 6 inn_rooms (素社: 4 single + 2 quad)")
+        except Exception as e:
+            logger.warning(f"[C-B-4] inn_rooms seed skipped: {e}")
+            await session.rollback()
