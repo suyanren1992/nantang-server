@@ -367,3 +367,60 @@ async def test_withdraw_confirm_concurrent_single_settle(pg_engine):
         await s.execute(text("DELETE FROM nt_ledger WHERE entry_id = 'k2_p01'"))
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# M-2a / S-1: 池发奖并发不双花（/api/nt/earn 池行锁）
+# ══════════════════════════════════════════════════════════════════════
+async def test_earn_concurrent_no_double_spend(pg_engine):
+    """M-2a: 池 balance=10，2 并发各发奖 8 NT。
+
+    复现 /api/nt/earn 的池行锁：
+      select(CommunityPool).with_for_update().populate_existing()
+    第一个事务持锁扣池 10→2 → 第二个阻塞等锁 →
+    锁释放后读到 balance=2 < 8 → 池不足拒绝。
+    断言：只有 1 笔成功，池 10→2，收款方只进账一次。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(User(id="m2a_lock_doer", password_hash="x",
+                   nt_balance=0, trust_score=80))
+        s.add(CommunityPool(balance=10, total_issued=500,
+                            reserve=0, frozen=0))
+        await s.commit()
+
+    async def _earn(sf, amount):
+        async with sf() as s:
+            # 收款方行锁
+            u = (await s.execute(
+                select(User).where(User.id == "m2a_lock_doer")
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            # D-17 池行锁 + populate_existing
+            pool = (await s.execute(
+                select(CommunityPool).limit(1)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            if pool.balance < amount:
+                await s.rollback()
+                return False
+            pool.balance -= amount
+            u.nt_balance += amount
+            await s.commit()
+            return True
+
+    ok = await asyncio.gather(_earn(factory, 8), _earn(factory, 8))
+
+    assert sum(ok) == 1, f"M-2a 池发奖并发双花: 应只有1个成功，实际 {ok}"
+    async with factory() as s:
+        pool = (await s.execute(select(CommunityPool).limit(1))).scalar_one()
+        assert pool.balance == 2, f"M-2a: 池应 10→2（只扣一次），实得 {pool.balance}"
+        u = (await s.execute(select(User).where(User.id == "m2a_lock_doer"))).scalar_one()
+        assert u.nt_balance == 8, f"M-2a: 收款方应只进账一次=8，实得 {u.nt_balance}"
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM users WHERE id = 'm2a_lock_doer'"))
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()

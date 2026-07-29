@@ -30,6 +30,13 @@ class EarnSpendRequest(BaseModel):
     scope: str = "personal"
 
 
+class EarnRequest(BaseModel):
+    to: str                             # 收款方（发奖对象）
+    amount: int = Field(ge=1)           # 上限在 handler 显式拦 >10000 -> 400（非 pydantic 422）
+    reason: str = ""
+    scope: str = "personal"             # 仅用于账本标注，钱源恒为社区池
+
+
 class TopUpRequest(BaseModel):
     user: str
     amount: int = Field(ge=1, le=100000)
@@ -236,14 +243,58 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     return {"ok": True, "entry_id": lid, "from_balance": user.nt_balance}
 
 
-# R11-1: POST /api/nt/earn 已废弃 — 客户端无调用方（grep 确认 2026-07-21）。earn 仅通过校核制/任务结算等服务端逻辑触发。
-# 如需恢复：取消下面注释并加 Depends(require_admin)
-# @router.post("/earn")
-# async def earn(req: EarnSpendRequest, user: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
-#     if req.amount <= 0: raise HTTPException(status_code=400, detail="金额必须大于0")
-#     if req.amount > 10000: raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
-#     pool = await _get_pool(db, lock=True)
-#     ...
+# ══ M-2a: POST /api/nt/earn 池发奖端点（R11-1 恢复）══
+# 涉钱：社区池 → 用户 的 grant（pool-funded 奖励，如卡片室“被发现得 NT”）。
+# 双保险：require_admin（或服务端校核制内部调用）+ D-17 锁型（with_for_update+populate_existing 读池行）防并发双花。
+# 池→人 不改 total_issued（钱已在系统内流动），会计等式守恒。
+@router.post("/earn")
+async def earn(req: EarnRequest, admin: User = Depends(require_admin),
+               db: AsyncSession = Depends(get_db)):
+    # 金额校验：>10000 显式拦（保留 R11-1 上限）→ 400；<=0 由 pydantic ge=1 兜底
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="金额必须大于0")
+    if req.amount > 10000:
+        raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
+
+    # 收款方行锁（populate_existing 读最新值）
+    target = (await db.execute(
+        select(User).where(User.id == req.to)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="目标用户不存在")
+
+    # D-17 锁型：池行加锁 + populate_existing，防并发双花（S-1 锁测先例）
+    pool = (await db.execute(
+        select(CommunityPool).limit(1)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if pool is None:
+        pool = await _get_pool(db, lock=True)  # 新库兜底建池
+    # NULL 迁移守卫（沿 _get_pool 惯例）
+    if pool.camp_balance is None:
+        pool.camp_balance = 0
+    if pool.reserve is None:
+        pool.reserve = 0
+    if pool.frozen is None:
+        pool.frozen = 0
+
+    if pool.balance < req.amount:
+        raise HTTPException(status_code=400,
+                            detail=f"社区池余额不足（当前 {pool.balance} NT，需 {req.amount} NT）")
+
+    pool.balance -= req.amount
+    target.nt_balance += req.amount
+    target.contribution_value = (target.contribution_value or 0) + req.amount
+    target.experience_value = (target.experience_value or 0) + req.amount
+    target.updated_at = datetime.utcnow().isoformat()
+
+    lid = _ledger_id()
+    await _add_ledger(db, lid, "community_pool", target.id, req.amount,
+                      f"{req.scope}_earn", req.reason)
+    await db.commit()
+    return {"ok": True, "entry_id": lid,
+            "balance": target.nt_balance, "pool_balance": pool.balance}
 
 
 @router.post("/spend")
