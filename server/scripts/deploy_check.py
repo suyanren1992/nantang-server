@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """deploy_check.py — 部署前总检（纯 stdlib，零依赖）。
 
-四检:
+五检:
   1. 依赖对账: requirements.txt 清单 vs 代码实际 import, 缺则报红
   2. ?v= 一致性: index.html 引用的 js/css 是否都带 ?v=, 漏则报黄(缓存铁律机检)
-  3. 环境变量清单: 代码里 os.environ / os.getenv 读取的变量汇总成表
-  4. 部署后冒烟: 给定 URL, 检查站点 200 / /api/nt/sync 401 / 版本号回显
+  3. JS 语法机检: node --check 逐文件检查 JS 语法, 语法错则 FAIL 拦截(219ce8b 同类)
+  4. 环境变量清单: 代码里 os.environ / os.getenv 读取的变量汇总成表
+  5. 部署后冒烟: 给定 URL, 检查站点 200 / /api/nt/sync 401 / 版本号回显
 
 用法:
-  python server/scripts/deploy_check.py                          # 本地四检
+  python server/scripts/deploy_check.py                          # 本地五检
   python server/scripts/deploy_check.py --url https://x.pages.dev
   python server/scripts/deploy_check.py --skip-smoke
 """
-import argparse, ast, os, re, sys, urllib.request, urllib.error
+import argparse, ast, os, re, subprocess, sys, urllib.request, urllib.error
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -82,7 +83,7 @@ def _collect_env_vars(py_file):
 
 
 def check_deps():
-    print(f"\n{GRN}[1/4] 依赖对账{RST}")
+    print(f"\n{GRN}[1/5] 依赖对账{RST}")
     req_pkgs = _parse_requirements(REQUIREMENTS)
     all_imports = set()
     for py in SERVER.rglob("*.py"):
@@ -107,7 +108,7 @@ def check_deps():
 
 
 def check_cache_busting():
-    print(f"\n{GRN}[2/4] ?v= 一致性(缓存铁律机检){RST}")
+    print(f"\n{GRN}[2/5] ?v= 一致性(缓存铁律机检){RST}")
     if not INDEX_HTML.exists():
         print(f"  {YEL}? index.html 不存在, 跳过{RST}"); return True
     html = INDEX_HTML.read_text(encoding="utf-8")
@@ -137,8 +138,58 @@ OPTIONAL_INFO = {
 }
 
 
+def check_js_syntax():
+    """T-1: JS 语法机检——subprocess node --check 逐文件检查 index.html 引用的本地 js。
+
+    node 不可用时降级 WARN（不静默 PASS），避免 219ce8b 类语法错误带病上线。
+    """
+    print(f"\n{GRN}[3/5] JS 语法机检{RST}")
+    if not INDEX_HTML.exists():
+        print(f"  {YEL}? index.html 不存在, 跳过{RST}"); return True
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    # 复用 ?v= 检的清单逻辑：取 .js 本地引用
+    local_js_refs = re.findall(r'src="((?!https?://)[^"]+\.js(?:\?v=\d+)?)"', html)
+    if not local_js_refs:
+        print(f"  {YEL}! 未发现本地 JS 引用{RST}"); return True
+
+    try:
+        r = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=10)
+        if r.returncode != 0:
+            print(f"  {YEL}! node --version 不可用(returncode={r.returncode}), JS 语法机检缺失——请装 node.js 后重跑{RST}")
+            return True
+    except FileNotFoundError:
+        print(f"  {YEL}! node 命令未找到, JS 语法机检缺失——请装 node.js 后重跑{RST}")
+        return True
+    except Exception as e:
+        print(f"  {YEL}! node 检测异常({e}), JS 语法机检缺失{RST}")
+        return True
+
+    ok = True
+    for ref in sorted(set(local_js_refs)):
+        clean = ref.split("?v=")[0] if "?v=" in ref else ref
+        js_path = (FRONTEND / clean).resolve()
+        if not js_path.exists():
+            print(f"  {YEL}! JS 路径不存在: {clean} (index.html 引用){RST}")
+            continue
+        r = subprocess.run(["node", "--check", str(js_path)],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            err = (r.stderr.strip() or r.stdout.strip() or "语法错误")
+            brief = err.split("\n")[0] if "\n" in err else err
+            print(f"  {RED}X 语法错误: {clean} — {brief}{RST}")
+            ok = False
+        else:
+            print(f"  {GRN}V {clean} 语法通过{RST}")
+
+    if ok:
+        print(f"  {GRN}V {len(set(local_js_refs))} 个 JS 文件语法全部通过{RST}")
+    else:
+        print(f"  {RED}X 存在 JS 语法错误，请修复后重新运行{RST}")
+    return ok
+
+
 def check_env_vars():
-    print(f"\n{GRN}[3/4] 环境变量清单{RST}")
+    print(f"\n{GRN}[4/5] 环境变量清单{RST}")
     all_vars = set()
     for py in SERVER.rglob("*.py"):
         if "__pycache__" in py.parts or ".archives" in py.parts or "tests" in py.parts: continue
@@ -155,7 +206,7 @@ def check_env_vars():
 
 
 def check_smoke(base_url):
-    print(f"\n{GRN}[4/4] 部署后冒烟 ({base_url}){RST}")
+    print(f"\n{GRN}[5/5] 部署后冒烟 ({base_url}){RST}")
     ok = True
     def _get(path):
         url = base_url.rstrip("/") + path
@@ -193,7 +244,7 @@ def main():
     print("南塘云村 · 部署总检 (deploy_check.py · 纯 stdlib)")
     print("=" * 60)
     results = [("依赖对账", check_deps()), ("?v= 一致性", check_cache_busting()),
-               ("环境变量", check_env_vars())]
+               ("JS语法机检", check_js_syntax()), ("环境变量", check_env_vars())]
     if not args.skip_smoke:
         results.append(("部署冒烟", check_smoke(args.url)))
     print("\n" + "=" * 60)
