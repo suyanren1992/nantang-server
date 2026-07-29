@@ -149,7 +149,7 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     # 仅个人发布时从用户余额扣款（社区任务已在上面从池扣款）
     if req.poster != "社区" and req.scope != "camp":
         (user_locked if user_locked is not None else user).nt_balance -= req.reward * req.slots
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         pool.task_escrow += req.reward * req.slots
     db.add(task)
     lid = _ledger_id()
@@ -205,7 +205,7 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
     if task.escrow_amount > 0 and task.status != "已结算":
         poster_result = await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))
         poster = poster_result.scalar_one_or_none()
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         if poster:
             poster.nt_balance += task.escrow_amount
         else:
