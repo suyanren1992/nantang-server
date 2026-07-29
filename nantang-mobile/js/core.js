@@ -580,7 +580,7 @@ function filterPubTargets(){
   var kw=(document.getElementById('pubTargetSearch')||{}).value||'';
   var list=document.getElementById('pubTargetList');if(!list)return;
   var filtered=Object.keys(getUsers()).filter(function(u){return!kw||u.indexOf(kw)!==-1});
-  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectPubTarget(\''+encodeURIComponent(u)+'\')">👤 '+u+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
+  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectPubTarget(\''+encodeURIComponent(u)+'\')">👤 '+esc(u)+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
   list.style.display='block';
 }
 function selectPubTarget(name){
@@ -599,7 +599,7 @@ function filterReviewers(){
   var kw=el.value||'';
   var list=document.getElementById('pubReviewerList');if(!list)return;
   var filtered=Object.keys(getUsers()).filter(function(u){return!kw||u.indexOf(kw)!==-1});
-  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectReviewer(\''+encodeURIComponent(u)+'\')">👤 '+u+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
+  list.innerHTML=filtered.length?filtered.map(function(u){return'<div style="padding:8px 12px;cursor:pointer;font-size:.72rem;border-bottom:1px solid #f0f0f0" onclick="selectReviewer(\''+encodeURIComponent(u)+'\')">👤 '+esc(u)+'</div>'}).join(''):'<div style="padding:8px 12px;font-size:.68rem;color:#aaa">未找到</div>';
   list.style.display='block';
 }
 function onPubTypeChange(){

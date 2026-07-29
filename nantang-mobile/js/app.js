@@ -192,11 +192,11 @@ function renderContent(idx) {
 
   var fKeys = Object.keys(b.floors || {}), rooms = curRooms(), isField = !!(b.plots && b.plots.length > 0);
 
-  var cp = _q('crumbPath'); if (cp) cp.innerHTML = '🗺️ <span style="cursor:pointer;color:var(--g-accent);text-decoration:underline" onclick="renderOverview()">实景地图</span> › <span style="cursor:pointer" onclick="renderOverview()">' + b.name + '</span>' + (selectedRoomId ? ' › <span>' + (rooms.find(function(r){return r.id===selectedRoomId})||{}).name + '</span>' : '');
+  var cp = _q('crumbPath'); if (cp) cp.innerHTML = '🗺️ <span style="cursor:pointer;color:var(--g-accent);text-decoration:underline" onclick="renderOverview()">实景地图</span> › <span style="cursor:pointer" onclick="renderOverview()">' + esc(b.name) + '</span>' + (selectedRoomId ? ' › <span>' + esc((rooms.find(function(r){return r.id===selectedRoomId})||{}).name||'') + '</span>' : '');
 
   _q('photoImg').style.height = ''; // 重置全貌页压缩的高度
   _q('photoImg').style.background = b.photoBg;
-  _q('photoImg').innerHTML = (b.photo ? '<img src="'+b.photo+'" class="ph-image" onerror="this.style.display=\'none\'">' : '') +
+  _q('photoImg').innerHTML = (b.photo ? '<img src="'+esc(b.photo)+'" class="ph-image" onerror="this.style.display=\'none\'">' : '') +
     '<div class="ph-fallback"><div class="ph-emoji">'+b.icon+'</div></div>' +
     '<button class="ph-arrow left" onclick="if(currentIdx>0)goTo(currentIdx-1)">‹</button>' +
     '<button class="ph-arrow right" onclick="if(currentIdx<getBuildings().length-1)goTo(currentIdx+1)">›</button>';
@@ -216,7 +216,7 @@ function renderContent(idx) {
 
   var rh = '';
   if (isField) { rh = renderFieldPlots(rooms); }
-  else if (rooms.length > 0) { rooms.forEach(function(r){ var sel = selectedRoomId===r.id?' selected':''; rh += '<div class="room-card'+sel+'" onclick="selectRoom(\''+r.id+'\')"><div class="rc-dot" style="background:'+(r.status==='green'?'#5d8c52':r.status==='yellow'?'#c8892e':'#b84c38')+'"></div><div class="rc-icon">'+r.icon+'</div><div class="rc-name">'+r.name+'</div>'+(r.sub?'<div class="rc-sub">'+r.sub+'</div>':'')+'</div>'; }); }
+  else if (rooms.length > 0) { rooms.forEach(function(r){ var sel = selectedRoomId===r.id?' selected':''; rh += '<div class="room-card'+sel+'" onclick="selectRoom(\''+r.id+'\')"><div class="rc-dot" style="background:'+(r.status==='green'?'#5d8c52':r.status==='yellow'?'#c8892e':'#b84c38')+'"></div><div class="rc-icon">'+r.icon+'</div><div class="rc-name">'+esc(r.name)+'</div>'+(r.sub?'<div class="rc-sub">'+esc(r.sub)+'</div>':'')+'</div>'; }); }
   else { rh = '<div class="room-empty">📍开放空间</div>'; }
   _q('roomsGrid').style.display = '';
   _q('roomsGrid').innerHTML = rh;
@@ -279,7 +279,7 @@ function _renderAnnounceTicker() {
   var anns = (window.AppData && AppData._data.announcements) ? AppData._data.announcements.slice(0,8) : [];
   if (!anns.length) return '';
   return '<div class="announce-bar"><span style="margin-right:8px">📢</span><span class="announce-track">'+
-    anns.map(function(a){ return a.text; }).join(' &nbsp;·&nbsp; ')+'</span></div>';
+    anns.map(function(a){ return esc(a.text); }).join(' &nbsp;·&nbsp; ')+'</span></div>';
 }
 
 function _renderStatusPills() {
@@ -377,7 +377,7 @@ function _renderMgmtCards() {
   var kitchenLines = freshItems.length ? freshItems.slice(0,3).map(function(it){
     var d = it.expiryDays && it.putDate ? it.expiryDays - Math.floor((Date.now()-new Date(it.putDate+'T00:00:00'))/86400000) : null;
     var warn = d !== null && d <= 0 ? ' <span class="ic-warn">过期</span>' : d !== null && d <= 2 ? ' <span class="ic-warn">'+d+'天</span>' : '';
-    return '<div>📦 '+it.name+' · '+it.putBy+warn+'</div>';
+    return '<div>📦 '+esc(it.name)+' · '+esc(it.putBy)+warn+'</div>';
   }).join('') : '';
   h += '<div class="ic-card" onclick="_openMgmtSheet(\'kitchen\')"><div class="ic-head">🍳 厨房·冰箱</div>'+
     '<div class="ic-body">'+(kitchenLines||'<div class="ic-muted">暂无物品，点此录入</div>')+'</div></div>';
@@ -806,7 +806,7 @@ function _renderPresenceSection() {
     var loc = p.location||'';
     var safeName = uname.replace(/'/g,"\\'");
     return '<div class="presence-card'+(uname===me?' is-me':'')+'" style="min-width:72px;text-align:center;cursor:pointer;padding:6px 8px;background:#fff;border:1px solid '+(uname===me?'var(--green-primary)':'#e0e0e0')+';border-radius:10px" onclick="'+(uname===me?'_flipMyPresence()':'_showFlipOther(\''+safeName+'\')')+'">'+
-      '<div style="font-size:1.1rem">'+icon+'</div><div style="font-weight:700;font-size:.65rem">'+uname+'</div><div style="font-size:.55rem;color:#999">'+label+(loc?' · '+loc:'')+'</div></div>';
+      '<div style="font-size:1.1rem">'+icon+'</div><div style="font-weight:700;font-size:.65rem">'+esc(uname)+'</div><div style="font-size:.55rem;color:#999">'+label+(loc?' · '+esc(loc):'')+'</div></div>';
   }).join('')+'</div>';
 }
 
@@ -840,7 +840,7 @@ function _renderTimelineSection() {
   return recent.map(function(e){
     var t = e.time || '';
     var display = t.slice(0,10) === new Date().toISOString().slice(0,10) ? t.slice(11,16) : t.slice(0,10) === _yesterday() ? '昨天 '+t.slice(11,16) : t.slice(5,10);
-    return '<div class="tl-entry" style="padding:4px 0;font-size:.62rem;border-bottom:1px dotted #f8f8f8"><span style="color:#999">'+display+'</span> '+e.text+'</div>';
+    return '<div class="tl-entry" style="padding:4px 0;font-size:.62rem;border-bottom:1px dotted #f8f8f8"><span style="color:#999">'+display+'</span> '+esc(e.text)+'</div>';
   }).join('');
 }
 function _yesterday() { var d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
@@ -919,7 +919,7 @@ function renderCarousel(idx) {
     }
     h += '<div class="bc-card'+(active?' active':'')+'" onclick="goTo('+i+')">'+
       '<span class="bc-icon">'+b2.icon+'</span>'+
-      '<span class="bc-name">'+b2.name+'</span>'+
+      '<span class="bc-name">'+esc(b2.name)+'</span>'+
       '<span class="bc-status" style="background:'+dotColor+'"></span></div>';
   });
   _q('bcTrack').innerHTML = h;
@@ -1065,7 +1065,7 @@ function buildRoomDetail(room) {
     allItems.forEach(function(it, idx){
       var statusLabel = it.status==='warn'?'注意':it.status==='expired'?'过期':'正常';
       var statusClass = it.status==='warn'?'is-warn':it.status==='expired'?'is-bad':'is-clean';
-      body += '<div class="item-row" style="'+_seedStyle(it)+'"><div class="ir-icon">'+it.icon+'</div><div class="ir-text">'+it.text+'<div class="ir-sub">'+(it.sub||'')+'</div></div><div class="item-status '+statusClass+'">'+statusLabel+'</div></div>';
+      body += '<div class="item-row" style="'+_seedStyle(it)+'"><div class="ir-icon">'+it.icon+'</div><div class="ir-text">'+esc(it.text)+'<div class="ir-sub">'+esc(it.sub||'')+'</div></div><div class="item-status '+statusClass+'">'+statusLabel+'</div></div>';
     });
   }
 
@@ -1461,7 +1461,7 @@ function _showFridgeSheet() {
     if (!z.items.length) { h += '<div style="font-size:.6rem;color:#999;padding:4px 0">空</div>'; return; }
     z.items.forEach(function(it) {
       var w = ''; if (it.expiryDays && it.putDate) { var d = it.expiryDays - Math.floor((Date.now() - new Date(it.putDate+'T00:00:00'))/86400000); w = d <= 0 ? ' <span style="color:var(--g-red)">过期</span>' : d <= 2 ? ' <span style="color:#c8892e">'+d+'天</span>' : ''; }
-      h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px dotted #f0f0f0;display:flex;justify-content:space-between"><span>📦 '+it.name+' · '+it.putBy+w+'</span><span style="color:#999;font-size:.55rem">'+it.putDate+'</span></div>';
+      h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px dotted #f0f0f0;display:flex;justify-content:space-between"><span>📦 '+esc(it.name)+' · '+esc(it.putBy)+w+'</span><span style="color:#999;font-size:.55rem">'+it.putDate+'</span></div>';
     });
   });
   _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:.65rem" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
@@ -2905,7 +2905,7 @@ function _selectKitchenItem(name, icon) {
     if (btn) { btn.style.borderColor='var(--green-primary)'; btn.style.background='#e8f0e8'; }
   }
   var sel = document.getElementById('qkSelectedItem');
-  if (sel) sel.innerHTML = icon + ' ' + name;
+  if (sel) sel.innerHTML = icon + ' ' + esc(name);
 }
 
 function _doKitchenAction(action, label, nt) {
