@@ -90,6 +90,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["X-Total-Count"],  # B-3: 分页总数头需显式暴露给分离部署前端
 )
 
 # API 路由

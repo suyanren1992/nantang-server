@@ -1,5 +1,5 @@
 """Task CRUD routes."""
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel, Field
@@ -44,7 +44,7 @@ def _task_id():
 
 
 @router.get("")
-async def list_tasks(scope: str = None, status: str = None, mode: str = Query(None),
+async def list_tasks(response: Response, scope: str = None, status: str = None, mode: str = Query(None),
                      limit: int = 50, offset: int = 0,
                      user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
@@ -73,6 +73,8 @@ async def list_tasks(scope: str = None, status: str = None, mode: str = Query(No
         tasks = [t for t in tasks if t.scope == scope]
     if status:
         tasks = [t for t in tasks if t.status == status]
+    # B-3: 切片前记录过滤后总数，经 X-Total-Count 暴露，前端据此翻页拉全（治"50条上限旧任务看不到"）
+    response.headers["X-Total-Count"] = str(len(tasks))
     tasks = tasks[offset:offset + min(limit, 200)]
     return [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
              "scope": t.scope, "status": t.status, "poster": t.poster, "assignee": t.assignee, "assignees": t.assignees,

@@ -155,9 +155,22 @@ var API = {
   syncTaskUpdate: function(taskId, updates) { return this.request('PUT', '/api/tasks/' + taskId, updates); },
   deleteTask: function(name) { return this.request('DELETE', '/api/tasks/' + name); },
   fetchTasks: function(callback) {
-    this.request('GET', '/api/tasks?mode=hall').then(function(tasks) {
-      if (callback) callback(Array.isArray(tasks) ? tasks : null);
-    });
+    // B-3: 循环分页拉全——后端 mode=hall 默认每页 50/上限 200，旧策略只拉首页致 50 条后任务不可见。
+    // 每页取 200，页满则续拉下一页，直到返回不足一页；上限 2000 条防御无限循环。
+    var self = this, PAGE = 200, MAX = 2000, acc = [];
+    function pull(offset) {
+      self.request('GET', '/api/tasks?mode=hall&limit=' + PAGE + '&offset=' + offset).then(function(tasks) {
+        if (!Array.isArray(tasks)) {
+          // 首页即失败/离线 → 回 null 兜底；已累积则返回已得部分
+          if (callback) callback(acc.length ? acc : null);
+          return;
+        }
+        acc = acc.concat(tasks);
+        if (tasks.length >= PAGE && acc.length < MAX) { pull(offset + PAGE); }
+        else { if (callback) callback(acc); }
+      });
+    }
+    pull(0);
   },
   fetchDiscoveries: function(callback) {
     this.request('GET', '/api/data/card_discoveries').then(function(discs) {
