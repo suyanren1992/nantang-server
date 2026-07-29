@@ -2806,11 +2806,11 @@ function _openVerificationPanel() {
   else pending.slice(0,5).forEach(function(v){
     var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', store_in:'🏬', field_harvest:'🌿', field_action:'🌿', daily_container:'🗑️', quest:'📋', stay:'🛏️', labor_report:'📝', other:'⭐' };
     var isMe = v.doer === me || v.doer === null;
-    h += '<div style="background:#fafaf5;border:1px solid #e0e0e0;border-radius:6px;padding:6px 8px;margin-bottom:4px;font-size:.62rem">';
-    h += '<div style="display:flex;justify-content:space-between"><b>'+icons[v.type]+' '+(v.doer||'系统')+'</b><span style="color:var(--green-primary)">+'+v.ntAmount+' NT</span></div>';
-    h += '<div style="color:#999;font-size:.55rem">'+v.action+'</div>';
+    h += '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:8px;padding:8px 10px;margin-bottom:4px;font-size:.62rem">';
+    h += '<div style="display:flex;justify-content:space-between"><b style="color:#1d2e24">'+icons[v.type]+' '+(v.doer||'系统')+'</b><span style="color:var(--green-primary)">+'+v.ntAmount+' NT</span></div>';
+    h += '<div style="color:#666;font-size:.55rem">'+v.action+'</div>';
     if (!isMe) { h += '<button class="btn-sm pri" style="font-size:.55rem;padding:2px 6px;margin-top:2px" onclick="event.stopPropagation();_doVerify(\''+v.id+'\')">✓ 校核 +'+v.verifierReward+'NT</button>'; }
-    else { h += '<div style="color:#999;font-size:.55rem">等待他人校核</div>'; }
+    else { h += '<div style="color:#666;font-size:.55rem">等待他人校核</div>'; }
     h += '</div>';
   });
   h += '<button class="btn-sm sec" style="width:100%;margin-top:6px;font-size:.6rem" onclick="var el=document.querySelector(\'.vfy-popup\');if(el)el.remove()">✕ 关闭</button>';
@@ -3028,6 +3028,7 @@ function _closeQuickSheet() {
   var sheet = document.querySelector('.quick-sheet');
   if (sheet) sheet.remove();
 }
+function closeQuickSheet(){ _closeQuickSheet(); }
 function _undoToast(type) {
   var toast = document.createElement('div'); toast.className = 'toast-undo';
   toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#2a4a30;color:#fff;padding:8px 20px;border-radius:20px;font-size:.75rem;z-index:9999;cursor:pointer';
