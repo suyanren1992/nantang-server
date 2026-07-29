@@ -1,6 +1,7 @@
 """Authentication: register, login, refresh (httpOnly cookie), logout."""
 import os
 import re
+import time
 from fastapi import APIRouter, Depends, HTTPException, Header, Request, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +61,43 @@ async def require_admin(user: User = Depends(get_current_user)):
     return user
 
 
+# ══ P1-2: 登录失败限速（内存 IP 计数）══
+# ponytail: 内存态，多进程/重启即丢失。日活 <50 足够；规模化换 slowapi/Redis。
+# 连续失败 达阈值 → 锁定 M 分钟；期间任何登录直接 429；成功登录清零；锁定过期自动重置。
+_LOGIN_FAIL_MAX = int(os.environ.get("LOGIN_FAIL_MAX", "5"))       # 触发锁定的连续失败次数
+_LOGIN_LOCK_MINUTES = int(os.environ.get("LOGIN_LOCK_MINUTES", "15"))  # 锁定时长（分钟）
+_login_fails: dict[str, list] = {}  # ip -> [fail_count, lock_until_epoch]
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request and request.client else "unknown"
+
+
+def _login_lock_remaining(ip: str) -> int:
+    """返回该 IP 剩余锁定秒数；0=未锁定。锁定过期则重置计数。"""
+    rec = _login_fails.get(ip)
+    if not rec:
+        return 0
+    lock_until = rec[1]
+    if lock_until and lock_until > time.time():
+        return int(lock_until - time.time()) + 1
+    if lock_until:  # 锁已过期 → 清零重来
+        _login_fails.pop(ip, None)
+    return 0
+
+
+def _login_record_fail(ip: str):
+    rec = _login_fails.get(ip) or [0, 0]
+    rec[0] += 1
+    if rec[0] >= _LOGIN_FAIL_MAX:
+        rec[1] = time.time() + _LOGIN_LOCK_MINUTES * 60
+    _login_fails[ip] = rec
+
+
+def _login_clear(ip: str):
+    _login_fails.pop(ip, None)
+
+
 @router.post("/register")
 async def register(req: RegisterRequest, response: Response, db: AsyncSession = Depends(get_db)):
     # SM-5.5: trim 防「张三␣」影子账号
@@ -94,12 +132,24 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
 
 
 @router.post("/login")
-async def login(req: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
-    # ponytail: 无速率限制。日活 <50 时内存 IP 计数足够，>50 时加 slowapi/Redis。
+async def login(req: LoginRequest, request: Request, response: Response, db: AsyncSession = Depends(get_db)):
+    # P1-2: 内存 IP 限速——连续失败达阈值锁定 M 分钟，钝化暴力撞库/枚举。
+    ip = _client_ip(request)
+    remaining = _login_lock_remaining(ip)
+    if remaining > 0:
+        return JSONResponse(
+            {"ok": False, "error": f"登录失败次数过多，请 {remaining // 60 + 1} 分钟后再试"},
+            status_code=429,
+        )
     u = (await db.execute(select(User).where(User.id == req.name))).scalar_one_or_none()
     # D-3 M-10: 「用户不存在」与「密码错误」统一文案，消除用户枚举
-    if not u: return JSONResponse({"ok": False, "error": "用户名或密码错误"})
-    if not verify_password(req.password, u.password_hash): return JSONResponse({"ok": False, "error": "用户名或密码错误"})
+    if not u:
+        _login_record_fail(ip)
+        return JSONResponse({"ok": False, "error": "用户名或密码错误"})
+    if not verify_password(req.password, u.password_hash):
+        _login_record_fail(ip)
+        return JSONResponse({"ok": False, "error": "用户名或密码错误"})
+    _login_clear(ip)  # 成功登录 → 清零该 IP 失败计数
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
     return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u)}
