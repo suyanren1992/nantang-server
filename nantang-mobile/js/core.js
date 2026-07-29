@@ -956,6 +956,8 @@ function _mergeSyncData(data) {
     });
   }
   // B-5: activity_log 智能合并——按 time+type+text 去重追加，不覆盖本地未同步条目
+  // E-4: 服务端下发 activity_clear 标志时全量清空重建（reset 后动态清零不复活）
+  if (data.activity_clear) { AppData._data.activity_log = []; }
   if (data.activity) {
     AppData._data.activity_log = AppData._data.activity_log || [];
     var _aExisting = new Set(AppData._data.activity_log.map(function(a){return a.time+a.type+(a.text||'');}));

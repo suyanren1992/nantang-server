@@ -41,7 +41,7 @@ function sendEncouragement(target, type) {
 function logActivity(type, text) {
   if (!window.AppData) return;
   var log = AppData._data.activity_log || (AppData._data.activity_log = []);
-  log.unshift({ time: new Date().toISOString(), type: type, text: text });
+  log.unshift({ time: (typeof Clock !== 'undefined' ? Clock.iso() : new Date().toISOString()), type: type, text: text });
   updateInboxBadge();
   if (typeof API !== 'undefined' && API.token) API.syncActivity(type, text);
 }
@@ -463,7 +463,7 @@ function toggleArchiveExpand(){
     '<div>📦 <b>物品</b> — '+itemCount+' 件登记</div>'+
     '</div>'+
     (tl ? '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px"><div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📜 我的时间线</div>'+tl+'</div>' : '')+
-    '<div style="text-align:center;padding:8px;background:var(--green-primary);color:#fff;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;margin-top:8px" onclick="closeMyPage();openArchive(\'log\')">📚 打开档案室 →</div>';
+    '<div style="text-align:center;padding:8px;background:var(--green-primary);color:#fff;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;margin-top:8px" onclick="openArchive(\'log\')">📚 打开档案室 →</div>';
 }
 
 // SM-3.1: renderTimeline 本体抽成纯 HTML 生成器（不操作 DOM），供社区/个人两处复用

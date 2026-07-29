@@ -109,6 +109,9 @@ function _formatActivityItems(log) {
       item = {icon:'🏨',filterKey:'全部',html:text};
     } else if (type==='submission_approve'||type==='submission_reject'||type==='task_reveal') {
       item = {icon:'✅',filterKey:'审核',html:text};
+    } else {
+      // E-5: 兜底——system/pool_refill/role_change/camp_confirm/discovery_*/labor_report 等不再静默丢弃
+      item = {icon:'📋',filterKey:'全部',html:esc(text)};
     }
 
     if (item) {

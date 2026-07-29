@@ -1405,7 +1405,7 @@ function closeMgmt() {
 }
 
 function renderMgmtPanel(type) {
-  var fn = { cleaning:renderCleaningPanel, stay:_showStaySheet, field:renderFieldPanel, kitchen:renderKitchenPanel }[type];
+  var fn = { cleaning:renderCleaningPanel, stay:_showStaySheet, field:renderFieldPanel, fieldPlant:renderFieldPanel, kitchen:renderKitchenPanel, kitchenAdd:renderKitchenPanel }[type];
   _d('mgmtBody').innerHTML = fn ? fn() : '';
 }
 
