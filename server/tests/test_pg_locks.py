@@ -26,7 +26,7 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select, text
 
-from models import Base, User, CommunityPool, Tenancy, NTLedger
+from models import Base, User, CommunityPool, Tenancy, NTLedger, CardDiscovery
 
 # requires_pg: PG_DATABASE_URL 为空时 skip
 # loop_scope="module": pg_engine 是 module 级 fixture，测试必须同循环域
@@ -422,5 +422,75 @@ async def test_earn_concurrent_no_double_spend(pg_engine):
     # cleanup
     async with factory() as s:
         await s.execute(text("DELETE FROM users WHERE id = 'm2a_lock_doer'"))
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# M-2b-i / S-1: 卡片确认并发只发一次（discovery 行锁 + 池行锁）
+# ══════════════════════════════════════════════════════════════════════
+async def test_card_confirm_concurrent_single_grant(pg_engine):
+    """M-2b-i: 同一 discovery 2 并发确认，只有 1 个发奖成功。
+
+    复现 /api/nt/card-confirm 的锁模式：
+      select(CardDiscovery).with_for_update().populate_existing()  # P0-1 行锁
+      + _grant_from_pool 内 select(CommunityPool).with_for_update().populate_existing()  # D-17
+    第一个事务持 discovery 锁 → 置 confirmed + 扣池发奖 →
+    第二个阻塞等锁 → 锁释放后读到 status=confirmed → 拒绝（不二次发奖）。
+    断言：只 1 个成功，doer 只进账一次，池只扣一次，disc=confirmed。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(User(id="m2bi_doer", password_hash="x", nt_balance=0, trust_score=80))
+        s.add(CommunityPool(balance=100, total_issued=500, reserve=0, frozen=0))
+        s.add(CardDiscovery(id="m2bi_disc", space_id="sp", description="扫地",
+                            guesser="m2bi_reporter", guessed_person="m2bi_doer",
+                            status="pending", nt_guesser=5, nt_doer=8,
+                            created_at="2026-07-29T00:00:00"))
+        await s.commit()
+
+    async def _confirm(sf):
+        async with sf() as s:
+            disc = (await s.execute(
+                select(CardDiscovery).where(CardDiscovery.id == "m2bi_disc")
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            if disc.status != "pending":
+                await s.rollback()
+                return False
+            # _grant_from_pool 等效内联：池行锁 + 扣池加人
+            u = (await s.execute(
+                select(User).where(User.id == disc.guessed_person)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            pool = (await s.execute(
+                select(CommunityPool).limit(1)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            if pool.balance < disc.nt_doer:
+                await s.rollback()
+                return False
+            pool.balance -= disc.nt_doer
+            u.nt_balance += disc.nt_doer
+            disc.status = "confirmed"
+            await s.commit()
+            return True
+
+    ok = await asyncio.gather(_confirm(factory), _confirm(factory))
+
+    assert sum(ok) == 1, f"M-2b-i 并发双确认: 应只有1个发奖，实际 {ok}"
+    async with factory() as s:
+        u = (await s.execute(select(User).where(User.id == "m2bi_doer"))).scalar_one()
+        pool = (await s.execute(select(CommunityPool).limit(1))).scalar_one()
+        disc = (await s.execute(select(CardDiscovery).where(CardDiscovery.id == "m2bi_disc"))).scalar_one()
+        assert u.nt_balance == 8, f"M-2b-i: doer 应只进账一次=8，实得 {u.nt_balance}"
+        assert pool.balance == 92, f"M-2b-i: 池应只扣一次 100→92，实得 {pool.balance}"
+        assert disc.status == "confirmed"
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM users WHERE id = 'm2bi_doer'"))
+        await s.execute(text("DELETE FROM card_discoveries WHERE id = 'm2bi_disc'"))
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()

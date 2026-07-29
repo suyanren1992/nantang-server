@@ -37,6 +37,10 @@ class EarnRequest(BaseModel):
     scope: str = "personal"             # 仅用于账本标注，钱源恒为社区池
 
 
+class CardConfirmRequest(BaseModel):
+    disc_id: str                        # 发现记录 id（金额/收款方服务端从记录取）
+
+
 class TopUpRequest(BaseModel):
     user: str
     amount: int = Field(ge=1, le=100000)
@@ -243,22 +247,19 @@ async def transfer(req: TransferRequest, user: User = Depends(get_current_user),
     return {"ok": True, "entry_id": lid, "from_balance": user.nt_balance}
 
 
-# ══ M-2a: POST /api/nt/earn 池发奖端点（R11-1 恢复）══
-# 涉钱：社区池 → 用户 的 grant（pool-funded 奖励，如卡片室“被发现得 NT”）。
-# 双保险：require_admin（或服务端校核制内部调用）+ D-17 锁型（with_for_update+populate_existing 读池行）防并发双花。
-# 池→人 不改 total_issued（钱已在系统内流动），会计等式守恒。
-@router.post("/earn")
-async def earn(req: EarnRequest, admin: User = Depends(require_admin),
-               db: AsyncSession = Depends(get_db)):
-    # 金额校验：>10000 显式拦（保留 R11-1 上限）→ 400；<=0 由 pydantic ge=1 兜底
-    if req.amount <= 0:
+# ══ M-2a/M-2b-i: 池发奖共用内核 _grant_from_pool ══
+# 涉钱：社区池 → 用户 的 grant（pool-funded）。抽离供 earn（admin 直调）与
+# card-confirm（服务端校验后内部调）共用。D-17 锁型原样保留（池+收款方双
+# with_for_update+populate_existing）防并发双花。池→人 不改 total_issued（钱已在系
+# 统内流动），会计等式守恒。不在本 helper 内 commit——由调用方提交，
+# 保证“发奖 + 业务状态变更”同事务原子。
+async def _grant_from_pool(db, to_user, amount, reason, scope="personal"):
+    if amount <= 0:
         raise HTTPException(status_code=400, detail="金额必须大于0")
-    if req.amount > 10000:
-        raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
 
     # 收款方行锁（populate_existing 读最新值）
     target = (await db.execute(
-        select(User).where(User.id == req.to)
+        select(User).where(User.id == to_user)
         .with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not target:
@@ -279,22 +280,79 @@ async def earn(req: EarnRequest, admin: User = Depends(require_admin),
     if pool.frozen is None:
         pool.frozen = 0
 
-    if pool.balance < req.amount:
+    if pool.balance < amount:
         raise HTTPException(status_code=400,
-                            detail=f"社区池余额不足（当前 {pool.balance} NT，需 {req.amount} NT）")
+                            detail=f"社区池余额不足（当前 {pool.balance} NT，需 {amount} NT）")
 
-    pool.balance -= req.amount
-    target.nt_balance += req.amount
-    target.contribution_value = (target.contribution_value or 0) + req.amount
-    target.experience_value = (target.experience_value or 0) + req.amount
+    pool.balance -= amount
+    target.nt_balance += amount
+    target.contribution_value = (target.contribution_value or 0) + amount
+    target.experience_value = (target.experience_value or 0) + amount
     target.updated_at = datetime.utcnow().isoformat()
 
     lid = _ledger_id()
-    await _add_ledger(db, lid, "community_pool", target.id, req.amount,
-                      f"{req.scope}_earn", req.reason)
+    await _add_ledger(db, lid, "community_pool", target.id, amount,
+                      f"{scope}_earn", reason)
+    return {"entry_id": lid, "balance": target.nt_balance, "pool_balance": pool.balance}
+
+
+# ══ M-2a: POST /api/nt/earn 池发奖端点（R11-1 恢复）══
+# admin 门控直调 _grant_from_pool；对外行为（校验/状态码/返回契约）与 M-2a 一致不变。
+@router.post("/earn")
+async def earn(req: EarnRequest, admin: User = Depends(require_admin),
+               db: AsyncSession = Depends(get_db)):
+    # 金额校验：>10000 显式拦（保留 R11-1 上限）→ 400；<=0 由 pydantic ge=1 兜底
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="金额必须大于0")
+    if req.amount > 10000:
+        raise HTTPException(status_code=400, detail="单笔金额上限 10000 NT")
+
+    result = await _grant_from_pool(db, req.to, req.amount, req.reason, req.scope)
     await db.commit()
-    return {"ok": True, "entry_id": lid,
-            "balance": target.nt_balance, "pool_balance": pool.balance}
+    return {"ok": True, **result}
+
+
+# ══ M-2b-i: POST /api/nt/card-confirm 卡片发现确认发奖（村民可调）══
+# 修 M-2 症②根因：卡片奖励应为池→做事者，而非确认者 user→user 自转。
+# 归属硬拦（御旨）：发现者(guesser) 不能自校核→403；金额取自 discovery 记录不信客户端；
+# discovery 行锁防并发重复确认（P0-1 锁型），与发奖同事务提交。不改 discovery 模型结构。
+@router.post("/card-confirm")
+async def card_confirm(req: CardConfirmRequest, user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
+    from models import CardDiscovery
+    # discovery 行锁 + populate_existing（防并发双确认双发）
+    disc = (await db.execute(
+        select(CardDiscovery).where(CardDiscovery.id == req.disc_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if not disc:
+        raise HTTPException(status_code=404, detail="发现记录不存在")
+
+    # 御旨归属硬拦：发现者不能确认自己发起的发现（禁自校核）
+    if disc.guesser and disc.guesser == user.id:
+        raise HTTPException(status_code=403, detail="发现者不能确认自己发起的发现（禁止自校核）")
+
+    # 防重复：非 pending 一律拦（已确认/已否认/已过期）
+    if disc.status != "pending":
+        raise HTTPException(status_code=409, detail=f"该发现已处理（状态: {disc.status}）")
+
+    # 金额与收款方均取自服务端记录，不信客户端传参
+    to_user = disc.guessed_person
+    amount = disc.nt_doer or 0
+    if not to_user:
+        raise HTTPException(status_code=400, detail="发现记录缺做事者，无法发奖")
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="发现记录奖励额非法")
+
+    result = await _grant_from_pool(
+        db, to_user, amount,
+        reason=f"卡片室发现: {disc.description or disc.id}",
+        scope="personal",
+    )
+    disc.status = "confirmed"
+    disc.doer_confirmed_at = datetime.utcnow().isoformat()
+    await db.commit()
+    return {"ok": True, **result}
 
 
 @router.post("/spend")
