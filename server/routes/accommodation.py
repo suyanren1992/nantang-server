@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from database import get_db
 from models import User, Tenancy, NTTask, InnRoom
 import json
@@ -224,6 +224,36 @@ async def accommodation_status(user: User = Depends(get_current_user),
             "overdue_limit": _due >= ACCOMMODATION_LIMIT_DAYS * _rate,
             "remind_days": ACCOMMODATION_REMIND_DAYS, "limit_days": ACCOMMODATION_LIMIT_DAYS,
             "role": user.role}
+
+
+@router.get("/inn-rooms")
+async def list_inn_rooms(db: AsyncSession = Depends(get_db)):
+    """C-B-5a: 素社民宿房型列表（含占用日期）。公开接口，无需鉴权。"""
+    rooms_r = await db.execute(select(InnRoom).where(InnRoom.status == "active"))
+    rooms = []
+    for room in rooms_r.scalars():
+        tenancies = await db.execute(
+            select(Tenancy).where(
+                Tenancy.room_id == room.id,
+                Tenancy.track == "inn",
+                Tenancy.status == "active",
+            )
+        )
+        occupied = set()
+        for t in tenancies.scalars():
+            if t.checkin_date and t.check_out_date:
+                # 展开 [checkin, checkout) 区间内所有日期
+                d = date.fromisoformat(t.checkin_date)
+                end = date.fromisoformat(t.check_out_date)
+                while d < end:
+                    occupied.add(d.isoformat())
+                    d += timedelta(days=1)
+        rooms.append({
+            "id": room.id, "label": room.label, "room_type": room.room_type,
+            "beds": room.beds, "rate": room.rate, "dietary": room.dietary,
+            "status": room.status, "occupied_dates": sorted(occupied),
+        })
+    return {"rooms": rooms}
 
 
 # ══ 角色变更（邀请码路径）══
