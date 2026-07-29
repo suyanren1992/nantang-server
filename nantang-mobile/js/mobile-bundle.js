@@ -4,6 +4,32 @@
    所有函数从 app.js 复制，无桌面端 DOM 依赖
    ══════════════════════════════════════════════════════════════════ */
 
+// ═══ NM shim（P1-1：seed-test-data.js 将 NM 定义为 {} 空对象，导致 5 处调用 TypeError） ═══
+// mobile-bundle 先于 data.js/core.js 加载，shim 方法在调用时延迟解析全局函数
+window.NM = {
+  currentTab: 0,
+  showToast: function(msg) {
+    if (typeof showToast === 'function') { showToast(msg); return; }
+    console.log('[NM:showToast]', msg);
+  },
+  showConfirm: function(title, body, onOk) {
+    if (typeof showConfirm === 'function') { showConfirm(title + '\n' + (body || ''), onOk); return; }
+    if (confirm(title + '\n' + (body || ''))) { if (onOk) onOk(); }
+  },
+  // 以下在现行 mobile 代码库中无等价实现，安全 no-op
+  // ponytail: 待 M1-M5 墓碑评估——若桌面端搬过来 renderWorkspace/switchTab/refreshHUD/openSubPage 则替换为桥接
+  renderWorkspace: function() { /* no-op: 移动端无等价物 */ },
+  switchTab: function(idx) { NM.currentTab = idx; /* no-op: 移动端无等价物 */ },
+  refreshHUD: function() { /* no-op: 移动端无等价物 */ },
+  openSubPage: function(title, renderFn) {
+    // 尝试桥接 openSub，但签名不同（openSub 接受 task 对象），fallback no-op
+    if (typeof renderFn === 'function') {
+      var el = document.getElementById('subBody');
+      if (el) { document.getElementById('subTitle').textContent = title; renderFn(el); document.getElementById('subPage').classList.add('open'); }
+    }
+  }
+};
+
 // ═══ 常量 ═══
 var CHARACTER_SEEDS = [
   'Alex','Jordan','Casey','Morgan','Riley','Taylor','Quinn','Sam',
