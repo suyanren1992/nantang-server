@@ -111,6 +111,17 @@ async def add_security_headers(request: Request, call_next):
     t0 = time.time()
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
+    # TD-3: CSP 头（先扫外链域名：cdn.jsdelivr.net, api.dicebear.com, placehold.co）
+    # 115 onclick + 175 style 内联需 'unsafe-inline'
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' https://api.dicebear.com https://placehold.co data:; "
+        "connect-src 'self'; "
+        "font-src 'self' data:; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'")
     # BE-2②: 每请求一行记录（时间由日志格式自带）
     logger.info(f"{request.method} {request.url.path} {response.status_code} {(time.time()-t0)*1000:.0f}ms")
     return response

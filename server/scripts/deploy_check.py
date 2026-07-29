@@ -30,7 +30,7 @@ LOCAL_PREFIXES = ("routes", "models", "database", "auth_utils", "nt_helpers",
 PACKAGE_TO_REQ = {
     "bcrypt": "bcrypt", "fastapi": "fastapi", "uvicorn": "uvicorn",
     "sqlalchemy": "sqlalchemy", "aiosqlite": "aiosqlite", "asyncpg": "asyncpg",
-    "jose": "python-jose", "web3": "web3", "pydantic": "pydantic", "httpx": "httpx",
+    "jwt": "PyJWT", "web3": "web3", "pydantic": "pydantic", "httpx": "httpx",
 }
 RED = "\033[31m"; YEL = "\033[33m"; GRN = "\033[32m"; RST = "\033[0m"
 

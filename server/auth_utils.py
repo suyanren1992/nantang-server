@@ -1,7 +1,8 @@
 """Authentication: bcrypt + JWT access/refresh token (industry standard)."""
 import os
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError as JWTError
 from datetime import datetime, timedelta
 import uuid
 
@@ -9,7 +10,7 @@ SECRET_KEY = os.environ.get("JWT_SECRET")
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET 环境变量未设置")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60       # 1 hour (short-lived, in JS memory)
+ACCESS_TOKEN_EXPIRE_MINUTES = 15       # TD-3: 15min (short-lived, 前端有401→refresh→retry循环)
 REFRESH_TOKEN_EXPIRE_DAYS = 7           # 7 days (httpOnly cookie)
 ABSOLUTE_MAX_DAYS = 30                  # R14-3 M47: refresh session 最大年龄
 
