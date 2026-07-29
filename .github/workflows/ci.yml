@@ -13,11 +13,11 @@ jobs:
   backend:
     name: 后端 pytest + 部署前六检
     runs-on: ubuntu-latest
+    env:
+      JWT_SECRET: ci-test-dummy-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
 
-      # 版本对齐本地与锁文件（requirements.txt 由 Python 3.14 pip-compile 生成）
-      # 若 Render 实际版本核实为 3.12，此处与锁文件需一并对齐
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
@@ -34,14 +34,23 @@ jobs:
       - name: 部署前六检（跳过冒烟）
         run: python server/scripts/deploy_check.py --skip-smoke
 
-      - name: 版本诊断
-        run: |
-          python --version
-          python -c "import pytest, pytest_asyncio, httpx; print(f'pytest={pytest.__version__}, asyncio={pytest_asyncio.__version__}, httpx={httpx.__version__}')"
-
       - name: 后端测试（基线 102 passed / 7 skipped）
         working-directory: server
-        run: python -m pytest tests/ -x -v --tb=short
+        run: python -m pytest tests/ -x -v --tb=long 2>&1 | tee /tmp/pytest-out.txt
+
+      - name: 测试失败时发 commit 评论
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 server/scripts/ci_post_comment.py /tmp/pytest-out.txt
+
+      - name: 输出测试日志到 Summary
+        if: always()
+        run: |
+          echo '## Pytest 输出' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/pytest-out.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
   frontend:
     name: 前端 vitest

@@ -20,11 +20,20 @@ mkdir -p $APP_DIR
 cp -r ../nantang-mobile $APP_DIR/
 rsync -av --exclude='venv' --exclude='__pycache__' --exclude='*.db' . $APP_DIR/server/
 cp ../requirements.txt $APP_DIR/requirements.txt
+cp ../requirements-dev.txt $APP_DIR/requirements-dev.txt
 
 # 4. 创建虚拟环境
 python3 -m venv $VENV_DIR
 source $VENV_DIR/bin/activate
 pip install -r $APP_DIR/requirements.txt
+pip install -r $APP_DIR/requirements-dev.txt
+
+# 4b. 部署前机器闸门（六检 + 测试，任一 FAIL 即中止部署）
+echo "--- 部署前六检 ---"
+python $APP_DIR/server/scripts/deploy_check.py --skip-smoke
+echo "--- 后端测试 ---"
+JWT_SECRET=deploy-gate-dummy python -m pytest $APP_DIR/server/tests/ -x -q
+echo "--- 机器闸门全部通过 ---"
 
 # 5. systemd 服务
 cat > /etc/systemd/system/nantang.service << EOF

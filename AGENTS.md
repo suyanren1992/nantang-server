@@ -47,13 +47,35 @@ cd server && python -m pytest tests/test_pg_locks.py -x -v
 python server/scripts/check_env.py
 
 # 部署前六检（依赖对账 / ?v= / JS语法 / API契约 / 环境变量 / 冒烟）
-python server/scripts/deploy_check.py
+python server/scripts/deploy_check.py --skip-smoke            # 本地常用（跳过冒烟）
 python server/scripts/deploy_check.py --url https://xxx.pages.dev   # 带冒烟
 
 # 本地启动
 nantang-mobile/start.bat          # Windows
 # Linux/Mac: cd server && uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+## 部署机器闸门
+
+三个部署入口均强制跑 **deploy_check 六检 + pytest 测试**，任一 FAIL 即拦截：
+
+| 入口 | 触发 | 闸门位置 | FAIL 效果 |
+|------|------|---------|----------|
+| CI (GitHub Actions) | push/PR to main | `.github/workflows/ci.yml` | 红灯，不可 merge |
+| Render build | main 分支变更 | `render.yaml` buildCommand | build 失败，不部署 |
+| VPS deploy | 手动执行 | `server/deploy.sh` (set -e) | 脚本中止，不启动服务 |
+
+```bash
+# render.yaml buildCommand（Render 部署时自动执行，完整链路）
+pip install -r requirements.txt && pip install -r requirements-dev.txt
+  && python server/scripts/deploy_check.py --skip-smoke
+  && JWT_SECRET=build-gate-dummy python -m pytest server/tests/ -x -q
+
+# deploy.sh 闸门（VPS 部署时自动执行，set -e 拦截）
+python deploy_check.py --skip-smoke && JWT_SECRET=... pytest tests/ -x -q
+```
+
+> **铁律**：不许绕过机器闸门。若闸门误报，修闸门不修代码。
 
 ## 重复流程操作清单
 
@@ -79,7 +101,7 @@ nantang-mobile/start.bat          # Windows
 3. `pip install -r requirements.txt` 本地验证
 4. 跑 `python server/scripts/check_env.py` 确认依赖完整
 5. 跑 `cd server && python -m pytest tests/ -x -q` 确认测试通过
-6. 确认 `render.yaml` 的 buildCommand 是 `pip install -r requirements.txt`（已统一）
+6. 确认 `render.yaml` 的 buildCommand 包含完整闸门链（依赖安装 + 六检 + pytest，见「部署机器闸门」）
 7. `requirements.in` 与 `requirements.txt` 必须同一笔 commit 提交，缺一打回
 
 ## 二营特有铁律
@@ -89,3 +111,37 @@ nantang-mobile/start.bat          # Windows
 3. **锁有效性**：资金/权限写路径 `with_for_update()` + `populate_existing`，锁有效性不以 SQLite 测试为凭（K-2 真 PG 锁测试归二营）
 
 > 通用铁律（不push/具名add/回执commit/只移不删/一次一目标/交BUG_TRACKER/太傅注）→ `方案/宪法汇编.md`。
+
+## 丞相府输出格式铁律（每次输出前必须遵守）
+
+**自检：回禀砚仁前默念三段式（🎯🤝📎），派单前默念代码块+整段复制。没做就重写。**
+**不合规 = 不输出。输出了就必须合规。格式不对宁可不说话。**
+**砚仁说「格式」二字 = 立刻读本节规则重新输出，不解释不反驳。**
+
+### 回禀砚仁 = 三段式
+🎯 一句话结论 → 🤝 请定夺（需他拍板的事）→ 📎 细节（表格/证据/派单）
+结尾：太傅注三行（教一个道理，不许鸡汤）+ 一句加粗的下一步建议。
+转给施工营的派单文本，放独立代码块并标「整段复制」。
+
+### 判案（验收回执）= 五要素一字不改
+【判案】→ 仓（git rev-parse --show-toplevel）→ 回执（卡号+commit短哈希）→ 验证（亲跑命令+关键输出≤15行）→ 结论（通过/打回/附条件通过）→ 理由（一句话）
+
+### 派单格式
+卡号/阵地/禁区/范围（逐条带行号）/判据（可机器验证）/明确不做/纪律（具名add禁-A、commit带卡号营号、不push、回执四件套+太傅注三行）
+
+### 语言
+对砚仁说人话（他是产品不是程序员），对施工营说行话（行号/文件/命令）。
+
+### 任务卡 frontmatter
+严格三个减号 `---`，字段顺序：
+```
+---
+created: 'YYYY-MM-DD'
+project: 南塘云村
+type: 任务卡
+domain: 类别
+task_status: 已发卡
+status: 讨论中
+series: 系列名
+---
+```
