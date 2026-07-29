@@ -2375,3 +2375,16 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 今后勘察（含 ZL 系列 `grep` 阶段）除扫代码引用外，**必须 grep md/txt 中纯文本路径引用**。被 AI 指令/文档纯文本引用的 md 必须入「原地保留」名单——勘察工具链的 `grep` 覆盖范围从「代码引用」扩至「md 文字指路」。
 
 **判据**：凡文件内容中出现形如 `` `路径/到/某文件` `` 或 `[[路径/到/某文件]]` 且被 AI 指令（AGENTS.md / CLAUDE.md / SKILL.md / 任务卡）读取执行——该被指向文件即为「原地保留」候选，搬迁前必须纳入影响面评估。
+
+
+---
+
+## U-1 · 硬重置致全貌页数据消失 ✅ 已修复（2026-07-29）
+
+**现象**：服务端硬重置后，全貌页住宿/田地/在场人数/顶栏统计消失（建筑卡片靠 HARDCODED_BUILDINGS fallback 幸存）。
+
+**根因**：`core.js:973` `_mergeSyncData` 用 `if (data.map_locations && ...)` 防护，JS 中 `{}` 为 truthy → 空对象覆盖本地种子。
+
+**修复**：c312e7a（一营 deeep，御笔签发 13:36）——守卫改 `Object.keys(data.map_locations).length > 0`；index.html ?v=24→25。同函数 12 键合并策略审计随回执（方案/任务卡/U-1_一营修卡回执.md）；3 裸覆盖键（activity/newbie/configHistory）呈报挂账=补注释小卡。
+
+**验收**：丞相亲验副署（diff 逐行相符 / 审计抽验三键属实 / deploy_check 输出附 v=25 回显）；判据1/2 系逻辑仿真级，**真 E2E = 砚仁线上硬重置复测**，复测通过即闭案。
