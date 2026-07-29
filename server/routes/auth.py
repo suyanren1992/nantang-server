@@ -29,13 +29,17 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
-def _user_json(u):
-    return {"name": u.id, "uid": u.id, "role": u.role, "nt_balance": u.nt_balance,
-            "contribution_value": u.contribution_value, "experience_value": u.experience_value,
-            "trust_score": u.trust_score, "trust_level": u.trust_level,
-            "frozen_cv": u.frozen_cv, "avatar_seed": u.avatar_seed,
-            "bio": u.bio, "location": u.location, "wallet_address": u.wallet_address,
-            "created_at": u.created_at}
+def _user_json(u, include_sensitive=False):
+    # IA-2: 敏感字段（location/wallet_address）默认不返回；仅本人可见场景（login/refresh/me/register）传 True。
+    d = {"name": u.id, "uid": u.id, "role": u.role, "nt_balance": u.nt_balance,
+         "contribution_value": u.contribution_value, "experience_value": u.experience_value,
+         "trust_score": u.trust_score, "trust_level": u.trust_level,
+         "frozen_cv": u.frozen_cv, "avatar_seed": u.avatar_seed,
+         "bio": u.bio, "created_at": u.created_at}
+    if include_sensitive:
+        d["location"] = u.location
+        d["wallet_address"] = u.wallet_address
+    return d
 
 
 def _set_rt_cookie(response: Response, token: str):
@@ -128,7 +132,7 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
     await db.commit()
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
-    return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u)}
+    return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u, include_sensitive=True)}
 
 
 @router.post("/login")
@@ -152,7 +156,7 @@ async def login(req: LoginRequest, request: Request, response: Response, db: Asy
     _login_clear(ip)  # 成功登录 → 清零该 IP 失败计数
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
-    return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u)}
+    return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u, include_sensitive=True)}
 
 
 @router.post("/refresh")
@@ -167,7 +171,7 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
         return JSONResponse({"ok": False, "error": "token 已失效"}, status_code=401)
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
-    return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u)}
+    return {"ok": True, "token": create_access_token(u.id, u.role, u.token_version), "user": _user_json(u, include_sensitive=True)}
 
 
 @router.post("/logout")
@@ -231,7 +235,7 @@ async def update_profile(req: UpdateProfileRequest, user: User = Depends(get_cur
 
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)):
-    return _user_json(user)
+    return _user_json(user, include_sensitive=True)
 
 
 @router.get("/users")

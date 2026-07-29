@@ -431,12 +431,18 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
     # D-15: 公约修改同步
     _pcc = req.get("pendingConfigChanges")
     if _pcc and isinstance(_pcc, list):
+        # IA-2: 公约配置变更写入仅限 admin（非 admin 写入硬拦）
+        if user.role != "admin":
+            raise HTTPException(status_code=403, detail="仅管理员可修改公约配置变更")
         pc = (await db.execute(select(MapLocation).where(MapLocation.key == "config_changes"))).scalar_one_or_none()
         if not pc:
             pc = MapLocation(key="config_changes"); db.add(pc)
         pc.data = json.dumps(_pcc, ensure_ascii=False)
     _ch = req.get("configHistory")
     if _ch and isinstance(_ch, list):
+        # IA-2: 公约修改历史写入仅限 admin
+        if user.role != "admin":
+            raise HTTPException(status_code=403, detail="仅管理员可修改公约配置变更")
         ch = (await db.execute(select(MapLocation).where(MapLocation.key == "config_history"))).scalar_one_or_none()
         if not ch:
             ch = MapLocation(key="config_history"); db.add(ch)
