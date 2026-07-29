@@ -53,11 +53,11 @@ async def list_tasks(response: Response, scope: str = None, status: str = None, 
     if mode == "hall":
         # R1.3: 任务大厅模式——进行中的任务 + 在地过滤
         result = await db.execute(
-            select(NTTask).order_by(NTTask.created_at.desc())
+            select(NTTask).where(NTTask.status == "进行中").order_by(NTTask.created_at.desc())
         )
         from routes.nt import _is_onsite
         is_onsite = await _is_onsite(db, user)
-        tasks = [t for t in result.scalars() if t.status == "进行中"]
+        tasks = [t for t in result.scalars()]
         if not is_onsite:
             tasks = [t for t in tasks if not t.is_system_generated]
     else:
@@ -121,7 +121,7 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
     if req.poster == "社区":
         if user.role not in ("admin", "builder"):
             raise HTTPException(status_code=403, detail="仅管理员可发布社区任务")
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # 行锁：防并发社区任务超额扣池（对齐全项目锁型）
         if pool.balance < req.reward * req.slots:
             raise HTTPException(status_code=400, detail="社区池余额不足")
         pool.balance -= req.reward * req.slots
@@ -143,18 +143,24 @@ async def create_task(req: TaskCreate, user: User = Depends(get_current_user),
         id=task_id, poster=task_poster, title=req.title, reward=req.reward,
         category=req.category, scope=req.scope, note=req.note,
         slots=req.slots, deadline=req.deadline, reviewer=req.reviewer,
-        location_id=req.location_id, escrow_amount=req.reward * req.slots,
+        location_id=req.location_id, escrow_amount=(0 if req.scope == "camp" else req.reward * req.slots),
         status="进行中", created_at=datetime.utcnow().isoformat(),
     )
     # 仅个人发布时从用户余额扣款（社区任务已在上面从池扣款）
-    if req.poster != "社区":
+    if req.poster != "社区" and req.scope != "camp":
         (user_locked if user_locked is not None else user).nt_balance -= req.reward * req.slots
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         pool.task_escrow += req.reward * req.slots
     db.add(task)
     lid = _ledger_id()
-    freeze_from = "community_pool" if req.poster == "社区" else user.id
-    await _add_ledger(db, lid, freeze_from, "escrow", req.reward * req.slots, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
+    if req.poster == "社区":
+        freeze_from = "community_pool"
+    elif req.scope == "camp":
+        freeze_from = "camp_pool"
+    else:
+        freeze_from = user.id
+    freeze_amount = 0 if req.scope == "camp" else req.reward * req.slots
+    await _add_ledger(db, lid, freeze_from, "escrow", freeze_amount, "task_freeze", f"创建任务: {req.title}", task_id, "pending")
     await db.commit()
     return {"ok": True, "task_id": task_id}
 
@@ -199,7 +205,7 @@ async def delete_task(task_id: str, user: User = Depends(get_current_user),
     if task.escrow_amount > 0 and task.status != "已结算":
         poster_result = await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))
         poster = poster_result.scalar_one_or_none()
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         if poster:
             poster.nt_balance += task.escrow_amount
         else:

@@ -21,7 +21,19 @@ elif DATABASE_URL.startswith("postgresql://"):
 if "sslmode=" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("sslmode=", "ssl=")
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+# 连接池配置：生产 Postgres(Neon) 默认仅 5+10=15 连接，50 人并发峰值会耗尽 → 超时。
+# SQLite 本地不吃这些参数（用 StaticPool/异步适配），故按方言分支传参。
+# 连接数账：pool_size + max_overflow = 每 worker 最多 15；配 --workers 2 → 上限 30，
+# 在 Neon 免费/入门档连接上限内。若换更小档位需同步下调。
+_engine_kwargs = {"echo": False}
+if not DATABASE_URL.startswith("sqlite"):
+    _engine_kwargs.update(
+        pool_size=10,
+        max_overflow=5,
+        pool_recycle=1800,   # Neon 会闲置断链，30 分钟回收避免用到死连接
+        pool_pre_ping=True,  # 取连接前探活，断链自动重建
+    )
+engine = create_async_engine(DATABASE_URL, **_engine_kwargs)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -51,6 +63,15 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_status ON nt_tasks(status)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_system ON nt_tasks(is_system_generated)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_status_created ON verifications(status, created_at DESC)"))
+        # 50 人承载：sync/checkin/营地/校核高频 WHERE 列补索引（原缺失，随数据增长恶化）
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_user_id ON tenancies(user_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_room_id ON tenancies(room_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_status ON tenancies(status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_camp_ref_id ON nt_tasks(camp_ref_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_doer ON verifications(doer)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_deposit_intents_user_id ON deposit_intents(user_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_journal_user ON journal(user)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_memberships_camp_id ON camp_memberships(camp_id)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错

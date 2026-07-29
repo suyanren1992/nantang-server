@@ -430,7 +430,7 @@ async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: Asy
 
     # P0': 支持社区池直接注资
     if req.user == "community_pool":
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         pool.balance += req.amount
         pool.total_issued += req.amount
         lid = _ledger_id()
@@ -446,7 +446,7 @@ async def topup(req: TopUpRequest, admin: User = Depends(require_admin), db: Asy
     target.nt_balance += req.amount
     target.updated_at = datetime.utcnow().isoformat()
 
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
     pool.total_issued += req.amount
 
     lid = _ledger_id()
@@ -798,7 +798,7 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
 
     # R1.5: poster='社区' 的任务取消——退款回社区池
     if task.poster == "社区":
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         if task.escrow_amount > 0:
             pool.balance += task.escrow_amount
             pool.task_escrow -= task.escrow_amount
@@ -811,7 +811,7 @@ async def cancel_task(task_id: str, user: User = Depends(get_current_user), db: 
         return {"ok": True}
 
     if task.escrow_amount > 0:
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
         poster = (await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
         if poster: poster.nt_balance += task.escrow_amount
         else: pool.balance += task.escrow_amount
@@ -913,7 +913,7 @@ async def resolve_task(task_id: str, req: ResolveTaskRequest, admin: User = Depe
     if req.action in ("release_assignee", "split_5050") and not assignee_ids:
         raise HTTPException(status_code=400, detail="任务执行者不存在")
 
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)  # CR-2: 写路径补行锁
     # 以实际托管金额为准（非 reward×slots 重算），防 dispute 守卫漏洞导致重复赔付
     escrow = task.escrow_amount or 0
     if escrow <= 0:
