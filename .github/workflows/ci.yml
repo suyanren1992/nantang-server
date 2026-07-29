@@ -34,9 +34,14 @@ jobs:
       - name: 部署前六检（跳过冒烟）
         run: python server/scripts/deploy_check.py --skip-smoke
 
+      - name: 版本诊断
+        run: |
+          python --version
+          python -c "import pytest, pytest_asyncio, httpx; print(f'pytest={pytest.__version__}, asyncio={pytest_asyncio.__version__}, httpx={httpx.__version__}')"
+
       - name: 后端测试（基线 102 passed / 7 skipped）
         working-directory: server
-        run: python -m pytest tests/ -x -q
+        run: python -m pytest tests/ -x -v --tb=short
 
   frontend:
     name: 前端 vitest
