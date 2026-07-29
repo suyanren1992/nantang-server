@@ -2388,3 +2388,26 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 **修复**：c312e7a（一营 deeep，御笔签发 13:36）——守卫改 `Object.keys(data.map_locations).length > 0`；index.html ?v=24→25。同函数 12 键合并策略审计随回执（方案/任务卡/U-1_一营修卡回执.md）；3 裸覆盖键（activity/newbie/configHistory）呈报挂账=补注释小卡。
 
 **验收**：丞相亲验副署（diff 逐行相符 / 审计抽验三键属实 / deploy_check 输出附 v=25 回显）；判据1/2 系逻辑仿真级，**真 E2E = 砚仁线上硬重置复测**，复测通过即闭案。
+
+---
+
+## 批次4 · 二营三卡 · P0-1 / P1-2 / P1-3（2026-07-29 · 御笔已签）
+
+**基线**：pytest 54 passed / 4 skipped，deploy_check 4/4（施工前实测）。
+**收尾**：pytest 59 passed / 5 skipped（+3 限速 +2 CV +1 PG锁#5 门控），deploy_check 4/4。零回归。
+
+### 卡1 · P0-1 提现 entry 行锁（涉钱禁区，卡面点名准改）✅
+- **病灶**：`server/routes/admin.py` `confirm_withdraw`——entry 查询 `select(NTLedger).where(entry_id, status='pending')` 无 `with_for_update`。双 admin 并发 confirm → 双过 404 检查 → frozen/total_issued 双减。
+- **修法**：`confirm_withdraw` + `reject_withdraw`（同型路径同修）entry 查询补 `.with_for_update().execution_options(populate_existing=True)`（同 D-17/P1-3 锁型）。第二事务阻塞等锁，锁释放后重查 status='pending' 不再命中（EvalPlanQual 重评 WHERE）→ 404「已处理」。
+- **判据**：① 并发测试 `test_pg_locks.py::test_withdraw_confirm_concurrent_single_settle`——双 confirm 一成功一「已处理」，frozen 只减一次（100→60）；同 K-2 harness、requires_pg 门控（本机无 PG → skip，与既有4条同待真PG跑）；② pytest 零回归；③ PG 锁测试第 5 条已入列（collect 5 条无误）；④ deploy_check 4/4；⑤ 禁区改动仅限点名两行 entry 查询，diff 全附回执。
+
+### 卡2 · P1-2 登录限速 ✅
+- **病灶**：`auth.py` 登录端点无速率限制（旧注释自陈）。
+- **修法**：内存 IP 计数（`_login_fails` dict + 3 个 helper，共 ~30 行含注释），连续失败达 `LOGIN_FAIL_MAX`(默认5) 次锁定 `LOGIN_LOCK_MINUTES`(默认15) 分钟；锁定期内一律 429；成功登录清零；锁过期自动重置。阈值 env 可调。
+- **判据**：`test_login_ratelimit.py` 3 测——连错锁定(429)/解封恢复(拨回 lock_until 后正确密码登录成功且清零)/未达阈值成功清零；pytest 零回归。
+- **限**：内存态，多进程/重启丢失（ponytail 注：日活<50 足够，规模化换 slowapi/Redis）。
+
+### 卡3 · P1-3 CV 补全 ✅
+- **病灶**：CV(contribution_value)此前仅 `/api/nt/transfer` 更新；劳动结算路径不记 CV。
+- **修法**：`verify_task`(任务通过) assignee `contribution_value += reward`；`approve_verification`(校核通过) doer `contribution_value += nt_amount`（各 1 行）。
+- **判据**：`test_cv_settlement.py` 2 测——任务结算 assignee CV +reward / 校核结算 doer CV +nt_amount；pytest 零回归。
