@@ -83,7 +83,7 @@ status: 待丞相亲验
 | 制度·施工流程 | → `thinknote/Schema/施工流程.md` |
 | 制度·宪法汇编 | → `方案/宪法汇编.md` |
 | 制度·操作总则 | → `thinknote/Schema/操作总则.md` |
-| 笔记库 | → `thinknote/MEMORY.md` + `Schema/地图格口.md` + `Schema/总目.md` |
+| 笔记库 | → `Schema/地图格口.md` + `Schema/总目.md` |
 | 待砚仁一句话 | **留驻**（活跃决策项） |
 | DESIGN.md 状态 | 更新为「已落定（226d92a）」 |
 
