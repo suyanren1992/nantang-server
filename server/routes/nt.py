@@ -508,8 +508,9 @@ async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
         raise HTTPException(429, "7天内已提现过，请等待冷却期结束")
 
     pool = await _get_pool(db, lock=True)
-    if (pool.reserve or 0) < req.amount:
-        raise HTTPException(400, f"储备池余额不足（当前 {pool.reserve or 0} NT），请联系管理员")
+    # NT-P0-2: 准入加固——储备池须能覆盖「已冻结 + 本次提现」，保 reserve_covers_frozen 不被准入击破
+    if (pool.reserve or 0) < (pool.frozen or 0) + req.amount:
+        raise HTTPException(400, f"储备池不足以覆盖冻结+本次提现（储备 {pool.reserve or 0} NT，已冻结 {pool.frozen or 0} NT，本次 {req.amount} NT），请联系管理员")
 
     # 第一阶段：冻结
     user.nt_balance -= req.amount
@@ -538,15 +539,19 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
     camp_out = sum(e.amount for e in camp_out_result.scalars())
     camp_pool_ledger = camp_in - camp_out
     camp_pool_drift = pool.camp_balance - camp_pool_ledger
-    total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance + (pool.reserve or 0) + (pool.frozen or 0)
+    # NT-P0-2: reserve 移出会计等式（链上兑付背书台账，与 contribution_pool 同级不计 total_system）
+    total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance + (pool.frozen or 0)
+    # 背书台账独立硬检查：储备池须覆盖提现待审
+    reserve_covers_frozen = (pool.reserve or 0) >= (pool.frozen or 0)
 
     return {
-        "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0,
+        "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0 and reserve_covers_frozen,
         "checks": {
             "total_user_balance": total_user_balance,
             "community_pool": pool.balance,
             "task_escrow": pool.task_escrow,
-            "reserve": pool.reserve or 0,
+            "reserve": pool.reserve or 0,  # NT-P0-2: 仅展示，不再计入 total_system
+            "reserve_covers_frozen": reserve_covers_frozen,
             "frozen": pool.frozen or 0,
             "camp_balance": pool.camp_balance,
             "camp_pool_ledger": camp_pool_ledger,
