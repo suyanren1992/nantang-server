@@ -1411,14 +1411,24 @@ function renderMgmtPanel(type) {
 
 // ── 卡片弹窗通用壳（fullscreen=true 全屏）──
 function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
-  var old = document.querySelector('.mgmt-sheet'); if (old) old.remove();
-  var el = document.createElement('div'); el.className = 'mgmt-sheet';
+  // D-2: 增量 DOM——容器已存在则只换三段内容，消 remove+append 闪烁
+  var el = document.querySelector('.mgmt-sheet');
+  if (el) {
+    var inner = el.querySelector('.mgmt-sheet-inner'); if (!inner) return;
+    inner.querySelector('.mgmt-sheet-title').textContent = title;
+    inner.querySelector('.mgmt-sheet-body').innerHTML = bodyHTML;
+    var btnWrap = inner.querySelector('.mgmt-sheet-actions');
+    btnWrap.innerHTML = (actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button>';
+    return;
+  }
+  el = document.createElement('div'); el.className = 'mgmt-sheet';
   el.style.cssText = 'position:fixed;inset:0;z-index:260;display:flex;align-items:flex-end;justify-content:center';
-  // F23: 入场动画 — 遮罩 fadeIn + 卡片 slideUp
+  // F23: 入场动画 — 遮罩 fadeIn + 卡片 slideUp（仅新建时播）
   el.innerHTML = '<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out" onclick="this.parentElement.remove()"></div>'+
-    '<div style="position:relative;background:#fff;border-radius:'+(fullscreen?'0':'16px 16px 0 0')+';width:100%;max-width:'+(fullscreen?'100%':'500px')+';height:'+(fullscreen?'100vh':'auto')+';max-height:'+(fullscreen?'100vh':'72vh')+';overflow-y:auto;padding:'+(fullscreen?'20px 16px 80px':'20px 16px')+';padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 24px rgba(0,0,0,.15);animation:spcPop .2s ease-out">'+
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:1.2rem">'+title+'</span></div>'+
-    bodyHTML+(actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button></div>';
+    '<div class="mgmt-sheet-inner" style="position:relative;background:#fff;border-radius:'+(fullscreen?'0':'16px 16px 0 0')+';width:100%;max-width:'+(fullscreen?'100%':'500px')+';height:'+(fullscreen?'100vh':'auto')+';max-height:'+(fullscreen?'100vh':'72vh')+';overflow-y:auto;padding:'+(fullscreen?'20px 16px 80px':'20px 16px')+';padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 24px rgba(0,0,0,.15);animation:spcPop .2s ease-out">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="mgmt-sheet-title" style="font-size:1.2rem">'+title+'</span></div>'+
+    '<div class="mgmt-sheet-body">'+bodyHTML+'</div>'+
+    '<div class="mgmt-sheet-actions">'+(actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button></div></div>';
   document.body.appendChild(el);
 }
 
@@ -2466,7 +2476,7 @@ function _getSpaceType(buildingId) {
 }
 function _growDirtiness() {
   if (!window.AppData) return;
-  var cl = AppData._data.cleaning;
+  var cl = AppData._data.cleaning = AppData._data.cleaning || {};
   cl.spaces = cl.spaces || {}; cl.log = cl.log || [];
   var today = (typeof Clock !== 'undefined' ? Clock.today() : new Date().toISOString().slice(0,10));
   if (cl.lastCheckDate === today) return;
@@ -2910,7 +2920,7 @@ function _submitKitchenEntry() {
     // act.action 是英文（stock_in/stock_out/store_in），_syncItemToAppData 吃中文
     var actionMap = { stock_in: '放入物品', stock_out: '取出/消耗', store_in: '放入物品' };
     // skipVerify=true：校核记录只由下面这条写，避免一次动作两条记录
-    _syncItemToAppData(actionMap[act.action] || act.action, sel.name, ((curBuilding()||{}).id === 'study' ? 'study' : 'office'), true);
+    _syncItemToAppData(actionMap[act.action] || act.action, sel.name, '', true, ((curBuilding()||{}).id === 'study' ? 'study' : 'office'));
     AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: ((curBuilding()||{}).id === 'study' ? 'study' : 'office') }, act.nt, 1);
   }
   _closeQuickSheet();

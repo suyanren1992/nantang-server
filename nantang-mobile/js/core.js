@@ -1341,9 +1341,10 @@ function devReset(mode) {
       if (r && r.ok) {
         localStorage.clear();
         if (window.NT) NT._reset();
-        if (window.AppData) { AppData._data = {}; AppData._currentUser = ''; AppData.init(); }
+        // D-3a: clear后禁init（init→_seedIfEmpty→_saveShared回写种子→800ms竞态），直接reload走正常启动
+        if (typeof API !== 'undefined') { API.token = null; API.user = null; }
         showToast('已重置（'+mode+'），即将刷新','error');
-        setTimeout(function(){ location.reload(); }, 800);
+        location.reload();
       } else {
         showToast((r&&r.detail)||'重置失败（端点可能未开启）','error');
       }
