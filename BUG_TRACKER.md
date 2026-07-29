@@ -2411,3 +2411,14 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 - **病灶**：CV(contribution_value)此前仅 `/api/nt/transfer` 更新；劳动结算路径不记 CV。
 - **修法**：`verify_task`(任务通过) assignee `contribution_value += reward`；`approve_verification`(校核通过) doer `contribution_value += nt_amount`（各 1 行）。
 - **判据**：`test_cv_settlement.py` 2 测——任务结算 assignee CV +reward / 校核结算 doer CV +nt_amount；pytest 零回归。
+
+
+---
+
+## D-27 · 住宿费日扣收尾卡 — 【销】（2026-07-29 16:01 砚仁令）
+
+**销因**：卡面基于过期勘察（07-28 cf8f0a3）发出。真源现状——G1 cron 接入 / G2 漏扣补扣+幂等 / G5 鉴权收敛三项已由 `c7613e9`（07-26 feat(D-26)）实装在 main，配套 `test_accommodation_daily.py` 五条测试全绿；G3 费率由 G-3 卡（`1e38f78`）明文裁定「费率分叉不动」，BED_RATES 与前端 app-data.js pricePerBed 实证一致（20/30/30/60/30/35）。无活可干，双卡（丞相府版 + 前窗三修版）一并销号。
+
+**教训入法**：发卡前必核真源现行代码（git log 相关文件 + 现行实现），勘察报告保质期 24 小时。丞相发卡未核真源，自劾记档（总账 34）。
+
+**连带记档 · JS 机检门**（同日砚仁批）：app.js 语法错误事故（219ce8b 引入，`};}` 整文件 parse 死）暴露 JS 无机检门——deploy_check 将增 `node --check` 全 JS 检（另卡施工）。
