@@ -331,6 +331,8 @@ this._data.map_locations.people_on_site = [];
   },
 
   // ══ 校核制 ══
+  // IA-3: 统一校核奖励公式 = ntAmount × 15%（公约附页B），至少 1 NT
+  _verifierReward: function(ntAmount) { return Math.max(1, Math.round((ntAmount||0) * 0.15)); },
   addVerification: function(type, doer, action, detail, ntAmount, verifierReward) {
     // CR5: 仅在地成员（非 visitor）可发起校核
     var users = typeof getUsers === 'function' ? getUsers() : {};
@@ -339,7 +341,7 @@ this._data.map_locations.people_on_site = [];
       if (typeof showToast === 'function') showToast('🏕️ 入住后可使用校核功能', 'warn');
       return null;
     }
-    var vfy = { id: 'vfy_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), type: type, doer: doer, action: action, detail: detail||{}, ntAmount: ntAmount||0, verifierReward: verifierReward||Math.max(2, Math.ceil(ntAmount/3)), createdAt: new Date().toISOString(), verifier: null, verifiedAt: null, status: 'pending' };
+    var vfy = { id: 'vfy_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), type: type, doer: doer, action: action, detail: detail||{}, ntAmount: ntAmount||0, verifierReward: verifierReward||this._verifierReward(ntAmount), createdAt: new Date().toISOString(), verifier: null, verifiedAt: null, status: 'pending' };
     if (!this._data.pendingVerifications) this._data.pendingVerifications = [];
     this._data.pendingVerifications.push(vfy);
     this._saveShared(true);

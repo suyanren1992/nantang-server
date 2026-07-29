@@ -25,10 +25,10 @@ document.head.appendChild(_trumpetStyle);
 var _LABOR_NT_DEFAULTS = {
   sweep_mop:10, wipe_surface:8, take_trash:5, organize_items:8, clean_window:10,
   clean_toilet:15, clean_kitchen:15, clean_public:12,
-  water:5, fertilize:8, weed:10, sow:8, harvest:15, turn_soil:12,
+  water:3, fertilize:15, weed:15, sow:5, harvest:15, turn_soil:12,
   trellis:10, pest_control:8, mulch:8, prune:8,
   chef:20, sous_chef:12, wash_dishes:10, prep_food:8, clean_stove:12, grocery:5, serve_meal:5,
-  repair:15, move_goods:12, organize_warehouse:10, waste_sort:8, compost:8, change_light:8,
+  repair:15, move_goods:12, organize_warehouse:10, waste_sort:8, compost:5, change_light:8,
   reception:8, tour_guide:10, event_setup:12, event_cleanup:10, animal_care:8, notice_board:5,
   painting:15, calligraphy:10, craft:12, photo_video:8, writing:8,
   mow_lawn:12, weed_pick:8
@@ -1103,7 +1103,7 @@ function _submitSelfReport() {
 
   // 写入校核队列
   if (window.AppData && typeof AppData.addVerification === 'function') {
-    AppData.addVerification('labor_report', CURRENT_USER, fullNote, { spaceId: _srDraft.spaceId, actionId: _srDraft.actionId, evidence: evidence }, ntAmount, Math.ceil(ntAmount/5)||1);
+    AppData.addVerification('labor_report', CURRENT_USER, fullNote, { spaceId: _srDraft.spaceId, actionId: _srDraft.actionId, evidence: evidence }, ntAmount, AppData._verifierReward(ntAmount));
   }
 
   // 同时写入卡片室 — 让上报的劳动在卡片室可见

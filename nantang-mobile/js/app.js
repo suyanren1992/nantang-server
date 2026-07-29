@@ -971,7 +971,7 @@ function _harvestCrop(plotId, cropIdx) {
   var plots = getPlots(); var plot = plots.find(function(p){return p.id===plotId;});
   if (!plot || !plot.crops || !plot.crops[cropIdx]) return;
   var crop = plot.crops[cropIdx];
-  if (window.AppData) AppData.addVerification('field_harvest', _me(), '收割 '+crop.name+' @'+plot.name, { plotId:plotId, crop:crop.name }, 15, 3);
+  if (window.AppData) AppData.addVerification('field_harvest', _me(), '收割 '+crop.name+' @'+plot.name, { plotId:plotId, crop:crop.name }, 15, AppData._verifierReward(15));
   plot.crops.splice(cropIdx, 1);
   _savePlotData();
   if (window.Game&&Game.toast) Game.toast('收割 '+crop.name+' +15 NT（待校核）');
@@ -2546,7 +2546,7 @@ function _doCleaning(spaceId) {
   var st2 = _getDirtinessStatus(prevDirtiness);
   var prices = _cleaningPricing();
   var cleanReward = (st2==='red'||st2==='urgent') ? prices.dirty : st2==='yellow' ? prices.warning : prices.clean;
-  if (window.AppData) AppData.addVerification('cleaning', me, '打扫了 '+spaceId, { space: spaceId }, cleanReward, Math.ceil(cleanReward/5));
+  if (window.AppData) AppData.addVerification('cleaning', me, '打扫了 '+spaceId, { space: spaceId }, cleanReward, AppData._verifierReward(cleanReward));
   // Step 5: 大扫除触发 CV 解冻 + 新手任务
   if (typeof _unfreezeCV === 'function') _unfreezeCV(me);
   // C5: 大扫除不再属于新手引导任务
