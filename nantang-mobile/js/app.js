@@ -1012,6 +1012,12 @@ function buildOverviewHTML(b) {
   if (s.cleanliness) h += '<div class="ov-row"><span class="ov-label">🧹卫生</span><span>'+s.cleanliness+'</span></div>';
   if (s.items)      h += '<div class="ov-row"><span class="ov-label">📦物品</span><span>'+s.items+'</span></div>';
   if (s.onsite)     h += '<div class="ov-row"><span class="ov-label">👤在场</span><span>'+s.onsite+'</span></div>';
+  // W6-P-FE: 动态在场人数（从 presence 实时计算）
+  if (b.id && b.id !== 'info') {
+    var _pres = (window.AppData && AppData._data.presence) || {};
+    var _onSiteCount = Object.values(_pres).filter(function(p){ return p.status === 'onsite' && p.location === b.id; }).length;
+    if (_onSiteCount > 0) h += '<div class="ov-row" style="color:var(--green-primary)"><span class="ov-label">🟢实时在场</span><span>'+_onSiteCount+' 人</span></div>';
+  }
   if (s.cleaning)   h += '<div class="ov-row"><span class="ov-label">📋打扫</span><span>'+s.cleaning+'</span></div>';
   if (s.stay)       h += '<div class="ov-row"><span class="ov-label">🛏️住宿</span><span>'+s.stay+'</span></div>';
   if (s.fee)        h += '<div class="ov-row"><span class="ov-label">💰费用</span><span>'+s.fee+'</span></div>';
@@ -1069,10 +1075,37 @@ function buildRoomDetail(room) {
   }
 
 
-  // ── L3: 在场人员 ──
-  if (room.people && room.people.length) {
-    body += '<div class="section-label">👤在场('+room.people.length+'人)</div>';
-    room.people.forEach(function(p){
+  // ── L3: 在场人员（W6-P-FE: 从 presence 映射进 room.people，三态显示）──
+  // presence 由 sync_all 下发、_mergeSyncData 存入 AppData._data.presence
+  // 三态：🟢在地居住(onsite+location 匹配) / 🟡外出(cloud/away) / ⚫离线(不在 presence)
+  var bldId = (curBuilding() || {}).id;
+  var presenceData = (window.AppData && AppData._data.presence) || {};
+  var peopleList = [];
+  if (bldId) {
+    Object.keys(presenceData).forEach(function(uid) {
+      var p = presenceData[uid];
+      if (!p || !p.status) return;
+      var atHere = (p.status === 'onsite' && p.location === bldId);
+      peopleList.push({
+        icon: atHere ? '🟢' : '🟡',
+        text: uid,
+        sub: atHere ? '在地居住' : (p.status === 'cloud' ? '云在线' : '外出')
+      });
+    });
+    // ⚫ 离线：已知用户中不在 presence 的（限 10 人防噪声）
+    var knownUsers = (typeof getUsers === 'function') ? getUsers() : {};
+    var addedOffline = 0;
+    Object.keys(knownUsers).forEach(function(uid) {
+      if (addedOffline >= 10) return;
+      if (!presenceData[uid]) {
+        peopleList.push({ icon: '⚫', text: uid, sub: '离线' });
+        addedOffline++;
+      }
+    });
+  }
+  if (peopleList.length) {
+    body += '<div class="section-label">👤在场('+peopleList.length+'人)</div>';
+    peopleList.forEach(function(p){
       body += '<div class="item-row"><div class="ir-icon">'+p.icon+'</div><div class="ir-text">'+p.text+'<div class="ir-sub">'+(p.sub||'')+'</div></div></div>';
     });
   }
