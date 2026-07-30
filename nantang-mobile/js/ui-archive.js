@@ -455,6 +455,7 @@ function toggleArchiveExpand(){
   var logCount=(window.AppData&&AppData._data.activity_log)?AppData._data.activity_log.length:0;
   var countEl=document.getElementById('archiveCountText');if(countEl)countEl.textContent='登记'+total+'人 · 任务'+taskCount+' · 日志'+logCount;
   // SM-3.1: 时间线从社区副本迁入个人归档展开区
+  // W6-UI BUG-2: 统一时间线字号 .72rem，避免 myPage 继承链差异导致字体忽大忽小
   var tl = _renderTimelineHTML();
   ex.innerHTML='<div style="font-size:.72rem;color:#5a6e5c;line-height:1.8;margin-bottom:10px">'+
     '<div>👤 <b>注册成员</b> — '+total+' 位</div>'+
@@ -462,7 +463,7 @@ function toggleArchiveExpand(){
     '<div>📜 <b>运行日志</b> — '+logCount+' 条</div>'+
     '<div>📦 <b>物品</b> — '+itemCount+' 件登记</div>'+
     '</div>'+
-    (tl ? '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px"><div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📜 我的时间线</div>'+tl+'</div>' : '')+
+    (tl ? '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px;font-size:.72rem"><div style="font-weight:700;color:#5a6e5c;margin-bottom:6px">📜 我的时间线</div>'+tl+'</div>' : '')+
     '<div style="text-align:center;padding:8px;background:var(--green-primary);color:#fff;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;margin-top:8px" onclick="openArchive(\'log\')">📚 打开档案室 →</div>';
 }
 
@@ -473,7 +474,8 @@ function _renderTimelineHTML() {
   var h = '';
   journal.slice(0, 15).forEach(function(j) {
     var jt = (typeof JOURNAL_TYPES!=='undefined' && JOURNAL_TYPES[j.type]) ? JOURNAL_TYPES[j.type] : { icon:'📋', label:j.type };
-    h += '<div style=display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.68rem;align-items:flex-start>'+
+    // W6-UI BUG-2: 时间线条目字号统一 .72rem，与容器保持一致
+    h += '<div style=display:flex;gap:8px;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:.72rem;align-items:flex-start>'+
       '<span style=font-size:1rem;flex-shrink:0>'+jt.icon+'</span>'+
       '<div style=flex:1;min-width:0>'+
         '<div><b>'+esc(j.user)+'</b> · <span style=color:#5a6e5c>'+jt.label+'</span></div>'+
