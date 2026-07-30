@@ -1436,13 +1436,23 @@ function toggleProfile(){
 }
 // U-1b/A-10: 设置面板入口——直接进入编辑模式
 function openSettings(){
-  if (!CURRENT_USER) { showToast('请先登录','warn'); return; }
+  if (!CURRENT_USER) { if (typeof showToast==='function') showToast('请先登录','warn'); return; }
+  // W6-UI BUG-1: 初始化头像种子——非注册路径 _profileSeed 可能为 null，取用户存档或池子兜底
+  if (!_profileSeed || _profileSeed === null) {
+    var u = (typeof getUsers==='function' && getUsers()[CURRENT_USER]) || {};
+    _profileSeed = u.avatar_seed || ((window.AppData && AppData.me() && AppData.me().avatar_seed) || _avatarSeedPool[0]);
+  }
   var m=document.getElementById('profileCard'); if (m) m.remove();
   m=document.createElement('div'); m.id='profileCard';
-  m.style.cssText='position:fixed;inset:0;z-index:310;display:flex;align-items:center;justify-content:center';
-  m.innerHTML='<div id="profileBg" style="position:absolute;inset:0;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out" onclick="document.getElementById(\'profileCard\').remove()"></div><div id="profileInner" style="position:relative;width:300px;max-width:90vw;background:#fff;border-radius:16px;padding:20px;box-shadow:0 16px 48px rgba(0,0,0,.3);animation:spcPop .25s ease-out;max-height:80vh;overflow-y:auto"></div>';
+  m.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;z-index:310;display:flex;align-items:center;justify-content:center';
+  m.innerHTML='<div id="profileBg" style="position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);animation:fadeIn .2s ease-out" onclick="document.getElementById(\'profileCard\').remove()"></div><div id="profileInner" style="position:relative;width:300px;max-width:90vw;background:#fff;border-radius:16px;padding:20px;box-shadow:0 16px 48px rgba(0,0,0,.3);animation:spcPop .25s ease-out;max-height:80vh;overflow-y:auto"></div>';
   document.body.appendChild(m);
-  renderProfile('edit');
+  // W6-UI BUG-1: 防御性渲染——renderProfile 抛异常时至少显示关闭按钮
+  try { renderProfile('edit'); } catch(e) {
+    console.error('[openSettings] renderProfile 失败:', e);
+    var inner = document.getElementById('profileInner');
+    if (inner) inner.innerHTML = '<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a;z-index:1" onclick="document.getElementById(\'profileCard\').remove()">✕</button><div style="text-align:center;padding:20px;color:#b84c38;font-size:.72rem">⚠ 设置加载失败<br><span style="font-size:.6rem;color:#aaa">请刷新后重试</span></div>';
+  }
 }
 var _profileSeed=null;  // null="未选头像",注册/渲染时从池子随机取
 var _avatarStyles=['avataaars','bottts','fun-emoji','pixel-art','micah','lorelei','adventurer','big-ears','big-smile','croodles','identicon','personas'];
