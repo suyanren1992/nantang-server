@@ -9,7 +9,7 @@ from datetime import datetime
 import secrets
 import json
 from database import get_db
-from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification, TASK_STATUSES
+from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification, TASK_STATUSES, compute_cv, compute_xp
 from routes.auth import get_current_user, require_admin
 from nt_helpers import _ledger_id, _add_ledger, _get_pool, _safe_assignees
 
@@ -308,8 +308,10 @@ async def _grant_from_pool(db, to_user, amount, reason, scope="personal"):
 
     pool.balance -= amount
     target.nt_balance += amount
-    target.contribution_value = (target.contribution_value or 0) + amount
-    target.experience_value = (target.experience_value or 0) + amount
+    # A-LABOR-BE ③⑫: CV = floor(nt/2)，XP = floor(nt/2)（池发奖无类别信息，用基础公式）
+    cv_delta = compute_cv(amount)
+    target.contribution_value = (target.contribution_value or 0) + cv_delta
+    target.experience_value = (target.experience_value or 0) + cv_delta
     target.updated_at = datetime.utcnow().isoformat()
 
     lid = _ledger_id()
@@ -508,21 +510,37 @@ async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
         raise HTTPException(429, "7天内已提现过，请等待冷却期结束")
 
     pool = await _get_pool(db, lock=True)
-    # NT-P0-2: 准入加固——储备池须能覆盖「已冻结 + 本次提现」，保 reserve_covers_frozen 不被准入击破
-    if (pool.reserve or 0) < (pool.frozen or 0) + req.amount:
-        raise HTTPException(400, f"储备池不足以覆盖冻结+本次提现（储备 {pool.reserve or 0} NT，已冻结 {pool.frozen or 0} NT，本次 {req.amount} NT），请联系管理员")
+    # A-LABOR-BE ⑭: reserve 部分提现 + 排队（超 reserve 部分下次发，加通知）
+    available = max(0, (pool.reserve or 0) - (pool.frozen or 0))
+    pay_now = min(req.amount, available)
+    queue_amount = req.amount - pay_now
 
-    # 第一阶段：冻结
+    if pay_now <= 0:
+        # reserve 完全无可用空间——整笔排队
+        raise HTTPException(400,
+            f"储备池无可用空间（储备 {pool.reserve or 0} NT，已冻结 {pool.frozen or 0} NT），"
+            f"本次 {req.amount} NT 全部排队，请等待下次发")
+
+    # 第一阶段：冻结（可能部分）
     user.nt_balance -= req.amount
-    pool.reserve = (pool.reserve or 0) - req.amount
-    pool.frozen = (pool.frozen or 0) + req.amount
+    pool.reserve = (pool.reserve or 0) - pay_now
+    pool.frozen = (pool.frozen or 0) + pay_now
     lid = _ledger_id()
-    await _add_ledger(db, lid, user.id, "frozen_pool", req.amount, "withdraw",
-                      f"提现至 {addr[:10]}... 等待管理员签名", status="pending")
-    await _adjust_trust(user, -10)
+    status_note = f"提现至 {addr[:10]}... 等待管理员签名"
+    if queue_amount > 0:
+        status_note += f"（部分发放 {pay_now} NT，排队 {queue_amount} NT 下次发）"
+    await _add_ledger(db, lid, user.id, "frozen_pool", pay_now, "withdraw",
+                      status_note, status="pending")
+    if queue_amount > 0:
+        # 排队部分记入单独的流水，方便追踪
+        lid_q = _ledger_id() + "-q"
+        await _add_ledger(db, lid_q, user.id, "withdraw_queue", queue_amount, "withdraw_queued",
+                          f"提现排队 {queue_amount} NT，等待下次储备补充", status="queued")
+    await _adjust_trust(user, -5)  # A-LABOR-BE ⑮: trust 再平衡，提现扣 5（原 10）
     await db.commit()
     return {"ok": True, "entry_id": lid, "balance": user.nt_balance,
-            "status": "pending", "expected_time": "24小时内"}
+            "status": "pending", "paid": pay_now,
+            "queued": queue_amount, "expected_time": "24小时内"}
 
 
 @router.get("/verify")
@@ -539,13 +557,16 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
     camp_out = sum(e.amount for e in camp_out_result.scalars())
     camp_pool_ledger = camp_in - camp_out
     camp_pool_drift = pool.camp_balance - camp_pool_ledger
+    # A-LABOR-BE ⑩: 新增 escrow_drift 校验
+    from nt_helpers import _calc_escrow_drift as _calc_ed
+    escrow_drift = await _calc_ed(db)
     # NT-P0-2: reserve 移出会计等式（链上兑付背书台账，与 contribution_pool 同级不计 total_system）
     total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance + (pool.frozen or 0)
     # 背书台账独立硬检查：储备池须覆盖提现待审
     reserve_covers_frozen = (pool.reserve or 0) >= (pool.frozen or 0)
 
     return {
-        "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0 and reserve_covers_frozen,
+        "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0 and reserve_covers_frozen and escrow_drift == 0,
         "checks": {
             "total_user_balance": total_user_balance,
             "community_pool": pool.balance,
@@ -556,6 +577,7 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
             "camp_balance": pool.camp_balance,
             "camp_pool_ledger": camp_pool_ledger,
             "camp_pool_drift": camp_pool_drift,
+            "escrow_drift": escrow_drift,  # A-LABOR-BE ⑩: 必须=0
             "total_system": total_system,
             "total_issued": pool.total_issued,
             "diff": total_system - pool.total_issued,
@@ -689,7 +711,7 @@ async def accept_task(task_id: str, user: User = Depends(get_current_user), db: 
     task.assignee = assignees[0]  # 向后兼容旧列
     task.status = "进行中"
     task.accepted_at = datetime.utcnow().isoformat()
-    await _adjust_trust(user, 2)
+    await _adjust_trust(user, 5)  # A-LABOR-BE ⑮: 劳动涨分 5（原 2）
     await db.commit()
     return {"ok": True}
 
@@ -730,9 +752,18 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
             )).scalar_one_or_none()
             if a:
                 a.nt_balance += task.reward
-                a.experience_value += task.reward
-                a.contribution_value = (a.contribution_value or 0) + task.reward  # P1-3: 劳动结算同步记 CV
-                await _adjust_trust(a, 5)
+                # A-LABOR-BE ③⑫: CV = floor(nt/2)，XP = floor(nt * decay / 10)
+                cv_d = compute_cv(task.reward)
+                a.contribution_value = (a.contribution_value or 0) + cv_d
+                # XP 按类分桶 + 递减
+                try:
+                    wc = json.loads(a.xp_by_category) if a.xp_by_category else {}
+                except (json.JSONDecodeError, TypeError):
+                    wc = {}
+                xp_d, wc = compute_xp(task.reward, task.category or "other", wc)
+                a.xp_by_category = json.dumps(wc, ensure_ascii=False)
+                a.experience_value = (a.experience_value or 0) + xp_d
+                await _adjust_trust(a, 5)  # A-LABOR-BE ⑮: 劳动涨分 5（原 5）
         task.status = "待结算"
         task.verifier_id = user.id
         task.verified_at = datetime.utcnow().isoformat()
@@ -741,7 +772,7 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
         poster = await db.execute(select(User).where(User.id == task.poster).with_for_update().execution_options(populate_existing=True))
         poster = poster.scalar_one_or_none()
         if poster:
-            await _adjust_trust(poster, 3)
+            await _adjust_trust(poster, 5)  # A-LABOR-BE ⑮: 发布涨分 5（原 3）
 
         # 部分领取：未领份额 (slots - 实领人数) × reward 退还
         # CR-4: 营地任务 escrow_amount==0（CR-1 修复后创建时不冻结 camp_balance），
@@ -1031,7 +1062,16 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
     )).scalar_one_or_none()
     if doer and nt_amount > 0:
         doer.nt_balance += nt_amount
-        doer.contribution_value = (doer.contribution_value or 0) + nt_amount  # P1-3: 校核结算同步记 CV
+        # A-LABOR-BE ③⑬: 校核路径 CV = floor(nt/2) + XP 写入
+        cv_d = compute_cv(nt_amount)
+        doer.contribution_value = (doer.contribution_value or 0) + cv_d
+        try:
+            wc = json.loads(doer.xp_by_category) if doer.xp_by_category else {}
+        except (json.JSONDecodeError, TypeError):
+            wc = {}
+        xp_d, wc = compute_xp(nt_amount, vfy.type or "other", wc)
+        doer.xp_by_category = json.dumps(wc, ensure_ascii=False)
+        doer.experience_value = (doer.experience_value or 0) + xp_d
         lid = _ledger_id()
         await _add_ledger(db, lid, "community_pool", vfy.doer, nt_amount, "earn",
                           f"校核通过: {vfy.action}", status="settled")
@@ -1256,3 +1296,23 @@ async def _run_daily_settlement(db, today: str | None = None):
 async def daily_tick(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     """D-26 G5 收敛：仅管理员可手动触发；日常由 cron.py 00:05 内部调用 _run_daily_settlement。"""
     return await _run_daily_settlement(db)
+
+
+# ══ A-LABOR-BE ⑪: 会计检查阻断状态 + 手动解锁 ══
+@system_router.get("/accounting-status")
+async def accounting_status(admin: User = Depends(require_admin)):
+    """GET /api/system/accounting-status — 查看会计检查阻断状态。"""
+    from cron import _consecutive_check_failures, _check_blocked
+    return {
+        "ok": True,
+        "blocked": _check_blocked,
+        "consecutive_failures": _consecutive_check_failures,
+    }
+
+
+@system_router.post("/reset-accounting-lock")
+async def reset_accounting_lock(admin: User = Depends(require_admin)):
+    """POST /api/system/reset-accounting-lock — 手动解锁会计检查阻断。"""
+    from cron import reset_accounting_lock as _reset
+    _reset()
+    return {"ok": True, "message": "会计检查阻断已解锁"}

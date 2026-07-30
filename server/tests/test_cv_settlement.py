@@ -1,9 +1,9 @@
 """P1-3 回归：劳动结算路径同步更新 CV（contribution_value）。
 
 覆盖两条结算路径：
-  1) /api/nt/tasks/{id}/verify (approved) —— 任务通过，assignee CV += reward
-  2) /api/nt/verifications/{id}/approve —— 校核通过，doer CV += nt_amount
-此前仅转账 (/api/nt/transfer) 动 CV，劳动结算不记 CV。
+  1) /api/nt/tasks/{id}/verify (approved) —— 任务通过，assignee CV += floor(reward/2)
+  2) /api/nt/verifications/{id}/approve —— 校核通过，doer CV += floor(nt_amount/2)
+A-LABOR-BE ⑫: CV 公式改为 floor(nt/2)（原 1:1）。
 """
 import json
 import uuid
@@ -58,7 +58,7 @@ class TestVerifyTaskCV:
                               headers=_h(admin_tok), json={"approved": True})
         assert r.status_code == 200, r.text
         cv_after = await _get_cv("cv_doer")
-        assert cv_after == cv_before + 10, f"任务结算后 CV 应 +10：{cv_before}->{cv_after}"
+        assert cv_after == cv_before + 5, f"任务结算后 CV 应 +5（floor(10/2)）：{cv_before}->{cv_after}"
 
 
 class TestVerificationApproveCV:
@@ -87,4 +87,4 @@ class TestVerificationApproveCV:
                                     "nt_amount": 15, "verifier_reward": 5})
         assert r.status_code == 200, r.text
         cv_after = await _get_cv("cv_vdoer")
-        assert cv_after == cv_before + 15, f"校核结算后 doer CV 应 +15：{cv_before}->{cv_after}"
+        assert cv_after == cv_before + 7, f"校核结算后 doer CV 应 +7（floor(15/2)）：{cv_before}->{cv_after}"

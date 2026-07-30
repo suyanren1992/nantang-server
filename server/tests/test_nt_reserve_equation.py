@@ -1,9 +1,9 @@
-"""NT-P0-2: reserve \u79fb\u51fa\u4f1a\u8ba1\u7b49\u5f0f + reserve_covers_frozen + withdraw \u51c6\u5165\u52a0\u56fa\u3002
+"""NT-P0-2: reserve 移出会计等式 + reserve_covers_frozen + withdraw 准入加固。
 
-\u8986\u76d6\u5224\u636e\uff1a
-  \u2460 verify() total_system \u4e0d\u518d\u542b reserve \u9879\uff08\u65e7 diff \u6c38\u4e45 -X \u6d88\u9664\uff09
-  \u2461 reserve_covers_frozen \u5b57\u6bb5\u5b58\u5728\u4e14\u503c\u6b63\u786e
-  \u2462 withdraw \u51c6\u5165\uff1areserve < frozen + amount \u65f6\u8fd4\u56de 400
+覆盖判据：
+  ① verify() total_system 不再含 reserve 项（旧 diff 永久 -X 消除）
+  ② reserve_covers_frozen 字段存在且值正确
+  ③ withdraw 准入：A-LABOR-BE ⑭ 部分提现+排队（reserve 无可用空间时 400）
 """
 import uuid
 import pytest
@@ -73,13 +73,26 @@ class TestReserveOutOfEquation:
 class TestWithdrawAdmissionHardened:
     @pytest.mark.asyncio
     async def test_reserve_below_frozen_plus_amount_400(self, client):
+        """A-LABOR-BE ⑭: reserve 无可用空间（reserve ≤ frozen）→ 400。"""
         tok = await _mk_user(f"p2_w_{uuid.uuid4().hex[:6]}", nt=500)
-        # reserve=100 < frozen(80)+amount(50)=130 \u2192 400
-        await _set_pool(balance=100, reserve=100, frozen=80)
+        # reserve=100, frozen=100 → available=0 → 400
+        await _set_pool(balance=100, reserve=100, frozen=100)
         r = await client.post("/api/nt/withdraw", headers=_h(tok),
                               json={"amount": 50, "to_address": WALLET})
         assert r.status_code == 400, r.text
-        assert "\u50a8\u5907" in r.json()["detail"], r.text
+        assert "储备" in r.json()["detail"], r.text
+    
+    @pytest.mark.asyncio
+    async def test_reserve_partial_withdraw_queue(self, client):
+        """A-LABOR-BE ⑭: reserve 部分可用 → 部分发放+排队。"""
+        tok = await _mk_user(f"p2_wp_{uuid.uuid4().hex[:6]}", nt=500)
+        # reserve=100, frozen=80 → available=20 → pay 20, queue 30
+        await _set_pool(balance=100, reserve=100, frozen=80)
+        r = await client.post("/api/nt/withdraw", headers=_h(tok),
+                              json={"amount": 50, "to_address": WALLET})
+        assert r.status_code == 200, r.text
+        assert r.json()["paid"] == 20
+        assert r.json()["queued"] == 30
 
     @pytest.mark.asyncio
     async def test_reserve_covers_admits(self, client):

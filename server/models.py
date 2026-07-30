@@ -1,6 +1,31 @@
 """SQLAlchemy models for Nantang Cloud Village."""
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float, Boolean, UniqueConstraint
+import json
+import math
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, Float, Boolean, UniqueConstraint, Date
 from database import Base
+
+# ══ A-LABOR-BE: CV/XP 公式常量 ══
+XP_DECAY = [10, 5, 3, 1, 1, 1, 1]  # 同类当周递减系数
+
+
+def compute_cv(nt_amount: int) -> int:
+    """CV = floor(nt/2)，nt = 基础价（不含等级加成）。御批 v0.3.1 §五#5。"""
+    return math.floor(nt_amount / 2)
+
+
+def compute_xp(nt_amount: int, category: str, week_counts: dict) -> tuple:
+    """XP 按类分桶 + 同类当周递减 [10,5,3,1,1,1,1]。
+    返回 (xp_delta, updated_week_counts)。
+    nt_amount: 基础价; category: 劳动类别; week_counts: 本周各类次数 dict。
+    """
+    count = week_counts.get(category, 0)
+    idx = min(count, len(XP_DECAY) - 1)
+    multiplier = XP_DECAY[idx]
+    # XP = floor(nt * multiplier / 10)
+    xp = math.floor(nt_amount * multiplier / 10)
+    new_counts = dict(week_counts)
+    new_counts[category] = count + 1
+    return xp, new_counts
 
 # D1: 任务状态统一词汇表
 TASK_STATUSES = {
@@ -37,6 +62,9 @@ class User(Base):
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
     token_version = Column(Integer, default=0)
+    # ══ A-LABOR-BE ①④: 治理权 + XP 分桶 ══
+    first_checkin_date = Column(Date, nullable=True)       # ① 入住 SET、退房不清、全退 NULL
+    xp_by_category = Column(Text, nullable=True)           # ④ JSON {labor: xp, 厨房: xp, 田间: xp, ...}
 
 
 class NTLedger(Base):
@@ -307,6 +335,8 @@ class Tenancy(Base):
     debt = Column(Integer, default=0)              # 未结欠费（退房结算后未清部分留存，可追缴）
     accommodation_due = Column(Integer, default=0) # G-3: 住宿费应计记账累计（退房一次性结算，不动 nt_balance）
     status = Column(String, default="active")      # active / checked_out
+    # ══ A-LABOR-BE ②: 活跃度治理 ══
+    last_active_at = Column(String, nullable=True)  # 最后活跃时间，30 天未活跃=治理权失效
 
 
 # C-B-4: 素社民宿房型配置（照 C-B 设计稿 §4 / §6 PC inn_rooms 参考重写，非搬运）
@@ -333,3 +363,19 @@ class CovenantSignature(Base):
     reward_granted = Column(Boolean, default=False)    # 是否发过 10 NT（每人只发一次首签）
     signed_at = Column(String, nullable=False)
     __table_args__ = (UniqueConstraint("user_id", "covenant_version", name="uq_covenant_user_version"),)
+
+
+# ══ A-LABOR-BE ⑦: 营地独立账本 ══
+class CampLedger(Base):
+    """营地多账本——每营独立行（camp_id, balance, escrow, status, multisig_address）。
+    替代 CommunityPool.camp_balance 单字段，支持多营地独立核算。"""
+    __tablename__ = "camp_ledgers"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    camp_id = Column(String, ForeignKey("camps.id"), nullable=False)
+    balance = Column(Integer, default=0)
+    escrow = Column(Integer, default=0)
+    status = Column(String, default="active")           # active | archived
+    multisig_address = Column(String, nullable=True)    # 营地多签钱包地址
+    created_at = Column(String, nullable=True)
+    updated_at = Column(String, nullable=True)
+    __table_args__ = (UniqueConstraint("camp_id", name="uq_camp_ledger"),)

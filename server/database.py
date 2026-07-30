@@ -204,3 +204,22 @@ async def init_db():
         except Exception as e:
             logger.warning(f"[C-B-4] inn_rooms seed skipped: {e}")
             await session.rollback()
+        # ══ A-LABOR-BE: 新字段迁移 ══
+        # ① User.first_checkin_date (Date)
+        try:
+            await session.execute(text("ALTER TABLE users ADD COLUMN first_checkin_date DATE"))
+            await session.commit()
+        except Exception:
+            await session.rollback()
+        # ④ User.xp_by_category (Text/JSON)
+        try:
+            await session.execute(text("ALTER TABLE users ADD COLUMN xp_by_category TEXT"))
+            await session.commit()
+        except Exception:
+            await session.rollback()
+        # ② Tenancy.last_active_at (String/DateTime)
+        try:
+            await session.execute(text("ALTER TABLE tenancies ADD COLUMN last_active_at VARCHAR"))
+            await session.commit()
+        except Exception:
+            await session.rollback()
