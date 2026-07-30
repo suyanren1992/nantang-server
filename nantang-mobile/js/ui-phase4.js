@@ -2,12 +2,12 @@
 // 与合作社 _showStaySheet()（app.js）独立，一字不改合作社代码
 // 复用 main.css .inn-* 样式 + index.html overlayInn/innBody 容器
 
-var _inn = { rooms: null, status: null, calY: 0, calM: 0, start: null, end: null, sel: null };
+var _inn = { rooms: null, status: null, calY: 0, calM: 0, start: null, end: null, sel: null, _tab: 'inn', _bedNum: 1 };
 
 function openInn() {
   _pushOverlay('overlayInn'); document.getElementById('overlayInn').classList.add('open');
   var now = new Date(); _inn.calY = now.getFullYear(); _inn.calM = now.getMonth() + 1;
-  _inn.start = null; _inn.end = null; _inn.sel = null;
+  _inn.start = null; _inn.end = null; _inn.sel = null; _inn._bedNum = 1; _inn._tab = 'inn';
   _innLoad();
 }
 
@@ -100,8 +100,12 @@ function _innRender() {
     if (isInnStay) {
       var sr = rooms.find(function(r) { return r.id === stay.room_id; }) || {};
       h += '<div class="inn-stay-banner"><div class="inn-stay-row">';
-      h += '<div class="inn-stay-info">🏡 <b>' + esc(sr.label || stay.room_id) + '</b><br>📅 ' + (stay.checkin_date || '—') + ' · 💵 ' + (stay.rate || sr.rate || 0) + ' NT/晚';
+      h += '<div class="inn-stay-info">🏡 <b>' + esc(sr.label || stay.room_id) + '</b>';
+      h += '<br>🛏️ ' + (stay.bed_num || 1) + '床 · 📅 ' + (stay.checkin_date || '—') + '起';
+      if (stay.check_out_date) h += ' → ' + stay.check_out_date;
+      h += '<br>💵 ' + (stay.rate || sr.rate || 0) + ' NT/床/晚';
       if (stay.accommodation_due > 0) h += '<br>🧾 已记账：' + stay.accommodation_due + ' NT';
+      if (stay.debt > 0) h += '<br>⚠ 欠费：' + stay.debt + ' NT';
       h += '</div><button class="inn-stay-btn out" onclick="_innCheckout()">🚪 退房</button>';
       h += '</div></div>';
     }
@@ -113,7 +117,15 @@ function _innRender() {
       var full = occ.indexOf(todayStr) >= 0;
       var hasOcc = occ.length > 0;
       var occCls = full ? 'full' : (hasOcc ? 'partial' : 'avail');
-      var occLabel = full ? '今日已满' : (hasOcc ? occ.length + '天已占' : '可预订');
+      // C-B-5: 四人间显示可订床位数，单人间显示预订状态
+      var occLabel;
+      if (r.room_type === 'quad') {
+        if (full && occ.length >= 30) occLabel = '近期全满';
+        else if (full) occLabel = '今日已满（' + r.beds + '床）';
+        else occLabel = '可订（' + r.beds + '床）';
+      } else {
+        occLabel = full ? '今日已满' : (hasOcc ? occ.length + '天有预订' : '可预订');
+      }
       var sel = _inn.sel === r.id;
       var icon = r.room_type === 'quad' ? '🏠' : '🛏️';
       h += '<div class="inn-rc' + (sel ? ' sel' : '') + '" onclick="_innPick(\'' + r.id + '\')">';
@@ -131,13 +143,22 @@ function _innRender() {
         h += '<div class="inn-booking">';
         h += '<div class="inn-booking-title">' + esc(selRoom.label) + '</div>';
         h += '<div class="inn-booking-sub">' + selRoom.beds + '床 · ' + selRoom.rate + 'NT/晚 · 🥬素食 · 选择入住日期</div>';
+        // C-B-5: 四人间床位选择
+        if (selRoom.room_type === 'quad') {
+          var bedOpts = ''; for (var bi = 1; bi <= selRoom.beds; bi++) bedOpts += '<option value="' + bi + '"' + (_inn._bedNum === bi ? ' selected' : '') + '>' + bi + ' 床</option>';
+          h += '<div style="margin-bottom:8px"><label style="font-size:.58rem;color:#5a6e5c;font-weight:600">🛏️ 床位数量</label><select onchange="_inn._bedNum=parseInt(this.value);_innRender()" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.72rem;margin-top:2px;background:#fff;color:#1d2e24">' + bedOpts + '</select></div>';
+        }
         h += _innCal(selRoom);
         if (_inn.start) {
           var ci = _inn.start.y + '-' + String(_inn.start.m).padStart(2, '0') + '-' + String(_inn.start.d).padStart(2, '0');
           var days = (_inn.start && _inn.end) ? Math.ceil((new Date(_inn.end.y, _inn.end.m - 1, _inn.end.d) - new Date(_inn.start.y, _inn.start.m - 1, _inn.start.d)) / 86400000) + 1 : 0;
           h += '<div class="inn-date-row"><span>📅 入住</span><b>' + ci + '</b></div>';
           h += '<div class="inn-date-row"><span>📅 退房</span><b>' + (_inn.end ? _inn.end.y + '-' + String(_inn.end.m).padStart(2, '0') + '-' + String(_inn.end.d).padStart(2, '0') : '再次点击选择') + '</b></div>';
-          if (days > 0) h += '<div class="inn-total">💵 ' + days + '晚 × ' + selRoom.rate + 'NT = ' + (days * selRoom.rate) + ' NT</div>';
+          if (days > 0) {
+            var bedCount = _inn._bedNum || 1;
+            var bedLabel2 = bedCount > 1 ? ' × ' + bedCount + '床' : '';
+            h += '<div class="inn-total">💵 ' + days + '晚 × ' + selRoom.rate + 'NT' + bedLabel2 + ' = 约 ' + (days * selRoom.rate * bedCount) + ' NT</div>';
+          }
           h += '<button class="inn-book-btn" ' + (days > 0 ? 'onclick="_innBook()"' : 'disabled') + '>✅ 确认预订</button>';
         }
         h += '<div class="inn-reset-link" onclick="_inn.sel=null;_inn.start=null;_inn.end=null;_innRender()">← 返回房型列表</div>';
@@ -155,7 +176,7 @@ function _innCoop() {
   setTimeout(function() { if (typeof _showStaySheet === 'function') _showStaySheet(); }, 100);
 }
 
-function _innPick(id) { _inn.sel = id; _inn.start = null; _inn.end = null; _innRender(); }
+function _innPick(id) { _inn.sel = id; _inn.start = null; _inn.end = null; _inn._bedNum = 1; _innRender(); }
 
 function _innCal(room) {
   var y = _inn.calY, m = _inn.calM;
@@ -210,29 +231,48 @@ function _innBook() {
   var ci = _inn.start.y + '-' + String(_inn.start.m).padStart(2, '0') + '-' + String(_inn.start.d).padStart(2, '0');
   var co = _inn.end.y + '-' + String(_inn.end.m).padStart(2, '0') + '-' + String(_inn.end.d).padStart(2, '0');
   var days = Math.ceil((new Date(_inn.end.y, _inn.end.m - 1, _inn.end.d) - new Date(_inn.start.y, _inn.start.m - 1, _inn.start.d)) / 86400000) + 1;
-  showConfirm('🏡 预订确认\n\n' + room.label + '\n📅 ' + ci + ' → ' + co + '（' + days + '晚）\n💵 ' + (days * room.rate) + ' NT\n\n确认预订？', function() {
+  var bedNum = _inn._bedNum || 1;
+  var bedLabel = room.room_type === 'quad' ? ' · ' + bedNum + '床' : '';
+  var totalEst = days * room.rate * bedNum;
+  showConfirm('🏡 预订确认\n\n' + room.label + bedLabel + '\n📅 ' + ci + ' → ' + co + '（' + days + '晚）\n💵 约 ' + totalEst + ' NT（以结算为准）\n\n确认预订？', function() {
     if (typeof API !== 'undefined' && API.token) {
-      API.checkin(room.id, 'inn', ci, co).then(function(r) {
-        if (r && r.ok) { showToast('预订成功！' + room.label + ' · ' + ci + '→' + co, 'ok'); _inn.sel = null; _inn.start = null; _inn.end = null; _innLoad(); }
-        else showToast((r && r.error) || '预订失败', 'error');
-      }).catch(function() { showToast('网络异常', 'error'); });
+      API.checkin(room.id, 'inn', ci, co, bedNum).then(function(r) {
+        if (r && r.ok) { showToast('预订成功！' + room.label + bedLabel + ' · ' + ci + '→' + co, 'ok'); _inn.sel = null; _inn.start = null; _inn.end = null; _inn._bedNum = 1; _innLoad(); }
+        else {
+          var err = (r && r.detail) || (r && r.error) || '预订失败';
+          // C-B-5: 后端重叠/超额判定——前端显错
+          if (err.indexOf('重叠') >= 0 || err.indexOf('占用') >= 0 || err.indexOf('超额') >= 0) {
+            showToast('⚠ ' + err + '，请另选日期', 'error');
+          } else showToast(err, 'error');
+        }
+      }).catch(function(e) { showToast('网络异常，请重试', 'error'); });
     } else showToast('离线模式，请登录后重试', 'warn');
   });
 }
 
 function _innCheckout() {
-  showConfirm('退房确认\n\n请确认个人物品已带走、垃圾已清理。\n\n确认退房？', function() {
+  showConfirm('🚪 退房确认\n\n请确认个人物品已带走、垃圾已清理。\n退房后将结算住宿费（从 NT 余额扣除）。\n\n确认退房？', function() {
     if (typeof API !== 'undefined' && API.token) {
       API.checkout().then(function(r) {
         if (r && r.ok) {
           var st = r.settlement;
-          if (st && st.total > 0) {
-            showToast('已结算 ' + st.paid + ' NT' + (st.debt > 0 ? '，欠费 ' + st.debt + ' NT' : ''), st.debt > 0 ? 'warn' : 'ok');
-            showConfirm('📋 退房结算单\n住了 ' + st.days + ' 天 · 每天 ' + st.rate + ' NT · 合计 ' + st.total + ' NT\n已付 ' + st.paid + ' NT' + (st.debt > 0 ? ' · ⚠ 欠费 ' + st.debt + ' NT 未结' : ''), function() {});
+          if (st) {
+            var msg = '已退房 · 结算 ' + st.paid + ' NT';
+            if (st.debt > 0) msg += ' · ⚠ 欠费 ' + st.debt + ' NT 未结';
+            showToast(msg, st.debt > 0 ? 'warn' : 'ok');
+            // 结算明细弹窗
+            var detail = '📋 退房结算单\n\n';
+            if (st.room_label) detail += '🏡 ' + st.room_label + '\n';
+            detail += '🛏️ ' + (st.bed_num || 1) + '床 · ' + st.days + ' 天';
+            if (st.rate) detail += ' · ' + st.rate + ' NT/晚';
+            detail += '\n💰 合计 ' + (st.total || 0) + ' NT';
+            detail += '\n💳 已付 ' + (st.paid || 0) + ' NT';
+            if (st.debt > 0) detail += '\n⚠ 欠费 ' + st.debt + ' NT（请尽快结清）';
+            showConfirm(detail, function() {});
           } else showToast('已退房', 'ok');
           _inn.status = null; _innLoad();
-        } else showToast((r && r.error) || '退房失败', 'error');
-      }).catch(function() { showToast('网络异常', 'error'); });
+        } else showToast((r && r.detail) || (r && r.error) || '退房失败', 'error');
+      }).catch(function() { showToast('网络异常，请重试', 'error'); });
     } else showToast('离线模式，请登录后重试', 'warn');
   });
 }

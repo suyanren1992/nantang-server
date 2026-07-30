@@ -144,7 +144,7 @@ var API = {
   rejectWithdraw: function(entryId) { return this.request('POST', '/api/admin/withdraw/reject?entry_id=' + encodeURIComponent(entryId)); },
   // ── 住宿 ──
   innRooms: function() { return this.request('GET', '/api/accommodation/inn-rooms'); },  // C-B-5: 素社民宿房型列表
-  checkin: function(roomId, track, checkIn, checkOut) { return this.request('POST', '/api/accommodation/checkin', {room_id: roomId, track: track || 'coop', check_in: checkIn || null, check_out: checkOut || null}); },
+  checkin: function(roomId, track, checkIn, checkOut, bedNum) { return this.request('POST', '/api/accommodation/checkin', {room_id: roomId, track: track || 'coop', check_in: checkIn || null, check_out: checkOut || null, bed_num: bedNum || 1}); },
   checkout: function() { return this.request('POST', '/api/accommodation/checkout'); },
   accommodationStatus: function() { return this.request('GET', '/api/accommodation/status'); },  // G-3 记账/欠费状态
   // ── C-B-3: 营地报到（幂等）──
