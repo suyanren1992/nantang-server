@@ -744,12 +744,14 @@ async def verify_task(task_id: str, approved: bool = Body(True), reject_reason: 
             await _adjust_trust(poster, 3)
 
         # 部分领取：未领份额 (slots - 实领人数) × reward 退还
+        # CR-4: 营地任务 escrow_amount==0（CR-1 修复后创建时不冻结 camp_balance），
+        #       未领份额的钱从未离开 camp_balance，结算只扣实付 total_payout，
+        #       故营地任务无需退款（再退会凭空造币、击破 camp_pool_drift）。
+        #       仅个人/社区任务（钱已进 task_escrow）才需退未领份额。
         unclaimed = task.reward * ((task.slots or 1) - len(assignee_ids))
-        if unclaimed > 0:
+        if unclaimed > 0 and not is_camp:
             if poster:
                 poster.nt_balance += unclaimed
-            elif is_camp:
-                pool.camp_balance += unclaimed  # 营地任务回流 camp_balance
             else:
                 pool.balance += unclaimed  # 发布者不存在时回流社区池
             lid_u = _ledger_id() + "-u"

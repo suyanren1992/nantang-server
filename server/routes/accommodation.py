@@ -28,7 +28,7 @@ async def _settle_tenancy(db, user, t, occasion):
     paid = 0
     remaining = 0
     if amount > 0:
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-3: 结算写池补行锁
         pay = min(user.nt_balance, amount)
         if pay > 0:
             user.nt_balance -= pay

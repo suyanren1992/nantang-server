@@ -142,7 +142,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         await db.execute(delete(InnRoom))          # C-B-4: 民宿房型配置表，hard 全清
         await db.execute(delete(CovenantSignature))  # U-2: 无 FK 但语义应清，先于 delete(User)
         await db.execute(delete(User))
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-3: dev 工具写池补行锁
         await db.execute(delete(CommunityPool).where(CommunityPool.singleton == True))
         await db.commit()
         new_pool = CommunityPool(singleton=True, balance=500, total_issued=500, task_escrow=0,
@@ -169,7 +169,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         await db.execute(delete(CampMembership))  # C-B-1: FK->camps，先于 delete(Camp)（soft 删 camps 故须清子行；users 保留）
         await db.execute(delete(CampBuilder))   # U-2: FK->camps，先于 delete(Camp)（soft 不删 users，其余三表不动）
         await db.execute(delete(Camp))
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # CR-3: dev 工具写池补行锁
         pool.balance = 500; pool.total_issued = 500; pool.task_escrow = 0
         pool.contribution_pool = 0; pool.camp_balance = 0; pool.reserve = 0; pool.frozen = 0
         lid = _ledger_id()
@@ -285,7 +285,7 @@ async def dev_seed(admin: User = Depends(get_current_user),
     #     服务端 seed 填不进冰箱 UI，改真机手动录入 1 件验证录入链路。
 
     # ── 确保社区池 >= 500 ──
-    pool = await _get_pool(db)
+    pool = await _get_pool(db, lock=True)  # CR-3: dev 工具写池补行锁
     if pool.balance < 500:
         diff = 500 - pool.balance
         pool.balance += diff; pool.total_issued += diff
