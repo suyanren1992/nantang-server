@@ -1097,6 +1097,26 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
         await db.commit()
     except Exception:
         pass  # 归档失败不阻塞校核
+    # ══ CLEAN-WEEKLY-BE ⑨: 校核通过后自动完成周任务 ══
+    if vfy.type == "clean_weekly":
+        try:
+            vfy_detail = json.loads(vfy.detail) if vfy.detail else {}
+            cwt_id = vfy_detail.get("clean_weekly_task_id")
+            if cwt_id:
+                from models import CleanWeeklyTask as CWT
+                cwt_r = await db.execute(
+                    select(CWT).where(CWT.id == cwt_id)
+                    .with_for_update().execution_options(populate_existing=True)
+                )
+                cwt = cwt_r.scalar_one_or_none()
+                if cwt and cwt.status != "completed":
+                    cwt.status = "completed"
+                    # streak +1
+                    if doer:
+                        doer.clean_weekly_streak = (doer.clean_weekly_streak or 0) + 1
+                    await db.commit()
+        except Exception:
+            pass  # 周任务状态更新失败不阻塞校核
     return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
             "verifier_balance": user.nt_balance}
 

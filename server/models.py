@@ -65,6 +65,8 @@ class User(Base):
     # ══ A-LABOR-BE ①④: 治理权 + XP 分桶 ══
     first_checkin_date = Column(Date, nullable=True)       # ① 入住 SET、退房不清、全退 NULL
     xp_by_category = Column(Text, nullable=True)           # ④ JSON {labor: xp, 厨房: xp, 田间: xp, ...}
+    # ══ CLEAN-WEEKLY-BE ③: 连续周参与数 ══
+    clean_weekly_streak = Column(Integer, default=0)
 
 
 class NTLedger(Base):
@@ -379,3 +381,35 @@ class CampLedger(Base):
     created_at = Column(String, nullable=True)
     updated_at = Column(String, nullable=True)
     __table_args__ = (UniqueConstraint("camp_id", name="uq_camp_ledger"),)
+
+
+# ══ CLEAN-WEEKLY-BE: 大扫除周任务 ══
+CLEAN_WEEKLY_STATUSES = ("open", "claimed", "completed")
+
+
+class CleanWeeklyTask(Base):
+    """周打扫任务实例——管理员发放 → 用户认领 → 校核完成。"""
+    __tablename__ = "clean_weekly_tasks"
+    id = Column(String, primary_key=True)
+    week_start_date = Column(String, nullable=False)       # YYYY-MM-DD（周一）
+    space_id = Column(String, nullable=False)              # 建筑物空间 ID
+    space_name = Column(String, nullable=True)             # 空间显示名
+    reward_nt = Column(Integer, default=15)                # NT 奖励（默认 yellow 档）
+    status = Column(String, default="open")                # open | claimed | completed
+    claimed_by = Column(String, ForeignKey("users.id"), nullable=True)
+    claimed_at = Column(String, nullable=True)
+    verification_id = Column(String, nullable=True)        # 关联校核记录
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(String, nullable=True)
+
+
+class CleanWeeklyDistribution(Base):
+    """周打扫发放批次——每周一管理员选空间批量建任务。"""
+    __tablename__ = "clean_weekly_distributions"
+    id = Column(String, primary_key=True)
+    week_start_date = Column(String, nullable=False)       # YYYY-MM-DD（周一）
+    distribute_at = Column(String, nullable=True)          # 计划发放时间
+    space_ids = Column(Text, nullable=True)                # JSON list of space IDs
+    mode = Column(String, default="even")                  # even | by_count
+    created_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(String, nullable=True)

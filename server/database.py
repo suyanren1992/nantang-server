@@ -223,3 +223,9 @@ async def init_db():
             await session.commit()
         except Exception:
             await session.rollback()
+        # ══ CLEAN-WEEKLY-BE ③: User.clean_weekly_streak ══
+        try:
+            await session.execute(text("ALTER TABLE users ADD COLUMN clean_weekly_streak INTEGER DEFAULT 0"))
+            await session.commit()
+        except Exception:
+            await session.rollback()
