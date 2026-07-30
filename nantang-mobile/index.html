@@ -120,7 +120,7 @@ if (window.location.protocol !== 'file:') {
       <span style="font-size:1.3rem">📬</span>
       <span id="inboxBadge" style="position:absolute;top:-4px;right:-6px;background:#b84c38;color:#fff;font-size:.55rem;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 4px;display:none">0</span>
     </div>
-    <span style="font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:8px;background:#f0f4ee;border:1px solid var(--green-border)" onclick="openSettings()" title="设置">⚙️</span>
+    <span style="font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:8px;background:#f0f4ee;border:1px solid var(--green-border)" onclick="event.stopPropagation();openSettings()" title="设置">⚙️</span>
     <span class="offline-badge" style="display:none;color:#b84c38;font-size:.6rem;margin-left:auto">离线</span>
   </div>
   <div style="padding:10px 14px;display:flex;gap:6px;border-bottom:1px solid var(--green-border)">
@@ -247,8 +247,10 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-body" id="verifyRoomBody"></div>
 </div>
 <!-- ══ 新手引导浮层 ══ -->
-<div id="newbieGuideOverlay" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:280;animation:spcPop .2s ease-out">
-  <div style="background:#fff;border-radius:16px 16px 0 0;max-height:50vh;overflow-y:auto;padding:16px 20px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.1)">
+<!-- W6-UI BUG-3: 底部弹出卡片改为滑入动画，加遮罩，z-index 提至 300 -->
+<div id="newbieGuideOverlay" style="display:none;position:fixed;inset:0;z-index:300">
+  <div id="newbieGuideBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.35);animation:fadeIn .2s ease-out" onclick="document.getElementById('newbieGuideOverlay').style.display='none';updateNewbieChip()"></div>
+  <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;max-height:70vh;overflow-y:auto;padding:16px 20px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.15);animation:slideUp .3s ease-out">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
       <span style="font-weight:700;font-size:.78rem">🌱 新手引导</span>
       <button style="background:none;border:none;font-size:1rem;cursor:pointer;color:#5a5a5a" onclick="document.getElementById('newbieGuideOverlay').style.display='none';updateNewbieChip()">✕</button>
