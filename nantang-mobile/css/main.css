@@ -268,7 +268,7 @@ html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:1
 .camp-overview .co-title{font-size:.85rem;font-weight:700;color:#2a4a30;margin-bottom:6px}
 .camp-overview .co-stats{display:flex;justify-content:center;gap:20px;font-size:.72rem;color:#5a6e5c;margin-bottom:8px}
 .camp-overview .co-progress{height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;margin:8px 0}
-.camp-overview .co-progress-fill{height:100%;background:var(--green-primary);border-radius:3px}
+.camp-overview .co-progress-fill{height:100%;background:var(--g-green);border-radius:3px}
 .quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .quick-card{background:#fff;border:1px solid #d0d9ce;border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:.12s}
 .quick-card:active{transform:scale(.97);background:#fafaf5}
