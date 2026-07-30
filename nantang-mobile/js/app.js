@@ -1570,6 +1570,9 @@ function _loadAccDueBanner() {
   }).catch(function(){});
 }
 function _showStaySheet() {
+  // ⑨ 弹窗栈：关闭已有弹窗避免多层叠加
+  var existing = document.querySelector('.mgmt-sheet'); if (existing) existing.remove();
+  var existingCI = document.querySelector('.stay-ci-overlay'); if (existingCI) existingCI.remove();
   var mapData = (window.AppData && AppData._data && AppData._data.map_locations) ? AppData._data.map_locations : {};
   var accs = (mapData.accommodations && Object.keys(mapData.accommodations).length) ? mapData.accommodations : (_ml().accommodations || {});
   if (!Object.keys(accs).length) {
