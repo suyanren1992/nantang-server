@@ -976,7 +976,13 @@ function _renderSRStep3() {
   }
   h += '<textarea id="srNote" rows="3" placeholder="补充说明（选填）：擦了台面、拖了地、倒了垃圾…" style="width:100%;padding:10px;border:1px solid var(--green-border);border-radius:10px;font-size:.7rem;margin-bottom:8px;background:#fff;color:#1d2e24;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>';
 
-  h += '<div style="font-size:.58rem;color:#5a6e5c;margin-bottom:8px;background:#f8f8f8;padding:8px;border-radius:8px">💡 提交后等待另一位成员验证。通过后 +'+d.actionNT+' NT 到账。</div>';
+  // A-LABOR-FE ⑬: 志愿劳动 checkbox — 不计 NT，只加 CV/XP
+  h += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f0f7f0;border-radius:8px;margin-bottom:8px;cursor:pointer;font-size:.65rem;color:#3d6b52">';
+  h += '<input type="checkbox" id="srVolunteer" style="width:16px;height:16px;accent-color:#3d6b52;cursor:pointer">';
+  h += '🧡 志愿劳动（不领取 NT，只累积贡献值 CV 和经验 XP）';
+  h += '</label>';
+
+  h += '<div style="font-size:.58rem;color:#5a6e5c;margin-bottom:8px;background:#f8f8f8;padding:8px;border-radius:8px">💡 提交后等待另一位成员验证。通过后 +'+d.actionNT+' NT 到账（如勾选志愿劳动则仅累积 CV/XP）。</div>';
 
   h += _formFooter('← 重选劳动', '📤 提交', '_submitSelfReport', '_renderStep2');
   _showModal(h);
@@ -1109,11 +1115,13 @@ function _submitSelfReport() {
   if (_srDraft.actionNeedEvidence && !evidence) { showToast('脑力劳动需提供成果凭证（链接或说明）', 'warn'); return; }
   var actionLabel = _srDraft.actionLabel;
   var ntAmount = _getLaborNT(_srDraft.actionId) || _srDraft.actionNT || 5;
-  var fullNote = actionLabel + (note ? ' · ' + note : '') + (evidence ? ' 🔗'+evidence : '');
+  // A-LABOR-FE ⑬⑭: 志愿劳动 checkbox — 不计 NT，只加 CV/XP
+  var isVolunteer = !!(document.getElementById('srVolunteer')||{}).checked;
+  var fullNote = actionLabel + (note ? ' · ' + note : '') + (evidence ? ' 🔗'+evidence : '') + (isVolunteer ? ' 🧡志愿' : '');
 
-  // 写入校核队列
+  // 写入校核队列（志愿劳动：ntAmount=0 但仍记录 CV/XP）
   if (window.AppData && typeof AppData.addVerification === 'function') {
-    AppData.addVerification('labor_report', CURRENT_USER, fullNote, { spaceId: _srDraft.spaceId, actionId: _srDraft.actionId, evidence: evidence }, ntAmount, AppData._verifierReward(ntAmount));
+    AppData.addVerification('labor_report', CURRENT_USER, fullNote, { spaceId: _srDraft.spaceId, actionId: _srDraft.actionId, evidence: evidence }, ntAmount, AppData._verifierReward(ntAmount), { volunteer: isVolunteer });
   }
 
   // 同时写入卡片室 — 让上报的劳动在卡片室可见
@@ -1125,14 +1133,15 @@ function _submitSelfReport() {
     actionId: _srDraft.actionId,
     actionLabel: actionLabel,
     actionIcon: _srDraft.actionIcon,
-    description: actionLabel + (note ? ' · ' + note : '') + ' @' + _srDraft.spaceName,
+    description: actionLabel + (note ? ' · ' + note : '') + ' @' + _srDraft.spaceName + (isVolunteer ? ' 🧡志愿' : ''),
     guesser: CURRENT_USER,
     guessedPerson: CURRENT_USER, // 自报：做事者即上报者
     guessedAt: new Date().toISOString(),
     status: 'pending', // 等待校核确认
     ntGuesser: 0,
-    ntDoer: ntAmount,
+    ntDoer: isVolunteer ? 0 : ntAmount,
     isSelfReport: true,
+    volunteer: isVolunteer,
     createdAt: new Date().toISOString()
   };
   var discs = _getDiscoveries();

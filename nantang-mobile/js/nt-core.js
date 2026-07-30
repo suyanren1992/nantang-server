@@ -487,7 +487,7 @@ function spendToPool(userId, amount, reason, pool, scope) {
   scope = scope || 'personal';
   u.ntBalance -= amount;
   u.totalPaid += amount;
-  u.contributionValue = Math.max(0, (u.contributionValue||0) - amount);
+  // A-LABOR-FE ①: 删 CV 扣减——提案权不挂 CV
   if (pool === 'community') { COMMUNITY_POOL += amount; }
   else if (pool && pool.indexOf('camp:') === 0) {
     var campId = pool.slice(5);

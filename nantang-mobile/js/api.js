@@ -205,6 +205,13 @@ var API = {
       return (r && r.id) ? r.id : disc.id;
     });
   },
+  // ── A-LABOR-FE: 治理端点 ──
+  checkProposalRight: function() { return this.request('GET', '/api/governance/check_proposal_right'); },
+  checkVoteRight: function() { return this.request('GET', '/api/governance/check_vote_right'); },
+  // ── A-LABOR-FE: 劳动配置 ──
+  laborConfig: function() { return this.request('GET', '/api/labor/config'); },
+  // ── A-LABOR-FE: 部分提现(超额部分排队) ──
+  withdrawPartial: function(amount, toAddress) { return this.request('POST', '/api/nt/withdraw', {amount: amount, to_address: toAddress||'', partial: true}); },
   // ── SM-5: 测试台 ──
   devReset: function(mode) { return this.request('POST', '/api/admin/dev-reset?mode=' + (mode||'soft')); },
   devSeed: function() { return this.request('POST', '/api/admin/dev-seed'); },

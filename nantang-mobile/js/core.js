@@ -1022,6 +1022,21 @@ function _mergeSyncData(data) {
   if (data.configHistory && Array.isArray(data.configHistory) && window.AppData) {
     AppData._data.configHistory = data.configHistory;
   }
+  // A-LABOR-FE ⑥: sync_all 新字段（my_escrow / my_frozen / first_checkin_date / last_active_at / xp_by_category）
+  if (data.my_escrow !== undefined && window.AppData) AppData._data._myEscrow = data.my_escrow;
+  if (data.my_frozen !== undefined && window.AppData) AppData._data._myFrozen = data.my_frozen;
+  if (data.first_checkin_date !== undefined && window.AppData) AppData._data._firstCheckinDate = data.first_checkin_date;
+  if (data.last_active_at !== undefined && window.AppData) AppData._data._lastActiveAt = data.last_active_at;
+  if (data.xp_by_category !== undefined && window.AppData) AppData._data._xpByCategory = data.xp_by_category;
+  // A-LABOR-FE ⑤: labor_pricing 从服务端拉取
+  if (data.labor_pricing !== undefined && window.AppData) AppData._data._laborConfig = data.labor_pricing;
+  // A-LABOR-FE ⑦⑧: 治理权状态
+  if (window.AppData) {
+    if (typeof API !== 'undefined' && API.token) {
+      API.checkProposalRight().then(function(r) { if (r && !r.detail) AppData._data._proposalRight = r; });
+      API.checkVoteRight().then(function(r) { if (r && !r.detail) AppData._data._voteRight = r; });
+    }
+  }
 }
 function enterVillage(){
   var isReg=!document.getElementById('scrRegister').classList.contains('hidden');
@@ -1214,6 +1229,7 @@ function refreshUserUI(){
   var mr=document.querySelector('.my-id-row2');if(mr){
     var title = (typeof computeTitle === 'function' && u) ? computeTitle(u) : null;
     var titleStr = title ? title.tier.tier : (roleIco+' '+role);
+    // A-LABOR-FE ⑮: 称号纯荣誉，非治理权
     var branchStr = (title && title.branches.length) ? ' · ' + title.branches.slice(0,2).map(function(b){return b.icon+b.name}).join(' ') : '';
     var ntUser = (window.NT && u) ? NT.getUser(u) : null;
     var trustStr = ntUser ? ' · ' + (getTrustLevel(ntUser.trustScore||100).level) : '';
@@ -1258,8 +1274,40 @@ function refreshUserUI(){
   refreshLedgerCards();
   // FIX-05: 冻结 NT
   var frozen = (window.NT && typeof NT.getFrozenBalance === 'function') ? NT.getFrozenBalance(u) : 0;
-  var frozenEl=document.getElementById('myFrozenBalance');if(frozenEl)frozenEl.textContent=frozen;
-  var frozenBar=document.getElementById('myFrozenBar');if(frozenBar){var b2=b||0;frozenBar.style.width=(b2+frozen>0?Math.round(frozen/(b2+frozen)*100):0)+'%';}
+  // A-LABOR-FE ⑩: my_frozen + my_escrow 显示（服务端 sync_all 字段优先）
+  var srvFrozen = (window.AppData && AppData._data._myFrozen != null) ? AppData._data._myFrozen : frozen;
+  var srvEscrow = (window.AppData && AppData._data._myEscrow != null) ? AppData._data._myEscrow : 0;
+  var frozenEl=document.getElementById('myFrozenBalance');if(frozenEl)frozenEl.textContent=srvFrozen;
+  var frozenBar=document.getElementById('myFrozenBar');if(frozenBar){var b2=b||0;frozenBar.style.width=(b2+srvFrozen>0?Math.round(srvFrozen/(b2+srvFrozen)*100):0)+'%';}
+  // A-LABOR-FE ⑨ ⑩: first_checkin_date + governance status + frozen detail
+  var firstCheckin = (window.AppData && AppData._data._firstCheckinDate) ? AppData._data._firstCheckinDate : null;
+  var govRow = document.getElementById('myGovernanceRow');
+  if (govRow) {
+    var propRight = (window.AppData && AppData._data._proposalRight) || {eligible:false,daysNeeded:21};
+    var voteRight = (window.AppData && AppData._data._voteRight) || {eligible:false,reason:''};
+    var govHtml = '';
+    if (firstCheckin) govHtml += '🏠 入住: ' + (firstCheckin||'').slice(0,10);
+    if (propRight.eligible) govHtml += ' · ✍️ 可提案';
+    else govHtml += ' · ⏳ 还需 ' + (propRight.daysNeeded||'?') + ' 天提案';
+    if (voteRight.eligible) govHtml += ' · 🗳️ 可投票';
+    else govHtml += ' · 🚫 ' + (voteRight.reason||'不可投票');
+    govRow.innerHTML = govHtml;
+    govRow.style.display = '';
+  }
+  // A-LABOR-FE ⑩: my_escrow 托管提示
+  var escrowEl = document.getElementById('myEscrowHint');
+  if (escrowEl) { escrowEl.textContent = srvEscrow > 0 ? '🔒 托管中: ' + srvEscrow + ' NT' : ''; escrowEl.style.display = srvEscrow > 0 ? '' : 'none'; }
+  // A-LABOR-FE ⑯: 勋章显示（纯荣誉，无治理权加成）
+  var badgeEl = document.getElementById('myHonorBadges');
+  if (badgeEl) {
+    var badges = [];
+    if (cv >= 500) badges.push('🏅 金锄头');
+    else if (cv >= 200) badges.push('🥈 铁锄头');
+    if (xp >= 300) badges.push('👴 老把式');
+    else if (xp >= 100) badges.push('🔧 熟手');
+    badgeEl.textContent = badges.length ? badges.join(' · ') + '（荣誉）' : '';
+    badgeEl.style.display = badges.length ? '' : 'none';
+  }
   // 村口气泡角标
   var pendingCount=window.AppData?AppData.myPendingCount():0;
   var badge=document.querySelector('#spcCard .spc-badge');if(badge){badge.textContent=pendingCount||'';badge.style.display=pendingCount>0?'':'none'}
@@ -1474,9 +1522,27 @@ function renderProfile(mode){
     var u=getUsers()[CURRENT_USER]||{};var rl=u.role||'visitor';var rn=roleName(rl);
     // NT 余额 + 充值/提现
     var ntBal=(window.AppData&&AppData._data._serverBalance!=null)?AppData._data._serverBalance:(window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0);
+    var srvFrozen = (window.AppData&&AppData._data._myFrozen!=null)?AppData._data._myFrozen:0;
+    var srvEscrow = (window.AppData&&AppData._data._myEscrow!=null)?AppData._data._myEscrow:0;
     h+='<div style="background:linear-gradient(135deg,#e8f0e4,#dce8d8);border-radius:12px;padding:12px 14px;margin-bottom:10px;text-align:center">';
     h+='<div style="font-size:.6rem;color:#5a6e5c;margin-bottom:2px">💰 NT 余额</div>';
     h+='<div style="font-size:1.6rem;font-weight:700;color:#2a4a30">'+ntBal+'</div>';
+    // A-LABOR-FE ⑩: my_frozen + my_escrow 显示
+    if (srvFrozen > 0 || srvEscrow > 0) {
+      h+='<div style="font-size:.58rem;color:#5a6e5c;margin-top:4px">';
+      if (srvFrozen > 0) h+='⏳ 提现待审: '+srvFrozen+' NT ';
+      if (srvEscrow > 0) h+='🔒 任务托管: '+srvEscrow+' NT';
+      h+='</div>';
+    }
+    // A-LABOR-FE ⑨: governance status
+    var firstCheckin = (window.AppData&&AppData._data._firstCheckinDate)||null;
+    var propRight = (window.AppData&&AppData._data._proposalRight)||{eligible:false,daysNeeded:21};
+    var voteRight = (window.AppData&&AppData._data._voteRight)||{eligible:false,reason:''};
+    if (firstCheckin || propRight.eligible !== undefined) {
+      h+='<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">🏠 '+(firstCheckin?(firstCheckin.slice(0,10)):'未入住');
+      h+=' · '+(propRight.eligible?'✍️可提案':'⏳还需'+propRight.daysNeeded+'天');
+      h+=' · '+(voteRight.eligible?'🗳️可投票':'🚫不可投票')+'</div>';
+    }
     h+='<div style="display:flex;gap:6px;margin-top:8px">';
     h+='<button class="btn-sm pri" style=flex:1;font-size:.7rem;padding:6px onclick="event.stopPropagation();showRechargeForm()">💰 充值</button>';
     h+='<button class="btn-sm sec" style=flex:1;font-size:.7rem;padding:6px onclick="event.stopPropagation();showWithdrawForm()">📤 提现</button>';
@@ -1535,10 +1601,15 @@ function showRechargeForm(){
 function showWithdrawForm(){
   var el=document.getElementById('profileTxForm');if(!el)return;
   var ntBal=(window.AppData&&AppData._data._serverBalance!=null)?AppData._data._serverBalance:(window.NT?(NT.getUser(CURRENT_USER)||{}).ntBalance||0:0);
+  var srvFrozen = (window.AppData&&AppData._data._myFrozen!=null)?AppData._data._myFrozen:0;
+  // A-LABOR-FE ⑩⑪⑫: 部分提现 + 排队提示 + frozen 显示
+  var availableBal = ntBal - srvFrozen;
+  var queueHint = '';
   el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
-    '<div style="font-size:.62rem;color:#5a5a5a;margin-bottom:4px">可提现余额：'+ntBal+' NT</div>'+
-    '<input id="withdrawAmount" type="number" min="1" max="'+ntBal+'" placeholder="提现 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.75rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
+    '<div style="font-size:.62rem;color:#5a5a5a;margin-bottom:4px">可用余额：'+availableBal+' NT（可提）'+(srvFrozen>0?' · ⏳ '+srvFrozen+' NT 待审':'')+'</div>'+
+    '<input id="withdrawAmount" type="number" min="1" max="'+availableBal+'" placeholder="提现 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.75rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
     '<input id="withdrawNote" placeholder="备注（选填）" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.72rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
+    '<div id="withdrawQueueHint" style="font-size:.55rem;color:#c8892e;margin-bottom:4px;display:none">⏳ 储备池不足，超额部分将自动排队，预计到账时间见排队通知</div>'+
     '<div style="display:flex;gap:4px"><button class="btn-sm sec" style=flex:1 onclick="document.getElementById(\'profileTxForm\').innerHTML=\'\'">取消</button>'+
     '<button class="btn-sm pri" style=flex:1 onclick="submitWithdraw()">提交申请</button></div></div>';
 }
@@ -1573,16 +1644,20 @@ function submitWithdraw(){
     return;
   }
   if(el)el.innerHTML='<div style="color:#5a6e5c;font-size:.7rem;text-align:center;padding:4px">⏳ 提交中…</div>';
-  API.withdraw(amt).then(function(r){
+  // A-LABOR-FE ⑫: 部分提现——超额部分自动排队
+  API.withdrawPartial(amt).then(function(r){
     if (!r || !r.ok || r.detail) {
-      // 服务端错误：降级入离线队列
       var tx={id:_genTxId(),type:'withdraw',user:CURRENT_USER,amount:amt,reason:note,status:'pending',createdAt:today()};
       AppData._data.pendingTransactions.push(tx);AppData._save();
       if(el)el.innerHTML='<div style="color:#c8892e;font-size:.7rem;text-align:center;padding:4px">⚠ '+(r&&r.detail?r.detail:'服务端异常')+' · 已缓存，联网后重试</div>';
       return;
     }
-    // 服务端成功：更新本地余额、清本地队列
-    if(el)el.innerHTML='<div style="color:var(--green-primary);font-size:.7rem;text-align:center;padding:4px">✅ 已提交提现申请（冻结 '+amt+' NT），等待管理员审核'+(r.expected_time?' · '+r.expected_time:'')+'</div>';
+    // A-LABOR-FE ⑪: 排队提示
+    var queueMsg = '';
+    if (r.queued_amount && r.queued_amount > 0) {
+      queueMsg = '（其中 '+r.queued_amount+' NT 已排队'+(r.expected_days?'，预计 '+r.expected_days+' 天内到账':'')+'）';
+    }
+    if(el)el.innerHTML='<div style="color:var(--green-primary);font-size:.7rem;text-align:center;padding:4px">✅ 已提交提现申请（冻结 '+(r.frozen_amount||amt)+' NT）'+queueMsg+'</div>';
     if (window.NT) {
       var ntUser = NT.getUser(CURRENT_USER);
       if (ntUser) {

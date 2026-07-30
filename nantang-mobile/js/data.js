@@ -777,7 +777,8 @@ function computeTitle(userId) {
   for (var k in BRANCH_TITLES) {
     if (stats[k] >= BRANCH_TITLES[k].min) branches.push(BRANCH_TITLES[k]);
   }
-  return { tier: tier, branches: branches, xp: xp, stats: stats };
+  // A-LABOR-FE ⑮⑰: 称号/等级纯荣誉，不挂治理权
+  return { tier: tier, branches: branches, xp: xp, stats: stats, honorary: true };
 }
 
 // B-1: 内置作物表（生长天数/适宜季节）

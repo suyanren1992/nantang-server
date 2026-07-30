@@ -51,7 +51,7 @@ function _defaultConfig() { return {
   farming_pricing: { harvest:15, plant:5, water:3, weed:5, fertilize:5, view:2 },
   kitchen_pricing: { stock_in:2, stock_out:1, detail:5 },
   cooking_pricing: { chef:15, helper:5, wash:5 },
-  verifier_reward_pct: 0.15,  // C1: 25%→15%，以公约附页B为准
+  verifier_reward_pct: 0.15,  // A-LABOR-FE ②: 15% 校核奖励（以公约附页B为准）
   accommodation_pricing: {
     dorm101:{ perBed:20, ac:false }, dorm102:{ perBed:30, ac:true },
     dorm103:{ perBed:30, ac:true }, dorm104:{ perRoom:60, ac:true },
@@ -72,7 +72,10 @@ function _defaultConfig() { return {
     repair:15, move_goods:12, organize_warehouse:10, waste_sort:8, compost:5, change_light:8,
     reception:8, tour_guide:10, event_setup:12, event_cleanup:10, animal_care:8, notice_board:5,
     painting:15, calligraphy:10, craft:12, photo_video:8, writing:8,
-    mow_lawn:12, weed_pick:8
+    mow_lawn:12, weed_pick:8,
+    // A-LABOR-FE ③: 6 新劳动项（48 项）
+    room_prep:10, room_inspect:8, newcomer_reception:12,
+    care_elderly:15, care_sick:15, mentor_newbie:12
   },
   camp_creation_fee: 50,
   maintenance_xp: 30,

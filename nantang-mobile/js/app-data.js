@@ -47,6 +47,15 @@ window.AppData = {
     this._data.cleaning = { lastCheckDate: '', spaces: {}, log: [] };
     if (!this._data.mealOrders) this._data.mealOrders = {};
     if (!this._data.camp_memberships) this._data.camp_memberships = {};
+    // A-LABOR-FE ⑥: sync_all 新字段
+    if (!this._data._myEscrow) this._data._myEscrow = 0;
+    if (!this._data._myFrozen) this._data._myFrozen = 0;
+    if (!this._data._firstCheckinDate) this._data._firstCheckinDate = null;
+    if (!this._data._lastActiveAt) this._data._lastActiveAt = null;
+    if (!this._data._xpByCategory) this._data._xpByCategory = {};
+    if (!this._data._proposalRight) this._data._proposalRight = {eligible:false,daysNeeded:21};
+    if (!this._data._voteRight) this._data._voteRight = {eligible:false,reason:''};
+    if (!this._data._laborConfig) this._data._laborConfig = null;
     if (!this._data.activity_log) this._data.activity_log = [];
   },
 
@@ -333,7 +342,10 @@ this._data.map_locations.people_on_site = [];
   // ══ 校核制 ══
   // IA-3: 统一校核奖励公式 = ntAmount × 15%（公约附页B），至少 1 NT
   _verifierReward: function(ntAmount) { return Math.max(1, Math.round((ntAmount||0) * 0.15)); },
-  addVerification: function(type, doer, action, detail, ntAmount, verifierReward) {
+  // A-LABOR-FE ⑬⑭: 志愿劳动——不计 NT，只加 CV/XP
+  addVerification: function(type, doer, action, detail, ntAmount, verifierReward, opts) {
+    opts = opts || {};
+    var isVolunteer = !!opts.volunteer;
     // CR5: 仅在地成员（非 visitor）可发起校核
     var users = typeof getUsers === 'function' ? getUsers() : {};
     var userRole = (users[doer || this._currentUser] || {}).role || 'visitor';
@@ -341,7 +353,9 @@ this._data.map_locations.people_on_site = [];
       if (typeof showToast === 'function') showToast('🏕️ 入住后可使用校核功能', 'warn');
       return null;
     }
-    var vfy = { id: 'vfy_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), type: type, doer: doer, action: action, detail: detail||{}, ntAmount: ntAmount||0, verifierReward: verifierReward||this._verifierReward(ntAmount), createdAt: new Date().toISOString(), verifier: null, verifiedAt: null, status: 'pending' };
+    var effectiveNt = isVolunteer ? 0 : (ntAmount || 0);
+    var effectiveReward = isVolunteer ? 0 : (verifierReward || this._verifierReward(ntAmount));
+    var vfy = { id: 'vfy_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6), type: type, doer: doer, action: action, detail: detail||{}, ntAmount: effectiveNt, verifierReward: effectiveReward, volunteer: isVolunteer, createdAt: new Date().toISOString(), verifier: null, verifiedAt: null, status: 'pending' };
     if (!this._data.pendingVerifications) this._data.pendingVerifications = [];
     this._data.pendingVerifications.push(vfy);
     this._saveShared(true);
