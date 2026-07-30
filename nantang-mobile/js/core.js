@@ -345,10 +345,10 @@ function openQuestHallPage(){
         var exists = AppData._data.tasks[t.id];
         if(!exists){
           var localTasks = Object.values(AppData._data.tasks);
-          exists = localTasks.find(function(lt){return lt.title===t.title && lt.publisher===t.poster;});
+          exists = localTasks.find(function(lt){return lt.name===t.title && lt.publisher===t.poster;});
         }
         if(!exists){
-          AppData._data.tasks[t.id] = {name:t.id,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:'',is_system_generated:t.is_system_generated||false};
+          AppData._data.tasks[t.id] = {name:t.title,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:'',is_system_generated:t.is_system_generated||false};
         }
       })}
       filterQuests();
@@ -1142,7 +1142,7 @@ function enterVillage(){
 setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600)
 // 从 API 拉取其他用户的数据
 if(typeof API!=='undefined'&&API.token){
-  API.fetchTasks(function(tasks){if(tasks&&window.AppData){tasks.forEach(function(t){if(!AppData._data.tasks[t.id]){AppData._data.tasks[t.id]={name:t.id,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:''}}})}});
+  API.fetchTasks(function(tasks){if(tasks&&window.AppData){tasks.forEach(function(t){if(!AppData._data.tasks[t.id]){AppData._data.tasks[t.id]={name:t.title,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:''}}})}});
   API.fetchDiscoveries(function(discs){if(discs&&window.AppData){if(!AppData._data.cardDiscoveries)AppData._data.cardDiscoveries=[];discs.forEach(function(d){var exists=AppData._data.cardDiscoveries.find(function(x){return x.id===d.id});if(!exists){AppData._data.cardDiscoveries.push({id:d.id,spaceId:d.space_id,description:d.description,guesser:d.guesser,guessedPerson:d.guessed_person,status:d.status,ntGuesser:d.nt_guesser,ntDoer:d.nt_doer,createdAt:d.created_at})}})}});
 }
 }
