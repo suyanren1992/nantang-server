@@ -624,6 +624,7 @@ function onPubTypeChange(){
 }
 function openPublishTask(){
   document.getElementById('overlayPublishTask').classList.add('open');
+  document.getElementById('pubReviewer').value = CURRENT_USER;  // ⑤ 默认审核人=自己
   var d=document.getElementById('pubStartDate');if(d&&!d.value)d.value=today();
   // 填充地点选择
   var locSel=document.getElementById('pubLocation');if(locSel){
