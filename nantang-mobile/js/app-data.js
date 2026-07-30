@@ -372,7 +372,7 @@ this._data.map_locations.people_on_site = [];
     var vfy = vfys.find(function(v){ return v.id===vfyId; });
     if (!vfy) return { ok: false, error: '校核项不存在' };
     if (vfy.status !== 'pending' && vfy.status !== 'rejected') return { ok: false, error: '已校核过了' };
-    if (vfy.doer === verifierName) return { ok: false, error: '不能校核自己的操作' };
+    if (vfy.doer === verifierName) return { ok: false, error: '不能校核自己的卡片，请等待他人校核' };
     // 冷却/日上限校验——已迁移到服务端（P3），客户端仅保留结构性校验
     // 退回模式
     if (approved === false) {

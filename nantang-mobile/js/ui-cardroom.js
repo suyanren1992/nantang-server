@@ -514,12 +514,17 @@ function _renderVerifyCard(v, isOnsite) {
   // 时间
   h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-top:1px">'+(v.createdAt||'').slice(5,16).replace('T',' ')+'</div>';
 
+  var isOwnCard = v.doer === CURRENT_USER;
   if (isPending && isOnsite) {
-    // 按钮行
-    h += '<div style="display:flex;gap:3px;margin-top:4px">';
-    h += '<button onclick="event.stopPropagation();showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false)})" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid #d4a0a0;background:#fff5f5;color:#b84c38;cursor:pointer">🙅</button>';
-    h += '<button onclick="event.stopPropagation();_confirmWitness(\''+v.id+'\',CURRENT_USER)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
-    h += '</div>';
+    if (isOwnCard) {
+      h += '<div style="font-size:.5rem;color:var(--g-warn);margin-top:4px;text-align:center">⏳ 等待他人校核</div>';
+    } else {
+      // 按钮行
+      h += '<div style="display:flex;gap:3px;margin-top:4px">';
+      h += '<button onclick="event.stopPropagation();showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false)})" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid #d4a0a0;background:#fff5f5;color:#b84c38;cursor:pointer">🙅</button>';
+      h += '<button onclick="event.stopPropagation();_confirmWitness(\''+v.id+'\',CURRENT_USER)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
+      h += '</div>';
+    }
   } else if (isPending) {
     h += '<div style="font-size:.5rem;color:var(--g-text-dim);margin-top:4px">☁️ 云村民</div>';
   }
@@ -557,10 +562,14 @@ function _openVerifyDetail(vfyId) {
   h += '</div>';
   h += '<div style="padding:0 16px 16px">';
   if (v.status === 'pending' && isOnsite) {
-    h += '<div style="display:flex;gap:8px">';
-    h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm()})">🙅 不是</button>';
-    h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="_confirmWitness(\''+v.id+'\',CURRENT_USER,true)">✅ 确认 +'+ntAmt+' NT</button>';
-    h += '</div>';
+    if (v.doer === CURRENT_USER) {
+      h += '<div style="text-align:center;padding:8px;font-size:.72rem;color:var(--g-warn)">⏳ 不能校核自己的卡片，请等待他人校核</div>';
+    } else {
+      h += '<div style="display:flex;gap:8px">';
+      h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm()})">🙅 不是</button>';
+      h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="_confirmWitness(\''+v.id+'\',CURRENT_USER,true)">✅ 确认 +'+ntAmt+' NT</button>';
+      h += '</div>';
+    }
   }
   h += '<button class="btn-sm sec" style="width:100%;margin-top:6px;font-size:.62rem;padding:6px" onclick="closeDiscoveryForm();renderVerifyRoom()">关闭</button>';
   h += '</div></div>';
