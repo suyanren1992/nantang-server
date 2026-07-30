@@ -1863,7 +1863,7 @@ function _confirmCheckin() {
     room.tenants.push({ name:me, bed:_selectedBed.bed, checkIn:checkIn, checkOut:checkOut });
     if (window.AppData) AppData._saveShared(true);
     if (typeof API !== 'undefined' && API.token) {
-      API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed }).catch(function(e){console.warn('[checkin] sync failed',e)});
+      API.request('POST', '/api/accommodation/checkin', { room_id: _selectedBed.room, bed_num: _selectedBed.bed, track: 'inn' }).catch(function(e){console.warn('[checkin] sync failed',e)});
     }
     if (window.Game&&Game.toast) Game.toast(isSwitch?'已换房到 '+room.label+' 床'+_selectedBed.bed:'已入住 '+room.label+' 床'+_selectedBed.bed+' · '+room.pricePerBed+'NT/天');
     if (typeof _completeNewbieQuest === 'function') _completeNewbieQuest(me, 'sign_covenant');
@@ -2711,10 +2711,16 @@ function _initMap(){
 // 刷新顶栏统计数字——从真实数据源读取
 function _refreshTopBar() {
   var dateEl = document.getElementById('ubStatDate');
+  var weatherEl = document.getElementById('ubStatWeather');
   var stayEl = document.getElementById('ubStatStay');
   var peopleEl = document.getElementById('ubStatPeople');
   var tasksEl = document.getElementById('ubStatTasks');
   if (dateEl) dateEl.textContent = '📅 ' + new Date().toISOString().slice(0,10);
+  if (weatherEl) {
+    var m = new Date().getMonth() + 1;
+    var weather = (m >= 3 && m <= 5) ? '🌸 春' : (m >= 6 && m <= 8) ? '☀️ 夏' : (m >= 9 && m <= 11) ? '🍂 秋' : '❄️ 冬';
+    weatherEl.textContent = weather;
+  }
   if (stayEl) {
     var accs = (AppData._data.map_locations && AppData._data.map_locations.accommodations) || {};
     var stayCount = 0;

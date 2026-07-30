@@ -146,8 +146,8 @@ function renderInbox() {
 }
 
 function inboxMsgRow(m) {
-  var h = '<div style="padding:8px 0;border-bottom:1px dotted #f0f0f0;font-size:.68rem">';
-  h += '<span style="font-size:.9rem;margin-right:6px">' + m.icon + '</span>';
+  var h = '<div style="padding:8px 0;border-bottom:1px dotted #f0f0f0;font-size:.68rem;line-height:1.5;word-break:break-word;overflow-wrap:break-word">';
+  h += '<span style="font-size:.9rem;margin-right:6px;vertical-align:top;flex-shrink:0">' + m.icon + '</span>';
   if (m.type === 'submitted') {
     h += '<b>' + esc(m.person) + '</b> 提交了 ' + m.taskNames.length + ' 项任务';
     h += '<div style="font-size:.6rem;color:#8a8a8a;margin:2px 0 0 22px">' + m.taskNames.slice(0, 3).map(esc).join(' · ') + (m.taskNames.length > 3 ? ' …还有' + (m.taskNames.length - 3) + '项' : '') + '</div>';

@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=5,viewport-fit=cover">
 <title>南塘云村</title>
 <meta name="theme-color" content="#1d2e24">
-<style>body{visibility:hidden}[onclick]{touch-action:manipulation}</style>
+<style>body{visibility:hidden}[onclick]{touch-action:manipulation}#loadingFallback{display:none;position:fixed;inset:0;z-index:9999;background:#1d2e24;color:#fff;text-align:center;padding-top:30vh;font-size:.9rem;line-height:2}</style>
 <link rel="icon" href="../92e279b22d04d4c831aec15aa09213df (1).png">
 <link rel="stylesheet" href="css/theme.css?v=10">
 <link rel="stylesheet" href="css/main.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
 </head>
 <body>
+<!-- 加载超时保底 -->
+<div id="loadingFallback"><div style="font-size:2rem">🏕️</div><div>南塘云村 · 加载中</div><div style="font-size:.6rem;color:rgba(255,255,255,.4);margin-top:6px">若持续加载，请检查网络后刷新</div></div>
 <script>
 // ?reset — 清空所有本地数据（手机端调试用，清完自动刷新）
 if (location.search.indexOf('reset') !== -1) {
@@ -23,12 +25,18 @@ if (location.search.indexOf('reset') !== -1) {
 // HTTP 模式：清旧数据 + 验证期间隐藏页面（防闪烁）
 if (window.location.protocol !== 'file:') {
   document.documentElement.style.visibility = 'hidden';
-  // 全清旧登录数据
   // 预填上次用户名
   setTimeout(function(){
     var _lu = null; try { _lu = localStorage.getItem('nt_last_user'); } catch(e) {}
     if (_lu) { var _inp = document.getElementById('loginName'); if (_inp && !_inp.value) _inp.value = _lu; }
   }, 500);
+  // 3s 超时保底：API 无响应 → 显示加载提示，不继续白屏
+  setTimeout(function(){
+    if (document.documentElement.style.visibility === 'hidden') {
+      var fb = document.getElementById('loadingFallback');
+      if (fb) fb.style.display = 'block';
+    }
+  }, 3000);
 }
 </script>
 <div id="loginPage" class="login-page" onclick="if(event.target===this||event.target.classList.contains('login-bg')){if(!document.getElementById('scrEntry').classList.contains('hidden'))return;S('scrEntry')}">
@@ -457,6 +465,7 @@ if (window.location.protocol !== 'file:') {
       </div>
       <div class="ub-stats" id="ubStats">
         <div class="ub-stat" id="ubStatDate">📅 —</div>
+        <div class="ub-stat" id="ubStatWeather">☀️ —</div>
         <div class="ub-stat" id="ubStatDirt">🧹 —</div>
         <div class="ub-stat" id="ubStatPeople">👤 —</div>
         <div class="ub-stat" id="ubStatStay">🛏️ —</div>
@@ -521,15 +530,15 @@ if (window.location.protocol !== 'file:') {
 <script src="js/app-data.js?v=23"></script>
 <script src="js/api.js?v=22"></script>
 <script src="js/data.js?v=17"></script>
-<script src="js/core.js?v=40"></script>
+<script src="js/core.js?v=41"></script>
 <script src="js/ui-village.js?v=19"></script>
 <script src="js/ui-camp.js?v=12"></script>
 <script src="js/ui-wizard.js?v=9"></script>
 <script src="js/ui-phase4.js?v=13"></script>
 <script src="js/ui-social.js?v=20"></script>
-<script src="js/ui-archive.js?v=22"></script>
+<script src="js/ui-archive.js?v=23"></script>
 <script src="js/ui-cardroom.js?v=13"></script>
-<script src="js/app.js?v=36"></script>
+<script src="js/app.js?v=37"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
@@ -542,7 +551,7 @@ var _inboxShowAllUnread = false;
 // B10: 预创建信箱 panel DOM——避免首次点击 createElement 开销
 (function(){
   var p = document.createElement('div'); p.id = 'inboxPanel';
-  p.style.cssText = 'display:none;position:fixed;top:calc(50px + env(safe-area-inset-top, 0px));right:8px;width:340px;max-width:92vw;max-height:70vh;overflow-y:auto;z-index:300;box-shadow:0 8px 32px rgba(0,0,0,.2);border-radius:14px;background:#fff;border:1px solid #e0e0e0';
+  p.style.cssText = 'display:none;position:fixed;bottom:0;left:0;right:0;max-height:70vh;overflow-y:auto;z-index:310;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:16px 16px 0 0;background:#fff';
   p.innerHTML = '<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.82rem">📬 信箱</h3><button onclick="closeInbox()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#999">✕</button></div><div id="inboxContent"></div></div>';
   document.body.appendChild(p);
   p.addEventListener('click', function(e){ e.stopPropagation(); });

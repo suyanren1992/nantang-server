@@ -801,10 +801,14 @@ function renderLoginUserList(){
   var names = Object.keys(localUsers);
   // HTTP 模式：本地没有 → 从服务器拉用户列表
   if (names.length === 0 && window.location.protocol !== 'file:') {
-    fetch('/api/auth/users').then(function(r){return r.json()}).then(function(list){
-      if (Array.isArray(list)) { list.forEach(function(u){ localUsers[u.name] = u.avatar_seed || u.name; }); names = Object.keys(localUsers); }
+    if (typeof API !== 'undefined' && API.token) {
+      API.request('GET', '/api/auth/users').then(function(list){
+        if (Array.isArray(list)) { list.forEach(function(u){ localUsers[u.name] = u.avatar_seed || u.name; }); names = Object.keys(localUsers); }
+        _renderUserChips(localUsers, names);
+      }).catch(function(){ _renderUserChips(localUsers, names); });
+    } else {
       _renderUserChips(localUsers, names);
-    }).catch(function(){ _renderUserChips(localUsers, names); });
+    }
     return;
   }
   _renderUserChips(localUsers, names);
@@ -1474,6 +1478,14 @@ function renderProfile(mode){
     }
     var rows=[['🆔 ID',esc(u.uid||'未分配')],['👤 名字',esc(CURRENT_USER)],['🧱 身份',rn],['🔑 密码','••••••'],['💼 钱包',esc(u.wallet||'未填写')],['📝 简介',esc(u.bio||'未填写')],['📍 坐标',esc(u.location||'未填写')]];
     rows.forEach(function(r){h+='<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a;font-size:.68rem">'+r[0]+'</span><span style="font-weight:600;font-size:.72rem">'+r[1]+'</span></div>'});
+    // 通知设置
+    var notifyOn = !(localStorage.getItem('nt_notify_off') === '1');
+    var soundOn = !(localStorage.getItem('nt_sound_off') === '1');
+    h+='<div style="border-top:1px solid #e0e0e0;margin-top:10px;padding-top:10px"><div style="font-size:.68rem;font-weight:700;color:#5a6e5c;margin-bottom:8px">🔔 通知设置</div>';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span style="font-size:.7rem">消息通知</span><button id="toggleNotify" class="btn-sm '+(notifyOn?'pri':'sec')+'" style="font-size:.6rem;padding:4px 12px" onclick="var v=localStorage.getItem(\'nt_notify_off\')===\'1\'?\'0\':\'1\';localStorage.setItem(\'nt_notify_off\',v);this.textContent=v===\'1\'?\'已关闭\':\'已开启\';this.className=\'btn-sm \'+(v===\'1\'?\'sec\':\'pri\')">'+(notifyOn?'已开启':'已关闭')+'</button></div>';
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0"><span style="font-size:.7rem">声音</span><button id="toggleSound" class="btn-sm '+(soundOn?'pri':'sec')+'" style="font-size:.6rem;padding:4px 12px" onclick="var v=localStorage.getItem(\'nt_sound_off\')===\'1\'?\'0\':\'1\';localStorage.setItem(\'nt_sound_off\',v);this.textContent=v===\'1\'?\'已关闭\':\'已开启\';this.className=\'btn-sm \'+(v===\'1\'?\'sec\':\'pri\')">'+(soundOn?'已开启':'已关闭')+'</button></div></div>';
+    // 版本信息
+    h+='<div style="border-top:1px solid #e0e0e0;margin-top:10px;padding-top:8px;text-align:center;font-size:.55rem;color:#aaa">南塘云村 v2.4 · 一营施工</div>';
     h+='<div style="margin-top:12px;display:flex;gap:6px"><button class="btn-sm sec" style=flex:1 onclick="document.getElementById(\'profileCard\').remove()">✕ 关闭</button><button class="btn-sm pri" style=flex:1 onclick="renderProfile(\'edit\')">✏️ 编辑</button><button class="btn-sm danger" style=flex:1 onclick="logout()">🚪 退出</button></div>';
   }else if(mode==='edit'){
     var eu=getUsers()[CURRENT_USER]||{};
