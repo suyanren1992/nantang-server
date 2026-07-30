@@ -305,7 +305,7 @@ var _pollTimer = null;
 function _startPolling() {
   if (_pollTimer) return;
   if (typeof API === 'undefined' || !API.token) return;
-  var _pollInterval = 60000;  // C4: 60s 全量同步，省 Neon CU-hour
+  var _pollInterval = 30000;  // C4→30s: 提高在线人数/翻牌刷新频率
   function _pollCycle() {
     API.request('GET', '/api/nt/sync').then(function(srv) {
       if (srv && (srv.detail === 'unauthorized' || srv.error === '登录过期')) { _stopPolling(); return; }
@@ -318,7 +318,7 @@ function _startPolling() {
     // 退避
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
     _pollInterval = (typeof API !== 'undefined' && API._serverOnline === false)
-      ? Math.min(_pollInterval * 2, 120000) : 60000;
+      ? Math.min(_pollInterval * 2, 120000) : 30000;
     _pollTimer = setInterval(_pollCycle, _pollInterval);
   }
   _pollCycle();  // 立即执行首次，后续由内部 setInterval 递归调度
@@ -1551,6 +1551,15 @@ function renderProfile(mode){
     if(rl==='admin'){
       var pending=(AppData._data.pendingTransactions||[]).filter(function(tx){return tx.status==='pending'});
       if(pending.length>0) h+='<div style="background:#fff8e8;border:1px solid #e8d890;border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center;cursor:pointer" onclick="event.stopPropagation();renderProfile(\'review\')"><span style="font-size:.7rem;color:#8a6a30">📋 '+pending.length+' 笔充值/提现待审核 →</span></div>';
+    }
+    // ④ 在线人员列表（presence）
+    var pres = (window.AppData && AppData._data.presence) || {};
+    var onsiteUsers = Object.entries(pres).filter(function(e){ return e[1].status === 'onsite'; });
+    if (onsiteUsers.length > 0) {
+      h += '<div style="background:#f0f6f0;border-radius:10px;padding:10px 12px;margin-bottom:10px">';
+      h += '<div style="font-size:.68rem;font-weight:700;color:#5a6e5c;margin-bottom:6px">👤 在地伙伴 ('+onsiteUsers.length+')</div>';
+      onsiteUsers.forEach(function(e){ h += '<div style="font-size:.65rem;color:#2a2a2a;padding:3px 0">🟢 '+esc(e[0])+'</div>'; });
+      h += '</div>';
     }
     var rows=[['🆔 ID',esc(u.uid||'未分配')],['👤 名字',esc(CURRENT_USER)],['🧱 身份',rn],['🔑 密码','••••••'],['💼 钱包',esc(u.wallet||'未填写')],['📝 简介',esc(u.bio||'未填写')],['📍 坐标',esc(u.location||'未填写')]];
     rows.forEach(function(r){h+='<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a;font-size:.68rem">'+r[0]+'</span><span style="font-weight:600;font-size:.72rem">'+r[1]+'</span></div>'});
