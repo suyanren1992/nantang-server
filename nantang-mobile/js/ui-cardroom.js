@@ -1084,6 +1084,16 @@ function _submitDiscGuess(name) {
     logActivity('discovery_new', CURRENT_USER + ' 发现「'+disc.actionLabel+'」→猜是 '+name);
   }
 
+  // W6-FE-BUG③: syncDiscovery 接服务端返回 id 写回本地（服务端覆盖客户端自生成 id）
+  if (typeof API !== 'undefined' && API.token) {
+    API.syncDiscovery(disc).then(function(serverId) {
+      if (serverId && serverId !== disc.id) {
+        disc.id = serverId;
+        _saveDiscoveries();
+      }
+    }).catch(function(){ /* 静默：本地已保存，下次同步时修复 */ });
+  }
+
   closeDiscoveryForm();
   var crEl = document.getElementById('overlayCardRoom');
   if (crEl) { crEl.classList.add('open'); renderCardRoom(); }

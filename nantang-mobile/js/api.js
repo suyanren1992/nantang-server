@@ -196,11 +196,13 @@ var API = {
   syncActivity: function(type, text) { this.request('POST', '/api/data/activity_log', {type:type, text:text}); },
   syncJournal: function(entry) { this.request('POST', '/api/data/journal', entry); },
   syncDiscovery: function(disc) {
-    this.request('POST', '/api/data/card_discoveries', {
+    return this.request('POST', '/api/data/card_discoveries', {
       id: disc.id, space_id: disc.spaceId, description: disc.description,
       guesser: disc.guesser, guessed_person: disc.guessedPerson,
       guessed_at: disc.guessedAt, status: disc.status || 'pending',
       nt_guesser: disc.ntGuesser || 5, nt_doer: disc.ntDoer || 10
+    }).then(function(r) {
+      return (r && r.id) ? r.id : disc.id;
     });
   },
   // ── SM-5: 测试台 ──
