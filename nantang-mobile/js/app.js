@@ -2919,7 +2919,7 @@ function _openQuickSheet(title, bodyHTML) {
 function _openKitchenQuick() {
   // E3.7: 权限门 — visitor 不能存取物品
   if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
-    if (window.Game&&Game.toast) Game.toast('入住后可用'); return;
+    showToast('请先入住才能使用厨房功能\n前往 🏠 住宿页面 → 入住', 'warn'); return;
   }
   var presets = [
     {n:'白菜',i:'🥬'},{n:'鸡蛋',i:'🥚'},{n:'猪肉',i:'🥩'},{n:'牛奶',i:'🥛'},
@@ -2979,7 +2979,7 @@ function _doKitchenAction(action, label, nt) {
 }
 function _submitKitchenEntry() {
   if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
-    showToast('入住后可用（前往 🏠 住宿页面→入住）', 'warn'); return;
+    showToast('请先入住才能操作厨房物品\n前往 🏠 住宿页面 → 入住', 'warn'); return;
   }
   var sel = window._qkSelected;
   var act = window._qkAction;
