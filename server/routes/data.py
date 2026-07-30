@@ -273,7 +273,8 @@ async def complete_newbie_quest(quest_id: str, user: User = Depends(get_current_
 
 # ── Canteen ──
 @router.get("/canteen_menu")
-async def get_canteen_menu(date: str = None, db: AsyncSession = Depends(get_db),
+async def get_canteen_menu(date: str = None, user: User = Depends(get_current_user),
+                           db: AsyncSession = Depends(get_db),
                            limit: int = 50, offset: int = 0):
     # BE-2③: 补分页，limit 上限 200
     q = select(CanteenMenu)
@@ -324,7 +325,7 @@ async def add_meal_order(req: MealOrderReq, user: User = Depends(get_current_use
 
 # ── Map Locations ──
 @router.get("/map_locations")
-async def get_map_locations(db: AsyncSession = Depends(get_db)):
+async def get_map_locations(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(MapLocation).where(MapLocation.key == "shared"))
     ml = result.scalar_one_or_none()
     if not ml:
@@ -349,7 +350,7 @@ async def save_map_locations(req: MapLocationsReq, user: User = Depends(get_curr
 
 # ── Announcements ──
 @router.get("/announcements")
-async def get_announcements(db: AsyncSession = Depends(get_db), limit: int = 20):
+async def get_announcements(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), limit: int = 20):
     result = await db.execute(select(Announcement).order_by(Announcement.id.desc()).limit(limit))
     return [{"type": a.type, "doer": a.doer, "action": a.action,
              "nt_amount": a.nt_amount, "created_at": a.created_at} for a in result.scalars()]

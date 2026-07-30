@@ -298,6 +298,15 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
+    # W5-B H-4: 营地报告归属校验。非 admin 须为本营 active 成员，否则 403。
+    if user.role != "admin":
+        m = await db.execute(select(CampMembership.id).where(
+            CampMembership.user_id == user.id,
+            CampMembership.camp_id == camp_id,
+            CampMembership.status == "active",
+        ))
+        if m.scalar_one_or_none() is None:
+            raise HTTPException(status_code=403)
     tasks_result = await db.execute(select(NTTask).where(NTTask.camp_ref_id == camp_id))
     camp_tasks = list(tasks_result.scalars())
     done = [t for t in camp_tasks if t.status == "已结算"]
@@ -324,7 +333,7 @@ async def delete_camp(camp_id: str, user: User = Depends(get_current_user),
     if not camp:
         raise HTTPException(status_code=404)
     # Cascade delete builders and tasks (T7: CampTask → NTTask)
-    for tbl in (CampBuilder,):
+    for tbl in (CampBuilder, CampMembership):  # W5-B H-7: 级联删除 CampMembership，避免孤儿行
         r = await db.execute(select(tbl).where(tbl.camp_id == camp_id))
         for row in r.scalars():
             await db.delete(row)
