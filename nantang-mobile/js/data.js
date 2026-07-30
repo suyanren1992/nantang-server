@@ -477,25 +477,23 @@ function withdrawTask(name){
     // 有人领取但未提交 → 走申请撤回（P1-1 retract-request）
     requestWithdraw(encodeURIComponent(name));return;
   }
-  // 无人领 → 直接撤回到草稿箱
-  showConfirm('确认撤回任务「'+name+'」？撤回后将退回到草稿箱。',function(){
-    var _done=function(){
-      t.status='draft';t.action='edit';
-      AppData.updateTask(name,{status:'draft',action:'edit'});
-      showToast('已撤回到草稿箱','ok');
-      filterQuests();renderMyTasks();renderDrafts();refreshUserUI();
-    };
-    var isOffline=(typeof API==='undefined'||!API.token);
-    var srvId=t._srvId||t._ntTaskId;
-    if(!isOffline&&srvId){
-      API.request('POST','/api/tasks/'+srvId+'/retract').then(function(r){
-        if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'撤回失败','error');}
-      }).catch(function(){showToast('网络错误，请重试','error')});
-      return;
-    }
-    if(t._ntTaskId&&window.NT){try{NT.cancelTask(t._ntTaskId,'发布者撤回');}catch(e){}}
-    _done();
-  });
+  // 无人领 → 直接撤回到草稿箱（跳过确认，一次撤回）
+  var _done=function(){
+    t.status='draft';t.action='edit';
+    AppData.updateTask(name,{status:'draft',action:'edit'});
+    showToast('已撤回到草稿箱','ok');
+    filterQuests();renderMyTasks();renderDrafts();refreshUserUI();
+  };
+  var isOffline=(typeof API==='undefined'||!API.token);
+  var srvId=t._srvId||t._ntTaskId;
+  if(!isOffline&&srvId){
+    API.request('POST','/api/tasks/'+srvId+'/retract').then(function(r){
+      if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'撤回失败','error');}
+    }).catch(function(){showToast('网络错误，请重试','error')});
+    return;
+  }
+  if(t._ntTaskId&&window.NT){try{NT.cancelTask(t._ntTaskId,'发布者撤回');}catch(e){}}
+  _done();
 }
 function requestWithdraw(name){
   name = decodeURIComponent(name);
