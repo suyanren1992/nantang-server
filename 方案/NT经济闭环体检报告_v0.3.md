@@ -248,3 +248,25 @@ author: 丞相 Codex(起草) · 红队A/B(待挑)
 - v0.3 CV 公式歧义 → v0.3.1 显式注明 nt 范围
 
 **v0.4 待议(不阻塞本卡)**:投票 quorum / 荣誉系统刷新 / 多签备份 / 照护调价 / 新住户紧急提案
+
+---
+## 十、皇帝御批 v3(2026-07-31)· v0.3.2 终版
+
+| # | 参数 | 御批(终) | 落地 |
+|---|---|---|---|
+| 1 | User.first_checkin_date | **甲=加字段**(入住 SET、退房不清、全退 NULL) | `models.py:User` + migration |
+| 2 | trust 再平衡 | **甲=劳动涨 5-10,提现扣 5** | `nt.py:522` 改 5 |
+| 3 | Tenancy.last_active_at 阈值 | **甲=30 天** | `models.py:Tenancy` + `presence_check` |
+| 4 | reserve 部分提现 | **甲=排队**(超 reserve 部分下次发) | `nt.py:512` 改排队逻辑 |
+| 5 | cron 告警升级 | **甲=3 次告警=阻断日结** | `cron.py` 加升级 |
+| 6 | §九治理权统一 | **甲=Tenancy 有效 AND last_active ≤ 30 天 AND presence=onsite** | `routes/governance.py:check_vote_right()` 写三 AND |
+
+**v0.3.2 关键修订(对照 v0.3.1)**:
+- v0.3.1 治理权"换房不中断"代码不可实现 → v0.3.2 加 `first_checkin_date` 字段(一行查询)
+- v0.3.1 trust≥60 形同虚设 → v0.3.2 再平衡公式(劳动涨 5-10,提现扣 5)
+- v0.3.1 Tenancy 假阳性 → v0.3.2 `last_active_at ≤ 30 天` 失效治理权
+- v0.3.1 reserve 全有全无竞速 → v0.3.2 排队部分提现
+- v0.3.1 告警无升级 → v0.3.2 3 次=阻断
+- v0.3.1 §八§九 矛盾 → v0.3.2 §十统一:`check_vote_right()` = Tenancy AND last_active ≤ 30 AND presence=onsite
+
+**v0.4 待议(不阻塞本卡)**:投票 quorum / 荣誉系统刷新 / 多签备份 / "租房买票"攻击防御 / ReservePool 央行兜底
