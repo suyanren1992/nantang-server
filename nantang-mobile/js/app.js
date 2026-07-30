@@ -278,10 +278,19 @@ function _s(id, html) { return html ? '<div id="'+id+'">'+html+'</div>' : ''; }
 
 // ── 子板块渲染 ──
 function _renderAnnounceTicker() {
-  var anns = (window.AppData && AppData._data.announcements) ? AppData._data.announcements.slice(0,8) : [];
-  if (!anns.length) return '';
-  return '<div class="announce-bar"><span style="margin-right:8px">📢</span><span class="announce-track">'+
-    anns.map(function(a){ return esc(a.text); }).join(' &nbsp;·&nbsp; ')+'</span></div>';
+  var items = [];
+  var anns = (window.AppData && AppData._data.announcements) ? AppData._data.announcements.slice(0,5) : [];
+  anns.forEach(function(a){ items.push('📢 '+esc(a.text)); });
+  // ⑱ 楚门层：从 activity_log 拉最近动态
+  var log = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log.slice(0,10) : [];
+  log.forEach(function(l){ items.push(esc((l.user||'')+' '+(l.content||l.text||l.action||''))); });
+  // 从 presence 显示在地人员
+  var pres = (window.AppData && AppData._data.presence) || {};
+  var onsite = Object.keys(pres).filter(function(k){ return pres[k].status === 'onsite'; });
+  if (onsite.length) items.unshift('🟢 在地 '+onsite.length+' 人：'+onsite.slice(0,5).map(function(n){return esc(n);}).join('、'));
+  if (!items.length) return '';
+  return '<div class="announce-bar"><span style="margin-right:8px">🏕️ 南塘此刻</span><span class="announce-track">'+
+    items.join(' &nbsp;·&nbsp; ')+'</span></div>';
 }
 
 function _renderStatusPills() {
