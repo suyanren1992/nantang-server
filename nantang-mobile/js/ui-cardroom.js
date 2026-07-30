@@ -499,9 +499,9 @@ function _renderVerifyCard(v, isOnsite) {
   var shadow = ntAmt >= 15 && isPending ? '0 2px 12px rgba(200,135,64,.25)' : '0 1px 4px rgba(0,0,0,.04)';
   var statusIcon = isVerified ? '✅' : (isRejected ? '🚫' : '⏳');
 
-  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:10px;padding:6px 5px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
+  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:var(--g-radius);padding:8px 6px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
   // 左上花色
-  h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:#5a6e5c;font-weight:700">'+suitChar+'</div>';
+  h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:var(--g-text-dim);font-weight:700">'+suitChar+'</div>';
   // 右上状态
   h += '<div style="position:absolute;top:4px;right:5px;font-size:.6rem">'+statusIcon+'</div>';
   // 中央图标
@@ -512,7 +512,7 @@ function _renderVerifyCard(v, isOnsite) {
   h += '<div style="font-size:.5rem;color:#5a6e5c;margin-top:1px">'+actionText+'</div>';
   if (evidencePart) h += '<div style="font-size:.45rem;margin-top:2px"><a href="'+esc(evidencePart)+'" target="_blank" style="color:var(--green-primary)" onclick="event.stopPropagation()">🔗 凭证</a></div>';
   // 时间
-  h += '<div style="font-size:.45rem;color:#aaa;margin-top:1px">'+(v.createdAt||'').slice(5,16).replace('T',' ')+'</div>';
+  h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-top:1px">'+(v.createdAt||'').slice(5,16).replace('T',' ')+'</div>';
 
   if (isPending && isOnsite) {
     // 按钮行
@@ -521,7 +521,7 @@ function _renderVerifyCard(v, isOnsite) {
     h += '<button onclick="event.stopPropagation();_confirmWitness(\''+v.id+'\',CURRENT_USER)" style="flex:1;font-size:.5rem;padding:3px 2px;border-radius:6px;border:1px solid var(--green-primary);background:#e8f0e8;color:var(--green-primary);cursor:pointer;font-weight:600">✅ +'+ntAmt+'</button>';
     h += '</div>';
   } else if (isPending) {
-    h += '<div style="font-size:.45rem;color:#aaa;margin-top:4px">☁️ 云村民</div>';
+    h += '<div style="font-size:.5rem;color:var(--g-text-dim);margin-top:4px">☁️ 云村民</div>';
   }
   // 右下 NT
   h += '<div style="position:absolute;bottom:4px;right:5px;font-size:.55rem;color:'+(ntAmt>=15?'#c88740':'#8a6a20')+';font-weight:700">'+ntAmt+'</div>';
