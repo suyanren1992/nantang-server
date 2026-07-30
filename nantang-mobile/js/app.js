@@ -383,6 +383,12 @@ function _renderMgmtCards() {
   }).join('') : '';
   h += '<div class="ic-card" onclick="_openMgmtSheet(\'kitchen\')"><div class="ic-head">🍳 厨房·冰箱</div>'+
     '<div class="ic-body">'+(kitchenLines||'<div class="ic-muted">暂无物品，点此录入</div>')+'</div></div>';
+  // ⑫ 世界终端——admin 专属入口
+  var me = _me();
+  if (me && (typeof getUsers==='function') && ((getUsers()[me]||{}).role==='admin')) {
+    h += '<div class="ic-card world-terminal" onclick="openCreateCamp()"><div class="ic-head">🌍 世界终端</div>'+
+      '<div class="ic-body"><div class="ic-muted">创建新的共创营队</div></div></div>';
+  }
   h += '</div>';
   return h;
 }
