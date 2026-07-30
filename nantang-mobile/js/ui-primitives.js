@@ -20,6 +20,11 @@
 (function () {
   'use strict';
 
+  // ── 加载动画 keyframe ──
+  var _spinStyle = document.createElement('style');
+  _spinStyle.textContent = '@keyframes ui-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+  document.head.appendChild(_spinStyle);
+
   // ── 共享状态色（Icon 与 StatusBadge 共用 status 语义） ──
   var STATUS = {
     green:   { dot: '🟢', hex: '#5d8c52', css: 'var(--g-green)' },
@@ -229,6 +234,41 @@
       '</div>';
 
     return card;
+  };
+
+  // ═══ ⑥ EmptyState / ErrorState / LoadingState — 三态通用组件 ═══
+  UI.EmptyState = function (opts) {
+    opts = opts || {};
+    var wrap = _el('div', 'ui-empty-state', {
+      style: 'text-align:center;padding:24px 16px;color:var(--g-text-dim)'
+    });
+    wrap.innerHTML = '<div style="font-size:2rem;margin-bottom:8px">' + (opts.icon || '📭') + '</div>' +
+      '<div style="font-size:.72rem;font-weight:600;color:var(--g-text-dim);margin-bottom:4px">' + (opts.title || '暂无内容') + '</div>' +
+      (opts.hint ? '<div style="font-size:.6rem;color:var(--g-text-muted)">' + opts.hint + '</div>' : '') +
+      (opts.actionHTML || '');
+    return wrap;
+  };
+
+  UI.ErrorState = function (opts) {
+    opts = opts || {};
+    var wrap = _el('div', 'ui-error-state', {
+      style: 'text-align:center;padding:24px 16px;color:var(--g-red)'
+    });
+    wrap.innerHTML = '<div style="font-size:2rem;margin-bottom:8px">⚠️</div>' +
+      '<div style="font-size:.72rem;font-weight:600;margin-bottom:4px">' + (opts.title || '加载失败') + '</div>' +
+      (opts.hint ? '<div style="font-size:.6rem;color:var(--g-text-dim);margin-bottom:8px">' + opts.hint + '</div>' : '') +
+      (opts.retryText ? '<button onclick="' + (opts.onRetry||'location.reload()') + '" style="padding:6px 16px;background:var(--g-red);color:#fff;border:none;border-radius:8px;font-size:.65rem;cursor:pointer">' + opts.retryText + '</button>' : '');
+    return wrap;
+  };
+
+  UI.LoadingState = function (opts) {
+    opts = opts || {};
+    var wrap = _el('div', 'ui-loading-state', {
+      style: 'text-align:center;padding:24px 16px;color:var(--g-text-dim)'
+    });
+    wrap.innerHTML = '<div style="font-size:1.5rem;margin-bottom:8px;animation:ui-spin 1s linear infinite;display:inline-block">⏳</div>' +
+      '<div style="font-size:.68rem">' + (opts.text || '加载中…') + '</div>';
+    return wrap;
   };
 
 })();
