@@ -61,7 +61,7 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 
 /* ═══ 主容器 ═══ */
 #app {
-  width:400px; max-width:100vw; height:100vh; max-height:900px;
+  width:min(400px,100vw); max-width:100vw; height:100dvh; max-height:100dvh;
   background:var(--g-content); display:flex; flex-direction:column;
   overflow:hidden; position:relative;
 }
