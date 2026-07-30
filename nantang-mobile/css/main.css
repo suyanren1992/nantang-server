@@ -1,28 +1,28 @@
-/* ══ DESIGN TOKENS · 对齐 DESIGN.md v1.0 ══ */
+/* ══ DESIGN TOKENS · 桥接到 --g-* 单轨体系 (theme.css) ══ */
 :root {
-  --green-deep:    #1d2e24;   /* bg-village 村口墨绿黑 */
-  --green-primary: #3d6b52;   /* brand-primary 主按钮/选中 */
-  --green-dark:    #2a4d3a;   /* brand-primary-dark 按钮渐变 */
-  --green-mid:     #5a8a6e;   /* brand-primary-light 链接/强调 */
-  --green-pale:    #a0c8a8;   /* text-brand 暗色背景品牌字 */
-  --green-bg:      #e8ede6;   /* bg-workspace 工作台底 */
-  --green-border:  #d0d9ce;   /* border-default */
-  --gold:          #c88740;   /* brand-gold 管理员标记 */
-  --amber:         #c8892e;   /* brand-amber 冻结/结算 */
-  --amber-text:    #8a6a30;   /* 琥珀色文字 */
-  --red:           #b84c38;   /* danger 角标/删除 */
-  --red-light:     #d46048;   /* danger-light 错误提示 */
+  --green-deep:    var(--g-bg);            /* → --g-bg */
+  --green-primary: var(--g-accent);        /* → --g-accent */
+  --green-dark:    var(--g-accent-dark);   /* → --g-accent-dark */
+  --green-mid:     var(--g-accent-light);  /* → --g-accent-light */
+  --green-pale:    #a0c8a8;               /* 暗底品牌字，theme 无对应 */
+  --green-bg:      var(--g-content-warm);  /* → --g-content-warm */
+  --green-border:  var(--g-card-border);   /* → --g-card-border */
+  --gold:          var(--g-warn);          /* → --g-warn */
+  --amber:         var(--g-warn);          /* → --g-warn */
+  --amber-text:    #8a6a30;               /* 琥珀色文字 */
+  --red:           var(--g-red);           /* → --g-red */
+  --red-light:     #d46048;               /* danger-light 无对应 */
   --white:         #ffffff;
-  --gray-light:    #f7f7f7;   /* bg-surface-soft */
-  --gray-border:   #e0e0e0;   /* border-light */
-  --gray-hairline: #f0f0f0;   /* border-hairline */
-  --text:          #1d2e24;   /* text-primary */
-  --text-secondary:#5a6e5c;   /* text-secondary */
-  --text-muted:    #8a8a8a;   /* text-muted */
-  --radius-sm:     8px;
-  --radius-md:     12px;
-  --radius-lg:     16px;
-  --radius-xl:     20px;
+  --gray-light:    #f7f7f7;
+  --gray-border:   #e0e0e0;
+  --gray-hairline: #f0f0f0;
+  --text:          var(--g-text);          /* → --g-text */
+  --text-secondary:var(--g-text-dim);      /* → --g-text-dim */
+  --text-muted:    var(--g-text-muted);    /* → --g-text-muted */
+  --radius-sm:     var(--g-radius-sm);     /* → --g-radius-sm */
+  --radius-md:     var(--g-radius);        /* → --g-radius */
+  --radius-lg:     var(--g-radius-lg);     /* → --g-radius-lg */
+  --radius-xl:     var(--g-radius-xl);     /* → --g-radius-xl */
   --radius-full:   9999px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
