@@ -304,7 +304,7 @@ function renderArchiveMembers(el) {
       var onlineDot = m.online ? '🟢' : '🔴';
       h += '<div class="archive-member-row" onclick="openMemberArchive(\'' + encodeURIComponent(m.name) + '\',\'' + m.role + '\',' + (m.nt || 0) + ',\'' + m.seed + '\')">'+
         '<img src="' + avatarUrl + '" width="32" height="32" class="archive-member-avatar" alt="" onerror="this.outerHTML=\'<div style=width:32px;height:32px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#5a6e5c;flex-shrink:0>\'+(\'' + m.name + '\').charAt(0)+\'</div>\'">'+
-        '<div class="archive-member-info"><div class="archive-member-name">' + m.name + '</div><div class="archive-member-sub">' + roleName(m.role) + '</div></div>'+
+        '<div class="archive-member-info"><div class="archive-member-name">' + esc(m.name) + '</div><div class="archive-member-sub">' + roleName(m.role) + '</div></div>'+
         '<span class="archive-member-nt">' + (m.nt ? m.nt + ' NT' : '') + '</span>'+
         '<span class="archive-member-dot">' + onlineDot + '</span>'+
       '</div>';
@@ -404,7 +404,7 @@ function renderArchiveLog(el) {
       var icon = LOG_ICONS[item.type] || '📝';
       h += '<div class="archive-log-row">'+
         '<span class="archive-log-icon">' + icon + '</span>'+
-        '<span class="archive-log-text">' + item.text + '</span>'+
+        '<span class="archive-log-text">' + esc(item.text) + '</span>'+
         '<span class="archive-log-time">' + dateStr + ' ' + timeStr + '</span>'+
       '</div>';
     });

@@ -249,7 +249,7 @@ function renderMemberPicker() {
     var seed = u.avatar_seed || 0;
     var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + seed + '&size=56';
     var online = u._online ? '🟢' : '🔴';
-    h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:.78rem" onclick="selectMemberPicker(\'' + name + '\')">'+
+    h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:.78rem" onclick="selectMemberPicker(\'' + encodeURIComponent(name) + '\')">'+
       '<img src="' + avatarUrl + '" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:28px;height:28px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#5a6e5c>\'+name.charAt(0)+\'</div>\'">'+
       '<span style="flex:1">' + name + '</span>'+
       '<span style="font-size:.65rem;color:#5a6e5c">' + (u.role==='admin'?'🧙':u.role==='builder'?'🧱':u.role==='adventurer'?'⚔️':u.role==='npc'?'👥':'🏕️') + '</span>'+

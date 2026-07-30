@@ -325,7 +325,7 @@ function openSubmit(el,name){
   h+='<div style=margin-bottom:8px><textarea id="submitNote" rows="3" placeholder="描述你完成的内容…" style=width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical></textarea></div>';
   if(t.reqPhoto){for(var i=1;i<=t.reqPhoto;i++) h+='<div style=margin-bottom:6px><label style=font-size:.6rem;color:#5a6e5c>📷 照片 '+i+'/'+t.reqPhoto+'</label><input type="text" id="submitPhoto'+i+'" placeholder="照片链接" style=width:100%;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:.7rem></div>'}
   if(t.reqFile){for(var j=1;j<=t.reqFile;j++) h+='<div style=margin-bottom:6px><label style=font-size:.6rem;color:#5a6e5c>📎 附件 '+j+'/'+t.reqFile+'</label><input type="text" id="submitFile'+j+'" placeholder="附件链接" style=width:100%;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:.7rem></div>'}
-  h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.submit-expand\').remove()">取消</button><button class="btn-sm pri" style=flex:1" onclick="doSubmit(\''+name+'\')">📤 确认提交</button></div>';
+  h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.submit-expand\').remove()">取消</button><button class="btn-sm pri" style=flex:1" onclick="doSubmit(\''+encodeURIComponent(name)+'\')">📤 确认提交</button></div>';
   expandCard(name,'submit-expand','margin-bottom:16px;background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)',h,el)
 }
 function doSubmit(name){
@@ -500,7 +500,7 @@ function requestWithdraw(name){
   var h='<div style=font-weight:700;margin-bottom:6px;color:var(--red)>📩 申请撤回 · '+esc(name)+'</div>';
   h+='<textarea id="withdrawReason" rows="2" placeholder="说明撤回原因…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea>';
   h+='<div style=font-size:.6rem;color:#5a5a5a;margin-bottom:8px>⚠️ 提交后需审核人批准</div>';
-  h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.withdraw-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmWithdraw(\''+name+'\')">📩 确认申请</button></div>';
+  h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.withdraw-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmWithdraw(\''+encodeURIComponent(name)+'\')">📩 确认申请</button></div>';
   expandCard(name,'withdraw-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
 }
 function confirmWithdraw(name){
@@ -574,7 +574,7 @@ function settleTask(name){
   h+='<div style=font-size:.65rem;color:#5a6e5c;margin-bottom:4px>💳 支付人：'+esc(stlr)+' · 金额：<img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
   var done=(t.claimants||[]).filter(function(c){return c.status==='completed'});
   if(done.length) h+='<div style=font-size:.65rem;color:#5a6e5c;margin-bottom:8px>✅ 完成人：'+done.map(function(c){return c.name}).join('、')+'</div>';
-  h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.settle-expand\').remove()">取消</button><button class="btn-sm pri" style=flex:1" onclick="confirmSettle(\''+name+'\')">✅ 确认结算 · <img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</button></div>';
+  h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.settle-expand\').remove()">取消</button><button class="btn-sm pri" style=flex:1" onclick="confirmSettle(\''+encodeURIComponent(name)+'\')">✅ 确认结算 · <img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</button></div>';
   expandCard(name,'settle-expand','margin-bottom:16px;background:#fffbf5;border:1px solid #e8d5a0;border-bottom:3px solid #e8d5a0;border-radius:10px;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
 }
 function confirmSettle(name){
