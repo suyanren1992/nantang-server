@@ -232,8 +232,12 @@ def _norm_fe_path(expr):
 
 
 def _extract_fe_calls(src):
-    """从 api.js 抽取 (METHOD, 归一化路径) 集合。"""
+    """从 api.js 抽取 (METHOD, 归一化路径) 集合 + 裸路径集合（非 /api/ 前缀）。
+
+    GATE-1: 不以 /api/ 开头的 request 路径归入 bare_paths，由 check_api_contract 判 FAIL。
+    """
     calls = set()
+    bare_paths = set()
     for m in re.finditer(r"this\.request\(", src):
         tail = src[m.end(): m.end() + 300]
         mm = re.match(r"\s*'(\w+)'\s*,\s*", tail)
@@ -257,7 +261,9 @@ def _extract_fe_calls(src):
         path = _norm_fe_path(expr.strip())
         if path.startswith("/api/"):
             calls.add((method.upper(), path))
-    return calls
+        elif path:
+            bare_paths.add((method.upper(), path))
+    return calls, bare_paths
 
 
 def _extract_be_routes():
@@ -294,6 +300,7 @@ def _frontend_api_corpus():
 def check_api_contract():
     """S-2: API 契约机检——双向对扫 api.js this.request vs routes/*.py @router。
 
+    GATE-1: request 路径不以 /api/ 开头 -> FAIL（裸路径绕过契约对扫 = 假绿灯）。
     前端调了后端没有 -> FAIL; 方法不匹配 -> FAIL; 后端有前端未调 -> WARN 不阻塞。
     (node 非必需, 纯 stdlib 静态解析; api.js 缺失时降级 WARN, 不静默 PASS。)
     """
@@ -301,9 +308,9 @@ def check_api_contract():
     if not API_JS.exists():
         print(f"  {YEL}! api.js 不存在({API_JS}), API 契约机检缺失——请核查前端路径{RST}")
         return True
-    fe = _extract_fe_calls(API_JS.read_text(encoding="utf-8"))
+    fe, bare_paths = _extract_fe_calls(API_JS.read_text(encoding="utf-8"))
     be = _extract_be_routes()
-    if not fe:
+    if not fe and not bare_paths:
         print(f"  {YEL}! 未从 api.js 解析到 this.request 调用, API 契约机检缺失{RST}")
         return True
     be_by_path = {}
@@ -311,6 +318,9 @@ def check_api_contract():
         be_by_path.setdefault(path, set()).add(mth)
 
     ok = True
+    # GATE-1: 裸路径检查 — api.js 中所有 request 路径必须以 /api/ 开头
+    for mth, path in sorted(bare_paths):
+        print(f"  {RED}X 裸路径(非 /api/ 前缀): {mth} {path}{RST}"); ok = False
     for mth, path in sorted(fe):
         if path not in be_by_path:
             print(f"  {RED}X 前端调后端没有: {mth} {path}{RST}"); ok = False
@@ -329,10 +339,14 @@ def check_api_contract():
         print(f"  {YEL}! 后端有前端未调: {mth} {path} (WARN 不阻塞){RST}")
 
     if ok:
-        print(f"  {GRN}V 前端 {len(fe)} 调用全部命中后端路由(路径/方法一致); "
+        bare_note = f", 裸路径 0" if not bare_paths else ""
+        print(f"  {GRN}V 前端 {len(fe)} 调用全部命中后端路由(路径/方法一致){bare_note}; "
               f"后端 {len(be)} 路由中 {len(warns)} 个前端未调(WARN){RST}")
     else:
-        print(f"  {RED}X 存在前端调用与后端路由不匹配, 请修复后重跑{RST}")
+        if bare_paths:
+            print(f"  {RED}X 存在 {len(bare_paths)} 个裸路径(非 /api/ 前缀), 请补全 /api/ 前缀后重跑{RST}")
+        else:
+            print(f"  {RED}X 存在前端调用与后端路由不匹配, 请修复后重跑{RST}")
     return ok
 
 

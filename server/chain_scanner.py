@@ -131,7 +131,7 @@ class ChainScanner:
             from_addr = args["from"]
             amount = args["value"] // 10**18  # NT has 18 decimals
         except Exception as e:
-            logger.warning("scanner 异常提前返回: %s", e)
+            logger.warning("scanner 提前返回: %s", e)
             return
 
         # Only process transfers TO platform wallet

@@ -180,7 +180,7 @@ async def init_db():
             await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN assignees TEXT"))
             await session.commit()
         except Exception as e:
-            logger.warning("迁移跳过: %s", e)
+            logger.debug("迁移跳过: %s", e)
         # T7: CampTask 合并到 NTTask — 加 camp_ref_id 列 + 迁移数据（SQLite 专属，PG 新库无此表）
         if engine.dialect.name == 'sqlite':
             try:
