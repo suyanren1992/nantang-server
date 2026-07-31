@@ -490,6 +490,70 @@ class ProposalVote(Base):
     )
 
 
+# ══ P3-二营乙: 共享厨房（4 表）══
+# 概念厘清：共享厨房 ≠ 订餐（砚仁 18:00+ 原话，铁律级）
+
+
+class PotluckEvent(Base):
+    """共享厨房接龙事件——村民发起、众人报名。"""
+    __tablename__ = "potluck_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    organizer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    title = Column(String(200), nullable=False)
+    dish = Column(String(200), nullable=False)
+    event_at = Column(String, nullable=False)               # ISO datetime
+    capacity = Column(Integer, default=8)
+    current_count = Column(Integer, default=1)               # 含发起人
+    description = Column(Text, nullable=True)
+    status = Column(String, default="open")                  # open / full / closed / done
+    created_at = Column(String, nullable=False)
+
+
+class PotluckParticipant(Base):
+    """接龙参与者——每人每事件一条。"""
+    __tablename__ = "potluck_participants"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(Integer, ForeignKey("potluck_events.id"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    role = Column(String, default="participant")             # participant / organizer
+    portion = Column(Integer, default=1)
+    joined_at = Column(String, nullable=False)
+    __table_args__ = (
+        UniqueConstraint("event_id", "user_id", name="uq_potluck_participant"),
+    )
+
+
+class KitchenSlot(Base):
+    """厨房时段预约——容量规则 ≤10 自动 / 11-20 待审 / >20 拒。"""
+    __tablename__ = "kitchen_slots"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    start_at = Column(String, nullable=False)                # ISO datetime
+    end_at = Column(String, nullable=False)                  # ISO datetime
+    capacity = Column(Integer, default=10)
+    booker_id = Column(String, ForeignKey("users.id"), nullable=False)
+    group_name = Column(String, nullable=True)
+    dish = Column(String, nullable=True)
+    party_size = Column(Integer, default=1)
+    status = Column(String, default="open")                  # open / pending / approved / occupied / done
+    note = Column(Text, nullable=True)
+    created_at = Column(String, nullable=False)
+
+
+class SharedItem(Base):
+    """共享物品（冰箱/橱柜/台面）——过期 3 天内高亮红。"""
+    __tablename__ = "shared_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(200), nullable=False)
+    category = Column(String, default="food")                # food / condiment / tool / other
+    owner_id = Column(String, ForeignKey("users.id"), nullable=False)
+    location = Column(String, default="fridge")              # fridge / cabinet / counter
+    quantity = Column(String, nullable=True)                 # 「1L」「500g」
+    produced_at = Column(String, nullable=True)              # ISO date
+    expired_at = Column(String, nullable=True)               # ISO date
+    note = Column(Text, nullable=True)
+    created_at = Column(String, nullable=False)
+
+
 class FieldPlot(Base):
     """田间地块——作物种植/生长/收割生命周期。"""
     __tablename__ = "field_plots"

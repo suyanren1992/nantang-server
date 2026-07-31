@@ -16,6 +16,7 @@ from routes.community import (
     potluck_router, proposals_router, camp_proposals_router,
     notifications_router, health_report_router, cleaning_pricing_router,
 )
+from routes.kitchen import kitchen_router  # P3-二营乙 共享厨房
 
 # BE-2②: 日志写文件——INFO 级以上落盘，cron 等模块的 logger 自动接入根配置
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -122,6 +123,7 @@ app.include_router(camp_proposals_router)  # P1-#6 ⑧ 营地议事
 app.include_router(notifications_router)   # P1-#6 ⑬ 通报
 app.include_router(health_report_router)   # P1-#6 ⑫ 体检报告
 app.include_router(cleaning_pricing_router) # P1-#6 ⑭ 清洁定价
+app.include_router(kitchen_router)          # P3-二营乙 共享厨房
 
 
 @app.middleware("http")

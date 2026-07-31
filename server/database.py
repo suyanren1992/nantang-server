@@ -368,3 +368,55 @@ async def init_db():
         except Exception as e:
             logger.warning(f"[REDTEAM-B-B6] admin bootstrap skipped: {e}")
             await session.rollback()
+        # ══ P3-二营乙: 共享厨房种子（幂等——空表才播；测试环境跳过避免 FK 污染）══
+        if not os.getenv("TESTING"):
+            try:
+                from models import PotluckEvent, PotluckParticipant, KitchenSlot, SharedItem
+                _now = datetime.utcnow().isoformat()
+                _has_pe = (await session.execute(select(PotluckEvent).limit(1))).scalar_one_or_none()
+                if not _has_pe:
+                    pe = PotluckEvent(
+                        organizer_id="admin_bootstrap", title="周六火锅局",
+                        dish="四川麻辣火锅", event_at="2026-08-02T18:00:00",
+                        capacity=8, current_count=1, description="周末一起来涮火锅",
+                        status="open", created_at=_now,
+                    )
+                    session.add(pe)
+                    await session.flush()
+                    session.add(PotluckParticipant(
+                        event_id=pe.id, user_id="admin_bootstrap",
+                        role="organizer", portion=1, joined_at=_now,
+                    ))
+                    logger.info("[P3-二营乙] seeded 1 potluck_event + 1 participant")
+                _has_ks = (await session.execute(select(KitchenSlot).limit(1))).scalar_one_or_none()
+                if not _has_ks:
+                    for _sh, _eh, _ps, _st, _gn, _dish in [
+                        ("2026-08-02T08:00:00", "2026-08-02T11:00:00", 4, "approved", "李四家", "包饺子"),
+                        ("2026-08-02T17:00:00", "2026-08-02T20:00:00", 8, "approved", "火锅局", "四川火锅"),
+                        ("2026-08-03T11:30:00", "2026-08-03T13:30:00", 15, "pending", "合作社聚餐", "烧烤"),
+                    ]:
+                        session.add(KitchenSlot(
+                            start_at=_sh, end_at=_eh, capacity=10,
+                            booker_id="admin_bootstrap", group_name=_gn, dish=_dish,
+                            party_size=_ps, status=_st, created_at=_now,
+                        ))
+                    logger.info("[P3-二营乙] seeded 3 kitchen_slots")
+                _has_si = (await session.execute(select(SharedItem).limit(1))).scalar_one_or_none()
+                if not _has_si:
+                    for _name, _cat, _loc, _qty, _prod, _exp in [
+                        ("牛奶", "food", "fridge", "1L", "2026-07-28", "2026-08-01"),
+                        ("鸡蛋", "food", "fridge", "10个", "2026-07-30", "2026-08-05"),
+                        ("酱油", "condiment", "cabinet", "500ml", None, None),
+                        ("炒锅", "tool", "counter", "1个", None, None),
+                        ("辣椒酱", "condiment", "fridge", "200g", "2026-07-15", "2026-09-15"),
+                    ]:
+                        session.add(SharedItem(
+                            name=_name, category=_cat, owner_id="admin_bootstrap",
+                            location=_loc, quantity=_qty,
+                            produced_at=_prod, expired_at=_exp, created_at=_now,
+                        ))
+                    logger.info("[P3-二营乙] seeded 5 shared_items")
+                await session.commit()
+            except Exception as e:
+                logger.warning(f"[P3-二营乙] kitchen seed skipped: {e}")
+                await session.rollback()
