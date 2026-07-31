@@ -679,8 +679,8 @@ async def admin_deposit_intents(admin: User = Depends(require_admin), db: AsyncS
 
 
 @router.get("/chain-balance")
-async def chain_balance():
-    """读取多签钱包在链上的实际 NT 余额。"""
+async def chain_balance(admin: User = Depends(require_admin)):
+    """读取多签钱包在链上的实际 NT 余额（H-9: 仅管理员——金库地址不可公开）。"""
     if not PLATFORM_WALLET:
         return {"ok": False, "error": "平台钱包未配置"}
     try:
