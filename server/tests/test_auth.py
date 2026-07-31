@@ -70,6 +70,35 @@ class TestLoginEnumeration:
         assert r.json()["error"] == "用户名或密码错误"
 
 
+# ===== H-10 回归：密码最大长度 128（防 bcrypt DoS）=====
+class TestPasswordMaxLength:
+    @pytest.mark.asyncio
+    async def test_register_rejects_overlong_password(self, client, monkeypatch):
+        monkeypatch.delenv("INVITE_CODES", raising=False)
+        r = await client.post("/api/auth/register", json={
+            "name": "长密码用户_a", "password": "x" * 129
+        })
+        body = r.json()
+        assert body["ok"] is False
+        assert "128" in body["error"], body
+
+    @pytest.mark.asyncio
+    async def test_register_accepts_128_boundary(self, client, monkeypatch):
+        monkeypatch.delenv("INVITE_CODES", raising=False)
+        r = await client.post("/api/auth/register", json={
+            "name": "边界密码用户_a", "password": "y" * 128
+        })
+        assert r.json()["ok"] is True, r.json()
+
+    @pytest.mark.asyncio
+    async def test_login_rejects_overlong_password(self, client):
+        """登录超长密码 → 统一文案（不泄露长度判定）。"""
+        r = await client.post("/api/auth/login", json={"name": "anyone_z", "password": "z" * 200})
+        body = r.json()
+        assert body["ok"] is False
+        assert body["error"] == "用户名或密码错误"
+
+
 # ===== D-4 回归：用户名白名单 =====
 class TestUsernameWhitelist:
     @pytest.mark.asyncio

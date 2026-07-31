@@ -16,11 +16,13 @@ ABSOLUTE_MAX_DAYS = 30                  # R14-3 M47: refresh session 最大年�
 
 
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    # bcrypt 上限 72 字节——超长截断（新版 bcrypt 不再静默截断，超 72 字节会 raise ValueError）。
+    # 应用层 max_length=128 拦截多 MB DoS；此处 72 截断保证 73-128 字节密码正常哈希。
+    return bcrypt.hashpw(password.encode("utf-8")[:72], bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    return bcrypt.checkpw(plain_password.encode("utf-8")[:72], hashed_password.encode("utf-8"))
 
 
 def create_access_token(user_id: str, role: str, token_version: int = 0) -> str:

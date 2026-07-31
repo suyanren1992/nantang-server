@@ -14,6 +14,10 @@ from auth_utils import hash_password, verify_password, create_access_token, crea
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+# H-10: 密码长度上限——防 bcrypt 处理超长密码（数 MB）导致 CPU/内存耗尽。
+# bcrypt 实际只取前 72 字节，超长部分纯属 DoS 负载。
+_PASSWORD_MAX = 128
+
 
 class RegisterRequest(BaseModel):
     name: str; password: str; role: str = "visitor"; avatar_seed: str | None = None
@@ -121,6 +125,8 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
     # D-4 H-1: 用户名字符白名单（中英文/数字/下划线），堵 LIKE 通配符注入入口
     if not re.fullmatch(r"[a-zA-Z0-9_一-龥]+", name): return JSONResponse({"ok": False, "error": "用户名仅限中英文、数字、下划线"})
     if len(req.password) < 8: return JSONResponse({"ok": False, "error": "密码至少8位"})
+    # H-10: 密码上限 128 位——防 bcrypt 处理超长密码导致 CPU/内存耗尽
+    if len(req.password) > _PASSWORD_MAX: return JSONResponse({"ok": False, "error": "密码不能超过128位"})
     # D-3 CR-2: 邀请制——INVITE_CODES 环境变量（逗号分隔码池）；未设置/为空=邀请制关闭，向后兼容
     _codes = os.environ.get("INVITE_CODES", "")
     if _codes.strip():
@@ -156,6 +162,9 @@ async def login(req: LoginRequest, request: Request, response: Response, db: Asy
             {"ok": False, "error": f"登录失败次数过多，请 {remaining // 60 + 1} 分钟后再试"},
             status_code=429,
         )
+    # H-10: 密码上限 128 位——防 bcrypt verify 超长密码 DoS（用统一文案不泄露长度判定）
+    if len(req.password) > _PASSWORD_MAX:
+        return JSONResponse({"ok": False, "error": "用户名或密码错误"})
     u = (await db.execute(select(User).where(User.id == req.name))).scalar_one_or_none()
     # D-3 M-10: 「用户不存在」与「密码错误」统一文案，消除用户枚举
     if not u:
@@ -205,6 +214,9 @@ async def change_password(req: ChangePasswordRequest, user: User = Depends(get_c
                            db: AsyncSession = Depends(get_db)):
     if len(req.new_password) < 8:
         return JSONResponse({"ok": False, "error": "密码至少8位"})
+    # H-10: 新密码同样限 128 位上限
+    if len(req.new_password) > _PASSWORD_MAX:
+        return JSONResponse({"ok": False, "error": "密码不能超过128位"})
     if not verify_password(req.old_password, user.password_hash):
         return JSONResponse({"ok": False, "error": "当前密码错误"})
     user.password_hash = hash_password(req.new_password)
