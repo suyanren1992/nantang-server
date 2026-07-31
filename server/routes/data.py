@@ -448,6 +448,65 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
         if not ch:
             ch = MapLocation(key="config_history"); db.add(ch)
         ch.data = json.dumps(_ch, ensure_ascii=False)
+    # ══ DB-P1-3 ③: tasks 字段处理（前端本地任务 → 服务端 NTTask 兜底同步）══
+    _tasks = req.get("tasks")
+    if _tasks and isinstance(_tasks, dict):
+        import uuid
+        for _tname, tdata in _tasks.items():
+            if not isinstance(tdata, dict):
+                continue
+            # 只处理自己的任务
+            _poster = tdata.get("poster") or tdata.get("createdBy") or user.id
+            if _poster != user.id:
+                continue
+            _title = tdata.get("title") or tdata.get("name") or _tname
+            # 幂等：按 poster + title 查已有记录
+            existing = (await db.execute(
+                select(NTTask).where(NTTask.poster == user.id, NTTask.title == _title)
+            )).scalars().first()
+            if existing:
+                continue  # 已有，跳过
+            _task_id = tdata.get("_srvId") or tdata.get("id") or f"sync_{uuid.uuid4().hex[:8]}"
+            # 防重：按 task_id 查
+            dup = (await db.execute(
+                select(NTTask).where(NTTask.id == _task_id)
+            )).scalar_one_or_none()
+            if dup:
+                continue
+            nt_task = NTTask(
+                id=_task_id, poster=user.id,
+                title=_title,
+                reward=int(tdata.get("reward") or tdata.get("nt") or 0),
+                status=tdata.get("status") or "draft",
+                category=tdata.get("category") or "other",
+                scope=tdata.get("scope") or "personal",
+                note=tdata.get("note") or "",
+                slots=int(tdata.get("slots") or 1),
+                deadline=tdata.get("deadline"),
+                reviewer=tdata.get("reviewer"),
+                created_at=tdata.get("created_at") or datetime.utcnow().isoformat(),
+            )
+            db.add(nt_task)
+    # ══ DB-P1-3 ③: users 字段处理（前端用户资料 → 服务端 User 同步）══
+    _users = req.get("users")
+    if _users and isinstance(_users, dict):
+        # 本端只允许更新当前登录用户自己的资料
+        _me = _users.get(user.id)
+        if _me and isinstance(_me, dict):
+            # 安全字段白名单（禁止修改 role/nt_balance/trust_score）
+            _allowed = {
+                "bio": ("bio", str),
+                "location": ("location", str),
+                "walletAddress": ("wallet_address", str),
+                "wallet_address": ("wallet_address", str),
+                "avatarSeed": ("avatar_seed", str),
+                "avatar_seed": ("avatar_seed", str),
+            }
+            for _key, (_col, _typ) in _allowed.items():
+                _val = _me.get(_key)
+                if _val is not None and isinstance(_val, _typ) and hasattr(user, _col):
+                    setattr(user, _col, str(_val) if _typ == str else _val)
+            db.add(user)
     await db.commit()
     return {"ok": True}
 
