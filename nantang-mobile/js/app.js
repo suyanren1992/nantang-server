@@ -1788,6 +1788,147 @@ function _updateFieldSheetContent(h) {
     _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openFarmQuick()">＋ 记录农活</button>', true);
   }
 }
+// A-CLEAN-WEEKLY: 大扫除周任务——选英雄式选卡+3s轮询+校核闭环
+var _cleanPollTimer = null;
+function openCleanWeekly() {
+  _pushOverlay('overlayCleanWeekly');
+  document.getElementById('overlayCleanWeekly').classList.add('open');
+  renderCleanWeekly();
+  _startCleanPolling();
+}
+function _startCleanPolling() {
+  _stopCleanPolling();
+  _cleanPollTimer = setInterval(function() {
+    if (!document.getElementById('overlayCleanWeekly').classList.contains('open')) { _stopCleanPolling(); return; }
+    // 静默刷新任务列表（不重绘整页，只更新卡片状态）
+    if (typeof API !== 'undefined' && API.token) {
+      API.cleanWeeklyTasks('').then(function(r) {
+        if (r && r.tasks) {
+          r.tasks.forEach(function(t) {
+            var el = document.getElementById('cwt_'+t.id);
+            if (el) { var s = el.querySelector('.cwt-status'); if (s) s.textContent = _cleanStatusText(t); }
+          });
+        }
+      }).catch(function(){});
+    }
+  }, 3000);
+}
+function _stopCleanPolling() { if (_cleanPollTimer) { clearInterval(_cleanPollTimer); _cleanPollTimer = null; } }
+function _cleanStatusText(t) {
+  if (t.status === 'completed') return '✅ 已完成';
+  if (t.status === 'claimed') return t.claimed_by === CURRENT_USER ? '🧹 已选' : '🔒 已领';
+  return '🟢 可领';
+}
+function renderCleanWeekly() {
+  var el = document.getElementById('cleanWeeklyBody'); if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:#5a6e5c">⏳ 加载中…</div>';
+  var isAdmin = (typeof getRoleInfo === 'function' && getRoleInfo().isAdmin);
+  if (typeof API !== 'undefined' && API.token) {
+    API.cleanWeeklyTasks('').then(function(r) {
+      if (r && r.tasks) {
+        if (isAdmin) _renderCleanAdmin(el, r); else _renderCleanUserCards(el, r);
+      } else { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">🧹 本周暂无大扫除任务</div>'; }
+    }).catch(function() { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">加载失败</div>'; });
+  } else { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">离线模式不可用</div>'; }
+}
+// ① 管理员面板
+function _renderCleanAdmin(el, r) {
+  var tasks = r.tasks || [];
+  var spaces = getBuildings().filter(function(b){ return b.floors && Object.keys(b.floors).length > 0; });
+  // 收集所有可打扫空间
+  var allSpaces = [];
+  spaces.forEach(function(b) {
+    Object.keys(b.floors).forEach(function(f) {
+      (b.floors[f]||[]).forEach(function(s) { allSpaces.push({ id:s.id, name:s.name||s.id, building:b.name, icon:s.icon||'🧹' }); });
+    });
+  });
+  if (!allSpaces.length) { el.innerHTML = '<div style="text-align:center;padding:40px">无可用空间</div>'; return; }
+  var h = '';
+  if (tasks.length) {
+    h += '<div style="background:#e8f5e9;border-radius:var(--g-radius);padding:var(--g-pad-sm);margin-bottom:10px;font-size:var(--g-font-size-xs);color:#3d6b52">✅ 本周已发放 '+tasks.length+' 个任务 · 周 '+r.week+'</div>';
+  }
+  h += '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:8px">🧹 管理员 · 发放大扫除任务</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:8px">勾选空间（3-6个）→ 选择模式 → 发放</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px;max-height:200px;overflow-y:auto">';
+  allSpaces.forEach(function(s) {
+    h += '<label style="display:flex;align-items:center;gap:4px;padding:4px 6px;border:1px solid #d0d9ce;border-radius:6px;font-size:.55rem;cursor:pointer"><input type="checkbox" value="'+s.id+'" class="cws-chk" data-name="'+esc(s.name)+'">'+s.icon+' '+esc(s.name)+'</label>';
+  });
+  h += '</div>';
+  h += '<div style="display:flex;gap:6px;margin-bottom:8px;font-size:var(--g-font-size-xs)">';
+  h += '<label style="cursor:pointer"><input type="radio" name="cwsMode" value="even" checked> 均分</label>';
+  h += '<label style="cursor:pointer"><input type="radio" name="cwsMode" value="by_count"> 按人数</label>';
+  h += '</div>';
+  h += '<button class="btn-sm pri" style="width:100%;font-size:var(--g-font-size-xs);min-height:44px" onclick="_doDistribute()">📤 发放任务</button>';
+  el.innerHTML = h;
+}
+function _doDistribute() {
+  var chks = document.querySelectorAll('.cws-chk:checked');
+  if (chks.length < 3) { showToast('请至少勾选3个空间','warn'); return; }
+  var ids = [], names = [];
+  chks.forEach(function(c){ ids.push(c.value); names.push(c.getAttribute('data-name')||c.value); });
+  var mode = (document.querySelector('input[name="cwsMode"]:checked')||{}).value || 'even';
+  var today = new Date(); var monday = new Date(today); monday.setDate(today.getDate() - today.getDay() + 1);
+  var week = monday.toISOString().slice(0,10);
+  if (typeof API !== 'undefined' && API.token) {
+    API.cleanWeeklyDistribute({ week_start_date: week, space_ids: ids, space_names: names, mode: mode, reward_nt: 15 }).then(function(r) {
+      if (r && r.ok) { showToast('已发放 '+r.tasks_created+' 个任务', 'ok'); renderCleanWeekly(); }
+      else { showToast('发放失败'+(r&&r.detail?': '+r.detail:''), 'error'); }
+    }).catch(function(){ showToast('网络错误','error'); });
+  }
+}
+// ② 用户端——选英雄式选卡
+function _renderCleanUserCards(el, r) {
+  var tasks = r.tasks || [];
+  var myClaimed = tasks.find(function(t){ return t.claimed_by === CURRENT_USER; });
+  var h = '';
+  h += '<div style="background:linear-gradient(135deg,#e8f5e8,#dce8d8);border-radius:var(--g-radius);padding:var(--g-pad);margin-bottom:10px;text-align:center">';
+  h += '<div style="font-size:var(--g-font-size-lg);margin-bottom:2px">🧹 周大扫除</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">'+(myClaimed?'你已选任务 ✅ · ':'')+'每人限选1个 · '+tasks.filter(function(t){return t.status==='open';}).length+' 个可选</div>';
+  h += '</div>';
+  if (!tasks.length) { h += '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">本周暂无大扫除任务</div>'; }
+  else {
+    h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
+    tasks.forEach(function(t) {
+      var isMine = t.claimed_by === CURRENT_USER;
+      var isOpen = t.status === 'open';
+      var isLocked = t.status === 'claimed' && !isMine;
+      var cardBg = isMine ? '#e8f5e9' : isOpen ? '#fffdf9' : '#f8f8f8';
+      var cardBorder = isMine ? 'var(--green-primary)' : isOpen ? '#c8c0b0' : '#e0e0e0';
+      h += '<div id="cwt_'+t.id+'" class="ui-card" style="background:'+cardBg+';border:2px solid '+cardBorder+';border-radius:var(--g-radius);padding:var(--g-pad-sm);text-align:center">';
+      h += '<div style="font-size:1.8rem;line-height:1">🧹</div>';
+      h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);margin:4px 0">'+esc(t.space_name)+'</div>';
+      h += '<div style="font-size:.5rem;color:#8a6a20">+'+(t.reward_nt||15)+' NT</div>';
+      h += '<div class="cwt-status" style="font-size:.55rem;margin:4px 0">'+_cleanStatusText(t)+'</div>';
+      if (isOpen) {
+        h += '<button class="btn-sm pri" style="width:100%;font-size:.55rem;padding:4px;margin-top:2px" onclick="event.stopPropagation();_doCleanClaim(\''+t.id+'\')">🧹 选择</button>';
+      } else if (isMine) {
+        h += '<div style="display:flex;gap:3px;margin-top:2px"><button class="btn-sm sec" style="flex:1;font-size:.5rem;padding:3px" onclick="event.stopPropagation();_doCleanUnclaim(\''+t.id+'\')">取消</button><button class="btn-sm pri" style="flex:1;font-size:.5rem;padding:3px" onclick="event.stopPropagation();_doCleanSubmit(\''+t.id+'\')">✅ 提交</button></div>';
+      }
+      h += '</div>';
+    });
+    h += '</div>';
+  }
+  el.innerHTML = h;
+}
+function _doCleanClaim(taskId) {
+  if (typeof API === 'undefined' || !API.token) { showToast('离线模式','warn'); return; }
+  API.cleanWeeklyClaim(taskId).then(function(r) {
+    if (r && r.ok) { showToast('已选择任务','ok'); renderCleanWeekly(); }
+    else { showToast((r&&r.detail)||'认领失败','error'); }
+  }).catch(function(){ showToast('网络错误','error'); });
+}
+function _doCleanUnclaim(taskId) {
+  API.cleanWeeklyUnclaim(taskId).then(function(r) {
+    if (r && r.ok) { showToast('已取消','ok'); renderCleanWeekly(); }
+    else { showToast((r&&r.detail)||'操作失败','error'); }
+  }).catch(function(){ showToast('网络错误','error'); });
+}
+function _doCleanSubmit(taskId) {
+  API.cleanWeeklySubmit(taskId).then(function(r) {
+    if (r && r.ok) { showToast('已提交校核 +'+(r.nt_amount||'')+' NT','ok'); renderCleanWeekly(); }
+    else { showToast((r&&r.detail)||'提交失败','error'); }
+  }).catch(function(){ showToast('网络错误','error'); });
+}
 // I1: 田间动作调 API
 function _doFieldAction(plotId, action) {
   if (typeof API === 'undefined' || !API.token) { showToast('离线模式，无法操作田地', 'warn'); return; }

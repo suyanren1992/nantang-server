@@ -169,6 +169,12 @@ var API = {
   // ── NEW-USER-TASK: 新人任务 ──
   getNewUserTasks: function() { return this.request('GET', '/api/new_user_tasks/me'); },
   completeNewUserTask: function(id) { return this.request('PATCH', '/api/new_user_tasks/' + encodeURIComponent(id) + '/complete'); },
+  // ── A-CLEAN-WEEKLY: 大扫除周任务 ──
+  cleanWeeklyDistribute: function(data) { return this.request('POST', '/api/clean_weekly/distribute', data); },
+  cleanWeeklyTasks: function(week) { return this.request('GET', '/api/clean_weekly/tasks' + (week ? '?week=' + encodeURIComponent(week) : '')); },
+  cleanWeeklyClaim: function(taskId) { return this.request('POST', '/api/clean_weekly/claim/' + encodeURIComponent(taskId)); },
+  cleanWeeklyUnclaim: function(taskId) { return this.request('POST', '/api/clean_weekly/unclaim/' + encodeURIComponent(taskId)); },
+  cleanWeeklySubmit: function(taskId) { return this.request('POST', '/api/clean_weekly/submit/' + encodeURIComponent(taskId)); },
   // ── 任务同步 ──
   syncTask: function(task, callback) {
     var data = { title: task.name || task.title, reward: task.nt || task.reward || 5,
