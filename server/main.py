@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from database import init_db, async_session
-from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant, governance, labor, clean_weekly
+from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant, governance, labor, clean_weekly, storage
 
 # BE-2②: 日志写文件——INFO 级以上落盘，cron 等模块的 logger 自动接入根配置
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -106,6 +106,7 @@ app.include_router(covenant.router)  # G-1 公约签署
 app.include_router(governance.router)  # A-LABOR-BE ⑯ 治理权
 app.include_router(labor.router)  # A-LABOR-BE ⑳ 劳动配置
 app.include_router(clean_weekly.router)  # CLEAN-WEEKLY-BE 周打扫任务
+app.include_router(storage.router)  # UI-FIX-P2-BE 储物管理
 app.include_router(nt.system_router)
 
 

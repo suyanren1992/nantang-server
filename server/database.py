@@ -72,6 +72,8 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_deposit_intents_user_id ON deposit_intents(user_id)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_journal_user ON journal(user)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_memberships_camp_id ON camp_memberships(camp_id)"))
+        # UI-FIX-P2-BE B1: storage_items 复合索引
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_storage_items_user_location ON storage_items(user_id, storage_location)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错

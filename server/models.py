@@ -413,3 +413,21 @@ class CleanWeeklyDistribution(Base):
     mode = Column(String, default="even")                  # even | by_count
     created_by = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(String, nullable=True)
+
+
+# ══ UI-FIX-P2-BE B1: 储物管理 ══
+STORAGE_CATEGORIES = ("食物", "工具", "杂物")
+STORAGE_LOCATIONS = ("冰箱", "储物间", "共享")
+
+
+class StorageItem(Base):
+    """村民储物记录——冰箱/储物间/共享三档分类。"""
+    __tablename__ = "storage_items"
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    item_name = Column(String(100), nullable=False)
+    category = Column(String, nullable=False)          # 食物 / 工具 / 杂物
+    quantity = Column(Integer, default=1)
+    storage_location = Column(String, nullable=False)  # 冰箱 / 储物间 / 共享
+    added_at = Column(String, nullable=True)           # ISO datetime
+    expires_at = Column(String, nullable=True)         # ISO datetime, nullable=不过期

@@ -423,7 +423,7 @@ function _renderVerifyTab() {
       pending.forEach(function(v){ h += _renderVerifyCard(v, isOnsite); });
       h += '</div>';
     } else {
-      h += '<div style="background:#fff;border-radius:10px;padding:20px;text-align:center;color:#666;font-size:.7rem">✅ 暂无待验证项<br><span style="font-size:.6rem;color:#999">在地图或快捷入口上报劳动后，这里会出现待验证卡片</span></div>';
+      h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:20px;text-align:center;color:#666;font-size:var(--g-font-size-sm)">✅ 暂无待验证项<br><span style="font-size:var(--g-font-size-xs);color:#999">在地图或快捷入口上报劳动后，这里会出现待验证卡片</span></div>';
     }
   }
 
@@ -435,7 +435,7 @@ function _renderVerifyTab() {
       filtered.forEach(function(v){ h += _renderVerifyCard(v, false); });
       h += '</div>';
     } else {
-      h += '<div style="text-align:center;padding:30px;color:#aaa;font-size:.7rem">📋 暂无此类记录</div>';
+      h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);text-align:center;padding:30px;color:#aaa;font-size:var(--g-font-size-sm)">📋 暂无此类记录</div>';
     }
   }
 

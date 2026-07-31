@@ -1,0 +1,353 @@
+openapi: "3.0.3"
+info:
+  title: 南塘云村 API 契约
+  description: |
+    UI-FIX-P2-BE B9 契约基线——一营 FE 按此接入。
+    含 B2-B4 储物管理（本次新建）+ B5-B8 既有端点检查结果。
+  version: "2026-07-31"
+  contact:
+    name: 南塘云村施工二营
+
+servers:
+  - url: /api
+    description: 当前部署
+
+tags:
+  - name: storage
+    description: 储物管理（B2-B4，本次新建）
+  - name: archive
+    description: 档案室（B5，待建）
+  - name: fields
+    description: 田间管理（B6，待建）
+  - name: settings
+    description: 用户设置（B7，待建）
+  - name: verifications
+    description: 校核列表（B8，已有）
+
+paths:
+  # ════════════════════════════════════════
+  # B2: POST /storage/items
+  # ════════════════════════════════════════
+  /storage/items:
+    post:
+      tags: [storage]
+      summary: 新增储物记录（B2）
+      description: 村民新增一条冰箱/储物间/共享储物
+      operationId: createStorageItem
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateItemReq"
+      responses:
+        "200":
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateItemRes"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+    # ════════════════════════════════════════
+    # B3: GET /storage/items
+    # ════════════════════════════════════════
+    get:
+      tags: [storage]
+      summary: 查本人储物（B3）
+      description: 返回当前用户所有未过期储物，按 storage_location 分组
+      operationId: listStorageItems
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 按 location 分组的储物列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItemsRes"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ════════════════════════════════════════
+  # B4: DELETE /storage/items/{id}
+  # ════════════════════════════════════════
+  /storage/items/{id}:
+    delete:
+      tags: [storage]
+      summary: 删储物（B4）
+      description: 本人或 admin 可删。返回 204 No Content
+      operationId: deleteStorageItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 删除成功
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ════════════════════════════════════════
+  # B5: GET /archive/items（待建）
+  # ════════════════════════════════════════
+  # /archive/items:
+  #   get:
+  #     tags: [archive]
+  #     summary: 档案条目列表（B5 · 待建）
+  #     description: |
+  #       当前不存在。最近似：GET /data/archive_summary/{target_id}（聚合统计）。
+  #       需要聚合 Journal + NTTask + Verification + CardDiscovery 多表。
+  #       预计字段：id, title, content, created_at, category
+  #     responses:
+  #       "200":
+  #         description: 档案条目列表
+
+  # ════════════════════════════════════════
+  # B6: GET /fields（待建）
+  # ════════════════════════════════════════
+  # /fields:
+  #   get:
+  #     tags: [fields]
+  #     summary: 田间作物列表（B6 · 待建）
+  #     description: |
+  #       当前不存在。无 Crop/Field 数据表。
+  #       预计字段：id, crop_name, planted_at, harvest_at, stage, health
+  #     responses:
+  #       "200":
+  #         description: 田间作物列表
+
+  # ════════════════════════════════════════
+  # B7: GET /users/me/settings（待建）
+  # ════════════════════════════════════════
+  # /users/me/settings:
+  #   get:
+  #     tags: [settings]
+  #     summary: 用户设置（B7 · 待建）
+  #     description: |
+  #       当前不存在。User 模型无 notification/theme/language 字段。
+  #     responses:
+  #       "200":
+  #         description: {notification, theme, language}
+
+  # ════════════════════════════════════════
+  # B8: GET /data/verifications（已有）
+  # ════════════════════════════════════════
+  /data/verifications:
+    get:
+      tags: [verifications]
+      summary: 校核列表（B8 · 已有）
+      description: |
+        已存在于 data.py L188。admin 看全部，非 admin 只看自己。
+        注意：verifier_id 对应返回体中的 `verifier` 字段；
+        task_id 不在顶层，需从 detail JSON 提取。
+      operationId: listVerifications
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 校核记录列表（最多 50 条）
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Verification"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT token（POST /api/auth/login 获取）
+
+  schemas:
+    # ── Storage ──
+    CreateItemReq:
+      type: object
+      required: [item_name, category, quantity, storage_location]
+      properties:
+        item_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "白菜"
+        category:
+          type: string
+          enum: ["食物", "工具", "杂物"]
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+        storage_location:
+          type: string
+          enum: ["冰箱", "储物间", "共享"]
+        expires_at:
+          type: string
+          nullable: true
+          format: date-time
+          description: ISO 8601 过期时间（null=不过期）
+
+    StorageItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "si_user1_1722300000_1234"
+        user_id:
+          type: string
+        item_name:
+          type: string
+        category:
+          type: string
+          enum: ["食物", "工具", "杂物"]
+        quantity:
+          type: integer
+          minimum: 1
+        storage_location:
+          type: string
+          enum: ["冰箱", "储物间", "共享"]
+        added_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          nullable: true
+          format: date-time
+
+    CreateItemRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        item:
+          $ref: "#/components/schemas/StorageItem"
+
+    ListItemsRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        items:
+          type: object
+          properties:
+            冰箱:
+              type: array
+              items:
+                $ref: "#/components/schemas/StorageItem"
+            储物间:
+              type: array
+              items:
+                $ref: "#/components/schemas/StorageItem"
+            共享:
+              type: array
+              items:
+                $ref: "#/components/schemas/StorageItem"
+
+    # ── Verification (B8) ──
+    Verification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          example: "task"
+        doer:
+          type: string
+        action:
+          type: string
+        detail:
+          type: object
+          description: JSON 对象（含 task_id 等关联信息）
+        nt_amount:
+          type: integer
+        verifier_reward:
+          type: integer
+        status:
+          type: string
+          enum: ["pending", "approved", "rejected"]
+        verifier:
+          type: string
+          nullable: true
+          description: 校核人 ID（= 卡面 verifier_id）
+        verified_at:
+          type: string
+          nullable: true
+          format: date-time
+        reject_reason:
+          type: string
+          nullable: true
+        retry_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: 请求参数错误（400）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+    Unauthorized:
+      description: 未认证（401）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+    Forbidden:
+      description: 无权限（403）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+    NotFound:
+      description: 资源不存在（404）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              detail:
+                type: string
+    ValidationError:
+      description: 参数校验失败（422）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ok:
+                type: boolean
+              error:
+                type: string
+              fields:
+                type: array
+                items:
+                  type: object
