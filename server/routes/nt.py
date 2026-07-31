@@ -1140,9 +1140,10 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
 
 
 @router.post("/verifications/{vfy_id}/reject")
-async def reject_verification(vfy_id: str, user: User = Depends(get_current_user),
+async def reject_verification(vfy_id: str, reject_reason: str = Body("", embed=True),
+                               user: User = Depends(get_current_user),
                                db: AsyncSession = Depends(get_db)):
-    """Peer 驳回校核——写 DB，3 次驳回后永久拒绝。"""
+    """Peer 驳回校核——写 DB，3 次驳回后永久拒绝。reject_reason 限 500 字。"""
     from models import Verification as VfyModel
     vfy_r = await db.execute(select(VfyModel).where(VfyModel.id == vfy_id).with_for_update().execution_options(populate_existing=True))
     vfy = vfy_r.scalar_one_or_none()
@@ -1153,6 +1154,8 @@ async def reject_verification(vfy_id: str, user: User = Depends(get_current_user
     if vfy.doer == user.id:
         raise HTTPException(status_code=400, detail="不能校核自己的操作")
 
+    # DB-P0-3: reject_reason 写入（strip + 截断 500 字）
+    vfy.reject_reason = (reject_reason or "").strip()[:500]
     vfy.retry_count = (vfy.retry_count or 0) + 1
     vfy.rejected_by = user.id
     vfy.rejected_at = datetime.utcnow().isoformat()
@@ -1161,7 +1164,8 @@ async def reject_verification(vfy_id: str, user: User = Depends(get_current_user
     else:
         vfy.status = "rejected"
     await db.commit()
-    return {"ok": True, "rejected": True, "retry_count": vfy.retry_count}
+    return {"ok": True, "rejected": True, "retry_count": vfy.retry_count,
+            "reject_reason": vfy.reject_reason}
 
 
 # ══ F16: 离线 earn 队列同步 ══

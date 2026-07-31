@@ -341,6 +341,59 @@ paths:
                 items:
                   $ref: "#/components/schemas/Verification"
 
+  # ════════════════════════════════════════
+  # DB-P0-3: POST /nt/verifications/{vfy_id}/reject
+  # ════════════════════════════════════════
+  /nt/verifications/{vfy_id}/reject:
+    post:
+      tags: [verifications]
+      summary: 驳回校核（DB-P0-3 修复）
+      description: |
+        Peer 驳回校核记录。3 次驳回后永久拒绝。
+        DB-P0-3 新增 reject_reason 参数（Body，限 500 字，strip 后截断）。
+      operationId: rejectVerification
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: vfy_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reject_reason:
+                  type: string
+                  default: ""
+                  maxLength: 500
+                  description: 驳回原因（strip + 截断 500 字，可不传）
+      responses:
+        "200":
+          description: 驳回成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  rejected:
+                    type: boolean
+                  retry_count:
+                    type: integer
+                  reject_reason:
+                    type: string
+                    description: 写入的驳回原因
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
   securitySchemes:
     bearerAuth:
