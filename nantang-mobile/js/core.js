@@ -477,8 +477,8 @@ function toggleQuestCard(el,name){
   if(t.is_newbie_task) {
     h+='<div style=background:#e8f5e9;padding:8px 10px;border-radius:8px;border:1px solid #a0c8a0;margin-bottom:8px;display:flex;align-items:center;gap:8px>';
     h+='<span style=font-size:var(--g-font-size-xs);color:#3d6b52;font-weight:700>🆕 新手引导</span>';
-    if(t.expires_at) {
-      var remainMs = new Date(t.expires_at).getTime() - Date.now();
+    if(t.deadline) {
+      var remainMs = new Date(t.deadline).getTime() - Date.now();
       if(remainMs > 0) {
         var daysLeft = Math.floor(remainMs / 86400000);
         var hoursLeft = Math.floor((remainMs % 86400000) / 3600000);
@@ -933,8 +933,8 @@ function _mergeNTSyncData(data) {
       else if (t.status === '撤回申请中') t.status = 'retract_requested';
       var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
       var srvC = (t.assignees||[]).map(function(id){ return {name:id}; });
-      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:srvC, action:'', is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' };
-      else { var kp=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' }); dup.claimants=_mergeClaimants(kp, t.assignees||[]); }
+      if (!dup) AppData._data.tasks[t.id] = { name:t.id, title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, assignee:t.assignee, assignees:t.assignees, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, evidence:t.evidence, claimants:srvC, action:'', is_system_generated:t.is_system_generated||false, is_newbie_task:t.is_newbie_task||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' };
+      else { var kp=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_system_generated:t.is_system_generated||false, is_newbie_task:t.is_newbie_task||false, escrow_amount:t.escrow_amount||0, settler_id:t.settler_id||'', settled_at:t.settled_at||'' }); dup.claimants=_mergeClaimants(kp, t.assignees||[]); }
     });
   }
   // 充值意图缓存
@@ -975,8 +975,8 @@ function _mergeSyncData(data) {
     t.publisher = t.poster || t.publisher;
     var dup = AppData._data.tasks[t.id] || Object.values(AppData._data.tasks).find(function(lt){ return lt.title===t.title && lt.publisher===t.poster; });
     var srvClaimants = (t.assignees||[]).map(function(id){ return {name:id}; });
-    if (!dup) AppData._data.tasks[t.id] = { name:t.title || '未命名任务', title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'', _srvId:t.id, _ntTaskId:t.id };
-    else { var keep=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, settler_id:t.settler_id, _srvId:t.id, _ntTaskId:t.id }); dup.claimants=_mergeClaimants(keep, t.assignees||[]); }
+    if (!dup) AppData._data.tasks[t.id] = { name:t.title || '未命名任务', title:t.title, type:t.category, nt:t.reward, scope:t.scope, status:t.status, publisher:t.poster, deadline:t.deadline, reviewer:t.reviewer, slots:t.slots, note:t.note, claimants:srvClaimants, action:'', is_newbie_task:t.is_newbie_task||false, _srvId:t.id, _ntTaskId:t.id };
+    else { var keep=dup.claimants||[]; Object.assign(dup, { status:t.status, assignee:t.assignee, evidence:t.evidence, slots:t.slots, reviewer:t.reviewer, note:t.note, deadline:t.deadline, is_newbie_task:t.is_newbie_task||false, settler_id:t.settler_id, _srvId:t.id, _ntTaskId:t.id }); dup.claimants=_mergeClaimants(keep, t.assignees||[]); }
   });}
   if (data.journal) {
     AppData._data.journal = AppData._data.journal || [];
@@ -1193,7 +1193,7 @@ function enterVillage(){
 setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600)
 // 从 API 拉取其他用户的数据
 if(typeof API!=='undefined'&&API.token){
-  API.fetchTasks(function(tasks){if(tasks&&window.AppData){tasks.forEach(function(t){if(!AppData._data.tasks[t.id]){AppData._data.tasks[t.id]={name:t.title,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:''}}})}});
+  API.fetchTasks(function(tasks){if(tasks&&window.AppData){tasks.forEach(function(t){if(!AppData._data.tasks[t.id]){AppData._data.tasks[t.id]={name:t.title,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:'',is_newbie_task:t.is_newbie_task||false}}})}});
   API.fetchDiscoveries(function(discs){if(discs&&window.AppData){if(!AppData._data.cardDiscoveries)AppData._data.cardDiscoveries=[];discs.forEach(function(d){var exists=AppData._data.cardDiscoveries.find(function(x){return x.id===d.id});if(!exists){AppData._data.cardDiscoveries.push({id:d.id,spaceId:d.space_id,description:d.description,guesser:d.guesser,guessedPerson:d.guessed_person,status:d.status,ntGuesser:d.nt_guesser,ntDoer:d.nt_doer,createdAt:d.created_at})}})}});
 }
 }
