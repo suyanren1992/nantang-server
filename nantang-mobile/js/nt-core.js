@@ -65,6 +65,8 @@ function _loadState() {
   // HTTP 模式：不从 localStorage 加载旧数据，避免服务端数据被覆盖
   if (window.location.protocol !== 'file:') {
     try { localStorage.removeItem(NT_STORE_KEY); } catch(e) {}
+    // DB-P0-2: 标记需从服务端同步 NT 状态，core.js 初始化后触发
+    window._ntPendingSync = true;
     return;
   }
   try {
@@ -736,6 +738,45 @@ window.NT = {
     _processedTxIds={};  // FIX-06: 清空去重集合
     _seq = { task:0, ledger:0, settlement:0 };
     try { localStorage.removeItem(NT_STORE_KEY); } catch(e) {}
+  },
+  // DB-P0-2: 从服务端同步 NT 状态（复用 /api/data/sync_all，无需新端点）
+  _syncFromServer: function(callback) {
+    if (typeof API === 'undefined' || !API.token) {
+      window._ntPendingSync = true;  // API 未就绪，延迟
+      if (callback) callback(false);
+      return;
+    }
+    var self = this;
+    API.syncAll(function(data) {
+      if (!data || data.detail || data._offline || data.ok === false) {
+        window._ntPendingSync = true;  // 失败则保留标记，下次重试
+        if (callback) callback(false);
+        return;
+      }
+      // 用服务端数据填充本地 NT 状态
+      if (data.balance != null && CURRENT_USER) {
+        var u = self.getUser(CURRENT_USER);
+        if (u) {
+          u.ntBalance = data.balance || 0;
+          u.contributionValue = data.cv || 0;
+          u.experienceValue = data.xp || 0;
+          u.frozenBalance = data.frozen_balance || 0;
+        }
+      }
+      // 流水
+      if (data.ledger && data.ledger.length) {
+        LEDGER.length = 0;
+        data.ledger.forEach(function(e){ LEDGER.push(e); });
+      }
+      // 池余额
+      if (data.pool_balance != null) COMMUNITY_POOL = data.pool_balance;
+      // 调用已有的 merge 函数做完整数据合并（如果 core.js 已加载）
+      if (typeof _mergeNTSyncData === 'function') _mergeNTSyncData(data);
+      if (typeof _mergeSyncData === 'function') _mergeSyncData(data);
+      window._ntPendingSync = false;
+      if (typeof refreshUserUI === 'function') refreshUserUI();
+      if (callback) callback(true);
+    });
   },
   // 原始数据（调试用）
   _users: USERS,

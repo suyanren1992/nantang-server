@@ -1086,7 +1086,12 @@ function enterVillage(){
     setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600);
     if(typeof API!=='undefined'&&API.token){
       API.syncAll(function(data) {
-        if (data && !data.detail && !data._offline && data.ok !== false) _mergeSyncData(data);
+        if (data && !data.detail && !data._offline && data.ok !== false) {
+          _mergeSyncData(data);
+          // DB-P0-2: HTTP 模式 NT 状态同步——复用 syncAll 数据，消双轨制断裂
+          if (typeof _mergeNTSyncData === 'function') _mergeNTSyncData(data);
+          window._ntPendingSync = false;
+        }
       });
       // E 修复：拉取服务端用户列表补全本地 users 字典（在地人员/翻牌区依赖它，此前只读 localStorage 常为空）
       API.request('GET', '/api/auth/users').then(function(list){
