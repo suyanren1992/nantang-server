@@ -67,6 +67,8 @@ class User(Base):
     xp_by_category = Column(Text, nullable=True)           # ④ JSON {labor: xp, 厨房: xp, 田间: xp, ...}
     # ══ CLEAN-WEEKLY-BE ③: 连续周参与数 ══
     clean_weekly_streak = Column(Integer, default=0)
+    # ══ DB-P0-1: 用户活跃度治理（30 天未活跃 = 投票权失效）══
+    last_active_at = Column(Date, nullable=True)
     # ══ UI-FIX-P2-BE补 B7: 用户设置 ══
     user_settings = Column(Text, nullable=True)  # JSON: {notification, theme, language}
 

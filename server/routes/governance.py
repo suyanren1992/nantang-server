@@ -76,16 +76,15 @@ async def check_vote_right(db: AsyncSession, user: User) -> dict:
         return {"eligible": False, "reason": "无有效入住记录（Tenancy 已关闭）",
                 "checks": {"tenancy_active": False, "last_active": False, "presence": False}}
 
-    # ② last_active_at ≤ 30 天
-    last_active_ok = True
-    if active_tenancy.last_active_at:
+    # ② last_active_at ≤ 30 天（DB-P0-1: 改读 User.last_active_at，严格检查）
+    last_active_ok = False
+    if user.last_active_at:
         try:
-            last_active = datetime.fromisoformat(active_tenancy.last_active_at)
-            cutoff = datetime.utcnow() - timedelta(days=VOTE_INACTIVE_DAYS)
-            last_active_ok = last_active >= cutoff
+            days_since = (date.today() - user.last_active_at).days
+            last_active_ok = days_since <= VOTE_INACTIVE_DAYS
         except (ValueError, TypeError):
             last_active_ok = False  # 无法解析 = 不通过
-    # 若无 last_active_at 记录，默认通过（新入住尚未更新活跃时间）
+    # DB-P0-1: 无 last_active_at 记录 = 无活跃证据 = 严格不通过
 
     if not last_active_ok:
         return {"eligible": False, "reason": f"超过 {VOTE_INACTIVE_DAYS} 天未活跃",

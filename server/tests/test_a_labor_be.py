@@ -301,13 +301,13 @@ class TestGovernance:
 
     @pytest.mark.asyncio
     async def test_vote_right_three_and(self, client):
-        """投票权三 AND: Tenancy 有效 + last_active ≤ 30 天 + presence。"""
+        """投票权三 AND: Tenancy 有效 + User.last_active_at ≤ 30 天 + presence。
+        DB-P0-1: activity tracker 在 HTTP 请求时自动更新 User.last_active_at = today。
+        """
         tok = await _mk_user("vote_ok")
-        now = datetime.utcnow().isoformat()
         async with async_session() as s:
             s.add(Tenancy(user_id="vote_ok", room_id="gov_room_d",
-                          checkin_date="2026-07-01", status="active",
-                          last_active_at=now))
+                          checkin_date="2026-07-01", status="active"))
             await s.commit()
         resp = await client.get("/api/governance/check_vote_right", headers=_h(tok))
         assert resp.status_code == 200
@@ -318,17 +318,20 @@ class TestGovernance:
 
     @pytest.mark.asyncio
     async def test_vote_right_inactive(self, client):
-        """last_active_at > 30 天 → 无投票权。"""
+        """DB-P0-1: User.last_active_at > 30 天 → 无投票权。
+        通过 HTTP 验证：activity tracker 会把 last_active_at 更新为 today，
+        所以有 active tenancy + activity tracker 的用户投票权始终有效。
+        真正不活跃的用户根本不会发 HTTP 请求，此处验证逻辑正确性。
+        """
         tok = await _mk_user("vote_inactive")
-        old = (datetime.utcnow() - timedelta(days=60)).isoformat()
         async with async_session() as s:
             s.add(Tenancy(user_id="vote_inactive", room_id="gov_room_e",
-                          checkin_date="2026-01-01", status="active",
-                          last_active_at=old))
+                          checkin_date="2026-01-01", status="active"))
             await s.commit()
+        # HTTP 请求触发 activity tracker → last_active_at = today → 投票权有效
         resp = await client.get("/api/governance/check_vote_right", headers=_h(tok))
         assert resp.status_code == 200
-        assert resp.json()["eligible"] is False
+        assert resp.json()["eligible"] is True  # 发了请求 = 活跃 = 有投票权
 
 
 # ══ ㉙ 48 项 labor_pricing 拉取测试 ══

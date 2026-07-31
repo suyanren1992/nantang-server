@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, date
 from database import get_db
 from models import User, CommunityPool
 from auth_utils import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
@@ -57,6 +57,11 @@ async def get_current_user(authorization: str = Header(None), db: AsyncSession =
     if not u: raise HTTPException(status_code=401)
     if payload.get("version") != u.token_version:
         raise HTTPException(status_code=401)
+    # DB-P0-1: 活跃追踪——每请求更新 last_active_at（同日跳过，轻量写入）
+    _today = date.today()
+    if u.last_active_at != _today:
+        u.last_active_at = _today
+        await db.commit()
     return u
 
 
