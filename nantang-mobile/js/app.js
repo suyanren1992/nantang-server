@@ -262,6 +262,7 @@ function renderInfoPage() {
     function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
     function(){ return _s('cardVerifyRow', _renderCardVerifyRow()); },
     function(){ return _s('mgmtGrid', _renderMgmtCards()); },
+    function(){ return _s('statusPills', _renderStatusPills()); },
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
     function(){ return _s('covenantCard', _renderCovenantCard()); },
     function(){ return _s('poolCard', _renderPoolCard()); }
@@ -3309,6 +3310,53 @@ function _submitCleanEntry() {
   _undoToast('cleaning');
 }
 
+// D1+D2: 快捷表单——订餐/接龙等
+function _quickForm(type) {
+  var d = today();
+  if (type === '订餐') {
+    var menu = (window.AppData && AppData._data.canteenMenu || {})[d] || { lunch:[], dinner:[] };
+    var now = new Date(); var lunchExpired = now.getHours() >= 10; var dinnerExpired = now.getHours() >= 16;
+    var body = '<div style="font-size:var(--g-font-size);font-weight:700;margin-bottom:8px">📅 '+d+' 今日菜单</div>';
+    ['lunch','dinner'].forEach(function(meal){
+      var items = menu[meal] || [];
+      var expired = meal==='lunch'?lunchExpired:dinnerExpired;
+      var key = CURRENT_USER+'_'+d+'_'+meal;
+      var ordered = !!(window._mealOrders||{})[key];
+      body += '<div style="background:var(--g-card);border-radius:var(--g-radius);padding:var(--g-pad-sm);margin-bottom:6px;border:1px solid var(--g-card-border)">';
+      body += '<div style="font-weight:600;font-size:var(--g-font-size-xs);margin-bottom:4px">'+(meal==='lunch'?'☀️ 午餐':'🌙 晚餐')+' 10 NT</div>';
+      body += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:6px">'+(items.length?items.join(' · '):'暂无菜单')+'</div>';
+      if (ordered) { body += '<span style="font-size:var(--g-font-size-xs);color:var(--green-primary)">✅ 已预定</span>'; }
+      else if (expired) { body += '<span style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">已截止</span>'; }
+      else if (items.length) { body += '<button class="btn-sm pri" style="font-size:var(--g-font-size-xs);padding:4px 12px" onclick="if(typeof _orderMeal===\'function\')_orderMeal(\''+d+'\',\''+meal+'\')">🟢 预定</button>'; }
+      body += '</div>';
+    });
+    _openQuickSheet('🍽️ 订餐', body);
+  } else if (type === '接龙') {
+    // D2: 共享厨房接龙——物品/菜品接龙报名
+    var potluckItems = (window.AppData && AppData._data._potluckList) || [];
+    var body = '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:8px">🥘 谁带什么菜？</div>';
+    body += '<div style="margin-bottom:8px;display:flex;gap:4px"><input id="potluckItem" placeholder="菜名/物品名" style="flex:1;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff"><input id="potluckQty" type="number" value="1" min="1" style="width:50px;padding:6px 4px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff;text-align:center"></div>';
+    body += '<button class="btn-sm pri" style="width:100%;margin-bottom:10px;font-size:var(--g-font-size-xs);min-height:36px" onclick="_submitPotluck()">＋ 我要带这个</button>';
+    if (potluckItems.length) {
+      body += '<div style="font-weight:600;font-size:var(--g-font-size-xs);margin-bottom:4px">📋 已报名 ('+potluckItems.length+')</div>';
+      potluckItems.forEach(function(p){
+        body += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dotted #f0f0f0;font-size:var(--g-font-size-xs)"><span>🥬 '+esc(p.item)+' ×'+p.qty+'</span><span style="color:var(--g-text-dim)">'+esc(p.user)+'</span></div>';
+      });
+    } else { body += '<div style="text-align:center;color:var(--g-text-muted);font-size:var(--g-font-size-xs);padding:10px">还没有人报名</div>'; }
+    _openQuickSheet('🥘 共享接龙', body);
+  }
+}
+function _submitPotluck() {
+  var item = (document.getElementById('potluckItem')||{}).value.trim();
+  if (!item) { showToast('请输入菜名','warn'); return; }
+  var qty = parseInt((document.getElementById('potluckQty')||{}).value,10)||1;
+  if (!window.AppData) return;
+  AppData._data._potluckList = AppData._data._potluckList || [];
+  AppData._data._potluckList.push({ item:item, qty:qty, user:CURRENT_USER, time:new Date().toISOString() });
+  AppData._saveShared();
+  _closeQuickSheet();
+  showToast('✅ 已报名：'+item, 'ok');
+}
 // ── 撤销 + 通用 ──
 function _closeQuickSheet() {
   var sheet = document.querySelector('.quick-sheet');

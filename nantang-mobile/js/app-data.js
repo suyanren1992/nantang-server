@@ -55,6 +55,9 @@ window.AppData = {
     if (!this._data._xpByCategory) this._data._xpByCategory = {};
     if (!this._data._proposalRight) this._data._proposalRight = {eligible:false,daysNeeded:21};
     if (!this._data._voteRight) this._data._voteRight = {eligible:false,reason:''};
+    if (!this._data._potluckList) this._data._potluckList = [];       // D2: 共享厨房接龙
+    if (!this._data._announcements) this._data._announcements = [];    // D5: 公告通知
+    if (!this._data._proposals) this._data._proposals = [];            // D6: 营地提案
     if (!this._data._laborConfig) this._data._laborConfig = null;
     if (!this._data.activity_log) this._data.activity_log = [];
   },
@@ -243,7 +246,7 @@ window.AppData = {
     // B1: 延迟构建 data 对象——多次同步调用只写一次，批量省序列化开销
     var self = this;
     var doWrite = function() {
-      var data = { tasks: self._data.tasks, camps: self._data.camps, users: self._data.users, canteenMenu: self._data.canteenMenu, spaces: self._data.spaces, inventory: self._data.inventory, map_locations: self._data.map_locations, member_locations: self._data.member_locations, campRmb: self._data.campRmb, pendingTransactions: self._data.pendingTransactions, pendingVerifications: self._data.pendingVerifications, announcements: self._data.announcements, presence: self._data.presence, discoveries: self._data.discoveries, cardDiscoveries: self._data.cardDiscoveries, pendingConfigChanges: self._data.pendingConfigChanges, configHistory: self._data.configHistory, activity_log: self._data.activity_log, mealOrders: self._data.mealOrders, camp_memberships: self._data.camp_memberships, _lastAccommodationDeduction: self._data._lastAccommodationDeduction, _lastPoolRefill: self._data._lastPoolRefill };
+      var data = { tasks: self._data.tasks, camps: self._data.camps, users: self._data.users, canteenMenu: self._data.canteenMenu, spaces: self._data.spaces, inventory: self._data.inventory, map_locations: self._data.map_locations, member_locations: self._data.member_locations, campRmb: self._data.campRmb, pendingTransactions: self._data.pendingTransactions, pendingVerifications: self._data.pendingVerifications, announcements: self._data.announcements, presence: self._data.presence, discoveries: self._data.discoveries, cardDiscoveries: self._data.cardDiscoveries, pendingConfigChanges: self._data.pendingConfigChanges, configHistory: self._data.configHistory, activity_log: self._data.activity_log, mealOrders: self._data.mealOrders, camp_memberships: self._data.camp_memberships, _potluckList: self._data._potluckList, _announcements: self._data._announcements, _proposals: self._data._proposals, _lastAccommodationDeduction: self._data._lastAccommodationDeduction, _lastPoolRefill: self._data._lastPoolRefill };
       self._saveKey('nt_app_v2_shared', data);
     };
     if (immediate) { doWrite(); return; }
