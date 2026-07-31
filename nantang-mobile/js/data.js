@@ -496,8 +496,8 @@ function withdrawTask(name){
     // 有人领取但未提交 → 走申请撤回（P1-1 retract-request）
     requestWithdraw(encodeURIComponent(name));return;
   }
-  // 无人领 → 直接撤回到草稿箱（跳过确认，一次撤回）
-  var _done=function(){
+  // 无人领 → 确认后撤回到草稿箱（P3-一营丁·卡B: UI.Alert 通用块）
+  var _doRetract=function(){
     t.status='draft';t.action='edit';
     AppData.updateTask(name,{status:'draft',action:'edit'});
     showToast('已撤回到草稿箱','ok');
@@ -505,14 +505,25 @@ function withdrawTask(name){
   };
   var isOffline=(typeof API==='undefined'||!API.token);
   var srvId=t._srvId||t._ntTaskId;
-  if(!isOffline&&srvId){
-    API.request('POST','/api/tasks/'+srvId+'/retract').then(function(r){
-      if(r&&r.ok){_done();}else{showToast((r&&r.detail)||'撤回失败','error');}
-    }).catch(function(){showToast('网络错误，请重试','error')});
-    return;
-  }
-  if(t._ntTaskId&&window.NT){try{NT.cancelTask(t._ntTaskId,'发布者撤回');}catch(e){}}
-  _done();
+  UI.Alert.show({
+    type: 'warning',
+    title: '确认撤回',
+    message: '将撤回任务「'+name+'」到草稿箱。\n\n撤回后任务将从大厅移除。',
+    actions: [
+      {label: '取消', value: false, style: 'ghost'},
+      {label: '确认撤回', value: true, style: 'danger'}
+    ]
+  }).then(function(confirmed) {
+    if (!confirmed) return;
+    if(!isOffline&&srvId){
+      API.request('POST','/api/tasks/'+srvId+'/retract').then(function(r){
+        if(r&&r.ok){_doRetract();}else{showToast((r&&r.detail)||'撤回失败','error');}
+      }).catch(function(){showToast('网络错误，请重试','error')});
+      return;
+    }
+    if(t._ntTaskId&&window.NT){try{NT.cancelTask(t._ntTaskId,'发布者撤回');}catch(e){}}
+    _doRetract();
+  });
 }
 function requestWithdraw(name){
   name = decodeURIComponent(name);

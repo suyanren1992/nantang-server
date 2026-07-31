@@ -325,6 +325,14 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-body" id="cleanWeeklyBody" style="padding:10px 14px"></div>
 </div>
 
+<!-- ═══ D-SHARED-KITCHEN: 共享厨房 overlay ═══ -->
+<div id="overlayKitchen" class="overlay">
+  <div class="overlay-top">
+    <button class="overlay-close" onclick="closeOverlay('overlayKitchen')">✕</button>
+    <span class="overlay-title">🍳 共享厨房</span>
+  </div>
+  <div class="overlay-body" id="kitchenBody" style="padding:10px 14px"></div>
+</div>
 <!-- 创营仪式动画层 -->
 <div id="campCeremonyLayer" style="position:fixed;inset:0;z-index:300;background:#1a1f1a;display:none;flex-direction:column;align-items:center;justify-content:center">
   <div id="ceremonyContent"></div>
@@ -551,7 +559,7 @@ if (window.location.protocol !== 'file:') {
   <div class="sub-bar hidden" id="subBar"></div>
 </div>
 
-<script src="js/ui-primitives.js?v=3"></script>
+<script src="js/ui-primitives.js?v=4"></script>
 <script src="js/utils.js?v=9"></script>
 <script src="js/mobile-bundle.js?v=19"></script>
 <script src="js/nt.js?v=17"></script>
@@ -568,10 +576,10 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-phase4.js?v=15"></script>
 <script src="js/ui-social.js?v=21"></script>
 <script src="js/ui-archive.js?v=25"></script>
-<script src="js/ui-cardroom.js?v=20"></script>
+<script src="js/ui-cardroom.js?v=21"></script>
 <script src="js/ui-activity.js?v=2"></script>
 <script src="js/ui-accom.js?v=1"></script>
-<script src="js/app.js?v=55"></script>
+<script src="js/app.js?v=56"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};

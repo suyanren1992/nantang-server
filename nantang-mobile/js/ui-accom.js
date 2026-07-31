@@ -390,27 +390,38 @@ function _accomConfirmCheckout() {
   var days = Math.max(1, Math.ceil((new Date() - checkInDate) / 86400000) + 1);
   var totalNT = days * (r.pricePerBed || 20);
 
-  r.tenants.splice(idx, 1);
+  // P3-一营丁·卡B: UI.Alert 通用块——退房确认
+  UI.Alert.show({
+    type: 'warning',
+    title: '确认退房',
+    message: '退房后将结算住宿费并从 NT 余额扣除。\n\n📅 已住 '+days+' 天 · 💵 '+totalNT+' NT\n\n请确认个人物品已带走、垃圾已清理。',
+    actions: [
+      {label: '取消', value: false, style: 'ghost'},
+      {label: '确认退房', value: true, style: 'danger'}
+    ]
+  }).then(function(confirmed) {
+    if (!confirmed) return;
 
-  // NT 扣除
-  if (typeof NT !== 'undefined' && NT.transfer) {
-    NT.transfer(me, '__community_pool__', totalNT, '退房结算：'+r.label+' '+days+'天').catch(function(){});
-  }
+    r.tenants.splice(idx, 1);
 
-  if (window.AppData) AppData._saveShared(true);
-  if (typeof API !== 'undefined' && API.token) {
-    API.checkout().catch(function(){});
-  }
+    if (typeof NT !== 'undefined' && NT.transfer) {
+      NT.transfer(me, '__community_pool__', totalNT, '退房结算：'+r.label+' '+days+'天').catch(function(){});
+    }
 
-  // 校核闭环
-  if (typeof addVerification === 'function') {
-    window.AppData.addVerification('stay', me, '退房 '+r.label+' '+days+'天 '+totalNT+'NT', { room: r._id }, 0, 0);
-  }
+    if (window.AppData) AppData._saveShared(true);
+    if (typeof API !== 'undefined' && API.token) {
+      API.checkout().catch(function(){});
+    }
 
-  showToast('✅ 已退房 · '+totalNT+' NT 已结算', 'ok');
-  _accomState.mode = 'grid'; _accomState.sel = null;
-  renderAccomPage();
-  if (typeof refreshUserUI === 'function') refreshUserUI();
+    if (typeof addVerification === 'function') {
+      window.AppData.addVerification('stay', me, '退房 '+r.label+' '+days+'天 '+totalNT+'NT', { room: r._id }, 0, 0);
+    }
+
+    showToast('✅ 已退房 · '+totalNT+' NT 已结算', 'ok');
+    _accomState.mode = 'grid'; _accomState.sel = null;
+    renderAccomPage();
+    if (typeof refreshUserUI === 'function') refreshUserUI();
+  });
 }
 
 // ── 续住 ──

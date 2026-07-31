@@ -271,4 +271,100 @@
     return wrap;
   };
 
+  // ═══ ⑦ Alert — 通用确认/提示弹窗（Promise 式·一次定义全站复用）═══
+  // 用法：
+  //   UI.Alert.show({
+  //     type: 'warning' | 'error' | 'info' | 'success',
+  //     title: '确认校核',
+  //     message: '是否确认校核此任务？',
+  //     actions: [
+  //       {label:'取消', value:false, style:'ghost'},
+  //       {label:'确认', value:true,  style:'pri'}
+  //     ]
+  //   }).then(function(value) { if (value) { /* 确认逻辑 */ } });
+  var ALERT_ICONS = { warning:'⚠️', error:'❌', info:'ℹ️', success:'✅' };
+  var ALERT_COLORS = { warning:'var(--g-warn)', error:'var(--g-red)', info:'var(--g-accent)', success:'var(--g-green)' };
+  UI.Alert = {
+    show: function(opts) {
+      opts = opts || {};
+      return new Promise(function(resolve) {
+        var icon = ALERT_ICONS[opts.type] || '⚠️';
+        var color = ALERT_COLORS[opts.type] || 'var(--g-warn)';
+
+        // backdrop
+        var backdrop = _el('div', 'ui-alert-backdrop', {
+          style: 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.45);' +
+                 'display:flex;align-items:center;justify-content:center;' +
+                 'animation:fadeIn .15s ease-out'
+        });
+
+        // card
+        var card = _el('div', 'ui-alert-card', {
+          style: 'background:var(--g-card);border-radius:var(--g-radius);' +
+                 'box-shadow:var(--g-shadow);max-width:320px;width:calc(100vw - 48px);' +
+                 'overflow:hidden;animation:scaleIn .2s ease-out'
+        });
+
+        // header
+        var head = _el('div', 'ui-alert-head', {
+          style: 'padding:var(--g-pad);text-align:center;border-bottom:1px solid var(--g-card-border)'
+        });
+        head.innerHTML = '<div style="font-size:2rem;margin-bottom:6px">' + icon + '</div>' +
+          '<div style="font-weight:700;font-size:var(--g-font-size);color:' + color + '">' +
+            (opts.title || '') + '</div>';
+        card.appendChild(head);
+
+        // body
+        if (opts.message) {
+          var body = _el('div', 'ui-alert-body', {
+            style: 'padding:var(--g-pad);text-align:center;font-size:var(--g-font-size-sm);' +
+                   'color:var(--g-text-dim);line-height:1.6;white-space:pre-line'
+          });
+          body.textContent = opts.message;
+          card.appendChild(body);
+        }
+
+        // actions
+        var actions = opts.actions || [{label:'确定', value:true, style:'pri'}];
+        var btnWrap = _el('div', 'ui-alert-actions', {
+          style: 'padding:var(--g-pad-sm) var(--g-pad) var(--g-pad);' +
+                 'display:flex;gap:var(--g-gap);justify-content:center'
+        });
+
+        var btnStyles = {
+          pri:    'background:var(--g-accent);color:#fff;border:none',
+          danger: 'background:var(--g-red);color:#fff;border:none',
+          ghost:  'background:transparent;color:var(--g-text-dim);border:1px solid var(--g-card-border)',
+          sec:    'background:var(--g-content);color:var(--g-text);border:1px solid var(--g-card-border)'
+        };
+        var baseBtn = 'padding:8px 20px;border-radius:8px;font-size:var(--g-font-size-xs);' +
+                      'font-weight:600;cursor:pointer;min-width:80px;min-height:40px';
+
+        actions.forEach(function(a) {
+          var btn = _el('button', '', {
+            style: baseBtn + (btnStyles[a.style] || btnStyles.ghost)
+          });
+          btn.textContent = a.label;
+          btn.addEventListener('click', function() {
+            backdrop.remove();
+            resolve(a.value);
+          });
+          btnWrap.appendChild(btn);
+        });
+        card.appendChild(btnWrap);
+
+        // dismiss on backdrop click
+        backdrop.addEventListener('click', function(e) {
+          if (e.target === backdrop && opts.dismissible !== false) {
+            backdrop.remove();
+            resolve(undefined);
+          }
+        });
+
+        backdrop.appendChild(card);
+        document.body.appendChild(backdrop);
+      });
+    }
+  };
+
 })();
