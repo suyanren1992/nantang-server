@@ -1074,9 +1074,6 @@ function buildOverviewHTML(b) {
 
 function buildRoomDetail(room) {
   var body = '';
-  // ⑪ 教室/阅览室 Card 范式：学习空间用卡片包裹
-  var isStudy = room.id === 'farm_equipment' || room.id === 'studio';
-  if (isStudy) body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);margin-bottom:8px">';
 
   // ── L3: 物品列表（硬编码 + AppData room_items + 库存动态）──
   var allItems = (room.items || []).slice();
@@ -1156,7 +1153,6 @@ function buildRoomDetail(room) {
 
   // 快捷操作按钮
   if (room.id === 'kitchen') body += '<button class="btn-sm pri" style="width:100%;margin-top:4px;min-height:36px;font-size:.62rem" onclick="event.stopPropagation();_openKitchenQuick()">＋ 放入物品</button>';
-  if (isStudy) body += '</div>';
   body += '<button class="back-to-overview" onclick="closeRoom()">←返回建筑总览</button>';
   return body;
 }
