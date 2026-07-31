@@ -286,3 +286,9 @@ async def init_db():
         except Exception as e:
             logger.warning(f"[NEW-USER-TASK-BE] template seed skipped: {e}")
             await session.rollback()
+        # ══ DB-P1-3 ①: 删 camp_ledgers 孤儿表（零 API 读写，零数据行）══
+        try:
+            await session.execute(text("DROP TABLE IF EXISTS camp_ledgers"))
+            await session.commit()
+        except Exception:
+            await session.rollback()

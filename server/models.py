@@ -375,22 +375,6 @@ class CovenantSignature(Base):
     __table_args__ = (UniqueConstraint("user_id", "covenant_version", name="uq_covenant_user_version"),)
 
 
-# ══ A-LABOR-BE ⑦: 营地独立账本 ══
-class CampLedger(Base):
-    """营地多账本——每营独立行（camp_id, balance, escrow, status, multisig_address）。
-    替代 CommunityPool.camp_balance 单字段，支持多营地独立核算。"""
-    __tablename__ = "camp_ledgers"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    camp_id = Column(String, ForeignKey("camps.id"), nullable=False)
-    balance = Column(Integer, default=0)
-    escrow = Column(Integer, default=0)
-    status = Column(String, default="active")           # active | archived
-    multisig_address = Column(String, nullable=True)    # 营地多签钱包地址
-    created_at = Column(String, nullable=True)
-    updated_at = Column(String, nullable=True)
-    __table_args__ = (UniqueConstraint("camp_id", name="uq_camp_ledger"),)
-
-
 # ══ CLEAN-WEEKLY-BE: 大扫除周任务 ══
 CLEAN_WEEKLY_STATUSES = ("open", "claimed", "completed")
 
