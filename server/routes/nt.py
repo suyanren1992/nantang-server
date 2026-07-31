@@ -189,6 +189,9 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
         "my_escrow": my_escrow, "my_frozen": my_frozen,
         "my_accommodation_due": my_accommodation_due,
         "wallet_address": user.wallet_address,
+        # P1-#6/#10: 补 xp_by_category + clean_weekly_streak（监察报告：只写不返）
+        "xp_by_category": json.loads(user.xp_by_category) if user.xp_by_category else None,
+        "clean_weekly_streak": user.clean_weekly_streak or 0,
         "ledger": ledger, "tasks": tasks, "deposit_intents": deposit_intents,
         "task_statuses": TASK_STATUSES,
         # R6: 所有活跃入住记录（供客户端住宿面板同步）

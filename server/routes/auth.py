@@ -31,11 +31,17 @@ class ChangePasswordRequest(BaseModel):
 
 def _user_json(u, include_sensitive=False):
     # IA-2: 敏感字段（location/wallet_address）默认不返回；仅本人可见场景（login/refresh/me/register）传 True。
+    # P1-#6/#10: 补 xp_by_category + clean_weekly_streak（监察报告：只写不返）
+    import json as _json
+    _xp_raw = getattr(u, "xp_by_category", None)
+    _xp = _json.loads(_xp_raw) if _xp_raw else None
     d = {"name": u.id, "uid": u.id, "role": u.role, "nt_balance": u.nt_balance,
          "contribution_value": u.contribution_value, "experience_value": u.experience_value,
          "trust_score": u.trust_score, "trust_level": u.trust_level,
          "frozen_cv": u.frozen_cv, "avatar_seed": u.avatar_seed,
-         "bio": u.bio, "created_at": u.created_at}
+         "bio": u.bio, "created_at": u.created_at,
+         "xp_by_category": _xp,
+         "clean_weekly_streak": getattr(u, "clean_weekly_streak", 0) or 0}
     if include_sensitive:
         d["location"] = u.location
         d["wallet_address"] = u.wallet_address

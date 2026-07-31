@@ -102,11 +102,19 @@ async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = 
     for c, cnt in result.all():
         try: highlights = json.loads(c.highlights) if c.highlights else []
         except (json.JSONDecodeError, TypeError): highlights = []
+        # P1-#13: 补 budget/schedule/milestones（监察报告：只写不返）
+        try: budget = json.loads(c.budget) if c.budget else None
+        except (json.JSONDecodeError, TypeError): budget = None
+        try: schedule = json.loads(c.schedule) if c.schedule else None
+        except (json.JSONDecodeError, TypeError): schedule = None
+        try: milestones = json.loads(c.milestones) if c.milestones else None
+        except (json.JSONDecodeError, TypeError): milestones = None
         items.append({
             "id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
             "date": c.date, "status": c.status, "people": cnt or 0, "max": c.max,
             "location": c.location, "desc": c.desc,
             "highlights": highlights,
+            "budget": budget, "schedule": schedule, "milestones": milestones,
             "created_by": c.created_by, "launched_at": c.launched_at,
         })
     return items
@@ -312,9 +320,17 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
     done = [t for t in camp_tasks if t.status == "已结算"]
     builders_result = await db.execute(select(CampBuilder).where(CampBuilder.camp_id == camp_id))
     builders = list(builders_result.scalars())
+    # P1-#13: 补 budget/schedule/milestones（监察报告：只写不返）
+    try: budget = json.loads(camp.budget) if camp.budget else None
+    except (json.JSONDecodeError, TypeError): budget = None
+    try: schedule = json.loads(camp.schedule) if camp.schedule else None
+    except (json.JSONDecodeError, TypeError): schedule = None
+    try: milestones = json.loads(camp.milestones) if camp.milestones else None
+    except (json.JSONDecodeError, TypeError): milestones = None
     return {
         "camp": {"id": camp.id, "name": camp.name, "theme": camp.theme, "date": camp.date,
-                 "status": camp.status, "people": await _camp_people_count(db, camp_id), "location": camp.location},
+                 "status": camp.status, "people": await _camp_people_count(db, camp_id), "location": camp.location,
+                 "budget": budget, "schedule": schedule, "milestones": milestones},
         "stats": {"total_tasks": len(camp_tasks), "done_tasks": len(done),
                   "pct": round(len(done) / max(1, len(camp_tasks)) * 100),
                   "total_nt": sum(t.reward for t in done)},

@@ -54,7 +54,7 @@ class User(Base):
     experience_value = Column(Integer, default=0)
     trust_score = Column(Integer, default=100)
     trust_level = Column(String, default="可信")
-    frozen_cv = Column(Integer, default=0)
+    frozen_cv = Column(Integer, default=0)  # P1-#10: 已返回但零写路径，CV 冻结逻辑未落地（新人任务制 P2）
     wallet_address = Column(String, nullable=True)
     bio = Column(String, nullable=True)
     location = Column(String, nullable=True)
@@ -149,8 +149,9 @@ class Camp(Base):
     __tablename__ = "camps"
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
-    season = Column(String, nullable=True)
-    type = Column(String, nullable=True)
+    # P1-#12 死字段标记：season/type 从未写入，设计意图未落地，待后续卡激活或清理
+    season = Column(String, nullable=True)   # 🔴 死字段：零写路径
+    type = Column(String, nullable=True)     # 🔴 死字段：零写路径
     theme = Column(String, nullable=True)
     desc = Column(Text, nullable=True)
     emoji = Column(String, default="🏕️")
@@ -230,8 +231,9 @@ class CardDiscovery(Base):
     nt_doer = Column(Integer, default=10)
     doer_confirmed_at = Column(String, nullable=True)
     doer_denied_at = Column(String, nullable=True)
-    expired_at = Column(String, nullable=True)
-    doer_name_snapshot = Column(String(64), nullable=True)  # doer 名字快照（防用户注销后丢失）
+    # P1-#11 死字段标记：expired_at/doer_name_snapshot 从未写入，过期逻辑和注销保护未落地
+    expired_at = Column(String, nullable=True)   # 🔴 死字段：过期逻辑未实现
+    doer_name_snapshot = Column(String(64), nullable=True)  # 🔴 死字段：注销保护未实现
     created_at = Column(String, nullable=True)
 
 
