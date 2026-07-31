@@ -82,6 +82,17 @@ async def init_db():
             "ON new_user_task_templates(target_role, display_order)"))
         await conn.execute(text(
             "CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_newbie ON nt_tasks(is_newbie_task)"))
+        # ══ DB-P1-3 ②: 10 缺失索引（v2 报告附录 A）══
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_type_status ON nt_ledger(type, status)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_created_at ON nt_ledger(created_at)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_verifier ON verifications(verifier)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_builders_camp_id ON camp_builders(camp_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_canteen_menu_date ON canteen_menu(date)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_meal_orders_user ON meal_orders(user)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_week_start ON clean_weekly_tasks(week_start_date)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_claimed_by ON clean_weekly_tasks(claimed_by)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_dist_week_start ON clean_weekly_distributions(week_start_date)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_track ON tenancies(track)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错
