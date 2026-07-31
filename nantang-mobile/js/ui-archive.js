@@ -456,20 +456,22 @@ function toggleArchiveExpand(){
   var countEl=document.getElementById('archiveCountText');if(countEl)countEl.textContent='登记'+total+'人 · 任务'+taskCount+' · 日志'+logCount;
   // SM-3.1: 时间线从社区副本迁入个人归档展开区
   // W6-UI BUG-2: 统一时间线字号 .72rem，避免 myPage 继承链差异导致字体忽大忽小
-  var tl = _renderTimelineHTML();
+  var tl = _renderTimelineHTML(CURRENT_USER);
   ex.innerHTML='<div style="font-size:.72rem;color:#5a6e5c;line-height:1.8;margin-bottom:10px">'+
     '<div>👤 <b>注册成员</b> — '+total+' 位</div>'+
     '<div>📋 <b>社区任务</b> — '+taskCount+' 个</div>'+
     '<div>📜 <b>运行日志</b> — '+logCount+' 条</div>'+
     '<div>📦 <b>物品</b> — '+itemCount+' 件登记</div>'+
     '</div>'+
-    (tl ? '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px;font-size:.72rem"><div style="font-weight:700;color:#5a6e5c;margin-bottom:6px">📜 我的时间线</div>'+tl+'</div>' : '')+
-    '<div style="text-align:center;padding:8px;background:var(--green-primary);color:#fff;border-radius:8px;font-size:.7rem;font-weight:600;cursor:pointer;margin-top:8px" onclick="openArchive(\'log\')">📚 打开档案室 →</div>';
+    (tl ? '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px;font-size:.72rem"><div style="font-weight:700;color:#5a6e5c;margin-bottom:6px">📜 我的时间线</div>'+tl+'</div>' : '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px;font-size:.72rem;color:#999;text-align:center">📜 暂无个人记录</div>')+
+    '<div style="display:flex;gap:6px;margin-top:8px"><button class="btn-sm pri" style="flex:1;font-size:.65rem;min-height:36px" onclick="openArchive(\'log\')">📚 档案室</button><button class="btn-sm sec" style="flex:1;font-size:.65rem;min-height:36px" onclick="if(typeof _fetchArchiveFromAPI===\'function\')_fetchArchiveFromAPI();toggleArchiveExpand()">🔄 刷新</button></div>';
 }
 
-// SM-3.1: renderTimeline 本体抽成纯 HTML 生成器（不操作 DOM），供社区/个人两处复用
-function _renderTimelineHTML() {
+// SM-3.1 + F1: 我的时间线（仅当前用户 journal），供个人工作台用
+function _renderTimelineHTML(userFilter) {
   var journal = (window.AppData && AppData._data.journal) ? AppData._data.journal : [];
+  // F1: 个人工作台默认过滤当前用户（我的时间线），全貌页传 null 显示全部
+  if (userFilter) { journal = journal.filter(function(j){ return j.user === userFilter; }); }
   if (!journal.length) return '';
   var h = '';
   journal.slice(0, 15).forEach(function(j) {
@@ -485,4 +487,21 @@ function _renderTimelineHTML() {
     '</div>';
   });
   return h;
+}
+// F1: 从 API 拉取归档数据并合并到本地 journal
+function _fetchArchiveFromAPI() {
+  if (typeof API === 'undefined' || !API.token) { showToast('离线模式，无法刷新档案', 'warn'); return; }
+  API.getArchiveItems('').then(function(r) {
+    if (r && r.ok && r.items) {
+      r.items.forEach(function(item) {
+        var exists = (window.AppData && AppData._data.journal || []).find(function(j){ return j.id === item.id; });
+        if (!exists && window.AppData) {
+          AppData._data.journal = AppData._data.journal || [];
+          AppData._data.journal.unshift({ id: item.id, user: item.author || '?', content: item.title || '', type: 'daily', date: (item.created_at||'').slice(0,10), time: (item.created_at||'').slice(11,16) });
+          if (AppData._data.journal.length > 500) AppData._data.journal.length = 500;
+        }
+      });
+      showToast('档案已刷新', 'ok');
+    }
+  }).catch(function(){ showToast('网络错误', 'error'); });
 }
