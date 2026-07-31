@@ -1835,7 +1835,6 @@ function renderCleanWeekly() {
 function _renderCleanAdmin(el, r) {
   var tasks = r.tasks || [];
   var spaces = getBuildings().filter(function(b){ return b.floors && Object.keys(b.floors).length > 0; });
-  // 收集所有可打扫空间
   var allSpaces = [];
   spaces.forEach(function(b) {
     Object.keys(b.floors).forEach(function(f) {
@@ -1844,9 +1843,7 @@ function _renderCleanAdmin(el, r) {
   });
   if (!allSpaces.length) { el.innerHTML = '<div style="text-align:center;padding:40px">无可用空间</div>'; return; }
   var h = '';
-  if (tasks.length) {
-    h += '<div style="background:#e8f5e9;border-radius:var(--g-radius);padding:var(--g-pad-sm);margin-bottom:10px;font-size:var(--g-font-size-xs);color:#3d6b52">✅ 本周已发放 '+tasks.length+' 个任务 · 周 '+r.week+'</div>';
-  }
+  if (tasks.length) { h += '<div style="background:#e8f5e9;border-radius:var(--g-radius);padding:var(--g-pad-sm);margin-bottom:10px;font-size:var(--g-font-size-xs);color:#3d6b52">✅ 本周已发放 '+tasks.length+' 个任务 · 周 '+r.week+'</div>'; }
   h += '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:8px">🧹 管理员 · 发放大扫除任务</div>';
   h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:8px">勾选空间（3-6个）→ 选择模式 → 发放</div>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px;max-height:200px;overflow-y:auto">';
@@ -1859,6 +1856,32 @@ function _renderCleanAdmin(el, r) {
   h += '<label style="cursor:pointer"><input type="radio" name="cwsMode" value="by_count"> 按人数</label>';
   h += '</div>';
   h += '<button class="btn-sm pri" style="width:100%;font-size:var(--g-font-size-xs);min-height:44px" onclick="_doDistribute()">📤 发放任务</button>';
+  // A-CLEAN-WEEKLY-FIX: 管理员发完任务后也能自己选一个位置去打扫
+  if (tasks.length) {
+    h += '<div style="border-top:2px solid var(--g-card-border);margin-top:12px;padding-top:10px">';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:6px">🧹 我也要打扫 —— 选一个位置</div>';
+    var myClaimed = tasks.find(function(t){ return t.claimed_by === CURRENT_USER; });
+    h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px">';
+    tasks.forEach(function(t){
+      var isMine = t.claimed_by === CURRENT_USER;
+      var isOpen = t.status === 'open';
+      var isLocked = t.status === 'claimed' && !isMine;
+      var cardBg = isMine ? '#e8f5e9' : isOpen ? '#fffdf9' : '#f8f8f8';
+      var cardBorder = isMine ? 'var(--green-primary)' : isOpen ? '#c8c0b0' : '#e0e0e0';
+      h += '<div id="cwt_'+t.id+'" class="ui-card" style="background:'+cardBg+';border:2px solid '+cardBorder+';border-radius:var(--g-radius);padding:var(--g-pad-sm);text-align:center">';
+      h += '<div style="font-size:1.8rem;line-height:1">🧹</div>';
+      h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);margin:4px 0">'+esc(t.space_name)+'</div>';
+      h += '<div style="font-size:.5rem;color:#8a6a20">+'+(t.reward_nt||15)+' NT</div>';
+      h += '<div class="cwt-status" style="font-size:.55rem;margin:4px 0">'+_cleanStatusText(t)+'</div>';
+      if (isOpen) {
+        h += '<button class="btn-sm pri" style="width:100%;font-size:.55rem;padding:4px;margin-top:2px" onclick="event.stopPropagation();_doCleanClaim(\''+t.id+'\')">🧹 选择</button>';
+      } else if (isMine) {
+        h += '<div style="display:flex;gap:3px;margin-top:2px"><button class="btn-sm sec" style="flex:1;font-size:.5rem;padding:3px" onclick="event.stopPropagation();_doCleanUnclaim(\''+t.id+'\')">取消</button><button class="btn-sm pri" style="flex:1;font-size:.5rem;padding:3px" onclick="event.stopPropagation();_doCleanSubmit(\''+t.id+'\')">✅ 提交</button></div>';
+      }
+      h += '</div>';
+    });
+    h += '</div></div>';
+  }
   el.innerHTML = h;
 }
 function _doDistribute() {
