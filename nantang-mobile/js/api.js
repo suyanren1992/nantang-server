@@ -241,9 +241,17 @@ var API = {
   devSeed: function() { return this.request('POST', '/api/admin/dev-seed'); },
 	  // ── P1-#6 offline stub helper ──
 	  _offlineOk: function() { return {ok:true, _offline:true, items:[], hint:'离线模式'}; },
-  // ── P1-#6 ③ potluck 共享厨房接龙 ──
-  getPotluckList: function() { return this.request('GET', '/api/potluck/list').catch(API._offlineOk); },
-  joinPotluck: function(data) { return this.request('POST', '/api/potluck/join', data).catch(API._offlineOk); },
+  // ── D-KITCHEN: 共享厨房 10 端点 ──
+  getPotluckList: function() { return this.request('GET', '/api/kitchen/potluck/list').catch(API._offlineOk); },
+  joinPotluck: function(eventId) { return this.request('POST', '/api/kitchen/potluck/join', {event_id: eventId}).catch(API._offlineOk); },
+  createPotluck: function(data) { return this.request('POST', '/api/kitchen/potluck/create', data).catch(API._offlineOk); },
+  getKitchenSlots: function(date) { return this.request('GET', '/api/kitchen/slots/list' + (date ? '?date=' + encodeURIComponent(date) : '')).catch(API._offlineOk); },
+  bookKitchenSlot: function(data) { return this.request('POST', '/api/kitchen/slots/book', data).catch(API._offlineOk); },
+  releaseKitchenSlot: function(slotId) { return this.request('POST', '/api/kitchen/slots/release', {slot_id: slotId}).catch(API._offlineOk); },
+  getKitchenItems: function(category) { return this.request('GET', '/api/kitchen/items/list' + (category ? '?category=' + encodeURIComponent(category) : '')).catch(API._offlineOk); },
+  addKitchenItem: function(data) { return this.request('POST', '/api/kitchen/items/add', data).catch(API._offlineOk); },
+  takeKitchenItem: function(data) { return this.request('POST', '/api/kitchen/items/take', data).catch(API._offlineOk); },
+  removeKitchenItem: function(id) { return this.request('DELETE', '/api/kitchen/items/' + encodeURIComponent(id)).catch(API._offlineOk); },
   // ── P1-#6 ⑤⑥⑦ proposals 议事厅提案 ──
   getProposalsList: function() { return this.request('GET', '/api/proposals/list').catch(API._offlineOk); },
   submitProposal: function(data) { return this.request('POST', '/api/proposals/submit', data).catch(API._offlineOk); },
