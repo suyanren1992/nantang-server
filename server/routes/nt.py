@@ -1119,7 +1119,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
         db.add(jentry)
         await db.commit()
     except Exception:
-        pass  # 归档失败不阻塞校核
+        logger.warning("archive claim write failed for vfy %s", vfy.id, exc_info=True)
     # ══ CLEAN-WEEKLY-BE ⑨: 校核通过后自动完成周任务 ══
     if vfy.type == "clean_weekly":
         try:
@@ -1139,7 +1139,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
                         doer.clean_weekly_streak = (doer.clean_weekly_streak or 0) + 1
                     await db.commit()
         except Exception:
-            pass  # 周任务状态更新失败不阻塞校核
+            logger.warning("clean_weekly task completion failed for vfy %s", vfy.id, exc_info=True)
     # ══ NEW-USER-TASK-BE: 校核通过后标记新人任务待结算 ══
     if vfy.type == "newbie_task":
         try:
@@ -1157,7 +1157,7 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
                     nt_task.verified_at = datetime.utcnow().isoformat()
                     await db.commit()
         except Exception:
-            pass  # 新人任务状态更新失败不阻塞校核
+            logger.warning("newbie_task status update failed for vfy %s", vfy.id, exc_info=True)
     return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
             "verifier_balance": user.nt_balance}
 
