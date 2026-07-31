@@ -184,7 +184,7 @@ function _renderAccomDetail(parent) {
       ' style="flex:1;text-align:center;padding:10px 4px;border-radius:8px;cursor:pointer;min-width:44px;'+
       (taken&&!isMine?'opacity:.4;cursor:default;pointer-events:none;':'')+
       '">'+
-      '<div style="font-size:1.2rem">'+isMine?'🛏️':taken?'🛏️':'🛏️'}'+'</div>'+
+      '<div style="font-size:1.2rem">'+(isMine?'🛏️':taken?'🛏️':'🛏️')+'</div>'+
       '<div style="font-size:.55rem;font-weight:600">床'+b+'</div>'+
       '<div style="font-size:.48rem;color:#999">'+label+'</div>'+
     '</div>';

@@ -267,7 +267,8 @@ window.AppData = {
       };
       API.request('POST', '/api/data/sync_shared', payload);
     }
-    this._timerS = setTimeout(doWrite, 200);
+    }
+    self._timerS = setTimeout(doWrite, 200);
   },
   _savePrivate: function(immediate) {
     if (!this._currentUser) return;

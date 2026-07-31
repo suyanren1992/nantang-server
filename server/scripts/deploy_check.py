@@ -179,7 +179,8 @@ def check_js_syntax():
             print(f"  {YEL}! JS 路径不存在: {clean} (index.html 引用){RST}")
             continue
         r = subprocess.run(["node", "--check", str(js_path)],
-                           capture_output=True, text=True, timeout=30)
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=30)
         if r.returncode != 0:
             err = (r.stderr.strip() or r.stdout.strip() or "语法错误")
             brief = err.split("\n")[0] if "\n" in err else err
@@ -268,7 +269,7 @@ def _extract_be_routes():
         prefixes = {}
         for pm in re.finditer(r"(\w+)\s*=\s*APIRouter\(\s*prefix=[\'\"]([^\'\"]*)[\'\"]", txt):
             prefixes[pm.group(1)] = pm.group(2)
-        for dm in re.finditer(r"@(\w+)\.(get|post|put|delete)\(\s*[\'\"]([^\'\"]*)[\'\"]", txt):
+        for dm in re.finditer(r"@(\w+)\.(get|post|put|delete|patch)\(\s*[\'\"]([^\'\"]*)[\'\"]", txt):
             var, method, sub = dm.group(1), dm.group(2), dm.group(3)
             full = prefixes.get(var, "") + sub
             full = re.sub(r"\{[^}]+\}", "{}", full)
