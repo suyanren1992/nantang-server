@@ -72,7 +72,7 @@ function renderActivityHub() {
   });
 }
 
-// ═══ 营地子页：4 卡片 + 提案区 ═══
+// ═══ 营地子页：3 卡片 + 提案区 ═══
 function openCampSubPage() {
   _activityHubMode = 'camp';
   var el = document.getElementById('activityHubBody');
@@ -89,7 +89,7 @@ function openCampSubPage() {
   if (!activeCamps.length) {
     h += UI.EmptyState({ icon: '🏕️', title: '暂无活跃营地', hint: '等待管理员创建第一个共创营队' }).outerHTML;
   } else {
-    // 每个活跃营地一张总览卡 + 4 子卡片
+    // 每个活跃营地一张总览卡 + 3 子卡片
     activeCamps.forEach(function(c) {
       h += '<div style="background:var(--g-card);border:1px solid var(--green-primary);border-radius:var(--g-radius);padding:12px;margin-bottom:10px">';
       h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
@@ -99,14 +99,13 @@ function openCampSubPage() {
         '<button class="btn-sm pri" style="font-size:.58rem;padding:4px 10px" onclick="event.stopPropagation();closeOverlay(\'overlayActivityHub\');openCampHome(\''+c.id+'\')">进入 ▸</button>'+
       '</div>';
 
-      // 4 子卡片
+      // 3 子卡片（D2: 删田间断掉伪需求，砚仁原话「共享厨房接龙」已修）
       var subCards = [
         { icon:'📋', label:'子活动', desc:'营地日程与活动', tab:'schedule' },
-        { icon:'📦', label:'物资',   desc:'物资清单',      tab:'funds' },
         { icon:'💰', label:'账本',   desc:'资金流水',      tab:'funds' },
         { icon:'🧾', label:'分账',   desc:'结算分账',      tab:'settle' },
       ];
-      h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
       subCards.forEach(function(sc) {
         h += '<div class="ah-sub-card" style="background:var(--g-content);border:1px solid #e0e0e0;border-radius:8px;padding:8px 6px;text-align:center;cursor:pointer"'+
           ' onclick="event.stopPropagation();closeOverlay(\'overlayActivityHub\');openCampHome(\''+c.id+'\');setTimeout(function(){switchCampTab(\''+sc.tab+'\')},300)">'+
