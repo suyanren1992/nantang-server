@@ -435,7 +435,7 @@ function _renderVerifyTab() {
       filtered.forEach(function(v){ h += _renderVerifyCard(v, false); });
       h += '</div>';
     } else {
-      h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);text-align:center;padding:30px;color:#aaa;font-size:var(--g-font-size-sm)">📋 暂无此类记录</div>';
+      h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);text-align:center;padding:30px;color:var(--g-text-muted);font-size:var(--g-font-size-sm)">📋 暂无此类记录</div>';
     }
   }
 
@@ -564,7 +564,7 @@ function _openVerifyDetail(vfyId) {
   h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">💰 奖励</span><span style="font-size:var(--g-font-size-xs);font-weight:700;color:#8a6a20">+'+ntAmt+' NT</span></div>';
   h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">📋 状态</span><span style="font-size:.6rem">'+stLabel+'</span></div>';
   if (v.verifier) h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">👤 验证人</span><span style="font-size:.6rem">'+esc(v.verifier)+'</span></div>';
-  h += '<div style="font-size:.5rem;color:#aaa;margin-top:4px">'+(v.createdAt||'').slice(0,16).replace('T',' ')+'</div>';
+  h += '<div style="font-size:.5rem;color:var(--g-text-muted);margin-top:4px">'+(v.createdAt||'').slice(0,16).replace('T',' ')+'</div>';
   h += '</div>';
   h += '<div style="padding:0 16px 16px">';
   if (v.status === 'pending' && isOnsite) {
@@ -642,7 +642,7 @@ function renderCardRoom() {
   if (kw) { kw = kw.trim().toLowerCase(); show = show.filter(function(d){ return (d.spaceName||'').toLowerCase().indexOf(kw)!==-1 || (d.actionLabel||'').toLowerCase().indexOf(kw)!==-1; }); }
 
   if (!show.length) {
-    h += '<div style="text-align:center;padding:30px;color:#aaa;font-size:.7rem">🃏 暂无此分类的牌</div>';
+    h += '<div style="text-align:center;padding:30px;color:var(--g-text-muted);font-size:.7rem">🃏 暂无此分类的牌</div>';
   } else {
     // ── 4 列扑克牌网格 ──
     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-bottom:12px">';
@@ -809,7 +809,7 @@ function _renderStep1() {
   var rooms = _getRoomsForBuilding(activeBld);
   h += '<div style="max-height:260px;overflow-y:auto;margin-bottom:10px;-webkit-overflow-scrolling:touch">';
   if (!rooms.length) {
-    h += '<div style="text-align:center;color:#aaa;padding:20px;font-size:var(--g-font-size-xs)">暂无空间数据</div>';
+    h += '<div style="text-align:center;color:var(--g-text-muted);padding:20px;font-size:var(--g-font-size-xs)">暂无空间数据</div>';
   } else {
     h += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
     rooms.forEach(function(s) {
@@ -879,7 +879,7 @@ function _renderStep2() {
 
   if (!actions.length && d.filterCat) {
     // 该空间没有此分类的劳动，引导用户选"其他"
-    h += '<div style="text-align:center;color:#aaa;padding:20px;font-size:var(--g-font-size-xs)">此空间暂无该分类的劳动项<br><span style="font-size:.55rem">尝试其他分类或使用「其他劳动」</span></div>';
+    h += '<div style="text-align:center;color:var(--g-text-muted);padding:20px;font-size:var(--g-font-size-xs)">此空间暂无该分类的劳动项<br><span style="font-size:.55rem">尝试其他分类或使用「其他劳动」</span></div>';
   } else {
     h += '<div style="max-height:240px;overflow-y:auto;margin-bottom:10px;-webkit-overflow-scrolling:touch">';
     actions.forEach(function(item) {
@@ -956,7 +956,7 @@ function _renderStep3() {
   var users = typeof getUsers === 'function' ? getUsers() : {};
   var names = Object.keys(users);
   if (!names.length) {
-    h += '<div style="color:#aaa;text-align:center;padding:20px；font-size:.7rem">暂无用户</div>';
+    h += '<div style="color:var(--g-text-muted);text-align:center;padding:20px;font-size:.7rem">暂无用户</div>';
   } else {
     h += '<div style="max-height:180px;overflow-y:auto;margin-bottom:10px">';
     names.forEach(function(name) {
@@ -967,7 +967,7 @@ function _renderStep3() {
       var avi = typeof avatarURL === 'function' ? avatarURL(seed, 32) : '';
       h += '<div onclick="_submitDiscGuess(\''+encodeURIComponent(name)+'\')" style="padding:10px 12px;margin:3px 0;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.72rem;display:flex;align-items:center;gap:8px">';
       if (avi) h += '<img src="'+avi+'" width="32" height="32" style="border-radius:50%;object-fit:cover" onerror="this.style.display=\'none\'">';
-      h += '<span style="flex:1">'+ri+' '+esc(name)+'</span><span style="color:#aaa">→</span>';
+      h += '<span style="flex:1">'+ri+' '+esc(name)+'</span><span style="color:var(--g-text-muted)">→</span>';
       h += '</div>';
     });
     h += '</div>';
@@ -1011,7 +1011,7 @@ function _formShell(title, step) {
     '<div style="position:sticky;top:0;z-index:2;background:#fff;padding:14px 16px 8px;border-bottom:1px solid #f0f0f0">'+
     '<div style="display:flex;justify-content:space-between;align-items:center">'+
     '<span style="font-weight:700;font-size:.82rem">'+title+'</span>'+
-    '<span style="font-size:.55rem;color:#aaa;background:#f0f0f0;padding:2px 8px;border-radius:10px">'+step+'</span>'+
+    '<span style="font-size:.55rem;color:var(--g-text-muted);background:#f0f0f0;padding:2px 8px;border-radius:10px">'+step+'</span>'+
     '</div></div><div style="padding:12px 16px">';
 }
 
@@ -1213,7 +1213,7 @@ function openDiscoveryDetail(discId) {
 
   // 详情
   h += '<div style="margin:0 16px 10px;background:#fafaf6;border-radius:12px;padding:12px">';
-  var stColor = d.status==='confirmed'?'#5d8c52':(d.status==='expired'?'#aaa':'#c8892e');
+  var stColor = d.status==='confirmed'?'#5d8c52':(d.status==='expired'?'var(--g-text-muted)':'#c8892e');
   var stText = d.status==='confirmed'?'✅ 已揭晓':(d.status==='expired'?'⏰ 已过期':'⏳ 待揭晓');
   h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
   h += '<span style="font-size:.62rem;color:#5a6e5c">🔍 '+esc(d.guesser||'')+' 发现</span>';
@@ -1226,7 +1226,7 @@ function openDiscoveryDetail(discId) {
     var winners = (d.guesses||[]).filter(function(g){ return g.guessedPerson === d.guessedPerson; });
     if (winners.length) h += '<div style="font-size:.58rem;color:#5a6e5c">🏆 猜中: '+winners.map(function(g){return g.name;}).join('、')+' (+1 NT)</div>';
     var losers = (d.guesses||[]).filter(function(g){ return g.guessedPerson !== d.guessedPerson; });
-    if (losers.length) h += '<div style="font-size:.55rem;color:#999">猜错: '+losers.map(function(g){return g.name;}).join('、')+' (-0.1 NT)</div>';
+    if (losers.length) h += '<div style="font-size:.55rem;color:var(--g-text-muted)">猜错: '+losers.map(function(g){return g.name;}).join('、')+' (-0.1 NT)</div>';
   } else if (d.status === 'pending') {
     h += '<div style="font-size:.6rem;color:#5a6e5c;margin-bottom:4px">🎯 首发猜测：'+esc(d.guessedPerson||'')+'</div>';
     h += '<div style="font-size:.58rem;color:#5a6e5c">👤 '+guessCount+' 人已猜 · 每人限猜 1 次</div>';
@@ -1236,7 +1236,7 @@ function openDiscoveryDetail(discId) {
     });
   }
   h += '<div style="font-size:.55rem;color:#5a6e5c;margin-top:4px">💰 猜对 +1 NT · 做事者 +'+d.ntDoer+' NT · 猜错 -0.1 NT</div>';
-  h += '<div style="font-size:.5rem;color:#aaa;margin-top:4px">'+d.createdAt.slice(0,16).replace('T',' ')+'</div>';
+  h += '<div style="font-size:.5rem;color:var(--g-text-muted);margin-top:4px">'+d.createdAt.slice(0,16).replace('T',' ')+'</div>';
   h += '</div>';
 
   // 操作区

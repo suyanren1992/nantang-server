@@ -148,15 +148,15 @@ var API = {
   checkout: function() { return this.request('POST', '/api/accommodation/checkout'); },
   accommodationStatus: function() { return this.request('GET', '/api/accommodation/status'); },  // G-3 记账/欠费状态
   // ── B2/B3/B4: Storage 储物 ──
-  addItemStorage: function(data) { return this.request('POST', '/storage/items', data); },
-  getStorage: function() { return this.request('GET', '/storage/items'); },
-  removeItemStorage: function(id) { return this.request('DELETE', '/storage/items/' + encodeURIComponent(id)); },
+  addItemStorage: function(data) { return this.request('POST', '/api/storage/items', data); },
+  getStorage: function() { return this.request('GET', '/api/storage/items'); },
+  removeItemStorage: function(id) { return this.request('DELETE', '/api/storage/items/' + encodeURIComponent(id)); },
   // ── C-B-3: 营地报到（幂等）──
   campCheckin: function(campId) { return this.request('POST', '/api/camps/' + encodeURIComponent(campId) + '/checkin'); },
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
   archiveSummary: function(userId) { return this.request('GET', '/api/data/archive_summary/' + encodeURIComponent(userId)); },  // ZX-4 F12 个人沉淀公开计数
   // ── B5补: Archive 档案 ──
-  getArchiveItems: function(category) { return this.request('GET', '/archive/items' + (category ? '?category=' + encodeURIComponent(category) : '')); },
+  getArchiveItems: function(category) { return this.request('GET', '/api/archive/items' + (category ? '?category=' + encodeURIComponent(category) : '')); },
   // ── B6补: Fields 田地 ──
   getFields: function() { return this.request('GET', '/api/fields'); },
   getFieldPlot: function(id) { return this.request('GET', '/api/fields/' + encodeURIComponent(id)); },
@@ -164,8 +164,8 @@ var API = {
   waterFieldPlot: function(id) { return this.request('POST', '/api/fields/' + encodeURIComponent(id) + '/water'); },
   fertilizeFieldPlot: function(id) { return this.request('POST', '/api/fields/' + encodeURIComponent(id) + '/fertilize'); },
   // ── B7补: Settings 用户设置 ──
-  getUserSettings: function() { return this.request('GET', '/users/me/settings'); },
-  patchUserSettings: function(data) { return this.request('PATCH', '/users/me/settings', data); },
+  getUserSettings: function() { return this.request('GET', '/api/users/me/settings'); },
+  patchUserSettings: function(data) { return this.request('PATCH', '/api/users/me/settings', data); },
   // ── NEW-USER-TASK: 新人任务 ──
   getNewUserTasks: function() { return this.request('GET', '/api/new_user_tasks/me'); },
   completeNewUserTask: function(id) { return this.request('PATCH', '/api/new_user_tasks/' + encodeURIComponent(id) + '/complete'); },
