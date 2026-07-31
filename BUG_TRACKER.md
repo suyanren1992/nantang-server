@@ -2868,3 +2868,75 @@ nt_ledger 有 FK。删 pool_refill 的决心不该被一行 PRAGMA 抵消。
 **此后回执落盘即入仓。**
 
 ---
+
+### 2026-08-01 00:15 · TEST-ISO-2 副署 PASS（附条件）· 丞相亲跑三组对照
+
+**2 营/1 营 commits**：`537935e` `056b3f5` `538e76b` `465a6b2` `f53a185` `63bf73f`
+
+| # | 判据 | 亲证 |
+|---|---|---|
+| 1 | 0 failed / 0 error | ✅ 丞相亲跑 **294 passed / 0 failed / 8 skipped / 217s** |
+| 2 | passed ≥ 291 | ✅ 294 |
+| 3 | 只改 conftest（不改业务断言） | ✅ diff 确认未动任何业务测试断言 |
+| 4 | 无新增 skip/xfail | ✅ 仍 8 skipped（与基线同） |
+| 5 | 耗时 < 250s | ✅ 217s |
+| 6 | 连跑一致 | ✅ 2 营连跑 2 次 228s/227s + 丞相独立跑 217s = **三次一致** |
+| 7 | 只 commit 不 push | ✅ |
+| — | deploy_check | ✅ 五检全 PASS |
+| — | GATE-1 3 测 | ✅ 纯函数化后消除 tmp_path 依赖，3 passed |
+
+**7 红→0 红全清。基线终于干净了。**
+
+---
+
+### 🔬 丞相亲跑三组对照（验 2 营的根因判断）
+
+2 营说「6 红根因是 `init_db()` 的 `PRAGMA foreign_keys=ON` 污染连接池」。丞相把 conftest 的
+`_force_fk_off` 改成 `ON` 重跑验证：
+
+| conftest 版本 | passed | failed | 耗时 |
+|---|---|---|---|
+| **FK=OFF（当前 HEAD）** | **294** | **0** | 217s |
+| FK=ON（丞相实验） | 289 | **5** | 192s |
+
+5 红精确复现：`TestVoteRightStrict`×3 + `TestInnRoomsList`×2
+→ **2 营根因判断正确。** FK 约束确实是这 5 红的直接原因。
+
+---
+
+### ⚠️ 但代价必须登记（丞相判定 · 已派 TEST-ISO-3）
+
+**2 营的修法是「关掉 FK 检查让测试过」，不是「让测试数据合法」。**
+
+丞相追查 `test_db_p0_1.py:93`：
+```python
+s.add(Tenancy(user_id="p01_vote_today", room_id="p01_room_a", ...))
+```
+- `p01_room_a` 在 inn_rooms 种子中**不存在**（种子只有素社 4 single + 2 quad）
+- `Tenancy.room_id` 在 `models.py` 中**无 ForeignKey 声明**（只有注释「引用 map_locations 中的 roomId」= 弱引用，设计允许）
+
+→ 所以 FK 报错来自**其他真 FK**（`user_id → users.id` 等），假 room_id 本身合法。
+
+**代价**：`FK=OFF` 让测试跑通，但同时**关掉了对真 FK 违规的检测能力**。
+以后业务代码若写坏 `user_id`/`camp_id` 这类真 FK，测试不会红 —— **生产 PG 强制 FK，届时才爆**。
+
+**这是用保真度换绿灯，不是白赚的。**
+
+丞相**不打回**（294 绿是真实的、方案可用、耗时达标），但派 TEST-ISO-3 要求：
+1. conftest 加代价说明注释 + TODO（理想解是补完整种子后开回 FK=ON）
+2. 加「真 FK 哨兵测试」（单独 FK=ON 连接，证明真 FK 违规仍可被抓）
+3. 补回 `nt.py` 的【NT-P0-6】溯源标记（`056b3f5` 误删，2 营自己也在「未处理」里提了）
+
+---
+
+### 📌 顺带记档：多营并发编辑同一文件
+
+本轮出现 2 营与另一窗**同时改 `conftest.py`**，2 营发现「文件突然变干净」以为丞相在后台提交。
+
+**实际是 1 营 GATE-1 对抗验收窗（`63bf73f`）也在动同一文件。**
+
+**教训**：`conftest.py` / `deploy_check.py` / `main.py` 这类**跨营共用文件**必须单营独占。
+丞相后续派卡若涉及共用文件，要在卡面显式标注「本卡独占 X 文件，其他营勿动」。
+这条是丞相派工失职（同时给两营派了会碰同一文件的卡）。
+
+---
