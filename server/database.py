@@ -6,6 +6,8 @@ from sqlalchemy import select, text
 from datetime import datetime
 import os
 
+from auth_utils import hash_password
+
 logger = logging.getLogger("nantang.db")
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "nantang_fresh.db")
@@ -325,4 +327,39 @@ async def init_db():
                 logger.info("[EMPIRICAL-🔴2.3] map_locations.shared already exists, skip seed")
         except Exception as e:
             logger.warning(f"[EMPIRICAL-🔴2.3] buildings seed skipped: {e}")
+            await session.rollback()
+        # ══ REDTEAM-B-B6: admin bootstrap 种子（幂等——无 admin 角色才播）══
+        # ⚠️ 生产环境必须设 ADMIN_BOOTSTRAP_PASSWORD 环境变量
+        try:
+            from models import User as _User
+            _has_admin = (await session.execute(
+                select(_User).where(_User.role == "admin").limit(1)
+            )).scalars().first()
+            if not _has_admin:
+                _seed_dir = os.path.join(os.path.dirname(__file__), "seed")
+                _admin_path = os.path.join(_seed_dir, "admin_user.json")
+                if os.path.exists(_admin_path):
+                    import json as _json
+                    with open(_admin_path, "r", encoding="utf-8") as _f:
+                        _admin_seed = _json.load(_f)
+                    _admin_pwd = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "admin123")
+                    _now = datetime.utcnow().isoformat()
+                    session.add(_User(
+                        id=_admin_seed["id"],
+                        password_hash=hash_password(_admin_pwd),
+                        role=_admin_seed["role"],
+                        wallet_address=_admin_seed.get("wallet_address"),
+                        avatar_seed=_admin_seed.get("avatar_seed"),
+                        contribution_value=0, experience_value=0,
+                        nt_balance=0, trust_score=100,
+                        created_at=_now,
+                    ))
+                    await session.commit()
+                    logger.info(f"[REDTEAM-B-B6] seeded admin_bootstrap user (id=admin_bootstrap)")
+                else:
+                    logger.warning(f"[REDTEAM-B-B6] seed file not found: {_admin_path}")
+            else:
+                logger.info("[REDTEAM-B-B6] admin already exists, skip bootstrap")
+        except Exception as e:
+            logger.warning(f"[REDTEAM-B-B6] admin bootstrap skipped: {e}")
             await session.rollback()

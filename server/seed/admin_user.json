@@ -1,0 +1,6 @@
+{
+  "id": "admin_bootstrap",
+  "role": "admin",
+  "wallet_address": "0x0000000000000000000000000000000000000000",
+  "avatar_seed": "admin_seed"
+}
