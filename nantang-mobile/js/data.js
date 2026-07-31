@@ -619,25 +619,27 @@ function _promptDialog(msg, defVal, onOk) {
   document.getElementById('promptOkBtn').addEventListener('click', ok);
   document.getElementById('promptInp').addEventListener('keydown', function(e){ if(e.key==='Enter')ok(); });
 }
+// B5: 统一浮动 toast——双签名合一，type 控制颜色，anchor 保留内联卡片（表单验证场景）
 function showToast(msg,type,anchor){
-  // 单参数：浮动绿色 toast（Game.toast / postMessage 使用）
-  if(!type&&!anchor){
-    var t=document.createElement('div');
-    t.textContent=msg;
-    t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green-primary);color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999;pointer-events:none;animation:spcPop .15s ease-out';
-    document.body.appendChild(t);
-    setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .15s';setTimeout(function(){t.remove()},150)},1500);
+  // 三参数 + anchor：内联彩色卡片（表单字段旁提示）——保留旧行为
+  if(anchor){
+    document.querySelectorAll('.toast-card').forEach(function(t){t.remove()});
+    var d=document.createElement('div');d.className='toast-card';
+    var bg=type==='error'?'#fde8e8':type==='warn'?'#fef8e8':'#e8f0e8';
+    var cl=type==='error'?'var(--red)':type==='warn'?'#c8892e':'var(--green-primary)';
+    d.style.cssText='padding:8px 12px;border-radius:8px;font-size:.7rem;font-weight:600;background:'+bg+';color:'+cl+';margin:4px 0;animation:fadeIn .1s ease-out;text-align:center';
+    d.textContent=msg;
+    if(anchor.parentNode){anchor.parentNode.insertBefore(d,anchor.nextSibling);setTimeout(function(){if(d.parentNode)d.remove()},2500)}
     return;
   }
-  // 多参数：内联彩色卡片
-  document.querySelectorAll('.toast-card').forEach(function(t){t.remove()});
-  var d=document.createElement('div');d.className='toast-card';
-  var bg=type==='error'?'#fde8e8':type==='warn'?'#fef8e8':'#e8f0e8';
-  var cl=type==='error'?'var(--red)':type==='warn'?'#c8892e':'var(--green-primary)';
-  d.style.cssText='padding:8px 12px;border-radius:8px;font-size:.7rem;font-weight:600;background:'+bg+';color:'+cl+';margin:4px 0;animation:fadeIn .1s ease-out;text-align:center';
-  d.textContent=msg;
-  if(anchor&&anchor.parentNode){anchor.parentNode.insertBefore(d,anchor.nextSibling);setTimeout(function(){if(d.parentNode)d.remove()},2500)}
-  else{var el=document.activeElement||document.body;el.parentNode.insertBefore(d,el.nextSibling||el);setTimeout(function(){if(d.parentNode)d.remove()},2500)}
+  // 一/二参数：浮动 toast（type 控制颜色）
+  var colors={error:'#b84c38',warn:'#c88740',ok:'var(--green-primary)',info:'#4a7a82'};
+  var bgClr=colors[type]||'var(--green-primary)';
+  var t=document.createElement('div');
+  t.textContent=msg;
+  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+bgClr+';color:#fff;padding:8px 20px;border-radius:20px;font-size:14px;z-index:9999;pointer-events:none;animation:spcPop .15s ease-out';
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .15s';setTimeout(function(){t.remove()},150)},1500);
 }
 // A4: saveAppData/loadAppData 已由 AppData 替代。保留空函数防止调用报错。
 function saveAppData(){}

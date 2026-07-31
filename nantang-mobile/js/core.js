@@ -112,7 +112,7 @@ window.Game = {
     if (window.AppData) AppData.setMemberLocation(buildingId);
   },
   openTask: function(taskId) { openQuestHallPage(); },
-  toast: function(msg) { showToast(msg); },
+  toast: function(msg, type) { showToast(msg, type); },
   confirm: function(title, message, onConfirm) {
     showConfirm(title + '\n\n' + message, onConfirm);
   },
