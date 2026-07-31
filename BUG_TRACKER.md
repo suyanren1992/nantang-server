@@ -2763,3 +2763,66 @@ commit `d5ad543`（3 文件 +19/-19）
 不记档就等于承认「删了个自动的，留了个手动的」。史官必须写下来。
 
 ---
+
+### 2026-07-31 23:55 · GATE-1 副署（部分 PASS · 反向验证丞相代跑通过）
+
+**2 营两 commit**：`f21ab37`（logger 对齐 + GATE-1 闸门）+ `b712adc`（回执追加）
+
+| # | 判据 | 亲证 |
+|---|---|---|
+| 1 | deploy_check 加 /api 前缀规则 | ✅ `check_api_prefix(js_dir)` 抽为纯函数（正确重构），`check_api_contract` 调用并判 FAIL |
+| 2 | **反向验证** | ✅ **丞相代跑通过**（2 营未做，见下） |
+| 3 | nt.py:1326 注释更正 | ⚠️ 已改但**未 commit**（工作区 M） |
+| 4 | 3 测 | ⚠️ 文件已建但**未 commit**，且 **2/3 ERROR**（见下） |
+| 5 | 全量 | 286 passed / 6 failed / 2 error / 8 skipped |
+| 6 | git diff nantang-mobile/ 为空 | ✅ 空 |
+| 7 | 只 commit 不 push | ✅ |
+
+**丞相代跑反向验证（卡面判据②，2 营回执未提供）**：
+```
+临时把 api.js:156 '/api/nt/pools' → '/nt/pools'
+→ deploy_check: X 裸路径(非 /api/ 前缀): api.js:156: GET /nt/pools   ✅ FAIL
+还原后
+→ deploy_check: 五检全 PASS                                        ✅ PASS
+git diff nantang-mobile/ → 空                                      ✅
+```
+**闸门真生效。** GATE-1 关闭。
+
+**🔴 2 营三处未收尾**：
+1. `server/routes/nt.py`（③注释更正）**未 commit**
+2. `server/tests/test_gate1_api_prefix.py`（④3 测）**未 commit**
+3. `server/tests/conftest.py`（TEST-ISO-1）**未 commit**
+→ 若换窗/清工作区将全部丢失。已列入下轮派工首项。
+
+**🔴 test_gate1_api_prefix.py 2/3 ERROR**：
+```
+PermissionError: [WinError 5] 拒绝访问: 'C:\...\Temp\pytest-of-苏砚仁'
+```
+根因：用了 pytest `tmp_path` fixture，本机 Temp 目录权限受限（与 `.pytest_cache` 同类问题）。
+第 3 测（真实 api.js 回归哨兵）✅ passed。
+→ 建议改为在 `server/tests/` 下建临时子目录，或直接用字符串喂 `check_api_prefix` 的可测形式。
+
+---
+
+### TEST-ISO-1 进度（工作区 · 未 commit）
+
+conftest.py 加 `_isolate_db` autouse fixture（测后 FK 逆序 `table.delete()` + 清 `sqlite_sequence`）。
+
+**效果实测**：
+| | 改前 | 改后 |
+|---|---|---|
+| failed | 7 | **6** |
+| passed | 284 | **286** |
+
+已修好：`test_dev_reset::test_hard_clears_four_new_tables` · `test_inn_track::test_hard_clears_inn_rooms`
+仍红 6：`test_cr1_camp_escrow::test_community_task_unaffected`（**新暴露**）· `test_db_p0_1::TestVoteRightStrict`×3 · `test_inn_rooms_list`×2
+
+**丞相溯源 `test_cr1_camp_escrow`**：
+`git stash` 掉 conftest 改动后**单跑仍 failed** → **预存 bug，非 conftest 引入**。
+之前被顺序污染掩盖（前面测试残留的数据恰好让断言通过）。
+**隔离修好了测试，反而照出了一个真 bug** —— 这是正收益。
+
+**丞相判定**：TEST-ISO-1 未达判据①（0 failed），但方向正确。
+剩 6 红需逐个溯源（哪些是真 bug、哪些还是隔离不彻底），不可一刀切。
+
+---
