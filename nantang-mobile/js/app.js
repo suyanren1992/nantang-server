@@ -3367,6 +3367,107 @@ function _doVerify(vfyId) {
   if (window.Game&&Game.toast) Game.toast('✅ 校核完成！');
   render();
 }
+// ── P1-#6: 活动总入口（社区活动卡片点击）──
+function _openActivityHub() {
+  var body = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  // 田间接龙
+  body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openQuickMenu(\'接龙\')">';
+  body += '<div style="font-size:1.3rem">🥘</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">田间接龙</div>';
+  body += '<div style="font-size:.5rem;color:var(--g-text-dim)">共享厨房·报名</div></div>';
+  // 议事厅提案
+  body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openCommunityProposals()">';
+  body += '<div style="font-size:1.3rem">🏛️</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">议事厅</div>';
+  body += '<div style="font-size:.5rem;color:var(--g-text-dim)">提案·投票</div></div>';
+  // 劳动历史
+  body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openLaborHistory()">';
+  body += '<div style="font-size:1.3rem">📝</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">劳动记录</div>';
+  body += '<div style="font-size:.5rem;color:var(--g-text-dim)">历史·统计</div></div>';
+  // 健康报告
+  body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openHealthReport()">';
+  body += '<div style="font-size:1.3rem">💚</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">健康报告</div>';
+  body += '<div style="font-size:.5rem;color:var(--g-text-dim)">体检·状态</div></div>';
+  body += '</div>';
+  _openQuickSheet('🎯 社区活动', body);
+}
+// ── P1-#6: 社区议事厅（/api/proposals）──
+function _openCommunityProposals() {
+  var body = '<div style="margin-bottom:8px;display:flex;gap:4px"><input id="commPropTitle" placeholder="提案标题" style="flex:1;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff"><button class="btn-sm pri" style="font-size:var(--g-font-size-xs);white-space:nowrap;min-height:36px" onclick="var t=document.getElementById(\'commPropTitle\').value.trim();if(t)_submitCommunityProposal(t)">📜 提交</button></div>';
+  body += '<div id="communityProposalCards"></div>';
+  _openQuickSheet('🏛️ 议事厅提案', body);
+  _renderCommunityProposals();
+}
+function _submitCommunityProposal(title) {
+  if (!title || !CURRENT_USER) { showToast('请输入提案标题','warn'); return; }
+  if (!window.AppData) return;
+  var pid = 'comm_prop_'+Date.now().toString(36);
+  var prop = {id:pid, title:title, author:CURRENT_USER, time:new Date().toISOString(), votes:{for:[],against:[]}, voters:[]};
+  API.submitProposal({id:pid, title:title}).then(function(r) {
+    if (r && r.ok && !r._frozen) { _renderCommunityProposals(); showToast('提案已提交', 'ok'); return; }
+    AppData._data._communityProposals = AppData._data._communityProposals || [];
+    AppData._data._communityProposals.unshift(prop);
+    AppData._saveShared();
+    _renderCommunityProposals();
+    showToast('提案已提交（离线）', 'ok');
+  }).catch(function() {
+    AppData._data._communityProposals = AppData._data._communityProposals || [];
+    AppData._data._communityProposals.unshift(prop);
+    AppData._saveShared();
+    _renderCommunityProposals();
+    showToast('提案已提交（离线）', 'ok');
+  });
+}
+function _renderCommunityProposals() {
+  var el = document.getElementById('communityProposalCards'); if (!el) return;
+  var proposals = (window.AppData && AppData._data._communityProposals) || [];
+  if (!proposals.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--g-text-dim);font-size:var(--g-font-size-xs)">🏛️ 暂无社区提案</div>'; return; }
+  var h = '';
+  proposals.forEach(function(p) {
+    var vf = (p.votes||{for:[]}).for.length, va = (p.votes||{against:[]}).against.length;
+    h += '<div style="background:var(--g-card);border-radius:8px;padding:8px;margin-bottom:6px;box-shadow:var(--g-shadow)">';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs)">📜 '+esc(p.title)+'</div>';
+    h += '<div style="font-size:.5rem;color:var(--g-text-dim);margin:2px 0">'+esc(p.author)+' · '+(p.time||'').slice(0,10)+'</div>';
+    h += '<div style="font-size:.5rem">👍 '+vf+' 👎 '+va+'</div>';
+    h += '</div>';
+  });
+  el.innerHTML = h;
+}
+// ── P1-#6: 劳动历史 ──
+function _openLaborHistory() {
+  var body = '<div id="laborHistoryContent" style="text-align:center;padding:20px;color:var(--g-text-dim)">⏳ 加载中…</div>';
+  _openQuickSheet('📝 劳动历史', body);
+  API.getLaborHistory().then(function(r) {
+    var el = document.getElementById('laborHistoryContent'); if (!el) return;
+    if (!r || r._offline || !r.ok) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--g-text-dim)">⚠️ 暂无法获取劳动记录</div>'; return; }
+    var items = r.items || r.history || [];
+    if (!items.length) { el.innerHTML = UI.EmptyState({icon:'📝',title:'暂无劳动记录',hint:'完成在地任务后这里会出现记录'}).outerHTML; return; }
+    var h = '';
+    items.slice(0, 20).forEach(function(l) {
+      h += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dotted #f0f0f0;font-size:var(--g-font-size-xs)"><span>'+esc(l.action||l.type||'劳动')+'</span><span style="color:var(--green-primary)">+'+(l.nt||l.amount||0)+' NT</span></div>';
+    });
+    el.innerHTML = h || '<div style="text-align:center;padding:20px;color:var(--g-text-dim)">暂无记录</div>';
+  }).catch(function() {
+    var el = document.getElementById('laborHistoryContent'); if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--g-text-dim)">⚠️ 加载失败</div>';
+  });
+}
+// ── P1-#6: 健康报告 ──
+function _openHealthReport() {
+  var body = '<div id="healthReportContent" style="text-align:center;padding:20px;color:var(--g-text-dim)">⏳ 加载中…</div>';
+  _openQuickSheet('💚 健康报告', body);
+  API.getHealthReport().then(function(r) {
+    var el = document.getElementById('healthReportContent'); if (!el) return;
+    if (!r || r._offline || !r.ok) { el.innerHTML = UI.EmptyState({icon:'💚',title:'暂无法获取健康报告',hint:'请确认服务端运行中'}).outerHTML; return; }
+    var h = '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);margin-bottom:8px">';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:6px">💚 系统健康状态</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:var(--g-font-size-xs)">';
+    h += '<div>🟢 服务器</div><div style="color:var(--g-green);text-align:right">'+(r.status||'正常')+'</div>';
+    h += '<div>📊 数据库</div><div style="color:var(--g-green);text-align:right">'+(r.db||'连接')+'</div>';
+    h += '<div>⏱️ 响应时间</div><div style="text-align:right">'+(r.uptime||'—')+'</div>';
+    h += '</div></div>';
+    el.innerHTML = h;
+  }).catch(function() {
+    var el = document.getElementById('healthReportContent'); if (el) el.innerHTML = UI.ErrorState({title:'加载失败',hint:'服务端未响应',retryText:'重试',onRetry:'_openHealthReport()'}).outerHTML;
+  });
+}
 // ══ 章5: 快捷录入 ══
 function _openQuickSheet(title, bodyHTML) {
   var el = document.createElement('div'); el.className = 'quick-sheet';
@@ -3629,11 +3730,23 @@ function _submitPotluck() {
   if (!item) { showToast('请输入菜名','warn'); return; }
   var qty = parseInt((document.getElementById('potluckQty')||{}).value,10)||1;
   if (!window.AppData) return;
-  AppData._data._potluckList = AppData._data._potluckList || [];
-  AppData._data._potluckList.push({ item:item, qty:qty, user:CURRENT_USER, time:new Date().toISOString() });
-  AppData._saveShared();
-  _closeQuickSheet();
-  showToast('✅ 已报名：'+item, 'ok');
+  var data = {item:item, qty:qty, user:CURRENT_USER, time:new Date().toISOString()};
+  // P1-#6: 调 API，失败时 fallback 到本地
+  API.joinPotluck(data).then(function(r) {
+    if (r && r.ok && !r._frozen) { _closeQuickSheet(); showToast('✅ 已报名：'+item, 'ok'); return; }
+    // fallback: 写本地
+    AppData._data._potluckList = AppData._data._potluckList || [];
+    AppData._data._potluckList.push(data);
+    AppData._saveShared();
+    _closeQuickSheet();
+    showToast('✅ 已报名（离线）：'+item, 'ok');
+  }).catch(function() {
+    AppData._data._potluckList = AppData._data._potluckList || [];
+    AppData._data._potluckList.push(data);
+    AppData._saveShared();
+    _closeQuickSheet();
+    showToast('✅ 已报名（离线）：'+item, 'ok');
+  });
 }
 // D5: 公告跑马灯——从 AppData 读取公告列表，渲染水平滚动条
 function _renderAnnounceTicker(el) {
@@ -3690,14 +3803,33 @@ function _renderProposalCards(el) {
 function _submitProposal(title, desc) {
   if (!title || !CURRENT_USER) { showToast('请输入提案标题','warn'); return; }
   if (!window.AppData) return;
-  AppData._data._proposals = AppData._data._proposals || [];
-  AppData._data._proposals.unshift({ id:'prop_'+Date.now().toString(36), title:title, desc:desc||'', author:CURRENT_USER, time:new Date().toISOString(), votes:{for:[],against:[]}, voters:[] });
-  AppData._saveShared();
-  _renderProposalCards();
-  showToast('提案已提交', 'ok');
+  var pid = 'prop_'+Date.now().toString(36);
+  var prop = { id:pid, title:title, desc:desc||'', author:CURRENT_USER, time:new Date().toISOString(), votes:{for:[],against:[]}, voters:[] };
+  // P1-#6: 调 API，失败时 fallback 到本地
+  API.submitProposal({id:pid, title:title, description:desc||''}).then(function(r) {
+    if (r && r.ok && !r._frozen) { _renderProposalCards(); showToast('提案已提交', 'ok'); return; }
+    AppData._data._proposals = AppData._data._proposals || [];
+    AppData._data._proposals.unshift(prop);
+    AppData._saveShared();
+    _renderProposalCards();
+    showToast('提案已提交（离线）', 'ok');
+  }).catch(function() {
+    AppData._data._proposals = AppData._data._proposals || [];
+    AppData._data._proposals.unshift(prop);
+    AppData._saveShared();
+    _renderProposalCards();
+    showToast('提案已提交（离线）', 'ok');
+  });
 }
 function _voteProposal(propId, vote) {
   if (!CURRENT_USER || !window.AppData) return;
+  // P1-#6: 调 API，失败时 fallback 到本地
+  API.voteProposal(propId, vote).then(function(r) {
+    if (r && r.ok && !r._frozen) { _renderProposalCards(); showToast('投票成功', 'ok'); return; }
+    _voteLocal(propId, vote);
+  }).catch(function() { _voteLocal(propId, vote); });
+}
+function _voteLocal(propId, vote) {
   var proposals = AppData._data._proposals || [];
   var p = proposals.find(function(x){ return x.id === propId; });
   if (!p) return;
@@ -3709,7 +3841,7 @@ function _voteProposal(propId, vote) {
   else p.votes.against.push(CURRENT_USER);
   AppData._saveShared();
   _renderProposalCards();
-  showToast('投票成功', 'ok');
+  showToast('投票成功（离线）', 'ok');
 }
 // ── 撤销 + 通用 ──
 function _closeQuickSheet() {
