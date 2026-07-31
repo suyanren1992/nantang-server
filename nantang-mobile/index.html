@@ -8,7 +8,7 @@
 <style>body{visibility:hidden}[onclick]{touch-action:manipulation}#loadingFallback{display:none;position:fixed;inset:0;z-index:9999;background:#1d2e24;color:#fff;text-align:center;padding-top:30vh;font-size:.9rem;line-height:2}</style>
 <link rel="icon" href="../92e279b22d04d4c831aec15aa09213df (1).png">
 <link rel="stylesheet" href="css/theme.css?v=10">
-<link rel="stylesheet" href="css/main.css?v=11">
+<link rel="stylesheet" href="css/main.css?v=12">
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
 </head>
 <body>
@@ -91,7 +91,7 @@ if (window.location.protocol !== 'file:') {
   </div>
   <div class="village-group">
     <div class="village-window"><div class="village-carousel" id="villageCarousel">
-      <div class="vp-card" data-page="0"><div class="vp-card-inner"><div class="vp-emoji">📋</div><h2 class="vp-title">社区副本</h2><p class="vp-desc">线下共创营 · 定时开放</p><div class="vp-pulse" id="vpCommunityInfo">加载中…</div><button class="vp-btn" onclick="var i=this.closest('.vp-card-inner');i.classList.add('activating');setTimeout(function(){i.classList.remove('activating');openCommunityPage()},150)">📋 进入副本</button></div></div>
+      <div class="vp-card" data-page="0"><div class="vp-card-inner"><div class="vp-emoji">🎪</div><h2 class="vp-title">活动集市</h2><p class="vp-desc">活动 · 营地 · 茶馆 · 集市</p><div class="vp-pulse" id="vpCommunityInfo">加载中…</div><button class="vp-btn" onclick="var i=this.closest('.vp-card-inner');i.classList.add('activating');setTimeout(function(){i.classList.remove('activating');openActivityHub()},150)">🎪 进入集市</button></div></div>
       <div class="vp-card" data-page="1"><div class="vp-card-inner"><div class="vp-emoji">🏛️</div><h2 class="vp-title">任务大厅</h2><p class="vp-desc">在地任务 · 委托悬赏</p><div class="vp-pulse" id="vpQuestCount">加载中…</div><button class="vp-btn pri" onclick="var i=this.closest('.vp-card-inner');i.classList.add('activating');setTimeout(function(){i.classList.remove('activating');openQuestHallPage()},150)">🏛️ 去接任务</button></div></div>
       <div class="vp-card" data-page="2"><div class="vp-card-inner"><div class="vp-emoji">🗺️</div><h2 class="vp-title">实景地图</h2><p class="vp-desc">看谁在做什么</p><div class="vp-pulse" id="vpMapInfo">加载中…</div><button class="vp-btn" onclick="var i=this.closest('.vp-card-inner');i.classList.add('activating');setTimeout(function(){i.classList.remove('activating');openMapPage()},150)">🗺️ 进入地图</button></div></div>
     </div></div>
@@ -179,6 +179,11 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-body" id="communityHubBody">
     <div id="communityHubContent" style="padding:10px 14px 0"></div>
   </div>
+</div>
+<!-- ══ A-ACTIVITY-PAGE: 活动集市总览页 ══ -->
+<div id="overlayActivityHub" class="overlay">
+  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayActivityHub')">✕</button><span class="overlay-title">🎪 南塘集市</span></div>
+  <div class="overlay-body" id="activityHubBody" style="padding:10px 14px 0"></div>
 </div>
 <div id="overlayCampWindow" class="overlay">
   <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayCampWindow')">✕</button><span class="overlay-title" id="campWindowTitle">营地详情</span></div>
@@ -549,8 +554,8 @@ if (window.location.protocol !== 'file:') {
 <script src="js/seed-test-data.js?v=17"></script>
 <script src="js/nt-core.js?v=11"></script>
 <script src="js/app-data.js?v=28"></script>
-<script src="js/api.js?v=29"></script>
-<script src="js/data.js?v=23"></script>
+<script src="js/api.js?v=30"></script>
+<script src="js/data.js?v=24"></script>
 <script src="js/core.js?v=53"></script>
 <script src="js/ui-village.js?v=20"></script>
 <script src="js/ui-camp.js?v=14"></script>
@@ -559,7 +564,8 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-social.js?v=21"></script>
 <script src="js/ui-archive.js?v=25"></script>
 <script src="js/ui-cardroom.js?v=20"></script>
-<script src="js/app.js?v=52"></script>
+<script src="js/ui-activity.js?v=1"></script>
+<script src="js/app.js?v=53"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
@@ -763,7 +769,6 @@ function _renderInbox() {
 
     if (unread.length) {
       h += '<div style="font-size:.62rem;color:var(--red);font-weight:600;margin-bottom:4px">🔴 新消息 ('+unread.length+')</div>';
-      // B10: 大批量截断——首屏最多 20 条未读，点击「查看更多」展开
       (_inboxShowAllUnread ? unread : unread.slice(0, 20)).forEach(function(m){ h += _renderMsg(m); });
       if (!_inboxShowAllUnread && unread.length > 20) h += '<div style="text-align:center;padding:6px"><button class="btn-sm sec" style="font-size:.58rem;padding:4px 10px" onclick="event.stopPropagation();_inboxShowAllUnread=true;_renderInbox()">查看更多（剩余 '+(unread.length-20)+' 条）</button></div>';
     }
@@ -773,12 +778,29 @@ function _renderInbox() {
     }
   }
 
+  // P1-#6: 服务端通报区
+  h += '<div id="serverNotifSection" style="border-top:1px solid #f0f0f0;margin-top:8px;padding-top:4px;font-size:.55rem;color:var(--g-text-dim);text-align:center">📡 加载服务端通报…</div>';
+
   h += '<div style="border-top:1px solid #f0f0f0;padding-top:8px;margin-top:8px;text-align:center">';
   h += '<button class="btn-sm sec" style="font-size:.58rem;padding:4px 10px" onclick="var all=_computeInboxMessages();all.forEach(function(m){_inboxReadIds[m.id]=true});try{localStorage.setItem(\'nt_inbox_read\',JSON.stringify(_inboxReadIds))}catch(e){};_renderInbox()">✅ 全部标为已读</button>';
   h += '</div>';
 
   var content = document.getElementById('inboxContent');
   if (content) { content.innerHTML = h; if (typeof updateInboxBadge === 'function') updateInboxBadge(); }
+  // P1-#6: 异步拉取服务端通报
+  if (typeof API !== 'undefined' && API.getNotificationsList) {
+    API.getNotificationsList().then(function(r) {
+      var sec = document.getElementById('serverNotifSection'); if (!sec) return;
+      if (!r || r._offline || !r.ok) { sec.innerHTML = ''; return; }
+      var notifs = r.notifications || r.items || [];
+      if (!notifs.length) { sec.innerHTML = ''; return; }
+      var nh = '<div style="font-weight:600;font-size:.6rem;color:var(--g-text-dim);margin:8px 0 4px">📡 系统通报</div>';
+      notifs.slice(0, 5).forEach(function(n) {
+        nh += '<div style="padding:4px 0;font-size:.55rem;border-bottom:1px solid #f5f5f5">📢 '+esc(n.text||n.message||'')+' <span style="color:var(--g-text-muted)">'+(n.time||n.createdAt||'').slice(0,10)+'</span></div>';
+      });
+      sec.innerHTML = nh;
+    }).catch(function() { var sec = document.getElementById('serverNotifSection'); if (sec) sec.innerHTML = ''; });
+  }
 }
 
 function _toggleInbox() {
