@@ -60,6 +60,7 @@ function switchCampTab(tab) {
   else if (tab === 'ranking') renderCampRanking(body);
   else if (tab === 'settle') renderCampSettle(body);
   else if (tab === 'manage') renderCampManage(body);
+  else if (tab === 'discuss') renderCampDiscuss(body);
   body.scrollTop = 0;
 }
 
@@ -1584,5 +1585,23 @@ function renderArchivePeriods(el) {
   }
   h += '</div>';
   el.innerHTML = h;
+}
+// D6: 议事厅——营地提案区，UI.Card 网格
+function renderCampDiscuss(el) {
+  var h = '<div style="padding:14px">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+  h += '<span style="font-size:var(--g-font-size-lg)">🏛️</span>';
+  h += '<span style="font-weight:700;font-size:var(--g-font-size)">营地议事厅</span>';
+  h += '</div>';
+  h += '<div style="margin-bottom:10px">';
+  h += '<input id="propTitle" placeholder="提案标题" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:4px;background:#fff;box-sizing:border-box">';
+  h += '<div style="display:flex;gap:4px">';
+  h += '<input id="propDesc" placeholder="提案说明（选填）" style="flex:1;padding:6px 8px;border:1px solid var(--green-border);border-radius:8px;font-size:var(--g-font-size-xs);background:#fff">';
+  h += '<button class="btn-sm pri" style="font-size:var(--g-font-size-xs);white-space:nowrap;min-height:36px" onclick="var t=document.getElementById(\'propTitle\').value.trim();var d=document.getElementById(\'propDesc\').value.trim();if(typeof _submitProposal===\'function\')_submitProposal(t,d)">📜 提交</button>';
+  h += '</div></div>';
+  h += '<div id="proposalCards"></div>';
+  h += '</div>';
+  el.innerHTML = h;
+  if (typeof _renderProposalCards === 'function') _renderProposalCards();
 }
 
