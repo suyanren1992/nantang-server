@@ -3357,6 +3357,28 @@ function _submitPotluck() {
   _closeQuickSheet();
   showToast('✅ 已报名：'+item, 'ok');
 }
+// D5: 公告跑马灯——从 AppData 读取公告列表，渲染水平滚动条
+function _renderAnnounceTicker(el) {
+  if (!el) { el = document.getElementById('announceTicker'); if (!el) return; }
+  var anns = (window.AppData && AppData._data._announcements) || [];
+  if (!anns.length) { el.innerHTML = '<span style="color:var(--g-text-dim);font-size:var(--g-font-size-xs)">📢 暂无公告</span>'; return; }
+  var h = '<div style="display:flex;gap:16px;animation:announceScroll '+(anns.length*6)+'s linear infinite;white-space:nowrap">';
+  anns.forEach(function(a){
+    h += '<span style="font-size:var(--g-font-size-xs);color:var(--g-text)">📢 '+esc(a.text)+'</span>';
+  });
+  h += '</div><style>@keyframes announceScroll{0%{transform:translateX(100%)}100%{transform:translateX(-100%)}}</style>';
+  el.innerHTML = h;
+}
+function _postAnnouncement(text) {
+  if (!text || !CURRENT_USER) return;
+  if (!window.AppData) return;
+  AppData._data._announcements = AppData._data._announcements || [];
+  AppData._data._announcements.unshift({ id:'ann_'+Date.now().toString(36), text:text, author:CURRENT_USER, time:new Date().toISOString() });
+  if (AppData._data._announcements.length > 50) AppData._data._announcements.length = 50;
+  AppData._saveShared();
+  _renderAnnounceTicker();
+  showToast('公告已发布', 'ok');
+}
 // ── 撤销 + 通用 ──
 function _closeQuickSheet() {
   var sheet = document.querySelector('.quick-sheet');
