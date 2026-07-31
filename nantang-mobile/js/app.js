@@ -368,7 +368,7 @@ function _renderMgmtCards() {
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
   var cfgPricing = _mlConfig().cleaning_pricing || {};
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'cleaning\')"><div class="ic-head">🧹 大扫除</div>'+
+  h += '<div class="ic-card" onclick="openCleanWeekly()"><div class="ic-head">🧹 大扫除</div>'+
     '<div class="ic-body">'+(cleanDays!=null ? '<div class="ic-big">'+(cleanDays>0?cleanDays+' 天':nextClean.slice(5))+'</div><div>📅 '+nextClean.slice(5)+'</div>' : '<div class="ic-muted">未设定</div>')+
     '<div class="ic-muted">🧹脏 '+cfgPricing.dirty+'NT · 🟡注意 '+cfgPricing.warning+'NT · 🟢维护 '+cfgPricing.clean+'NT</div></div></div>';
   // 住宿

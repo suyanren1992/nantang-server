@@ -592,6 +592,8 @@ function renderCardRoom() {
   h += '<div onclick="_cardroomTab=\'guess\';renderCardRoom()" style="flex:1;text-align:center;padding:10px 0;font-size:.72rem;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;' + (_cardroomTab==='guess'?'background:var(--green-primary);color:#fff;font-weight:700':'background:#fff;color:#5a6e5c') + '">🃏 猜</div>';
   h += '<div onclick="_cardroomTab=\'verify\';renderCardRoom()" style="flex:1;text-align:center;padding:10px 0;font-size:.72rem;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;' + (_cardroomTab==='verify'?'background:var(--green-primary);color:#fff;font-weight:700':'background:#fff;color:#5a6e5c') + '">✓ 确认</div>';
   h += '</div>';
+  // A-CLEAN-WEEKLY-FIX2: 卡片室头部 🧹 大扫除周任务入口
+  h += '<div onclick="closeCardRoom();openCleanWeekly()" style="margin-top:8px;background:#f8f5f1;border:1.5px solid #d8d0c8;border-radius:8px;padding:8px 12px;text-align:center;cursor:pointer;font-size:.68rem;font-weight:600;color:#5a4a3a">🧹 大扫除周任务 →</div>';
 
   // ── 校核 tab 内容 ──
   if (_cardroomTab === 'verify') {
