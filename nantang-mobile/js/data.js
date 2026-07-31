@@ -705,38 +705,9 @@ function renderCommunityHub() {
   var upcoming = getCamps().filter(function(c){ return c.status==='upcoming'; });
   var archived = getCamps().filter(function(c){ return c.status==='archived'; });
   var h = '';
-  // ── P1-#6: A-ACTIVITY-PAGE 5 子模块入口卡网格 ──
-  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
-  // ① 活动入口
-  h += '<div class="hub-card" onclick="_openActivityHub()" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);cursor:pointer;text-align:center">';
-  h += '<div style="font-size:1.4rem;margin-bottom:4px">🎯</div>';
-  h += '<div style="font-weight:700;font-size:var(--g-font-size-xs)">社区活动</div>';
-  h += '<div style="font-size:.55rem;color:var(--g-text-dim)">接龙 · 提案 · 劳动</div>';
-  h += '</div>';
-  // ② 营地入口
-  h += '<div class="hub-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);text-align:center">';
-  h += '<div style="font-size:1.4rem;margin-bottom:4px">🏕️</div>';
-  h += '<div style="font-weight:700;font-size:var(--g-font-size-xs)">共创营队</div>';
-  h += '<div style="font-size:.55rem;color:var(--g-text-dim)">进行中 '+(active.length+upcoming.length)+' 个</div>';
-  h += '</div>';
-  // ③ 茶馆（冻结）
-  h += '<div class="hub-card hub-frozen" style="background:rgba(0,0,0,.03);border-radius:var(--g-radius);box-shadow:none;border:1px dashed #d0d9ce;padding:var(--g-pad);text-align:center;opacity:.55">';
-  h += '<div style="font-size:1.4rem;margin-bottom:4px;filter:grayscale(1)">🍵</div>';
-  h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:var(--g-text-dim)">茶馆八卦</div>';
-  h += '<span style="display:inline-block;font-size:.5rem;background:#d0d9ce;color:#8a8a8a;padding:2px 6px;border-radius:4px;margin-top:2px">🔒 即将开放</span>';
-  h += '</div>';
-  // ④ 集市（冻结）
-  h += '<div class="hub-card hub-frozen" style="background:rgba(0,0,0,.03);border-radius:var(--g-radius);box-shadow:none;border:1px dashed #d0d9ce;padding:var(--g-pad);text-align:center;opacity:.55">';
-  h += '<div style="font-size:1.4rem;margin-bottom:4px;filter:grayscale(1)">🏪</div>';
-  h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:var(--g-text-dim)">二手集市</div>';
-  h += '<span style="display:inline-block;font-size:.5rem;background:#d0d9ce;color:#8a8a8a;padding:2px 6px;border-radius:4px;margin-top:2px">🔒 即将开放</span>';
-  h += '</div>';
-  // ⑤ 拍卖（冻结）
-  h += '<div class="hub-card hub-frozen" style="background:rgba(0,0,0,.03);border-radius:var(--g-radius);box-shadow:none;border:1px dashed #d0d9ce;padding:var(--g-pad);text-align:center;opacity:.55">';
-  h += '<div style="font-size:1.4rem;margin-bottom:4px;filter:grayscale(1)">🔨</div>';
-  h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:var(--g-text-dim)">拍卖会</div>';
-  h += '<span style="display:inline-block;font-size:.5rem;background:#d0d9ce;color:#8a8a8a;padding:2px 6px;border-radius:4px;margin-top:2px">🔒 即将开放</span>';
-  h += '</div>';
+  // ── K 窗: 活动集市 L 窗入口（替代旧 inline 5 格子网格） ──
+  h += '<div onclick="closeOverlay(\'overlayCommunity\');setTimeout(function(){openActivityHub()},100)" style="background:var(--g-card);border:1px solid var(--green-primary);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">';
+  h += '<span style="font-size:1.2rem">🎪</span><div style="flex:1"><div style="font-weight:700;font-size:var(--g-font-size-xs)">活动集市</div><div style="font-size:.55rem;color:var(--g-text-dim)">活动 · 营地 · 共享厨房 · 茶馆 · 集市 · 拍卖</div></div><span style="color:var(--green-primary);font-size:.7rem">进入 ▸</span>';
   h += '</div>';
   function card(c, showEnter) {
     var cls = c.status==='active'?' camp-card active-camp':' camp-card';
