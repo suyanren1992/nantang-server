@@ -74,6 +74,14 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_memberships_camp_id ON camp_memberships(camp_id)"))
         # UI-FIX-P2-BE B1: storage_items 复合索引
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_storage_items_user_location ON storage_items(user_id, storage_location)"))
+        # UI-FIX-P2-BE补 B6: field_plots 索引
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_field_plots_stage ON field_plots(stage)"))
+        # NEW-USER-TASK-BE: 新人任务模板复合索引 + NTTask 新人任务索引
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_new_user_task_templates_role_order "
+            "ON new_user_task_templates(target_role, display_order)"))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_newbie ON nt_tasks(is_newbie_task)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错
@@ -230,4 +238,45 @@ async def init_db():
             await session.execute(text("ALTER TABLE users ADD COLUMN clean_weekly_streak INTEGER DEFAULT 0"))
             await session.commit()
         except Exception:
+            await session.rollback()
+        # ══ UI-FIX-P2-BE补 B7: User.user_settings (JSON) ══
+        try:
+            await session.execute(text("ALTER TABLE users ADD COLUMN user_settings TEXT"))
+            await session.commit()
+        except Exception:
+            await session.rollback()
+        # ══ NEW-USER-TASK-BE: NTTask 加 3 字段 ══
+        for _ddl in (
+            "ALTER TABLE nt_tasks ADD COLUMN is_newbie_task BOOLEAN DEFAULT 0",
+            "ALTER TABLE nt_tasks ADD COLUMN assigned_by_system BOOLEAN DEFAULT 0",
+            "ALTER TABLE nt_tasks ADD COLUMN template_id VARCHAR",
+        ):
+            try:
+                await session.execute(text(_ddl))
+                await session.commit()
+            except Exception:
+                await session.rollback()
+        # ══ NEW-USER-TASK-BE: 种子数据（4 个模板，幂等——空表才播）══
+        try:
+            from models import NewUserTaskTemplate
+            _has_tpl = (await session.execute(select(NewUserTaskTemplate).limit(1))).scalar_one_or_none()
+            if not _has_tpl:
+                _now = datetime.utcnow().isoformat()
+                _seed_tpls = [
+                    ("tpl_meet_neighbor", "认识一下你的邻居", "和一位邻居打个招呼，互相认识一下", 10, "visitor", 1, 7),
+                    ("tpl_covenant_sign", "浏览公约 + 签到", "阅读社区公约并完成签到", 5, "visitor", 2, 7),
+                    ("tpl_first_cleanup", "参与第一次大扫除", "参加一次社区大扫除活动", 15, "visitor", 3, 7),
+                    ("tpl_first_task", "领取你的第一个任务", "从任务板领取并完成一个任务", 20, "npc", 4, 7),
+                ]
+                for _tid, _title, _desc, _nt, _role, _order, _exp in _seed_tpls:
+                    session.add(NewUserTaskTemplate(
+                        id=_tid, title=_title, description=_desc,
+                        reward_nt=_nt, target_role=_role,
+                        display_order=_order, expires_days=_exp,
+                        created_at=_now,
+                    ))
+                await session.commit()
+                logger.info("[NEW-USER-TASK-BE] seeded 4 new_user_task_templates")
+        except Exception as e:
+            logger.warning(f"[NEW-USER-TASK-BE] template seed skipped: {e}")
             await session.rollback()

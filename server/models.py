@@ -67,6 +67,8 @@ class User(Base):
     xp_by_category = Column(Text, nullable=True)           # ④ JSON {labor: xp, 厨房: xp, 田间: xp, ...}
     # ══ CLEAN-WEEKLY-BE ③: 连续周参与数 ══
     clean_weekly_streak = Column(Integer, default=0)
+    # ══ UI-FIX-P2-BE补 B7: 用户设置 ══
+    user_settings = Column(Text, nullable=True)  # JSON: {notification, theme, language}
 
 
 class NTLedger(Base):
@@ -107,6 +109,10 @@ class NTTask(Base):
     is_system_generated = Column(Boolean, default=False)    # 系统自动生成=周期/赏金
     idempotency_key = Column(String(128), unique=True, nullable=True)  # cron 幂等
     camp_ref_id = Column(String, nullable=True)  # T7: CampTask 合并，关联营地 ID
+    # ══ NEW-USER-TASK-BE: 新人任务标记 ══
+    is_newbie_task = Column(Boolean, default=False, index=True)   # 新人任务角标
+    assigned_by_system = Column(Boolean, default=False)            # 系统自动派发
+    template_id = Column(String, ForeignKey("new_user_task_templates.id"), nullable=True)  # 关联模板
     created_at = Column(String, nullable=True)
     accepted_at = Column(String, nullable=True)
     completed_at = Column(String, nullable=True)
@@ -420,6 +426,21 @@ STORAGE_CATEGORIES = ("食物", "工具", "杂物")
 STORAGE_LOCATIONS = ("冰箱", "储物间", "共享")
 
 
+# ══ NEW-USER-TASK-BE: 新人任务模板 ══
+class NewUserTaskTemplate(Base):
+    """新人任务模板——首次入住时按 target_role 自动派发。"""
+    __tablename__ = "new_user_task_templates"
+    id = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    reward_nt = Column(Integer, default=10)
+    target_role = Column(String, nullable=False)       # visitor / npc / builder
+    display_order = Column(Integer, default=0)
+    expires_days = Column(Integer, default=7)
+    created_at = Column(String, nullable=True)
+    __table_args__ = ()
+
+
 class StorageItem(Base):
     """村民储物记录——冰箱/储物间/共享三档分类。"""
     __tablename__ = "storage_items"
@@ -431,3 +452,25 @@ class StorageItem(Base):
     storage_location = Column(String, nullable=False)  # 冰箱 / 储物间 / 共享
     added_at = Column(String, nullable=True)           # ISO datetime
     expires_at = Column(String, nullable=True)         # ISO datetime, nullable=不过期
+
+
+# ══ UI-FIX-P2-BE补 B6: 田间地块 ══
+FIELD_STAGES = ("休耕", "播种", "生长", "成熟", "收割")
+FIELD_HEALTH = ("健康", "缺水", "缺肥", "病虫害")
+
+
+class FieldPlot(Base):
+    """田间地块——作物种植/生长/收割生命周期。"""
+    __tablename__ = "field_plots"
+    id = Column(String, primary_key=True)
+    plot_name = Column(String(100), nullable=False)
+    crop_name = Column(String(100), nullable=True)       # 当前作物（休耕时 null）
+    planted_at = Column(String, nullable=True)            # ISO datetime
+    harvest_at = Column(String, nullable=True)            # ISO datetime（预计收割日）
+    stage = Column(String, default="休耕")               # 休耕/播种/生长/成熟/收割
+    health = Column(String, default="健康")              # 健康/缺水/缺肥/病虫害
+    watered_at = Column(String, nullable=True)            # 上次浇水 ISO datetime
+    fertilized_at = Column(String, nullable=True)         # 上次施肥 ISO datetime
+    harvested_by = Column(String, ForeignKey("users.id"), nullable=True)
+    planted_by = Column(String, ForeignKey("users.id"), nullable=True)
+    created_at = Column(String, nullable=True)

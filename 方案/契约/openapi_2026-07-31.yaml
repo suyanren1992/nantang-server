@@ -2,8 +2,8 @@ openapi: "3.0.3"
 info:
   title: 南塘云村 API 契约
   description: |
-    UI-FIX-P2-BE B9 契约基线——一营 FE 按此接入。
-    含 B2-B4 储物管理（本次新建）+ B5-B8 既有端点检查结果。
+    UI-FIX-P2-BE + BE补 完整契约——一营 FE 按此接入。
+    含 B2-B4 储物管理 + B5 档案室 + B6 田间管理 + B7 用户设置 + B8 校核。
   version: "2026-07-31"
   contact:
     name: 南塘云村施工二营
@@ -16,11 +16,11 @@ tags:
   - name: storage
     description: 储物管理（B2-B4，本次新建）
   - name: archive
-    description: 档案室（B5，待建）
+    description: 档案室（B5，已建）
   - name: fields
-    description: 田间管理（B6，待建）
+    description: 田间管理（B6，已建）
   - name: settings
-    description: 用户设置（B7，待建）
+    description: 用户设置（B7，已建）
   - name: verifications
     description: 校核列表（B8，已有）
 
@@ -102,46 +102,220 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   # ════════════════════════════════════════
-  # B5: GET /archive/items（待建）
+  # B5: GET /archive/items
   # ════════════════════════════════════════
-  # /archive/items:
-  #   get:
-  #     tags: [archive]
-  #     summary: 档案条目列表（B5 · 待建）
-  #     description: |
-  #       当前不存在。最近似：GET /data/archive_summary/{target_id}（聚合统计）。
-  #       需要聚合 Journal + NTTask + Verification + CardDiscovery 多表。
-  #       预计字段：id, title, content, created_at, category
-  #     responses:
-  #       "200":
-  #         description: 档案条目列表
+  /archive/items:
+    get:
+      tags: [archive]
+      summary: 档案条目列表（B5）
+      description: |
+        聚合 Journal + ActivityLog + Announcement + CovenantSignature。
+        复合 ID 格式：{source}_{db_id}（如 journal_123）。
+        category 可选：log / event / contract。
+      operationId: listArchiveItems
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [log, event, contract, ""]
+      responses:
+        "200":
+          description: 归档条目列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchiveListRes"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /archive/items/{item_id}:
+    get:
+      tags: [archive]
+      summary: 档案条目详情（B5）
+      description: 按复合 ID（{source}_{db_id}）查单条归档详情
+      operationId: getArchiveItem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 归档详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchiveDetailRes"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   # ════════════════════════════════════════
-  # B6: GET /fields（待建）
+  # B6: GET /fields + 动作端点
   # ════════════════════════════════════════
-  # /fields:
-  #   get:
-  #     tags: [fields]
-  #     summary: 田间作物列表（B6 · 待建）
-  #     description: |
-  #       当前不存在。无 Crop/Field 数据表。
-  #       预计字段：id, crop_name, planted_at, harvest_at, stage, health
-  #     responses:
-  #       "200":
-  #         description: 田间作物列表
+  /fields:
+    get:
+      tags: [fields]
+      summary: 地块列表（B6）
+      operationId: listFieldPlots
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 地块列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldListRes"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /fields/{plot_id}:
+    get:
+      tags: [fields]
+      summary: 地块详情（B6）
+      operationId: getFieldPlot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: plot_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 地块详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldDetailRes"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /fields/{plot_id}/harvest:
+    post:
+      tags: [fields]
+      summary: 收割地块（B6）
+      description: 仅成熟地块可收割 → 回到休耕
+      operationId: harvestFieldPlot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: plot_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 收割成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldDetailRes"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /fields/{plot_id}/water:
+    post:
+      tags: [fields]
+      summary: 浇水（B6）
+      description: 更新 watered_at，缺水→健康；休耕→400
+      operationId: waterFieldPlot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: plot_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 浇水成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldDetailRes"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /fields/{plot_id}/fertilize:
+    post:
+      tags: [fields]
+      summary: 施肥（B6）
+      description: 更新 fertilized_at，缺肥→健康；休耕→400
+      operationId: fertilizeFieldPlot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: plot_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 施肥成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FieldDetailRes"
+        "400":
+          $ref: "#/components/responses/BadRequest"
 
   # ════════════════════════════════════════
-  # B7: GET /users/me/settings（待建）
+  # B7: GET/PATCH /users/me/settings
   # ════════════════════════════════════════
-  # /users/me/settings:
-  #   get:
-  #     tags: [settings]
-  #     summary: 用户设置（B7 · 待建）
-  #     description: |
-  #       当前不存在。User 模型无 notification/theme/language 字段。
-  #     responses:
-  #       "200":
-  #         description: {notification, theme, language}
+  /users/me/settings:
+    get:
+      tags: [settings]
+      summary: 读用户设置（B7）
+      description: 无记录则返回默认值 {notification:true, theme:light, language:zh-CN}
+      operationId: getUserSettings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 用户设置
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsRes"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    patch:
+      tags: [settings]
+      summary: 局部更新用户设置（B7）
+      description: 只改传入的字段（null=不改）。theme 枚举 light/dark，language 枚举 zh-CN/en
+      operationId: patchUserSettings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchSettingsReq"
+      responses:
+        "200":
+          description: 更新后的设置
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsRes"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   # ════════════════════════════════════════
   # B8: GET /data/verifications（已有）
@@ -258,6 +432,146 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/StorageItem"
+
+    # ── Archive (B5) ──
+    ArchiveItem:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "journal_123"
+        title:
+          type: string
+        content:
+          type: string
+        category:
+          type: string
+          enum: [log, event, contract]
+        created_at:
+          type: string
+        author:
+          type: string
+        source:
+          type: string
+          enum: [journal, activity_log, announcement, covenant_signature]
+
+    ArchiveListRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArchiveItem"
+        total:
+          type: integer
+
+    ArchiveDetailRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        item:
+          $ref: "#/components/schemas/ArchiveItem"
+
+    # ── Fields (B6) ──
+    FieldPlot:
+      type: object
+      properties:
+        id:
+          type: string
+        plot_name:
+          type: string
+        crop_name:
+          type: string
+          nullable: true
+        planted_at:
+          type: string
+          nullable: true
+        harvest_at:
+          type: string
+          nullable: true
+        stage:
+          type: string
+          enum: [休耕, 播种, 生长, 成熟, 收割]
+        health:
+          type: string
+          enum: [健康, 缺水, 缺肥, 病虫害]
+        watered_at:
+          type: string
+          nullable: true
+        fertilized_at:
+          type: string
+          nullable: true
+        harvested_by:
+          type: string
+          nullable: true
+        planted_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+
+    FieldListRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        plots:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldPlot"
+        total:
+          type: integer
+
+    FieldDetailRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        plot:
+          $ref: "#/components/schemas/FieldPlot"
+
+    # ── Settings (B7) ──
+    SettingsRes:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        settings:
+          $ref: "#/components/schemas/UserSettings"
+
+    UserSettings:
+      type: object
+      properties:
+        notification:
+          type: boolean
+          default: true
+        theme:
+          type: string
+          enum: [light, dark]
+          default: light
+        language:
+          type: string
+          enum: [zh-CN, en]
+          default: zh-CN
+
+    PatchSettingsReq:
+      type: object
+      properties:
+        notification:
+          type: boolean
+          nullable: true
+          description: null=不改
+        theme:
+          type: string
+          nullable: true
+          description: light/dark，null=不改
+        language:
+          type: string
+          nullable: true
+          description: zh-CN/en，null=不改
 
     # ── Verification (B8) ──
     Verification:
