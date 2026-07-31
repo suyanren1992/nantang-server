@@ -353,6 +353,16 @@ function _renderNewbieCard() {
 
 function _renderMgmtCards() {
   var h = '<div class="info-cards">';
+  // ⑳ 角色仪表盘：visitor 只看住宿+世界终端，npc/admin 看全部
+  var me = _me();
+  var myRole = (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
+  var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
+  // visitor 专属：住宿引导卡
+  if (!isMember) {
+    h += '<div class="ic-card" style="border:2px solid var(--g-accent)" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🛏️ 入住南塘</div>'+
+      '<div class="ic-body"><div class="ic-big">🏠</div><div class="ic-muted">入住后才能使用厨房/打扫/田地功能</div></div></div>';
+    h += '</div>'; return h;
+  }
   // 打扫
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
@@ -403,11 +413,16 @@ function _renderMgmtCards() {
 }
 
 function _renderQuickEntryCards() {
+  // ⑳ 角色仪表盘：visitor 不显示操作卡片
+  var me = _me();
+  var myRole = (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
+  var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
   // SM-3.3: 恢复 🧹 快捷打扫卡——D 修复误删了真入口（openSelfReport 走校核闭环），留的假入口 _submitMyCleaning 只写本地历史不触发 NT
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
-    '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:.65rem;font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
+    (isMember ? '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:.65rem;font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
     '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:.65rem;font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:.65rem;font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>'+
+    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:.65rem;font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
+    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'explore\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🗺️</div><div style="font-size:.65rem;font-weight:600">探索南塘</div><div style="font-size:.55rem;color:#999">地图·建筑</div></div>'+
   '</div>';
 }
 
