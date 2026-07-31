@@ -166,6 +166,9 @@ var API = {
   // ── B7补: Settings 用户设置 ──
   getUserSettings: function() { return this.request('GET', '/users/me/settings'); },
   patchUserSettings: function(data) { return this.request('PATCH', '/users/me/settings', data); },
+  // ── NEW-USER-TASK: 新人任务 ──
+  getNewUserTasks: function() { return this.request('GET', '/api/new_user_tasks/me'); },
+  completeNewUserTask: function(id) { return this.request('PATCH', '/api/new_user_tasks/' + encodeURIComponent(id) + '/complete'); },
   // ── 任务同步 ──
   syncTask: function(task, callback) {
     var data = { title: task.name || task.title, reward: task.nt || task.reward || 5,

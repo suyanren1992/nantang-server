@@ -356,6 +356,19 @@ function doSubmit(name){
     }
   }
   document.querySelectorAll('.submit-expand,.card-expand,.submission-sub').forEach(function(c){c.remove()});
+  // NEW-USER-TASK ④: 新人任务完成弹 toast
+  if (t.is_newbie_task) {
+    var newbieTasks = Object.values(TASKS).filter(function(x){ return x.is_newbie_task; });
+    var doneCount = newbieTasks.filter(function(x){ return x.status === '待审核' || x.status === '已结算'; }).length;
+    var totalCount = newbieTasks.length;
+    if (doneCount >= totalCount) {
+      showToast('🌟 全部新人任务完成！欢迎成为社区正式成员', 'ok');
+    } else if (doneCount === 1) {
+      showToast('🎉 完成你的第 1 个新人任务！', 'ok');
+    } else {
+      showToast('🎉 完成第 ' + doneCount + ' 个新人任务，加油！', 'ok');
+    }
+  }
   filterQuests();renderMyTasks();refreshUserUI();
 }
 function claimTask(name){

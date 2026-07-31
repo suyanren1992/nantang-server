@@ -2185,6 +2185,12 @@ function _confirmCheckin() {
     var b = getBuildings()[currentIdx];
     if (b && b.id === 'info') renderInfoPage(); else render();
     _refreshTopBar();
+    // NEW-USER-TASK ⑤: checkin 后拉取新人任务并弹引导模态
+    if (!isSwitch && typeof API !== 'undefined' && API.token && typeof _showNewbieTaskModal === 'function') {
+      API.getNewUserTasks().then(function(r) {
+        if (r && r.ok && r.tasks && r.tasks.length) _showNewbieTaskModal(r.tasks);
+      }).catch(function(){});
+    }
   };
   showConfirm(confirmMsg, doCheckin);
   }); // _isCovenantSigned callback

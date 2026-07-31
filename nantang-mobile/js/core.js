@@ -443,7 +443,7 @@ function renderTaskCard(t, opts) {
   }
   var h = '<div class="task-card'+cardCls+'" style="border-left:3px solid '+tc.c+'" onclick="event.stopPropagation();toggleQuestCard(this,\''+encodeURIComponent(t.name)+'\')">';
   h += '<div class="task-left '+cls+'">'+tc.icon+'</div><div class="task-body">';
-  h += '<div class="task-row1"><span class="task-name">'+esc(t.name)+'</span><span class="task-nt"><img src=豆子.png alt=NT onerror="this.outerHTML=\'🌱\'" style=width:18px;height:18px;vertical-align:middle;margin-right:3px>'+t.nt+' NT</span></div>';
+  h += '<div class="task-row1"><span class="task-name">'+esc(t.name)+(t.is_newbie_task?' <span style="background:#e8f5e9;color:#3d6b52;font-size:.5rem;padding:1px 5px;border-radius:8px;font-weight:600">🆕 新手</span>':'')+'</span><span class="task-nt"><img src=豆子.png alt=NT onerror="this.outerHTML=\'🌱\'" style=width:18px;height:18px;vertical-align:middle;margin-right:3px>'+t.nt+' NT</span></div>';
   h += '<div class="task-row2">';
   h += '<span class="task-chip '+cls+'">'+t.type+'</span>';
   // R8: poster='社区' 特殊显示
@@ -473,6 +473,20 @@ function toggleQuestCard(el,name){
   var h='';var cs=t.claimants||[];var slots=t.slots||1;var remain=Math.max(0,slots-cs.length);
   // 说明
   if(t.note) h+='<div style=background:#fff;padding:8px 10px;border-radius:8px;border:1px solid #e8ede6;line-height:1.5;margin-bottom:8px>'+esc(t.note)+'</div>';
+  // NEW-USER-TASK ③: 新手任务倒计时 + 标签
+  if(t.is_newbie_task) {
+    h+='<div style=background:#e8f5e9;padding:8px 10px;border-radius:8px;border:1px solid #a0c8a0;margin-bottom:8px;display:flex;align-items:center;gap:8px>';
+    h+='<span style=font-size:var(--g-font-size-xs);color:#3d6b52;font-weight:700>🆕 新手引导</span>';
+    if(t.expires_at) {
+      var remainMs = new Date(t.expires_at).getTime() - Date.now();
+      if(remainMs > 0) {
+        var daysLeft = Math.floor(remainMs / 86400000);
+        var hoursLeft = Math.floor((remainMs % 86400000) / 3600000);
+        h+='<span style=font-size:var(--g-font-size-xs);color:var(--g-text-dim)">⏳ '+(daysLeft>0?daysLeft+'天':'')+hoursLeft+'小时后过期</span>';
+      } else { h+='<span style=font-size:var(--g-font-size-xs);color:var(--g-red)">⏰ 已过期</span>'; }
+    }
+    h+='</div>';
+  }
   // 时间线（完整链路）
   h+='<div style=margin-bottom:8px><div style=font-size:.72rem;color:#5a5a5a;margin-bottom:3px>🕐 时间线</div>';
   h+='<div style=display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:#5a6e5c>';
@@ -1585,6 +1599,26 @@ function _saveUserSettings() {
     var modals = document.querySelectorAll('.disc-modal-overlay');
     for (var i = 0; i < modals.length; i++) modals[i].remove();
   }
+}
+// NEW-USER-TASK ⑤: checkin 后弹新人引导模态
+function _showNewbieTaskModal(tasks) {
+  if (!tasks || !tasks.length) return;
+  var m = document.createElement('div'); m.className = 'disc-modal-overlay';
+  m.style.cssText = 'position:fixed;inset:0;z-index:350;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);animation:fadeIn .15s ease-out';
+  var h = '<div class="ui-card" style="background:#fff;border-radius:var(--g-radius-lg);width:320px;max-width:90vw;padding:var(--g-pad-lg);box-shadow:0 12px 40px rgba(0,0,0,.25)">';
+  h += '<div style="text-align:center;margin-bottom:12px"><span style="font-size:2rem">🎉</span></div>';
+  h += '<div style="font-weight:700;font-size:var(--g-font-size);text-align:center;margin-bottom:4px">欢迎入住南塘云村！</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);text-align:center;margin-bottom:12px">系统给你准备了 '+tasks.length+' 个新人任务，帮你熟悉社区</div>';
+  tasks.slice(0,6).forEach(function(t,i){
+    h += '<div style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:var(--g-font-size-xs);display:flex;align-items:center;gap:6px"><span style="color:var(--g-green)">'+(i+1)+'.</span> '+esc(t.title||t.name)+'<span style="margin-left:auto;color:#8a6a20;font-size:.55rem">+'+(t.reward_nt||t.nt||0)+' NT</span></div>';
+  });
+  h += '<div style="display:flex;gap:6px;margin-top:12px">';
+  h += '<button class="btn-sm sec" style="flex:1;font-size:var(--g-font-size-xs)" onclick="this.closest(\'.disc-modal-overlay\').remove()">稍后</button>';
+  h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)" onclick="this.closest(\'.disc-modal-overlay\').remove();showMy()">📋 查看任务</button>';
+  h += '</div></div>';
+  m.innerHTML = h;
+  m.addEventListener('click', function(e) { if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
 }
 var _profileSeed=null;  // null="未选头像",注册/渲染时从池子随机取
 var _avatarStyles=['avataaars','bottts','fun-emoji','pixel-art','micah','lorelei','adventurer','big-ears','big-smile','croodles','identicon','personas'];
