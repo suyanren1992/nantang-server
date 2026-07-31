@@ -196,6 +196,7 @@ if (window.location.protocol !== 'file:') {
     <span class="camp-tab" onclick="switchCampTab('members')">成员</span>
     <span class="camp-tab" onclick="switchCampTab('ranking')">排行</span>
     <span class="camp-tab" id="campTabSettle" onclick="switchCampTab('settle')">结算</span>
+    <span class="camp-tab" onclick="switchCampTab('discuss')">🏛️ 议事</span>
     <span class="camp-tab" id="campTabManage" style="display:none" onclick="switchCampTab('manage')">⚙️</span>
   </div>
   <div class="overlay-body" id="campHomeBody"></div>
@@ -534,15 +535,15 @@ if (window.location.protocol !== 'file:') {
 <script src="js/app-data.js?v=28"></script>
 <script src="js/api.js?v=27"></script>
 <script src="js/data.js?v=21"></script>
-<script src="js/core.js?v=49"></script>
+<script src="js/core.js?v=50"></script>
 <script src="js/ui-village.js?v=20"></script>
-<script src="js/ui-camp.js?v=13"></script>
+<script src="js/ui-camp.js?v=14"></script>
 <script src="js/ui-wizard.js?v=10"></script>
 <script src="js/ui-phase4.js?v=15"></script>
 <script src="js/ui-social.js?v=21"></script>
 <script src="js/ui-archive.js?v=25"></script>
 <script src="js/ui-cardroom.js?v=19"></script>
-<script src="js/app.js?v=44"></script>
+<script src="js/app.js?v=45"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};

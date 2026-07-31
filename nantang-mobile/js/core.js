@@ -1360,6 +1360,7 @@ function refreshUserUI(){
     var vBadge=document.getElementById('ubVerifyBadge'); if(vBadge){ var vCnt=(AppData._data.pendingVerifications||[]).filter(function(v){return v.status==='pending';}).length; vBadge.textContent=vCnt; vBadge.style.display=vCnt>0?'inline':'none'; }
     // 公告栏更新
     if(typeof _updateAnnounceBar==='function') _updateAnnounceBar();
+    if(typeof _renderAnnounceTicker==='function') _renderAnnounceTicker();
     var accs=ml.accommodations||{}; var occ=Object.values(accs).filter(function(a){return a.status==='occupied';});
     var stayEl=document.getElementById('ubStatStay'); if(stayEl) stayEl.textContent='🛏️'+occ.length+'人入住';
     var plots=ml.plots||[]; var warns=plots.filter(function(p){return p.status==='warning';});

@@ -3379,6 +3379,60 @@ function _postAnnouncement(text) {
   _renderAnnounceTicker();
   showToast('公告已发布', 'ok');
 }
+// D6: 营地提案区——议事厅 UI.Card 网格，提案+投票
+function _renderProposalCards(el) {
+  if (!el) { el = document.getElementById('proposalCards'); if (!el) return; }
+  var proposals = (window.AppData && AppData._data._proposals) || [];
+  if (!proposals.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--g-text-dim);font-size:var(--g-font-size-xs)">🏛️ 暂无提案</div>'; return; }
+  var h = '';
+  proposals.forEach(function(p) {
+    var votesFor = (p.votes||{for:[]}).for.length || 0;
+    var votesAgainst = (p.votes||{against:[]}).against.length || 0;
+    var total = votesFor + votesAgainst;
+    var pct = total > 0 ? Math.round(votesFor/total*100) : 0;
+    h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);margin-bottom:8px">';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);margin-bottom:4px">📜 '+esc(p.title)+'</div>';
+    h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-bottom:6px">'+esc(p.author)+' · '+ (p.time||'').slice(0,10)+'</div>';
+    h += '<div style="font-size:.58rem;color:var(--g-text);line-height:1.5;margin-bottom:6px">'+esc(p.desc||'')+'</div>';
+    h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+    h += '<span style="font-size:.55rem;color:var(--green-primary)">👍 '+votesFor+'</span>';
+    h += '<span style="font-size:.55rem;color:var(--g-red)">👎 '+votesAgainst+'</span>';
+    h += '<div class="progress-bar" style="flex:1;height:6px"><div class="progress-fill" style="width:'+pct+'%"></div></div>';
+    h += '</div>';
+    if (CURRENT_USER && !(p.voters||[]).includes(CURRENT_USER)) {
+      h += '<div style="display:flex;gap:4px;margin-top:4px">';
+      h += '<button class="btn-sm pri" style="flex:1;font-size:.5rem;padding:2px 6px" onclick="event.stopPropagation();_voteProposal(\''+p.id+'\',\'for\')">👍</button>';
+      h += '<button class="btn-sm danger" style="flex:1;font-size:.5rem;padding:2px 6px" onclick="event.stopPropagation();_voteProposal(\''+p.id+'\',\'against\')">👎</button>';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  el.innerHTML = h;
+}
+function _submitProposal(title, desc) {
+  if (!title || !CURRENT_USER) { showToast('请输入提案标题','warn'); return; }
+  if (!window.AppData) return;
+  AppData._data._proposals = AppData._data._proposals || [];
+  AppData._data._proposals.unshift({ id:'prop_'+Date.now().toString(36), title:title, desc:desc||'', author:CURRENT_USER, time:new Date().toISOString(), votes:{for:[],against:[]}, voters:[] });
+  AppData._saveShared();
+  _renderProposalCards();
+  showToast('提案已提交', 'ok');
+}
+function _voteProposal(propId, vote) {
+  if (!CURRENT_USER || !window.AppData) return;
+  var proposals = AppData._data._proposals || [];
+  var p = proposals.find(function(x){ return x.id === propId; });
+  if (!p) return;
+  p.voters = p.voters || [];
+  if (p.voters.includes(CURRENT_USER)) { showToast('已投过票','warn'); return; }
+  p.voters.push(CURRENT_USER);
+  p.votes = p.votes || {for:[],against:[]};
+  if (vote === 'for') p.votes.for.push(CURRENT_USER);
+  else p.votes.against.push(CURRENT_USER);
+  AppData._saveShared();
+  _renderProposalCards();
+  showToast('投票成功', 'ok');
+}
 // ── 撤销 + 通用 ──
 function _closeQuickSheet() {
   var sheet = document.querySelector('.quick-sheet');
