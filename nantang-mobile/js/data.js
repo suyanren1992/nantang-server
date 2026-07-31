@@ -368,6 +368,12 @@ function doSubmit(name){
     } else {
       showToast('🎉 完成第 ' + doneCount + ' 个新人任务，加油！', 'ok');
     }
+    // NEW-USER-TASK-FIX-FE ③: 走 BE 校核闭环
+    if (typeof API !== 'undefined' && API.token) {
+      var qs = AppData._data.newbieQuests || {};
+      var nq = Object.values(qs).find(function(q) { return (q.name||'') === (t.name||'') || (q.name||'') === (t.title||''); });
+      if (nq && !nq.done) { API.completeNewUserTask(nq.quest_id).catch(function(){}); }
+    }
   }
   filterQuests();renderMyTasks();refreshUserUI();
 }
