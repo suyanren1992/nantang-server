@@ -152,7 +152,7 @@ function renderCampOverview(el) {
       '<span style="color:#d0d9ce">→</span></div>'+
 
     // 🏨 住宿
-    '<div class="camp-nav-card" onclick="openInn()"><span>🏨</span>'+
+    '<div class="camp-nav-card" onclick="openAccomPage()"><span>🏨</span>'+
       '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">住宿</div>'+
       '<div style="font-size:.58rem;color:'+(lodgingRmb?'#5a6e5c':'#aaa')+';margin-top:2px">'+(lodgingRmb?lodgingNT+' NT/天 · ¥'+lodgingRmb+'/天':'暂无客栈数据')+'</div></div>'+
       (lodgingRmb ? '<span style="font-size:.6rem;background:#e8f0e4;color:#3d6b52;padding:3px 8px;border-radius:10px">查看</span>' : '')+

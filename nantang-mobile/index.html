@@ -8,7 +8,7 @@
 <style>body{visibility:hidden}[onclick]{touch-action:manipulation}#loadingFallback{display:none;position:fixed;inset:0;z-index:9999;background:#1d2e24;color:#fff;text-align:center;padding-top:30vh;font-size:.9rem;line-height:2}</style>
 <link rel="icon" href="../92e279b22d04d4c831aec15aa09213df (1).png">
 <link rel="stylesheet" href="css/theme.css?v=10">
-<link rel="stylesheet" href="css/main.css?v=12">
+<link rel="stylesheet" href="css/main.css?v=13">
 <script src="https://cdn.jsdelivr.net/npm/gsap@3.12/dist/gsap.min.js"></script>
 </head>
 <body>
@@ -184,6 +184,11 @@ if (window.location.protocol !== 'file:') {
 <div id="overlayActivityHub" class="overlay">
   <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayActivityHub')">✕</button><span class="overlay-title">🎪 南塘集市</span></div>
   <div class="overlay-body" id="activityHubBody" style="padding:10px 14px 0"></div>
+</div>
+<!-- ══ A-ACCOM-PAGE: 住宿页卡片化 ══ -->
+<div id="overlayAccomPage" class="overlay">
+  <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayAccomPage')">✕</button><span class="overlay-title">🏨 住宿管理</span></div>
+  <div class="overlay-body" id="accomPageBody" style="padding:10px 14px 0"></div>
 </div>
 <div id="overlayCampWindow" class="overlay">
   <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayCampWindow')">✕</button><span class="overlay-title" id="campWindowTitle">营地详情</span></div>
@@ -558,14 +563,15 @@ if (window.location.protocol !== 'file:') {
 <script src="js/data.js?v=24"></script>
 <script src="js/core.js?v=53"></script>
 <script src="js/ui-village.js?v=20"></script>
-<script src="js/ui-camp.js?v=14"></script>
+<script src="js/ui-camp.js?v=15"></script>
 <script src="js/ui-wizard.js?v=10"></script>
 <script src="js/ui-phase4.js?v=15"></script>
 <script src="js/ui-social.js?v=21"></script>
 <script src="js/ui-archive.js?v=25"></script>
 <script src="js/ui-cardroom.js?v=20"></script>
 <script src="js/ui-activity.js?v=1"></script>
-<script src="js/app.js?v=53"></script>
+<script src="js/ui-accom.js?v=1"></script>
+<script src="js/app.js?v=54"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
