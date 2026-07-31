@@ -239,15 +239,17 @@ var API = {
   // ── SM-5: 测试台 ──
   devReset: function(mode) { return this.request('POST', '/api/admin/dev-reset?mode=' + (mode||'soft')); },
   devSeed: function() { return this.request('POST', '/api/admin/dev-seed'); },
-  // ── P1-#6 ③ potluck 田间接龙 ──
-  getPotluckList: function() { return this.request('GET', '/api/potluck/list'); },
-  joinPotluck: function(data) { return this.request('POST', '/api/potluck/join', data); },
+	  // ── P1-#6 offline stub helper ──
+	  _offlineOk: function() { return {ok:true, _offline:true, items:[], hint:'离线模式'}; },
+  // ── P1-#6 ③ potluck 共享厨房接龙 ──
+  getPotluckList: function() { return this.request('GET', '/api/potluck/list').catch(API._offlineOk); },
+  joinPotluck: function(data) { return this.request('POST', '/api/potluck/join', data).catch(API._offlineOk); },
   // ── P1-#6 ⑤⑥⑦ proposals 议事厅提案 ──
-  getProposalsList: function() { return this.request('GET', '/api/proposals/list'); },
-  submitProposal: function(data) { return this.request('POST', '/api/proposals/submit', data); },
-  voteProposal: function(propId, vote) { return this.request('POST', '/api/proposals/vote', {proposal_id: propId, vote: vote}); },
+  getProposalsList: function() { return this.request('GET', '/api/proposals/list').catch(API._offlineOk); },
+  submitProposal: function(data) { return this.request('POST', '/api/proposals/submit', data).catch(API._offlineOk); },
+  voteProposal: function(propId, vote) { return this.request('POST', '/api/proposals/vote', {proposal_id: propId, vote: vote}).catch(API._offlineOk); },
   // ── P1-#6 ⑧ camp_proposals 营地议事 ──
-  getCampProposalsList: function(campId) { return this.request('GET', '/api/camp_proposals/list' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')); },
+  getCampProposalsList: function(campId) { return this.request('GET', '/api/camp_proposals/list' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')).catch(API._offlineOk); },
   // ── P1-#6 ⑨ gossip 茶馆八卦（冻结）──
   getGossipList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'茶馆板块即将开放'}); },
   // ── P1-#6 ⑩ market 二手集市（冻结）──
@@ -255,18 +257,18 @@ var API = {
   // ── P1-#6 ⑪ auction 拍卖会（冻结）──
   getAuctionList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'拍卖板块即将开放'}); },
   // ── P1-#6 ⑫ health 体检报告 ──
-  getHealthReport: function() { return this.request('GET', '/api/health/report'); },
+  getHealthReport: function() { return this.request('GET', '/api/health/report').catch(function(){ return {ok:true,_offline:true,status:'未知',db:'—',uptime:'—'}; }); },
   // ── P1-#6 ⑬ notifications 通报 ──
-  getNotificationsList: function() { return this.request('GET', '/api/notifications/list'); },
+  getNotificationsList: function() { return this.request('GET', '/api/notifications/list').catch(API._offlineOk); },
   // ── P1-#6 ⑭ cleaning_pricing 清洁定价 ──
-  getCleaningPricing: function() { return this.request('GET', '/api/cleaning_pricing'); },
+  getCleaningPricing: function() { return this.request('GET', '/api/cleaning_pricing').catch(function(){ return {ok:true,_offline:true,dirty:20,warning:15,clean:5}; }); },
   // ── P1-#6 ⑮ labor/history 劳动历史 ──
-  getLaborHistory: function() { return this.request('GET', '/api/labor/history'); },
+  getLaborHistory: function() { return this.request('GET', '/api/labor/history').catch(API._offlineOk); },
   // ── P1-#6 ⑯ nt/withdraw/history 提现历史 ──
-  getWithdrawHistory: function() { return this.request('GET', '/api/nt/withdraw/history'); },
+  getWithdrawHistory: function() { return this.request('GET', '/api/nt/withdraw/history').catch(API._offlineOk); },
   // ── P1-#6 ⑰ camps/budget 营地预算 ──
-  getCampsBudget: function(campId) { return this.request('GET', '/api/camps/budget' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')); },
+  getCampsBudget: function(campId) { return this.request('GET', '/api/camps/budget' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')).catch(function(){ return {ok:true,_offline:true,budget:0,items:[]}; }); },
   // ── P1-#6 ⑱ camps/schedule 营地日程 ──
-  getCampsSchedule: function(campId) { return this.request('GET', '/api/camps/schedule' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')); },
+  getCampsSchedule: function(campId) { return this.request('GET', '/api/camps/schedule' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')).catch(API._offlineOk); },
 };
 API.init();
