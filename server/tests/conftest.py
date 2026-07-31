@@ -32,15 +32,14 @@ warnings.warn(_SQLITE_WARNING, UserWarning)
 from database import engine, async_session, init_db, Base  # noqa: E402
 from main import app  # noqa: E402
 
-# ══ 测试隔离：每次 checkout 强制 FK OFF ══
-# init_db() 会设 PRAGMA foreign_keys=ON，连接回池后残留 ON 状态，
-# 导致后续测试创建松散 FK 引用（如 Tenancy.room_id 不在 inn_rooms）时报错。
-# checkout 事件每次取连接时重置 FK OFF，保证测试行为与原始 create_all 一致。
-@event.listens_for(engine.sync_engine, "checkout")
-def _force_fk_off(dbapi_conn, connection_record, connection_proxy):
-    cur = dbapi_conn.cursor()
-    cur.execute("PRAGMA foreign_keys=OFF")
-    cur.close()
+# ══ FK ON：与生产 database.py:81 同构 ══
+# SQLite 默认 FK=OFF；connect 事件在每连接创建时显式开启，保证外键约束在测试中真生效。
+# _isolate_db 清表已使用 reversed(sorted_tables) 逆序 DELETE，FK ON 下安全。
+@event.listens_for(engine.sync_engine, "connect")
+def _set_fk_on(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 # ══ K-2: requires_pg marker — 无 PG 连接串时 skip ══

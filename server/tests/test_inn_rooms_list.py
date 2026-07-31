@@ -9,8 +9,18 @@ import uuid
 import pytest
 
 from sqlalchemy import select
+from auth_utils import hash_password
 from database import async_session
-from models import InnRoom, Tenancy
+from models import InnRoom, Tenancy, User
+
+
+async def _add_user(uid, role="villager"):
+    """FK ON 下 Tenancy 引用的 user 必须存在——先建 user 再建 tenancy。"""
+    async with async_session() as s:
+        s.add(User(id=uid, password_hash=hash_password("Passw0rd!"),
+                   role=role, contribution_value=0, experience_value=0,
+                   nt_balance=0, trust_score=100))
+        await s.commit()
 
 
 async def _seed_six_rooms():
@@ -57,7 +67,8 @@ class TestInnRoomsList:
     async def test_occupied_dates_interval(self, client):
         await _seed_six_rooms()
         uid = f"innu_{uuid.uuid4().hex[:6]}"
-        # [02-10, 02-13) => 10/11/12 \u4e09\u5929\u5360\u7528\uff0c13 \u4e0d\u542b
+        await _add_user(uid)
+        # [02-10, 02-13) => 10/11/12 三天占用，13 不含
         await _add_tenancy("lan", uid, "2026-02-10", "2026-02-13")
         r = await client.get("/api/accommodation/inn-rooms")
         assert r.status_code == 200, r.text
@@ -69,7 +80,9 @@ class TestInnRoomsList:
         await _seed_six_rooms()
         u1 = f"innc_{uuid.uuid4().hex[:6]}"
         u2 = f"innd_{uuid.uuid4().hex[:6]}"
-        # coop \u8f68\u4e0d\u8ba1\u5165 inn \u5360\u7528
+        await _add_user(u1)
+        await _add_user(u2)
+        # coop 轨不计入 inn 占用
         await _add_tenancy("zhu", u1, "2026-03-01", "2026-03-05", track="coop")
         # \u5df2\u9000\u623f\u4e0d\u8ba1\u5165
         await _add_tenancy("zhu", u2, "2026-03-06", "2026-03-09", track="inn", status="checked_out")

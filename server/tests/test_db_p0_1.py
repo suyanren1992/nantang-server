@@ -90,6 +90,7 @@ class TestVoteRightStrict:
             u = User(id="p01_vote_today", password_hash=hash_password("Passw0rd!"),
                      role="villager", last_active_at=date.today())
             s.add(u)
+            await s.flush()
             s.add(Tenancy(user_id="p01_vote_today", room_id="p01_room_a",
                           checkin_date=date.today().isoformat(), status="active"))
             await s.commit()
@@ -104,6 +105,7 @@ class TestVoteRightStrict:
             u = User(id="p01_vote_old", password_hash=hash_password("Passw0rd!"),
                      role="villager", last_active_at=date.today() - timedelta(days=31))
             s.add(u)
+            await s.flush()
             s.add(Tenancy(user_id="p01_vote_old", room_id="p01_room_b",
                           checkin_date="2026-01-01", status="active"))
             await s.commit()
@@ -118,6 +120,7 @@ class TestVoteRightStrict:
             u = User(id="p01_vote_none", password_hash=hash_password("Passw0rd!"),
                      role="villager", last_active_at=None)
             s.add(u)
+            await s.flush()
             s.add(Tenancy(user_id="p01_vote_none", room_id="p01_room_c",
                           checkin_date="2026-01-01", status="active"))
             await s.commit()
