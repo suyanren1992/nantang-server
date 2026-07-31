@@ -239,5 +239,34 @@ var API = {
   // ── SM-5: 测试台 ──
   devReset: function(mode) { return this.request('POST', '/api/admin/dev-reset?mode=' + (mode||'soft')); },
   devSeed: function() { return this.request('POST', '/api/admin/dev-seed'); },
+  // ── P1-#6 ③ potluck 田间接龙 ──
+  getPotluckList: function() { return this.request('GET', '/api/potluck/list'); },
+  joinPotluck: function(data) { return this.request('POST', '/api/potluck/join', data); },
+  // ── P1-#6 ⑤⑥⑦ proposals 议事厅提案 ──
+  getProposalsList: function() { return this.request('GET', '/api/proposals/list'); },
+  submitProposal: function(data) { return this.request('POST', '/api/proposals/submit', data); },
+  voteProposal: function(propId, vote) { return this.request('POST', '/api/proposals/vote', {proposal_id: propId, vote: vote}); },
+  // ── P1-#6 ⑧ camp_proposals 营地议事 ──
+  getCampProposalsList: function(campId) { return this.request('GET', '/api/camp_proposals/list' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')); },
+  // ── P1-#6 ⑨ gossip 茶馆八卦（冻结）──
+  getGossipList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'茶馆板块即将开放'}); },
+  // ── P1-#6 ⑩ market 二手集市（冻结）──
+  getMarketList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'集市板块即将开放'}); },
+  // ── P1-#6 ⑪ auction 拍卖会（冻结）──
+  getAuctionList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'拍卖板块即将开放'}); },
+  // ── P1-#6 ⑫ health 体检报告 ──
+  getHealthReport: function() { return this.request('GET', '/api/health/report'); },
+  // ── P1-#6 ⑬ notifications 通报 ──
+  getNotificationsList: function() { return this.request('GET', '/api/notifications/list'); },
+  // ── P1-#6 ⑭ cleaning_pricing 清洁定价 ──
+  getCleaningPricing: function() { return this.request('GET', '/api/cleaning_pricing'); },
+  // ── P1-#6 ⑮ labor/history 劳动历史 ──
+  getLaborHistory: function() { return this.request('GET', '/api/labor/history'); },
+  // ── P1-#6 ⑯ nt/withdraw/history 提现历史 ──
+  getWithdrawHistory: function() { return this.request('GET', '/api/nt/withdraw/history'); },
+  // ── P1-#6 ⑰ camps/budget 营地预算 ──
+  getCampsBudget: function(campId) { return this.request('GET', '/api/camps/budget' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')); },
+  // ── P1-#6 ⑱ camps/schedule 营地日程 ──
+  getCampsSchedule: function(campId) { return this.request('GET', '/api/camps/schedule' + (campId ? '?camp_id=' + encodeURIComponent(campId) : '')); },
 };
 API.init();
