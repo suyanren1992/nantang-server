@@ -47,10 +47,10 @@ function _renderActivityFeed(c) {
   });
 
   if (items.length > pageSize) {
-    h += '<div style="text-align:center;padding:10px;font-size:.65rem;color:var(--green-primary);cursor:pointer">加载更多 ('+(items.length-pageSize)+'条)</div>';
+    h += '<div style="text-align:center;padding:10px;font-size:var(--g-font-size-xs);color:var(--green-primary);cursor:pointer">加载更多 ('+(items.length-pageSize)+'条)</div>';
   }
   if (!shown.length) {
-    h += '<div style="text-align:center;padding:20px;color:#aaa;font-size:.65rem">暂无此类动态</div>';
+    h += '<div style="text-align:center;padding:20px;color:#aaa;font-size:var(--g-font-size-xs)">暂无此类动态</div>';
   }
   h += '</div>';
   return h;
@@ -312,7 +312,7 @@ function openDossier(name) {
   h += '<div style="text-align:center;padding:14px">';
   h += '<img src="https://api.dicebear.com/7.x/avataaars/svg?seed='+(u.avatar_seed||0)+'&size=56" width="48" height="48" style="border-radius:50%;object-fit:cover" alt="">';
   h += '<div style="font-weight:700;font-size:.82rem;margin-top:6px">'+esc(name)+'</div>';
-  h += '<div style="font-size:.65rem;color:#5a6e5c">'+roleIcon(u.role||'visitor')+' '+roleName(u.role||'visitor')+' · '+totalNT+' NT</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c">'+roleIcon(u.role||'visitor')+' '+roleName(u.role||'visitor')+' · '+totalNT+' NT</div>';
   h += '</div>';
 
   h += '<div class="dossier-section"><h3>📊 本期统计</h3>';

@@ -121,7 +121,7 @@ function renderNewbieGuide() {
   var done = quests.filter(function(q){ return q.done; }).length;
   var total = quests.length;
   var h = '';
-  h += '<div style="font-size:.65rem;color:#5a6e5c;margin-bottom:8px">🌱 新手计划 · ' + done + '/' + total + ' 完成</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:8px">🌱 新手计划 · ' + done + '/' + total + ' 完成</div>';
   quests.forEach(function(q){
     var icon = q.done ? '✅' : '○';
     var color = q.done ? '#5d8c52' : '#1d2e24';
@@ -194,7 +194,7 @@ function openItemPopup(id){
   card.innerHTML='<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a;z-index:1" onclick="closeItemPopup()">✕</button>';
   card.innerHTML+='<div style="text-align:center"><div style="font-size:3rem">'+icon+'</div>';
   card.innerHTML+='<div style="font-weight:700;font-size:1rem;margin-top:6px">'+esc(item.name)+'</div>';
-  if(item.cat) card.innerHTML+='<div style="font-size:.65rem;color:#5a6e5c;margin-top:2px">'+icon+' '+(item.cat||'其他')+' · 📍 '+(item.location||'背包')+'</div>';
+  if(item.cat) card.innerHTML+='<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;margin-top:2px">'+icon+' '+(item.cat||'其他')+' · 📍 '+(item.location||'背包')+'</div>';
   card.innerHTML+='<div style="font-size:.68rem;color:#5a6e5c;margin-top:2px">'+item.date+'</div>';
   card.innerHTML+='<div style="margin-top:4px"><span style="font-size:.62rem;padding:2px 8px;border-radius:5px;font-weight:600;background:'+(item.status==='selling'?'#e8f0e8;color:var(--green-primary)':item.status==='auction'?'#fef8e8;color:#c8892e':item.status==='sold'?'#f0f0f0;color:#5a5a5a':'#f2f5f1;color:#5a6e5c')+'">'+({storage:'在库',selling:'上架中',auction:'拍卖中',sold:'已售出'})[item.status]+'</span></div>';
   if(item.price) card.innerHTML+='<div style="font-size:1.2rem;font-weight:700;color:var(--green-primary);margin-top:6px">¥'+item.price+'</div>';
@@ -259,16 +259,16 @@ function openSub(t){document.getElementById('subTitle').textContent=t.name;docum
   document.body.classList.add('ov-locked');
   var h='<span class="sub-badge sb-gold">'+t.type+'</span> ';
   if (t.status) h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';
-  h+='<div style="font-size:1.1rem;font-weight:700;margin-top:8px">'+esc(t.name)+'</div>';
+  h+='<div style="font-size:var(--g-font-size-lg);font-weight:700;margin-top:8px">'+esc(t.name)+'</div>';
   h+='<div style="font-size:1.2rem;font-weight:700;color:var(--green-primary);margin:4px 0"><img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
-  if(t.note) h+='<div class="sub-section"><h3>任务说明</h3><p style="font-size:.85rem;line-height:1.6;color:#1d2e24">'+esc(t.note)+'</p></div>';
+  if(t.note) h+='<div class="sub-section"><h3>任务说明</h3><p style="font-size:var(--g-font-size);line-height:1.6;color:#1d2e24">'+esc(t.note)+'</p></div>';
   h+='<div class="sub-section"><h3>信息</h3><div class="sub-meta">';
   if(t.poster) h+='<span>👤 '+esc(t.poster)+'</span>';
   if(t.deadline) h+='<span>⏰ '+t.deadline+'</span>';
   if(t.reviewer) h+='<span>✅ 审核: '+esc(t.reviewer)+'</span>';
   if(t.slots) h+='<span>👥 '+t.slots+'</span>';
   h+='</div></div>';
-  if(t.claimants) h+='<div class="sub-section"><h3>领取人</h3><div class="sub-meta">'+t.claimants.map(function(c){return '<span style="background:#f2f5f1;padding:4px 10px;border-radius:8px;font-size:.75rem">'+c+'</span>'}).join('')+'</div></div>';
+  if(t.claimants) h+='<div class="sub-section"><h3>领取人</h3><div class="sub-meta">'+t.claimants.map(function(c){return '<span style="background:#f2f5f1;padding:4px 10px;border-radius:8px;font-size:var(--g-font-size-sm)">'+c+'</span>'}).join('')+'</div></div>';
   h+='<div class="sub-section"><h3>提交要求</h3><div class="sub-meta"><span>☑ 文字说明</span></div></div>';
   document.getElementById('subBody').innerHTML=h;
   var bar=document.getElementById('subBar');
@@ -326,7 +326,7 @@ function openSubmit(el,name){
   if(t.reqPhoto){for(var i=1;i<=t.reqPhoto;i++) h+='<div style=margin-bottom:6px><label style=font-size:.6rem;color:#5a6e5c>📷 照片 '+i+'/'+t.reqPhoto+'</label><input type="text" id="submitPhoto'+i+'" placeholder="照片链接" style=width:100%;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:.7rem></div>'}
   if(t.reqFile){for(var j=1;j<=t.reqFile;j++) h+='<div style=margin-bottom:6px><label style=font-size:.6rem;color:#5a6e5c>📎 附件 '+j+'/'+t.reqFile+'</label><input type="text" id="submitFile'+j+'" placeholder="附件链接" style=width:100%;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:.7rem></div>'}
   h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.submit-expand\').remove()">取消</button><button class="btn-sm pri" style=flex:1" onclick="doSubmit(\''+encodeURIComponent(name)+'\')">📤 确认提交</button></div>';
-  expandCard(name,'submit-expand','margin-bottom:16px;background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)',h,el)
+  expandCard(name,'submit-expand','margin-bottom:16px;background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)',h,el)
 }
 function doSubmit(name){
   if (typeof _guardOnline === 'function' && _guardOnline('提交任务')) return;
@@ -385,7 +385,7 @@ function unclaimTask(name){
   name = decodeURIComponent(name);
   var t=TASKS[name];if(!t)return;
   var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>📩 申请取消认领 · '+encodeURIComponent(name)+'</div><div style=font-size:.72rem;color:#5a6e5c;margin-bottom:8px>⚠️ 取消认领需要发布者审核批准。<br>确定要申请吗？</div><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.unclaim-expand\').remove()">再想想</button><button class="btn-sm warn" style=flex:1" onclick="confirmUnclaim(\''+encodeURIComponent(name)+'\')">📩 确认申请</button></div>';
-  expandCard(name,'unclaim-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
+  expandCard(name,'unclaim-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;padding:12px 14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
 }
 function confirmUnclaim(name){
   name = decodeURIComponent(name);
@@ -425,7 +425,7 @@ function reviewTask(name,action){
     });
   }else{
     var h='<div style=font-weight:700;margin-bottom:6px;color:var(--red)>🔙 退回修改 · '+encodeURIComponent(name)+'</div><textarea id="reviewReason" rows="2" placeholder="说明退回理由…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.review-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmReject(\''+encodeURIComponent(name)+'\')">✕ 确认打回</button></div>';
-    expandCard(name,'review-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
+    expandCard(name,'review-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
   }
 }
 function confirmReject(name){
@@ -501,7 +501,7 @@ function requestWithdraw(name){
   h+='<textarea id="withdrawReason" rows="2" placeholder="说明撤回原因…" style=width:100%;padding:8px;border:1px solid #f0c8c8;border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical;margin-bottom:8px></textarea>';
   h+='<div style=font-size:.6rem;color:#5a5a5a;margin-bottom:8px>⚠️ 提交后需审核人批准</div>';
   h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.withdraw-expand\').remove()">取消</button><button class="btn-sm danger" style=flex:1" onclick="confirmWithdraw(\''+encodeURIComponent(name)+'\')">📩 确认申请</button></div>';
-  expandCard(name,'withdraw-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
+  expandCard(name,'withdraw-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;border-bottom:3px solid #f0c8c8;padding:12px 14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid var(--red)',h)
 }
 function confirmWithdraw(name){
   // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/retract-request —— 已领未提交时申请撤回
@@ -571,11 +571,11 @@ function settleTask(name){
   var t=TASKS[name];if(!t)return;
   var stlr=t.settler||t.publisher||'';
   var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>🧾 结算确认 · '+esc(t.name)+'</div>';
-  h+='<div style=font-size:.65rem;color:#5a6e5c;margin-bottom:4px>💳 支付人：'+esc(stlr)+' · 金额：<img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
+  h+='<div style=font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:4px>💳 支付人：'+esc(stlr)+' · 金额：<img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
   var done=(t.claimants||[]).filter(function(c){return c.status==='completed'});
-  if(done.length) h+='<div style=font-size:.65rem;color:#5a6e5c;margin-bottom:8px>✅ 完成人：'+done.map(function(c){return c.name}).join('、')+'</div>';
+  if(done.length) h+='<div style=font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:8px>✅ 完成人：'+done.map(function(c){return c.name}).join('、')+'</div>';
   h+='<div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.settle-expand\').remove()">取消</button><button class="btn-sm pri" style=flex:1" onclick="confirmSettle(\''+encodeURIComponent(name)+'\')">✅ 确认结算 · <img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</button></div>';
-  expandCard(name,'settle-expand','margin-bottom:16px;background:#fffbf5;border:1px solid #e8d5a0;border-bottom:3px solid #e8d5a0;border-radius:10px;padding:12px 14px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
+  expandCard(name,'settle-expand','margin-bottom:16px;background:#fffbf5;border:1px solid #e8d5a0;border-bottom:3px solid #e8d5a0;border-radius:10px;padding:12px 14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
 }
 function confirmSettle(name){
   var t=TASKS[name];if(!t)return;
@@ -708,7 +708,7 @@ function renderCommunityHub() {
   var actLog = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
   if (actLog.length) {
     h += '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px">';
-    h += '<div style="font-size:.65rem;font-weight:700;color:#5a6e5c;margin-bottom:6px">📡 社区动态</div>';
+    h += '<div style="font-size:var(--g-font-size-xs);font-weight:700;color:#5a6e5c;margin-bottom:6px">📡 社区动态</div>';
     actLog.slice(0,5).forEach(function(a){
       var time = (a.time||'').slice(0,16).replace('T',' ');
       h += '<div style="font-size:.6rem;color:#5a6e5c;padding:3px 0;border-bottom:1px solid #f5f5f5">'+time+' · '+esc(a.text)+'</div>';
@@ -725,7 +725,7 @@ function renderCommunityHub() {
     h = '<div style="text-align:center;padding:40px 20px;color:#5a6e5c">'+
       '<div style="font-size:2rem;margin-bottom:8px">🏕️</div>'+
       '<div style="font-size:.8rem;font-weight:600">暂无活动</div>'+
-      '<div style="font-size:.65rem;color:#aaa;margin-top:4px">等待管理员创建第一个共创营队</div>'+
+      '<div style="font-size:var(--g-font-size-xs);color:#aaa;margin-top:4px">等待管理员创建第一个共创营队</div>'+
     '</div>';
   }
   el.innerHTML = h;

@@ -61,7 +61,7 @@ if (window.location.protocol !== 'file:') {
       <button class="avatar-btn" onclick="cycleAvatar()">🎨 换头像</button>
       <input type="text" id="regName" class="login-input" placeholder="你的名字" autocomplete="username">
       <div style="position:relative"><input type="password" id="regPwd" class="login-input" placeholder="设置密码（至少8位）" style="padding-right:38px" autocomplete="new-password"><span onclick="togglePwdEye('regPwd',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:1;cursor:pointer;font-size:.9rem;opacity:.7;user-select:none">👁</span></div>
-      <div><div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:4px">邀请码（可选，填入后可解锁身份）</div><input type="text" id="regInviteCode" class="login-input" placeholder="输入邀请码"></div>
+      <div><div style="font-size:var(--g-font-size-sm);color:rgba(255,255,255,.5);margin-bottom:4px">邀请码（可选，填入后可解锁身份）</div><input type="text" id="regInviteCode" class="login-input" placeholder="输入邀请码"></div>
       <div class="login-error" id="regError"></div>
       <div class="login-btns"><button class="btn-pri" onclick="enterVillage()">确认注册 →</button></div>
     </div>
@@ -120,7 +120,7 @@ if (window.location.protocol !== 'file:') {
       <span style="font-size:1.3rem">📬</span>
       <span id="inboxBadge" style="position:absolute;top:-4px;right:-6px;background:#b84c38;color:#fff;font-size:.55rem;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 4px;display:none">0</span>
     </div>
-    <span style="font-size:1.1rem;cursor:pointer;padding:4px 8px;border-radius:8px;background:#f0f4ee;border:1px solid var(--green-border)" onclick="event.stopPropagation();openSettings()" title="设置">⚙️</span>
+    <span style="font-size:var(--g-font-size-lg);cursor:pointer;padding:4px 8px;border-radius:8px;background:#f0f4ee;border:1px solid var(--green-border)" onclick="event.stopPropagation();openSettings()" title="设置">⚙️</span>
     <span class="offline-badge" style="display:none;color:#b84c38;font-size:.6rem;margin-left:auto">离线</span>
   </div>
   <div style="padding:10px 14px;display:flex;gap:6px;border-bottom:1px solid var(--green-border)">
@@ -140,7 +140,7 @@ if (window.location.protocol !== 'file:') {
   </div>
   <div id="myTaskList" style="padding:4px 14px"></div>
   <div style="padding:4px 14px" id="activityFeed"><div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div><div style="padding:12px;text-align:center;color:#5a5a5a;font-size:.7rem">暂无动态</div></div></div>
-  <div style="padding:8px 14px"><div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="toggleArchiveExpand()"><span style="font-size:1.5rem">📚</span><div style="flex:1"><div style="font-weight:700;font-size:.82rem">归档文件</div><div id="archiveExpand" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #e8ede6"></div><div style="font-size:.65rem;color:#5a6e5c" id="archiveCountText">暂无归档</div></div><span style="font-size:.7rem;color:#5a6e5c">查看 →</span></div></div>
+  <div style="padding:8px 14px"><div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px" onclick="toggleArchiveExpand()"><span style="font-size:var(--g-font-size-xl)">📚</span><div style="flex:1"><div style="font-weight:700;font-size:.82rem">归档文件</div><div id="archiveExpand" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #e8ede6"></div><div style="font-size:var(--g-font-size-xs);color:#5a6e5c" id="archiveCountText">暂无归档</div></div><span style="font-size:.7rem;color:#5a6e5c">查看 →</span></div></div>
   </div>
   <div id="myTabLedger" class="my-tab-panel">
   <div style="padding:4px 14px 0"><div class="my-flow-title" style="font-size:.8rem;padding:4px 0">💰 账本</div></div>
@@ -228,13 +228,13 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-top">
     <button class="overlay-close" onclick="closeCardRoom()">✕</button>
     <span class="overlay-title">🃏 卡片室</span>
-    <button class="overlay-close" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()" style="font-size:.65rem">🔍</button>
+    <button class="overlay-close" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()" style="font-size:var(--g-font-size-xs)">🔍</button>
   </div>
   <div class="overlay-body" id="cardRoomBody" style="padding-bottom:60px"></div>
   <div style="position:fixed;bottom:0;left:0;right:0;padding:8px 14px;padding-bottom:max(8px,env(safe-area-inset-bottom,0px));background:rgba(232,237,230,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--green-border);z-index:10;display:flex;gap:8px">
     <button class="btn-pri" style="flex:1;font-size:.72rem;padding:8px" onclick="if(typeof openNewDiscovery==='function')openNewDiscovery()">🔍 发起发现</button>
     <button class="btn-outline" style="flex:1;font-size:.72rem;padding:8px;color:var(--green-primary);border-color:var(--green-primary)" onclick="if(typeof openPathChooser==='function')openPathChooser()">📝 上报劳动</button>
-    <button class="btn-sm sec" style="font-size:.65rem;padding:8px;flex-shrink:0" onclick="if(typeof _openCardRules==='function')_openCardRules()">📜</button>
+    <button class="btn-sm sec" style="font-size:var(--g-font-size-xs);padding:8px;flex-shrink:0" onclick="if(typeof _openCardRules==='function')_openCardRules()">📜</button>
   </div>
 </div>
 <!-- ══ 校核室 ══ -->
@@ -242,7 +242,7 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-top">
     <button class="overlay-close" onclick="closeVerifyRoom()">✕</button>
     <span class="overlay-title">✓ 校核室</span>
-    <button class="overlay-close" onclick="if(typeof renderVerifyRoom==='function')renderVerifyRoom()" style="font-size:.65rem">🔄</button>
+    <button class="overlay-close" onclick="if(typeof renderVerifyRoom==='function')renderVerifyRoom()" style="font-size:var(--g-font-size-xs)">🔄</button>
   </div>
   <div class="overlay-body" id="verifyRoomBody"></div>
 </div>
@@ -318,7 +318,7 @@ if (window.location.protocol !== 'file:') {
 <div id="inviteModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeInviteModal()">
   <div class="modal-card" style="text-align:center;max-width:300px">
     <div style="font-size:2rem;margin-bottom:8px">⚔️</div>
-    <div style="font-weight:700;font-size:.85rem;margin-bottom:4px">输入冒险者邀请码</div>
+    <div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:4px">输入冒险者邀请码</div>
     <div style="font-size:.62rem;color:#8a8a8a;margin-bottom:12px">加入冒险者行列，进入共创营</div>
     <input id="inviteCodeInput" placeholder="NT-XXXXXXXX" style="width:100%;padding:10px;text-align:center;font-size:1rem;letter-spacing:2px;border:2px solid #d0d9ce;border-radius:8px;margin-bottom:2px;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')submitInviteCode()">
     <div id="inviteCodeError" style="color:#b84c38;font-size:.62rem;min-height:16px;margin-bottom:8px"></div>
@@ -332,20 +332,20 @@ if (window.location.protocol !== 'file:') {
 <div id="overlayAdminConfig" class="overlay">
   <div class="overlay-top"><button class="overlay-close" onclick="closeOverlay('overlayAdminConfig')">✕</button><span class="overlay-title">⚙️ 地图配置</span></div>
   <div class="overlay-body" style="padding:10px 14px;max-height:70vh;overflow-y:auto;font-size:.72rem">
-    <div style="font-size:.65rem;color:#8a8a8a;margin-bottom:12px;line-height:1.5">💡 以下配置影响所有用户在地图上的 NT 收益计算和脏污判定。修改后即时生效（刷新地图即可）。</div>
+    <div style="font-size:var(--g-font-size-xs);color:#8a8a8a;margin-bottom:12px;line-height:1.5">💡 以下配置影响所有用户在地图上的 NT 收益计算和脏污判定。修改后即时生效（刷新地图即可）。</div>
     <div class="pub-field"><label>🧹 清洁 NT 奖励</label><div style="font-size:.6rem;color:#8a8a8a;margin-bottom:4px">用户打扫房间时根据脏污程度获得的 NT：🔴脏→🟡警告→🟢干净</div><div style="display:flex;gap:6px"><input id="cfgCleanDirty" type="number" style="flex:1" placeholder="脏🔴 如:20"><input id="cfgCleanWarn" type="number" style="flex:1" placeholder="警告🟡 如:15"><input id="cfgCleanOk" type="number" style="flex:1" placeholder="干净🟢 如:5"></div></div>
     <div class="pub-field"><label>📦 物品操作 NT 奖励</label><div style="font-size:.6rem;color:#8a8a8a;margin-bottom:4px">放入物品（入库）/ 取出消耗（出库）/ 打扫房间 分别获得的 NT</div><div style="display:flex;gap:6px"><input id="cfgStockIn" type="number" style="flex:1" placeholder="入库 如:2"><input id="cfgStockOut" type="number" style="flex:1" placeholder="出库 如:1"><input id="cfgCleanReward" type="number" style="flex:1" placeholder="打扫 如:10"></div></div>
     <div class="pub-field"><label>⏰ 物品默认过期天数</label><div style="font-size:.6rem;color:#8a8a8a;margin-bottom:4px">放入冰箱/仓库的物品多少天后视为过期（显示⚠提醒）</div><input id="cfgExpiryDays" type="number" placeholder="如:5"></div>
     <div class="pub-field"><label>📊 脏污判定阈值</label><div style="font-size:.6rem;color:#8a8a8a;margin-bottom:4px">脏污度 ≤ 绿值显示🟢，≤ 黄值显示🟡，> 红值显示🔴。单位：%</div><div style="display:flex;gap:6px"><input id="cfgThGreen" type="number" style="flex:1" placeholder="绿≤ 如:30"><input id="cfgThYellow" type="number" style="flex:1" placeholder="黄≤ 如:60"><input id="cfgThRed" type="number" style="flex:1" placeholder="红> 如:80"></div></div>
     <button class="btn-pri btn-full" onclick="saveAdminConfig()">💾 保存配置</button>
-    <div id="cfgSavedMsg" style="text-align:center;font-size:.65rem;color:#5d8c52;margin-top:6px;display:none">✅ 已保存 · 刷新地图生效</div>
+    <div id="cfgSavedMsg" style="text-align:center;font-size:var(--g-font-size-xs);color:#5d8c52;margin-top:6px;display:none">✅ 已保存 · 刷新地图生效</div>
   </div>
 </div>
 <!-- 成员选择 Sheet -->
 <div id="memberPickerSheet" class="sheet-overlay" style="display:none" onclick="if(event.target===this)closeMemberPicker()">
   <div class="sheet-card">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-bottom:1px solid #e8ede6">
-      <span style="font-weight:700;font-size:.85rem">选择送给谁</span>
+      <span style="font-weight:700;font-size:var(--g-font-size)">选择送给谁</span>
       <button onclick="closeMemberPicker()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#8a8a8a">✕</button>
     </div>
     <input type="text" id="memberPickerSearch" placeholder="🔍 搜索名字…" style="margin:8px 14px;width:calc(100% - 28px);padding:8px 12px;border:1px solid #d0d9ce;border-radius:8px;font-size:.78rem" oninput="renderMemberPicker()">
@@ -356,22 +356,22 @@ if (window.location.protocol !== 'file:') {
 <div id="taskEditSheet" class="sheet-overlay" style="display:none" onclick="if(event.target===this)closeTaskEditSheet()">
   <div class="sheet-card">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-bottom:1px solid #e8ede6">
-      <span style="font-weight:700;font-size:.85rem" id="taskEditSheetTitle">添加任务</span>
+      <span style="font-weight:700;font-size:var(--g-font-size)" id="taskEditSheetTitle">添加任务</span>
       <button onclick="closeTaskEditSheet()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#8a8a8a">✕</button>
     </div>
     <div style="padding:14px">
-      <div style="margin-bottom:12px"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">任务名称</label>
+      <div style="margin-bottom:12px"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">任务名称</label>
       <input id="taskEditName" class="login-input" placeholder="例：第一次筹备会" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px"></div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
-        <div style="flex:1"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">类别</label>
+        <div style="flex:1"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">类别</label>
         <select id="taskEditCat" class="login-input" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px">
           <option>统筹</option><option>宣传</option><option>生活</option><option>财务</option><option>课程</option><option>结项</option>
         </select></div>
-        <div style="flex:1"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">类型</label>
+        <div style="flex:1"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">类型</label>
         <select id="taskEditType" class="login-input" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px">
           <option>主线M</option><option>支线S</option><option>共创C</option><option>隐藏H</option><option>身份I</option><option>彩蛋E</option>
         </select></div>
-        <div style="flex:1"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">激励点 (NT)</label>
+        <div style="flex:1"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">激励点 (NT)</label>
         <input id="taskEditNT" class="login-input" type="number" value="5" min="1" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px"></div>
       </div>
       <button class="btn-pri btn-full" onclick="saveTaskEdit()">确认</button>
@@ -383,7 +383,7 @@ if (window.location.protocol !== 'file:') {
   <div class="overlay-body" id="questHallBody">
     <div class="npc-greeting">
       <div class="npc-avatar"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=nantang-guide&size=44" width="44" height="44" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML='👤'"></div>
-      <div class="npc-bubble">👋 欢迎来到任务大厅！<br><span style="font-size:.65rem;color:#5a5a5a">有什么可以帮你的？</span></div>
+      <div class="npc-bubble">👋 欢迎来到任务大厅！<br><span style="font-size:var(--g-font-size-xs);color:#5a5a5a">有什么可以帮你的？</span></div>
     </div>
     <div class="quest-search"><input type="text" class="quest-search-input" placeholder="🔍 搜索任务名称或关键字…" oninput="_debounce('qs',250,filterQuests)" id="questSearchInput"></div>
     <div class="my-filters primary-filters" style="padding:0 0 6px 0;border:none">
@@ -429,7 +429,7 @@ if (window.location.protocol !== 'file:') {
       <div class="pub-field"><label>截止日期</label><input type="date" id="pubDeadline"></div>
     </div>
     <div class="pub-row">
-      <div class="pub-field"><label>审核人</label><div style=position:relative><input type="text" id="pubReviewer" class="login-input" placeholder="🔍 搜索审核人…" autocomplete="off" oninput="filterReviewers()" onfocus="filterReviewers()" style="margin:0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px"><div id="pubReviewerList" style="position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;border:1px solid var(--green-border);border-radius:8px;max-height:180px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div></div>
+      <div class="pub-field"><label>审核人</label><div style=position:relative><input type="text" id="pubReviewer" class="login-input" placeholder="🔍 搜索审核人…" autocomplete="off" oninput="filterReviewers()" onfocus="filterReviewers()" style="margin:0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:var(--g-font-size-sm);padding:8px"><div id="pubReviewerList" style="position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;border:1px solid var(--green-border);border-radius:8px;max-height:180px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div></div>
     </div>
     <div class="pub-row">
       <div class="pub-field"><label>关联地点（可选）</label><select id="pubLocation"><option value="">— 不关联 —</option></select></div>
@@ -482,7 +482,7 @@ if (window.location.protocol !== 'file:') {
         <div class="skeleton-card" style="height:100px;background:#e8ede6;border-radius:12px;margin-bottom:8px;animation:skeletonPulse 1.5s ease-in-out .2s infinite"></div>
         <div class="skeleton-card" style="height:140px;background:#e8ede6;border-radius:12px;margin-bottom:8px;animation:skeletonPulse 1.5s ease-in-out .4s infinite"></div>
       </div>
-      <div class="crumb-path" id="crumbPath" style="font-size:.65rem;color:#5a6e5c;padding:0 6px 6px"></div>
+      <div class="crumb-path" id="crumbPath" style="font-size:var(--g-font-size-xs);color:#5a6e5c;padding:0 6px 6px"></div>
       <div class="photo-card">
         <div class="photo-img" id="photoImg"></div>
         <div class="photo-info">
@@ -523,25 +523,25 @@ if (window.location.protocol !== 'file:') {
   <div class="sub-bar hidden" id="subBar"></div>
 </div>
 
-<script src="js/ui-primitives.js?v=2"></script>
+<script src="js/ui-primitives.js?v=3"></script>
 <script src="js/utils.js?v=9"></script>
 <script src="js/mobile-bundle.js?v=19"></script>
 <script src="js/nt.js?v=17"></script>
 <script src="js/auth.js?v=9"></script>
 <script src="js/seed-test-data.js?v=17"></script>
 <script src="js/nt-core.js?v=10"></script>
-<script src="js/app-data.js?v=24"></script>
-<script src="js/api.js?v=24"></script>
-<script src="js/data.js?v=19"></script>
-<script src="js/core.js?v=43"></script>
-<script src="js/ui-village.js?v=19"></script>
-<script src="js/ui-camp.js?v=12"></script>
-<script src="js/ui-wizard.js?v=9"></script>
-<script src="js/ui-phase4.js?v=13"></script>
-<script src="js/ui-social.js?v=20"></script>
-<script src="js/ui-archive.js?v=23"></script>
-<script src="js/ui-cardroom.js?v=15"></script>
-<script src="js/app.js?v=38"></script>
+<script src="js/app-data.js?v=25"></script>
+<script src="js/api.js?v=25"></script>
+<script src="js/data.js?v=20"></script>
+<script src="js/core.js?v=44"></script>
+<script src="js/ui-village.js?v=20"></script>
+<script src="js/ui-camp.js?v=13"></script>
+<script src="js/ui-wizard.js?v=10"></script>
+<script src="js/ui-phase4.js?v=14"></script>
+<script src="js/ui-social.js?v=21"></script>
+<script src="js/ui-archive.js?v=24"></script>
+<script src="js/ui-cardroom.js?v=16"></script>
+<script src="js/app.js?v=39"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
@@ -555,7 +555,7 @@ var _inboxShowAllUnread = false;
 (function(){
   var p = document.createElement('div'); p.id = 'inboxPanel';
   p.style.cssText = 'display:none;position:fixed;bottom:0;left:0;right:0;max-height:70vh;overflow-y:auto;z-index:310;box-shadow:0 -4px 20px rgba(0,0,0,.12);border-radius:16px 16px 0 0;background:#fff';
-  p.innerHTML = '<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.82rem">📬 信箱</h3><button onclick="closeInbox()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#999">✕</button></div><div id="inboxContent"></div></div>';
+  p.innerHTML = '<div style="padding:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0;font-size:.82rem">📬 信箱</h3><button onclick="closeInbox()" style="background:none;border:none;font-size:var(--g-font-size-lg);cursor:pointer;color:#999">✕</button></div><div id="inboxContent"></div></div>';
   document.body.appendChild(p);
   p.addEventListener('click', function(e){ e.stopPropagation(); });
   document.addEventListener('click', function(e){
@@ -725,7 +725,7 @@ function _renderInbox() {
   h += '</div>';
 
   if (!allMsgs.length) {
-    h += '<div style="text-align:center;padding:20px;color:#aaa;font-size:.65rem">📭 暂无消息</div>';
+    h += '<div style="text-align:center;padding:20px;color:#aaa;font-size:var(--g-font-size-xs)">📭 暂无消息</div>';
   } else {
     var unread = allMsgs.filter(function(m){ return _isInboxUnread(m.id); });
     var read = allMsgs.filter(function(m){ return !_isInboxUnread(m.id); });
@@ -733,13 +733,13 @@ function _renderInbox() {
     function _renderMsg(m) {
       var jumpCall = m.jumpType ? '_inboxJump(\''+m.jumpType+'\',\''+(m.jumpId||'')+'\')' : '';
       return '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 6px;border-bottom:1px solid #f0f0f0;cursor:pointer;border-radius:6px" onclick="event.stopPropagation();_markInboxRead(\''+m.id+'\');'+jumpCall+'" onmouseover="this.style.background=\'#f9faf6\'" onmouseout="this.style.background=\'\'">'+
-        '<span style="font-size:1.1rem;flex-shrink:0">'+m.icon+'</span>'+
+        '<span style="font-size:var(--g-font-size-lg);flex-shrink:0">'+m.icon+'</span>'+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-size:.68rem;color:#1d2e24">'+esc(m.text)+'</div>'+
           (m.sub ? '<div style="font-size:.58rem;color:#5a6e5c;margin-top:1px">'+esc(m.sub)+'</div>' : '')+
           '<div style="font-size:.5rem;color:#aaa;margin-top:2px">'+m.createdAt.slice(0,10)+'</div>'+
         '</div>'+
-        (m.jumpType ? '<span style="font-size:.65rem;color:var(--green-primary);flex-shrink:0">→</span>' : '')+
+        (m.jumpType ? '<span style="font-size:var(--g-font-size-xs);color:var(--green-primary);flex-shrink:0">→</span>' : '')+
       '</div>';
     }
 
@@ -1282,7 +1282,7 @@ window._APP_NONCE = 'nt_'+Math.random().toString(36).slice(2)+'_'+Date.now().toS
   var isHTTP = window.location.protocol !== 'file:';
   if (isHTTP) {
     if (typeof API === 'undefined') return;
-    var loadingEl = document.createElement('div'); loadingEl.id = 'loginLoading'; loadingEl.textContent = '正在恢复会话…'; loadingEl.style.cssText = 'text-align:center;padding:16px;color:#5a6e5c;font-size:.75rem'; document.getElementById('loginPage').appendChild(loadingEl);
+    var loadingEl = document.createElement('div'); loadingEl.id = 'loginLoading'; loadingEl.textContent = '正在恢复会话…'; loadingEl.style.cssText = 'text-align:center;padding:16px;color:#5a6e5c;font-size:var(--g-font-size-sm)'; document.getElementById('loginPage').appendChild(loadingEl);
     var _refreshTimedOut = false; var _refreshTimeout = setTimeout(function() { _refreshTimedOut = true; document.body.style.visibility = 'visible'; showToast('会话恢复超时，请手动登录', 'warn'); }, 5000);
     API.silentRefresh(function(u, errType) {
       if (_refreshTimedOut) return;

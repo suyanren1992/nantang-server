@@ -45,13 +45,13 @@ function openLedger(type){
   d.style.cssText='margin:6px 14px;background:#fff;border:1px solid var(--green-border);border-radius:10px;padding:14px;animation:fadeIn .2s ease-out;font-size:.72rem';
   var h='';
   h+='<div style=display:flex;gap:8px;margin-bottom:10px>';
-  h+='<div style=flex:1;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center><div style=font-size:.62rem;color:#5a6e5c>收入</div><div style=font-size:1.1rem;font-weight:700;color:#5d8c52>+'+income+'</div></div>';
-  h+='<div style=flex:1;background:#fde8e8;border-radius:10px;padding:10px;text-align:center><div style=font-size:.62rem;color:#5a6e5c>支出</div><div style=font-size:1.1rem;font-weight:700;color:var(--red)>-'+expense+'</div></div>';
-  h+='<div style=flex:1;background:#e8f0e8;border-radius:10px;padding:10px;text-align:center><div style=font-size:.62rem;color:#5a6e5c>余额</div><div style=font-size:1.1rem;font-weight:700;color:var(--green-primary)>'+bal+'</div></div></div>';
+  h+='<div style=flex:1;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center><div style=font-size:.62rem;color:#5a6e5c>收入</div><div style=font-size:var(--g-font-size-lg);font-weight:700;color:#5d8c52>+'+income+'</div></div>';
+  h+='<div style=flex:1;background:#fde8e8;border-radius:10px;padding:10px;text-align:center><div style=font-size:.62rem;color:#5a6e5c>支出</div><div style=font-size:var(--g-font-size-lg);font-weight:700;color:var(--red)>-'+expense+'</div></div>';
+  h+='<div style=flex:1;background:#e8f0e8;border-radius:10px;padding:10px;text-align:center><div style=font-size:.62rem;color:#5a6e5c>余额</div><div style=font-size:var(--g-font-size-lg);font-weight:700;color:var(--green-primary)>'+bal+'</div></div></div>';
   // Categorize
   var cats={};records.forEach(function(r){var cat=catLedger(r.note);if(!cats[cat])cats[cat]={in:0,out:0,count:0};if(r.in)cats[cat].in+=r.amt;else cats[cat].out+=r.amt;cats[cat].count++});
   if(Object.keys(cats).length){
-    h+='<div style=font-size:.65rem;font-weight:700;color:#5a6e5c;margin-bottom:4px>📊 分类汇总</div>';
+    h+='<div style=font-size:var(--g-font-size-xs);font-weight:700;color:#5a6e5c;margin-bottom:4px>📊 分类汇总</div>';
     Object.keys(cats).forEach(function(c){
       var v=cats[c];h+='<div style=display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f0f0f0;font-size:.7rem"><span>'+c+' ('+v.count+'笔)</span><span>';
       if(v.in) h+='<span style=color:#5d8c52;margin-right:8px>+'+v.in+'</span>';
@@ -60,7 +60,7 @@ function openLedger(type){
     });
   }
   if(records.length){
-    h+='<div style=font-size:.65rem;font-weight:700;color:#5a6e5c;margin:10px 0 4px>📋 流水（最近 '+Math.min(records.length,20)+' 条）</div>';
+    h+='<div style=font-size:var(--g-font-size-xs);font-weight:700;color:#5a6e5c;margin:10px 0 4px>📋 流水（最近 '+Math.min(records.length,20)+' 条）</div>';
     records.slice(0,20).forEach(function(r){h+='<div style=display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:.68rem"><span>'+r.d+' '+r.note+'</span><span style=font-weight:700;color:'+(r.in?'#5d8c52':'var(--red)')+'>'+(r.in?'+':'-')+r.amt+'</span></div>'});
   }else{
     h+='<div style=text-align:center;padding:12px;color:#5a6e5c;font-size:.7rem">暂无流水记录</div>';
@@ -134,7 +134,7 @@ function openAdminPanel() {
 
   // 待审核新人
   h += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📋 待审核</div>';
-  h += '<div id="adminPendingList" style="margin-bottom:12px;font-size:.65rem;color:#aaa">加载中…</div>';
+  h += '<div id="adminPendingList" style="margin-bottom:12px;font-size:var(--g-font-size-xs);color:#aaa">加载中…</div>';
 
   // 发布社区任务
   h += '<div style="font-weight:700;font-size:.68rem;color:#5a6e5c;margin-bottom:6px">📝 发布社区任务</div>';
@@ -250,9 +250,9 @@ function renderMemberPicker() {
     var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + seed + '&size=56';
     var online = u._online ? '🟢' : '🔴';
     h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:.78rem" onclick="selectMemberPicker(\'' + encodeURIComponent(name) + '\')">'+
-      '<img src="' + avatarUrl + '" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:28px;height:28px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#5a6e5c>\'+name.charAt(0)+\'</div>\'">'+
+      '<img src="' + avatarUrl + '" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:28px;height:28px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:var(--g-font-size-xs);color:#5a6e5c>\'+name.charAt(0)+\'</div>\'">'+
       '<span style="flex:1">' + name + '</span>'+
-      '<span style="font-size:.65rem;color:#5a6e5c">' + (u.role==='admin'?'🧙':u.role==='builder'?'🧱':u.role==='adventurer'?'⚔️':u.role==='npc'?'👥':'🏕️') + '</span>'+
+      '<span style="font-size:var(--g-font-size-xs);color:#5a6e5c">' + (u.role==='admin'?'🧙':u.role==='builder'?'🧱':u.role==='adventurer'?'⚔️':u.role==='npc'?'👥':'🏕️') + '</span>'+
       '<span style="font-size:.6rem">' + online + '</span>'+
     '</div>';
   });
@@ -394,7 +394,7 @@ function filterQuests(){
   }
   var h='';
   h+=renderSection('待领取','🟢',claimable,'claimable');
-  if(!claimable.length) h+='<div style="font-size:.65rem;color:#5a5a5a;padding:0 0 8px">暂无待领取任务，<span style="color:var(--green-primary);cursor:pointer;text-decoration:underline" onclick="openPublishTask()">+ 发布委托</span> 创建新任务</div>';
+  if(!claimable.length) h+='<div style="font-size:var(--g-font-size-xs);color:#5a5a5a;padding:0 0 8px">暂无待领取任务，<span style="color:var(--green-primary);cursor:pointer;text-decoration:underline" onclick="openPublishTask()">+ 发布委托</span> 创建新任务</div>';
   h+=renderSection('进行中','📋',active,'active');
   h+=renderSection('最近完成','✅',done,'done');
   h+=renderSection('已取消/已争议','🚫',closed,'closed');
@@ -553,7 +553,7 @@ function toggleClaimantSub(el,name,cname){
   var c=(t.claimants||[]).find(function(x){return x.name===cname});if(!c||!c.submission)return;
   var sd=document.createElement('div');sd.className='submission-sub';
   sd.setAttribute('data-claimant',cname);
-  sd.style.cssText='margin-bottom:8px;background:#fff;border:1px solid var(--green-border);border-radius:8px;padding:10px 12px;font-size:.85rem;animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)';
+  sd.style.cssText='margin-bottom:8px;background:#fff;border:1px solid var(--green-border);border-radius:8px;padding:10px 12px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)';
   sd.innerHTML='<div style=font-weight:700;margin-bottom:4px;font-size:.7rem>🧑 '+cname+' 的提交 · '+(c.submittedAt||'')+'</div><div style=color:#5a6e5c;line-height:1.5>'+esc(c.submission)+'</div>';
   cardExpand.parentElement.insertBefore(sd,cardExpand.nextSibling)
 }
@@ -570,8 +570,8 @@ function onPubScopeChange(){
       s.parentElement.parentElement.after(picker);
     }
     var sel=document.getElementById('pubTarget');if(!sel){sel=document.createElement('input');sel.type='hidden';sel.id='pubTarget';document.getElementById('overlayPublishTask').appendChild(sel)}
-    picker.innerHTML='<label style="font-size:.65rem;font-weight:600;color:#5a6e5c;margin-bottom:3px;display:block">指定领取人</label>'+
-      '<div style=position:relative><input id="pubTargetSearch" class="login-input" placeholder="🔍 搜索名字…" autocomplete="off" oninput="filterPubTargets()" onfocus="filterPubTargets()" style="margin:0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px" value="'+(sel.value||'')+'">'+
+    picker.innerHTML='<label style="font-size:var(--g-font-size-xs);font-weight:600;color:#5a6e5c;margin-bottom:3px;display:block">指定领取人</label>'+
+      '<div style=position:relative><input id="pubTargetSearch" class="login-input" placeholder="🔍 搜索名字…" autocomplete="off" oninput="filterPubTargets()" onfocus="filterPubTargets()" style="margin:0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:var(--g-font-size-sm);padding:8px" value="'+(sel.value||'')+'">'+
       '<div id="pubTargetList" style="position:absolute;top:100%;left:0;right:0;z-index:50;background:#fff;border:1px solid var(--green-border);border-radius:8px;max-height:180px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div></div>';
     filterPubTargets();
   }else{if(picker)picker.innerHTML=''}
@@ -608,7 +608,7 @@ function onPubTypeChange(){
   var extra=document.getElementById('pubTypeExtra');if(!extra)return;
   if(t==='日程任务'){
     slots.value=1;
-    extra.innerHTML='<div class="pub-field" style="margin-bottom:8px"><label>重复周期</label><select id="pubRecur"><option value="daily">每天</option><option value="weekly">每周</option><option value="monthly">每月</option><option value="custom">自定义</option></select></div><div id="pubRecurDays" style="display:none;margin-bottom:8px"><label style="font-size:.62rem;color:#5a6e5c">重复日</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+['周一','周二','周三','周四','周五','周六','周日'].map(function(d,i){return'<label style="font-size:.65rem;cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="pubRecurDay" value="'+(i+1)+'">'+d+'</label>'}).join('')+'</div></div>';
+    extra.innerHTML='<div class="pub-field" style="margin-bottom:8px"><label>重复周期</label><select id="pubRecur"><option value="daily">每天</option><option value="weekly">每周</option><option value="monthly">每月</option><option value="custom">自定义</option></select></div><div id="pubRecurDays" style="display:none;margin-bottom:8px"><label style="font-size:.62rem;color:#5a6e5c">重复日</label><div style="display:flex;gap:6px;flex-wrap:wrap">'+['周一','周二','周三','周四','周五','周六','周日'].map(function(d,i){return'<label style="font-size:var(--g-font-size-xs);cursor:pointer;display:flex;align-items:center;gap:2px"><input type="checkbox" class="pubRecurDay" value="'+(i+1)+'">'+d+'</label>'}).join('')+'</div></div>';
     document.getElementById('pubRecur').onchange=function(){document.getElementById('pubRecurDays').style.display=this.value==='custom'?'block':'none'};
   }else if(t==='多人任务'){
     slots.value=Math.max(2,parseInt(slots.value,10)||2);slots.min=2;
@@ -616,7 +616,7 @@ function onPubTypeChange(){
     document.getElementById('pubSlots2').oninput=function(){slots.value=this.value};
   }else if(t==='单人任务'){
     slots.value=1;slots.min=1;
-    extra.innerHTML='<div style="font-size:.65rem;color:#5a6e5c;padding:4px 0 8px">👤 单人任务，人数固定为 1</div>';
+    extra.innerHTML='<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;padding:4px 0 8px">👤 单人任务，人数固定为 1</div>';
   }else{
     slots.min=0;
     extra.innerHTML='';
@@ -680,8 +680,8 @@ function publishTask(){
   if(start) h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a">发布时间</span><span>'+start+'</span></div>';
   if(dl) h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a">截止日期</span><span>'+dl+'</span></div>';
   if(rv) h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a">审核人</span><span>👤 '+rv+'</span></div>';
-  h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a">提交要求</span><span style="font-size:.65rem">'+reqs+'</span></div>';
-  if(note) h+='<div style="margin-top:4px"><div style="color:#5a5a5a;font-size:.65rem;margin-bottom:2px">任务说明</div><div style="background:#f8f8f8;padding:10px;border-radius:8px;line-height:1.5;font-size:.7rem">'+note+'</div></div>';
+  h+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0"><span style="color:#5a5a5a">提交要求</span><span style="font-size:var(--g-font-size-xs)">'+reqs+'</span></div>';
+  if(note) h+='<div style="margin-top:4px"><div style="color:#5a5a5a;font-size:var(--g-font-size-xs);margin-bottom:2px">任务说明</div><div style="background:#f8f8f8;padding:10px;border-radius:8px;line-height:1.5;font-size:.7rem">'+note+'</div></div>';
   h+='</div>';
   h+='<div style="display:flex;gap:8px;margin-top:14px"><button class="btn-sm sec" style=flex:1 onclick="document.getElementById(\'pubConfirm\').style.display=\'none\'">← 返回修改</button><button class="btn-sm pri" style=flex:1 onclick="doPublish()">✅ 确认发布</button></div>';
   document.getElementById('pubConfirmCard').innerHTML=h;
@@ -765,7 +765,7 @@ function renderDrafts(){
   var el=document.getElementById('draftList');if(!el)return;
   var drafts=Object.values(TASKS).filter(function(t){return t.status==='draft'});
   if(!drafts.length){el.innerHTML='';return}
-  var h='<div style="font-size:.65rem;font-weight:700;color:#c8892e;margin-bottom:4px">💾 草稿箱 ('+drafts.length+')</div>';
+  var h='<div style="font-size:var(--g-font-size-xs);font-weight:700;color:#c8892e;margin-bottom:4px">💾 草稿箱 ('+drafts.length+')</div>';
   drafts.forEach(function(t){h+='<div style="font-size:.7rem;padding:4px 0;cursor:pointer;color:var(--green-primary)" onclick="editDraft(\''+encodeURIComponent(t.name)+'\')">📝 '+t.name+(t.nt?' · NT'+t.nt:'')+'</div>'});
   el.innerHTML=h;
 }
@@ -1355,7 +1355,7 @@ function refreshUserUI(){
 }
 function showMy(opts){document.getElementById('villagePage').classList.add('hidden');document.getElementById('villagePage').classList.add('behind');document.getElementById('myPage').classList.remove('hidden');renderMyTasks();refreshUserUI();
   // 刷新工作台动态
-  var af=document.getElementById('activityFeed');if(af&&window.AppData){var log=AppData._data.activity_log||[];if(log.length){var h='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div>';log.slice(0,5).forEach(function(a){h+='<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:.65rem;color:#5a6e5c">'+(a.time||'').slice(0,16).replace('T',' ')+' · '+esc(a.text||'')+'</div>'});h+='</div>';af.innerHTML=h;}else{af.innerHTML='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div><div style="padding:12px;text-align:center;color:#5a5a5a;font-size:.7rem">暂无动态</div></div>';}}
+  var af=document.getElementById('activityFeed');if(af&&window.AppData){var log=AppData._data.activity_log||[];if(log.length){var h='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div>';log.slice(0,5).forEach(function(a){h+='<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:var(--g-font-size-xs);color:#5a6e5c">'+(a.time||'').slice(0,16).replace('T',' ')+' · '+esc(a.text||'')+'</div>'});h+='</div>';af.innerHTML=h;}else{af.innerHTML='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div><div style="padding:12px;text-align:center;color:#5a5a5a;font-size:.7rem">暂无动态</div></div>';}}
   // M-1: 仅 file:// 开发态跑 NT 模拟器自检，线上不跑（消"会计等式不成立"假警报）
   if(window.location.protocol==='file:'&&window.NT&&!NT.verify().pass){
   var v=NT.verify();
@@ -1518,7 +1518,7 @@ function renderProfile(mode){
   var el=document.getElementById('profileInner');if(!el)return;
   var h='<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a;z-index:1" onclick="document.getElementById(\'profileCard\').remove()">✕</button>';
   var pu=getUsers()[CURRENT_USER]||{};var pr=pu.role||'visitor';var pRole=roleName(pr);var pIcon=roleIcon(pr);var pCreated=pu.created||'';var au=window.AppData?AppData.me():null;if(!pCreated&&au&&au.created)pCreated=au.created;if(!pCreated)pCreated=today();
-  h+='<div style="text-align:center;margin-bottom:14px"><img src="'+profileSrc(_profileSeed)+'" width="56" height="56" style="border-radius:50%;border:2.5px solid var(--green-primary);cursor:'+(mode==='edit'?'pointer':'default')+'" alt="" id="profileAvatarImg" '+(mode==='edit'?'onclick="pickAvatar()"':'')+'><div style="font-weight:700;font-size:.9rem;margin-top:6px">'+CURRENT_USER+'</div><div style="font-size:.65rem;color:#5a6e5c">'+pIcon+' '+pRole+' · '+pCreated+'</div></div>';
+  h+='<div style="text-align:center;margin-bottom:14px"><img src="'+profileSrc(_profileSeed)+'" width="56" height="56" style="border-radius:50%;border:2.5px solid var(--green-primary);cursor:'+(mode==='edit'?'pointer':'default')+'" alt="" id="profileAvatarImg" '+(mode==='edit'?'onclick="pickAvatar()"':'')+'><div style="font-weight:700;font-size:.9rem;margin-top:6px">'+CURRENT_USER+'</div><div style="font-size:var(--g-font-size-xs);color:#5a6e5c">'+pIcon+' '+pRole+' · '+pCreated+'</div></div>';
   if(mode==='view'){
     var u=getUsers()[CURRENT_USER]||{};var rl=u.role||'visitor';var rn=roleName(rl);
     // NT 余额 + 充值/提现
@@ -1559,7 +1559,7 @@ function renderProfile(mode){
     if (onsiteUsers.length > 0) {
       h += '<div style="background:#f0f6f0;border-radius:10px;padding:10px 12px;margin-bottom:10px">';
       h += '<div style="font-size:.68rem;font-weight:700;color:#5a6e5c;margin-bottom:6px">👤 在地伙伴 ('+onsiteUsers.length+')</div>';
-      onsiteUsers.forEach(function(e){ h += '<div style="font-size:.65rem;color:#2a2a2a;padding:3px 0">🟢 '+esc(e[0])+'</div>'; });
+      onsiteUsers.forEach(function(e){ h += '<div style="font-size:var(--g-font-size-xs);color:#2a2a2a;padding:3px 0">🟢 '+esc(e[0])+'</div>'; });
       h += '</div>';
     }
     var rows=[['🆔 ID',esc(u.uid||'未分配')],['👤 名字',esc(CURRENT_USER)],['🧱 身份',rn],['🔑 密码','••••••'],['💼 钱包',esc(u.wallet||'未填写')],['📝 简介',esc(u.bio||'未填写')],['📍 坐标',esc(u.location||'未填写')]];
@@ -1576,12 +1576,12 @@ function renderProfile(mode){
   }else if(mode==='edit'){
     var eu=getUsers()[CURRENT_USER]||{};
     var fields=[['名字','profileName',CURRENT_USER],['钱包地址','profileWallet',eu.wallet||''],['简介','profileBio',eu.bio||''],['坐标','profileLoc',eu.location||'']];
-    fields.forEach(function(f){h+='<div style="margin-bottom:8px"><label style="font-size:.62rem;color:#5a6e5c;font-weight:600">'+f[0]+'</label><input id="'+f[1]+'" class="login-input" value="'+esc(f[2])+'" style="margin:2px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px"></div>'});
+    fields.forEach(function(f){h+='<div style="margin-bottom:8px"><label style="font-size:.62rem;color:#5a6e5c;font-weight:600">'+f[0]+'</label><input id="'+f[1]+'" class="login-input" value="'+esc(f[2])+'" style="margin:2px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:var(--g-font-size-sm);padding:8px"></div>'});
     h+='<div style="margin-top:12px;display:flex;gap:6px"><button class="btn-sm sec" style=flex:1 onclick="renderProfile(\'view\')">取消</button><button class="btn-sm pri" style=flex:1 onclick="saveProfileEdits();renderProfile(\'view\')">💾 保存</button></div>';
     h+='<div style="border-top:1px solid #e0e0e0;margin-top:12px;padding-top:10px"><div style="font-size:.68rem;font-weight:700;color:#5a6e5c;margin-bottom:6px">🔑 修改密码</div>';
-    h+='<input id="profileOldPwd" class="login-input" type="password" placeholder="当前密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
-    h+='<input id="profileNewPwd" class="login-input" type="password" placeholder="新密码（至少8位）" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
-    h+='<input id="profileCfmPwd" class="login-input" type="password" placeholder="确认新密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.75rem;padding:8px">';
+    h+='<input id="profileOldPwd" class="login-input" type="password" placeholder="当前密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:var(--g-font-size-sm);padding:8px">';
+    h+='<input id="profileNewPwd" class="login-input" type="password" placeholder="新密码（至少8位）" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:var(--g-font-size-sm);padding:8px">';
+    h+='<input id="profileCfmPwd" class="login-input" type="password" placeholder="确认新密码" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:var(--g-font-size-sm);padding:8px">';
     h+='<button class="btn-sm warn" style="width:100%;margin-top:6px" onclick="changePwd()">🔑 确认修改密码</button></div>';
   }else if(mode==='review'){
     // D-18: 管理员审核——服务端权威源 + 本地离线合并
@@ -1603,7 +1603,7 @@ function showRechargeForm(){
   var wallet=(window.AppData&&AppData.me()&&AppData.me().wallet)||'';
   if(!wallet){el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px;color:#c8892e;font-size:.72rem">请先在个人资料中设置钱包地址（编辑资料 -> 钱包地址），充值需要链上转账凭证。</div>';return}
   el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
-    '<input id="rechargeAmount" type="number" min="1" placeholder="充值 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.75rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
+    '<input id="rechargeAmount" type="number" min="1" placeholder="充值 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:var(--g-font-size-sm);margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
     '<div style="font-size:.6rem;color:#5a6e5c;margin-bottom:4px">你的钱包：'+wallet.substring(0,10)+'...'+wallet.slice(-6)+'</div>'+
     '<div style="display:flex;gap:4px"><button class="btn-sm sec" style=flex:1 onclick="document.getElementById(\'profileTxForm\').innerHTML=\'\'">取消</button>'+
     '<button class="btn-sm pri" style=flex:1 onclick="submitRecharge()">生成充值地址</button></div></div>';
@@ -1617,7 +1617,7 @@ function showWithdrawForm(){
   var queueHint = '';
   el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
     '<div style="font-size:.62rem;color:#5a5a5a;margin-bottom:4px">可用余额：'+availableBal+' NT（可提）'+(srvFrozen>0?' · ⏳ '+srvFrozen+' NT 待审':'')+'</div>'+
-    '<input id="withdrawAmount" type="number" min="1" max="'+availableBal+'" placeholder="提现 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.75rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
+    '<input id="withdrawAmount" type="number" min="1" max="'+availableBal+'" placeholder="提现 NT 数量" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:var(--g-font-size-sm);margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
     '<input id="withdrawNote" placeholder="备注（选填）" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.72rem;margin-bottom:6px;text-align:left;background:#fff;color:#1d2e24">'+
     '<div id="withdrawQueueHint" style="font-size:.55rem;color:#c8892e;margin-bottom:4px;display:none">⏳ 储备池不足，超额部分将自动排队，预计到账时间见排队通知</div>'+
     '<div style="display:flex;gap:4px"><button class="btn-sm sec" style=flex:1 onclick="document.getElementById(\'profileTxForm\').innerHTML=\'\'">取消</button>'+
@@ -1633,7 +1633,7 @@ function submitRecharge(){
     var el=document.getElementById('profileTxForm');if(!el)return;
     el.innerHTML='<div style="border-top:1px solid #e0e0e0;padding-top:8px">'+
       '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:4px">请向以下地址转账 '+amt+' NT</div>'+
-      '<div style="background:#f5f5f5;padding:10px;border-radius:8px;word-break:break-all;font-size:.65rem;font-family:monospace;margin-bottom:8px;user-select:all" onclick="navigator.clipboard.writeText(this.textContent);showToast(\'已复制\')">'+r.to_address+'</div>'+
+      '<div style="background:#f5f5f5;padding:10px;border-radius:8px;word-break:break-all;font-size:var(--g-font-size-xs);font-family:monospace;margin-bottom:8px;user-select:all" onclick="navigator.clipboard.writeText(this.textContent);showToast(\'已复制\')">'+r.to_address+'</div>'+
       '<div style="font-size:.58rem;color:#5a6e5c;margin-bottom:8px">转账成功后系统将自动检测并入账（约30秒）。如未到账请联系管理员并提供交易哈希。</div>'+
       '<button class="btn-sm sec" style=width:100% onclick="document.getElementById(\'profileTxForm\').innerHTML=\'\'">关闭</button></div>';
   });
@@ -1996,11 +1996,11 @@ function renderWeeklySettlement(userId) {
   h += '<div style="font-weight:700;font-size:.82rem;margin-bottom:4px">📊 本周结算</div>';
   h += '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:12px">' + monStr + ' — ' + nowStr + '</div>';
   h += '<div style="display:flex;gap:8px;margin-bottom:12px">';
-  h += '<div style="flex:1;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:.58rem;color:#5a6e5c">收入</div><div style="font-size:1.1rem;font-weight:700;color:#5d8c52">+' + income + '</div></div>';
-  h += '<div style="flex:1;background:#fde8e8;border-radius:10px;padding:10px;text-align:center"><div style="font-size:.58rem;color:#5a6e5c">支出</div><div style="font-size:1.1rem;font-weight:700;color:#b84c38">-' + expense + '</div></div>';
-  h += '<div style="flex:1;background:' + (net>=0?'#e8f0e8':'#fef0f0') + ';border-radius:10px;padding:10px;text-align:center"><div style="font-size:.58rem;color:#5a6e5c">净收益</div><div style="font-size:1.1rem;font-weight:700;color:' + (net>=0?'#3d6b52':'#b84c38') + '">' + (net>=0?'+':'') + net + '</div></div>';
+  h += '<div style="flex:1;background:#e8f5e9;border-radius:10px;padding:10px;text-align:center"><div style="font-size:.58rem;color:#5a6e5c">收入</div><div style="font-size:var(--g-font-size-lg);font-weight:700;color:#5d8c52">+' + income + '</div></div>';
+  h += '<div style="flex:1;background:#fde8e8;border-radius:10px;padding:10px;text-align:center"><div style="font-size:.58rem;color:#5a6e5c">支出</div><div style="font-size:var(--g-font-size-lg);font-weight:700;color:#b84c38">-' + expense + '</div></div>';
+  h += '<div style="flex:1;background:' + (net>=0?'#e8f0e8':'#fef0f0') + ';border-radius:10px;padding:10px;text-align:center"><div style="font-size:.58rem;color:#5a6e5c">净收益</div><div style="font-size:var(--g-font-size-lg);font-weight:700;color:' + (net>=0?'#3d6b52':'#b84c38') + '">' + (net>=0?'+':'') + net + '</div></div>';
   h += '</div>';
-  h += '<div style="font-size:.65rem;color:#5a6e5c;margin-bottom:10px">📋 完成任务 ' + taskInc + ' 个 · 发布任务 ' + taskExp + ' 个 · 🔍 发现奖励 ' + rewardInc + ' 次</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:10px">📋 完成任务 ' + taskInc + ' 个 · 发布任务 ' + taskExp + ' 个 · 🔍 发现奖励 ' + rewardInc + ' 次</div>';
   if (weekEntries.length) {
     h += '<div style="font-size:.6rem;font-weight:700;color:#5a6e5c;margin-bottom:4px">明细（最近 10 条）</div>';
     weekEntries.slice(0,10).forEach(function(e){

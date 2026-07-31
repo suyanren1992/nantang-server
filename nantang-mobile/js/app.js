@@ -419,10 +419,10 @@ function _renderQuickEntryCards() {
   var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
   // SM-3.3: 恢复 🧹 快捷打扫卡——D 修复误删了真入口（openSelfReport 走校核闭环），留的假入口 _submitMyCleaning 只写本地历史不触发 NT
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
-    (isMember ? '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:.65rem;font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:.65rem;font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:.65rem;font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'explore\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🗺️</div><div style="font-size:.65rem;font-weight:600">探索南塘</div><div style="font-size:.55rem;color:#999">地图·建筑</div></div>'+
+    (isMember ? '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:var(--g-font-size-xs);font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
+    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:var(--g-font-size-xs);font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
+    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:var(--g-font-size-xs);font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
+    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'explore\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🗺️</div><div style="font-size:var(--g-font-size-xs);font-weight:600">探索南塘</div><div style="font-size:.55rem;color:#999">地图·建筑</div></div>'+
   '</div>';
 }
 
@@ -463,7 +463,7 @@ function _renderCovenantOverlay() {
         ch.body = ch.body || '';
         var cid = 'cov_ch_'+ch.num;
         body += '<div style="border:1px solid #e8ede6;border-radius:8px;margin-bottom:4px;overflow:hidden">';
-        body += '<div style="padding:8px 10px;background:#f9faf6;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:.65rem;font-weight:600;color:#1d2e24" onclick="var el=document.getElementById(\''+cid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
+        body += '<div style="padding:8px 10px;background:#f9faf6;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:var(--g-font-size-xs);font-weight:600;color:#1d2e24" onclick="var el=document.getElementById(\''+cid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
         body += '<span>'+ch.num+'. '+ch.title+'</span><span style="font-size:.55rem;color:#999">▾</span></div>';
         body += '<div id="'+cid+'" style="display:none;padding:8px 10px;font-size:.6rem;color:#5a6e5c;line-height:1.6;border-top:1px solid #e8ede6">'+esc(ch.body)+'</div>';
         body += '</div>';
@@ -476,7 +476,7 @@ function _renderCovenantOverlay() {
         var ap = ct.appendices[key]; if (!ap) return;
         var aid = 'cov_apx_'+key;
         body += '<div style="border:1px solid #e8ede6;border-radius:8px;margin-bottom:4px;overflow:hidden">';
-        body += '<div style="padding:8px 10px;background:#faf8f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:.65rem;font-weight:600;color:#8a6a30" onclick="var el=document.getElementById(\''+aid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
+        body += '<div style="padding:8px 10px;background:#faf8f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:var(--g-font-size-xs);font-weight:600;color:#8a6a30" onclick="var el=document.getElementById(\''+aid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
         body += '<span>附页 '+key+' · '+ap.title+'</span><span style="font-size:.55rem;color:#999">▾</span></div>';
         body += '<div id="'+aid+'" style="display:none;padding:8px 10px;font-size:.58rem;color:#5a6e5c;line-height:1.5;border-top:1px solid #e8ede6">';
         (ap.sections||[]).forEach(function(sec){
@@ -551,7 +551,7 @@ function _renderCovenantOverlay() {
     body += '</div>';
   }
   if (_me().role === 'admin') {
-    body += '<button class="btn-sm pri" style="width:100%;margin-top:6px;font-size:.65rem" onclick="closeQuickSheet();_openCovenantProposal()">📝 发起修改提案</button>';
+    body += '<button class="btn-sm pri" style="width:100%;margin-top:6px;font-size:var(--g-font-size-xs)" onclick="closeQuickSheet();_openCovenantProposal()">📝 发起修改提案</button>';
   }
   body += '<div style="font-size:.55rem;color:#999;margin-top:8px">⚠ 所有定价由线下公约大会决定。管理员修改需24h公示+2人在线校核。</div>';
   _openQuickSheet('📜 南塘社区公约', body);
@@ -576,11 +576,11 @@ function _openCovenantProposal() {
   ];
   var opts = fields.map(function(f){ return '<option value="'+f.id+'">'+f.label+'</option>'; }).join('');
   var h = '<div style="padding:12px"><div style="font-weight:700;font-size:.7rem;margin-bottom:8px">📝 发起定价修改提案</div>';
-  h += '<select id="cfgField" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:6px;font-family:inherit">'+opts+'</select>';
-  h += '<input id="cfgOld" placeholder="当前值" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:4px;box-sizing:border-box;font-family:inherit">';
-  h += '<input id="cfgNew" placeholder="新值" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:4px;box-sizing:border-box;font-family:inherit">';
-  h += '<input id="cfgNote" placeholder="修改原因/会议纪要（必填）" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:.65rem;margin-bottom:8px;box-sizing:border-box;font-family:inherit">';
-  h += '<button class="btn-pri btn-full" style="font-size:.65rem" onclick="var f=document.getElementById(\'cfgField\').value;var o=document.getElementById(\'cfgOld\').value;var n=document.getElementById(\'cfgNew\').value;var nt=document.getElementById(\'cfgNote\').value;if(!nt){showToast(\'请填写修改原因\',\'warn\');return}var ch={field:f,old:isNaN(o)?o:parseInt(o),new:isNaN(n)?n:parseInt(n)};AppData.proposeConfigChange([ch],nt,\'\',null,_me().name);closeSub();showToast(\'提案已提交，需24h公示+2人校核\',\'ok\')">提交提案</button>';
+  h += '<select id="cfgField" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:var(--g-font-size-xs);margin-bottom:6px;font-family:inherit">'+opts+'</select>';
+  h += '<input id="cfgOld" placeholder="当前值" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:var(--g-font-size-xs);margin-bottom:4px;box-sizing:border-box;font-family:inherit">';
+  h += '<input id="cfgNew" placeholder="新值" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:var(--g-font-size-xs);margin-bottom:4px;box-sizing:border-box;font-family:inherit">';
+  h += '<input id="cfgNote" placeholder="修改原因/会议纪要（必填）" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;font-size:var(--g-font-size-xs);margin-bottom:8px;box-sizing:border-box;font-family:inherit">';
+  h += '<button class="btn-pri btn-full" style="font-size:var(--g-font-size-xs)" onclick="var f=document.getElementById(\'cfgField\').value;var o=document.getElementById(\'cfgOld\').value;var n=document.getElementById(\'cfgNew\').value;var nt=document.getElementById(\'cfgNote\').value;if(!nt){showToast(\'请填写修改原因\',\'warn\');return}var ch={field:f,old:isNaN(o)?o:parseInt(o),new:isNaN(n)?n:parseInt(n)};AppData.proposeConfigChange([ch],nt,\'\',null,_me().name);closeSub();showToast(\'提案已提交，需24h公示+2人校核\',\'ok\')">提交提案</button>';
   h += '</div>';
   openSub('公约修改提案', '⚖️', h, [{ label:'返回', action:'closeSub' }]);
 }
@@ -617,7 +617,7 @@ function _openSignPage() {
       body += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:8px">如有疑问请联系生活组</div>';
       body += '</div>';
     } else {
-      body += '<div style="font-size:.65rem;color:#5a6e5c;margin-bottom:10px;line-height:1.5">请逐条阅读并勾选以下全部条款后签署：</div>';
+      body += '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:10px;line-height:1.5">请逐条阅读并勾选以下全部条款后签署：</div>';
       clauses.forEach(function(clause, i) {
         var cid = 'sign_clause_'+i;
         body += '<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0;cursor:pointer" onclick="var cb=document.getElementById(\''+cid+'\');_signChecked['+i+']=!_signChecked['+i+'];cb.checked=_signChecked['+i+'];cb.style.accentColor=_signChecked['+i+']?\'var(--green-primary)\':\'#ccc\';_updateSignBtn()">';
@@ -739,10 +739,10 @@ function _renderRecentCardRoomCards_OLD() {
   var h = '<div onclick="if(typeof openCardRoom===\'function\')openCardRoom()" style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px 14px;margin:4px 0;cursor:pointer">';
   h += '<div style="display:flex;justify-content:space-between;align-items:center">';
   h += '<div style="flex:1">';
-  h += '<div style="font-weight:700;font-size:.75rem;color:#1d2e24;margin-bottom:4px">🃏 卡片室</div>';
+  h += '<div style="font-weight:700;font-size:var(--g-font-size-sm);color:#1d2e24;margin-bottom:4px">🃏 卡片室</div>';
   h += '<div style="font-size:.6rem;color:#5a6e5c">近7天 '+recent.length+' 张牌 · '+pendingCount+' 张待揭 · 今日已揭 '+todayResolved+' 张</div>';
   h += '</div>';
-  h += '<span style="font-size:1.5rem;flex-shrink:0">🃏</span>';
+  h += '<span style="font-size:var(--g-font-size-xl);flex-shrink:0">🃏</span>';
   h += '</div>';
   h += '</div>';
   return h;
@@ -800,7 +800,7 @@ function _renderVerificationSection() {
     return '<div class="vr-card" style="background:#fafaf5;border:1px solid #e0e0e0;border-radius:8px;padding:8px 10px;margin-bottom:4px">'+
       '<div style="display:flex;justify-content:space-between;align-items:center">'+
         '<div style="flex:1"><span style="font-weight:600;font-size:.68rem">'+icons[v.type]+' '+v.doer+'</span> <span style="font-size:.6rem;color:#999">'+v.action+'</span></div>'+
-        '<span style="font-size:.65rem;color:var(--green-primary);font-weight:600;margin-right:6px">+'+v.ntAmount+' NT</span>'+
+        '<span style="font-size:var(--g-font-size-xs);color:var(--green-primary);font-weight:600;margin-right:6px">+'+v.ntAmount+' NT</span>'+
       '</div>'+
       '<div style="display:flex;gap:4px;margin-top:4px">'+
         (isMe ? '<span style="font-size:.58rem;color:#999">等待他人校核…</span>' :
@@ -818,7 +818,7 @@ function _renderDiscoverySection() {
   return discs.map(function(d){
     var icons = { cleaning:'🧹', stock_in:'📦', stock_out:'🗑', field_harvest:'🌿', field_action:'🌿', quest:'📋', stay:'🛏️', other:'⭐' };
     var time = d.verifiedAt ? d.verifiedAt.slice(11,16) : '';
-    return '<div class="disc-card" style="padding:6px 0;border-bottom:1px dotted #f0f0f0;font-size:.65rem;cursor:pointer" onclick="_showAlertCard({title:\''+esc(d.doer)+' '+esc(d.action)+'\',message:\'校核: '+esc(d.verifier)+'  NT +'+d.ntAmount+'\n'+d.verifiedAt+'\'})">'+
+    return '<div class="disc-card" style="padding:6px 0;border-bottom:1px dotted #f0f0f0;font-size:var(--g-font-size-xs);cursor:pointer" onclick="_showAlertCard({title:\''+esc(d.doer)+' '+esc(d.action)+'\',message:\'校核: '+esc(d.verifier)+'  NT +'+d.ntAmount+'\n'+d.verifiedAt+'\'})">'+
       '<span>'+icons[d.type]+'</span> <b>'+d.doer+'</b> '+d.action+' <span style="color:#999">✅ '+d.verifier+'校核 +'+d.ntAmount+'NT</span> <span style="color:#999;float:right">'+time+'</span></div>';
   }).join('');
 }
@@ -838,7 +838,7 @@ function _renderPresenceSection() {
     var loc = p.location||'';
     var safeName = uname.replace(/'/g,"\\'");
     return '<div class="presence-card'+(uname===me?' is-me':'')+'" style="min-width:72px;text-align:center;cursor:pointer;padding:6px 8px;background:#fff;border:1px solid '+(uname===me?'var(--green-primary)':'#e0e0e0')+';border-radius:10px" onclick="'+(uname===me?'_flipMyPresence()':'_showFlipOther(\''+safeName+'\')')+'">'+
-      '<div style="font-size:1.1rem">'+icon+'</div><div style="font-weight:700;font-size:.65rem">'+esc(uname)+'</div><div style="font-size:.55rem;color:#999">'+label+(loc?' · '+esc(loc):'')+'</div></div>';
+      '<div style="font-size:var(--g-font-size-lg)">'+icon+'</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">'+esc(uname)+'</div><div style="font-size:.55rem;color:#999">'+label+(loc?' · '+esc(loc):'')+'</div></div>';
   }).join('')+'</div>';
 }
 
@@ -996,7 +996,7 @@ function buildFieldDetail(plot) {
         '</div>';
     });
   } else { body += '<div style="color:var(--g-text-dim);font-size:.72rem;padding:8px">暂无种植</div>'; }
-  body += '<button class="btn-sm pri" style="width:100%;font-size:.65rem;padding:6px;margin-top:4px" onclick="event.stopPropagation();_openFarmQuick()">＋ 记录农活</button>';
+  body += '<button class="btn-sm pri" style="width:100%;font-size:var(--g-font-size-xs);padding:6px;margin-top:4px" onclick="event.stopPropagation();_openFarmQuick()">＋ 记录农活</button>';
   return body + '<button class="back-to-overview" onclick="closeRoom()">←返回田地总览</button>';
 }
 function _harvestCrop(plotId, cropIdx) {
@@ -1492,7 +1492,7 @@ function _showAlertCard(opts) {
     '<div style="font-size:2rem;margin-bottom:8px">' + icon + '</div>' +
     (title ? '<div style="font-weight:700;font-size:.82rem;margin-bottom:6px;color:#1d2e24">' + esc(title) + '</div>' : '') +
     '<div style="font-size:.68rem;color:#5a6e5c;line-height:1.7;margin-bottom:16px;white-space:pre-line">' + esc(message) + '</div>' +
-    '<button id="_alertCardBtn" style="width:100%;padding:10px 0;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:.75rem;font-weight:700;min-height:44px;cursor:pointer" onclick="var o=this.parentElement.parentElement;if(o)o.remove()">' + okText + '</button>' +
+    '<button id="_alertCardBtn" style="width:100%;padding:10px 0;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:var(--g-font-size-sm);font-weight:700;min-height:44px;cursor:pointer" onclick="var o=this.parentElement.parentElement;if(o)o.remove()">' + okText + '</button>' +
     '</div>';
   document.body.appendChild(el);
 }
@@ -1522,7 +1522,7 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 
 // 管理卡片点击 → 弹窗
 function _openMgmtSheet(type) {
-  if (type === 'kitchen') { try { var kp = renderKitchenPanel(); _showCardPopup('🍳 厨房 · 冰箱', kp||'', null, true); } catch(e) { console.error(e); _showCardPopup('🍳 厨房 · 冰箱', '<div style="padding:20px;text-align:center;color:#b84c38;font-size:.75rem">⚠ 面板加载失败<br><span style="font-size:.6rem;color:#999">请刷新页面后重试</span></div>', null, true); } return; }  // J 修复 + SM-1.5: try-catch 兜底——renderKitchenPanel 异常时至少弹出面板壳而非静默无反应
+  if (type === 'kitchen') { try { var kp = renderKitchenPanel(); _showCardPopup('🍳 厨房 · 冰箱', kp||'', null, true); } catch(e) { console.error(e); _showCardPopup('🍳 厨房 · 冰箱', '<div style="padding:20px;text-align:center;color:#b84c38;font-size:var(--g-font-size-sm)">⚠ 面板加载失败<br><span style="font-size:.6rem;color:#999">请刷新页面后重试</span></div>', null, true); } return; }  // J 修复 + SM-1.5: try-catch 兜底——renderKitchenPanel 异常时至少弹出面板壳而非静默无反应
   if (type === 'field')   { _showFieldSheet(); return; }
   if (type === 'cleaning') { _showCardPopup('🧹 大扫除管理', renderCleaningPanel()||'', null, true); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
@@ -1548,7 +1548,7 @@ function _showFridgeSheet() {
       h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px dotted #f0f0f0;display:flex;justify-content:space-between"><span>📦 '+esc(it.name)+' · '+esc(it.putBy)+w+'</span><span style="color:#999;font-size:.55rem">'+it.putDate+'</span></div>';
     });
   });
-  _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:.65rem" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
+  _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
 }
 
 function _showFieldSheet() {
@@ -1560,13 +1560,13 @@ function _showFieldSheet() {
     var ci = p.crops.length ? p.crops.map(function(c){ return c.icon+' '+c.name+(c.remain<=0?' ✅':' 剩'+c.remain+'天'); }).join(' · ') : '空闲';
     var status = p.crops.length > 0 ? 'green' : 'offline';
     var statusDot = {green:'🟢',offline:'⚫'}[status];
-    h += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:.65rem" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.3rem">'+p.icon+'</span><b style="font-size:.75rem">'+p.name+'</b><span style="margin-left:auto">'+statusDot+'</span></div>'+
+    h += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:var(--g-font-size-xs)" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.3rem">'+p.icon+'</span><b style="font-size:var(--g-font-size-sm)">'+p.name+'</b><span style="margin-left:auto">'+statusDot+'</span></div>'+
       '<div style="color:var(--g-text-dim)">'+ci+'</div>'+
       (p.crops.length ? '<div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:'+Math.min(100,Math.max(0,(p.crops[0].remain||0)/((p.crops[0].days||30)||1)*100))+'%"></div></div>' : '')+
       '</div>';
   });
-  _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:.65rem" onclick="_openFarmQuick()">＋ 记录农活</button>', true);
+  _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openFarmQuick()">＋ 记录农活</button>', true);
 }
 
 // ── 住宿：选房间→展开床位→选床→填日期→申请入住 ──
@@ -1620,7 +1620,7 @@ function _showStaySheet() {
   h += '.rm-card{background:#fff;border:2px solid #d0d9ce;border-radius:10px;overflow:hidden;cursor:pointer;transition:.12s}';
   h += '.rm-card:active{transform:scale(.97)}.rm-card.active{border-color:var(--green-primary);box-shadow:0 0 0 2px var(--green-primary)}';
   h += '.rm-inner{display:flex;flex-direction:column;align-items:center;padding:12px 6px 8px}';
-  h += '.rm-icon{font-size:1.4rem}.rm-label{font-size:.65rem;font-weight:700;color:var(--tx);margin-top:2px}';
+  h += '.rm-icon{font-size:1.4rem}.rm-label{font-size:var(--g-font-size-xs);font-weight:700;color:var(--tx);margin-top:2px}';
   h += '.rm-tags{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;justify-content:center}';
   h += '.rm-tag{font-size:.45rem;padding:1px 5px;border-radius:5px;background:#f0f0f0;color:#7a7a7a}';
   h += '.rm-tag.noac{background:#fef0d0;color:#8a6a30}.rm-tag.item{background:#e8f5e8;color:var(--gp)}';
@@ -1635,7 +1635,7 @@ function _showStaySheet() {
   h += '.bd-card{flex:0 0 100px;width:100px;background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:.12s;position:relative}';
   h += '.bd-card:active{transform:scale(.96)}.bd-card.occ{background:#f9faf6}.bd-card.vac{border-style:dashed;border-color:#c0d0c0}';
   h += '.bd-card.sel{border-color:var(--gp);background:#e8f5e8;box-shadow:0 0 0 1px var(--gp)}';
-  h += '.bd-avatar{width:36px;height:36px;border-radius:50%;margin:0 auto 4px;background:#e8f0e8;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:var(--gp);overflow:hidden}';
+  h += '.bd-avatar{width:36px;height:36px;border-radius:50%;margin:0 auto 4px;background:#e8f0e8;display:flex;align-items:center;justify-content:center;font-size:var(--g-font-size);font-weight:700;color:var(--gp);overflow:hidden}';
   h += '.bd-avatar img{width:100%;height:100%;object-fit:cover}';
   h += '.bd-num{font-size:.6rem;font-weight:700;color:var(--tx)}.bd-name{font-size:.52rem;color:var(--t2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}';
   h += '.bd-date{font-size:.45rem;color:#999;margin-top:1px}.bd-price{font-size:.52rem;color:var(--gp);font-weight:600;margin-top:2px}';
@@ -1644,8 +1644,8 @@ function _showStaySheet() {
   h += '.stay-ci-card{background:#fff;border-radius:16px;width:320px;max-width:92vw;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.25);animation:stayCiPop .25s ease-out}';
   h += '@keyframes stayCiPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}';
   h += '.stay-ci-head{display:flex;align-items:center;gap:10px;padding:16px 16px 12px;border-bottom:1px solid #e8ede6}';
-  h += '.stay-ci-title{font-size:.75rem;font-weight:700;color:var(--tx);flex:1}';
-  h += '.stay-ci-close{font-size:1.1rem;cursor:pointer;color:#999;padding:4px 8px;border:none;background:none}';
+  h += '.stay-ci-title{font-size:var(--g-font-size-sm);font-weight:700;color:var(--tx);flex:1}';
+  h += '.stay-ci-close{font-size:var(--g-font-size-lg);cursor:pointer;color:#999;padding:4px 8px;border:none;background:none}';
   h += '.cal-wrap{padding:12px 16px}';
   h += '.cal-month{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}';
   h += '.cal-month-title{font-size:.72rem;font-weight:700;color:var(--tx)}';
@@ -1658,7 +1658,7 @@ function _showStaySheet() {
   h += '.cal-day.start,.cal-day.end{background:#2a4d3a!important;color:#fff!important;font-weight:800;font-size:.68rem;text-shadow:0 1px 1px rgba(0,0,0,.3)}';
   h += '.cal-day.range{background:#d8ecd8}';
   h += '.cal-day.today{box-shadow:inset 0 0 0 2px var(--gp)}';
-  h += '.ci-info{padding:8px 16px;font-size:.65rem;color:var(--t2)}';
+  h += '.ci-info{padding:8px 16px;font-size:var(--g-font-size-xs);color:var(--t2)}';
   h += '.ci-info-row{display:flex;justify-content:space-between;padding:4px 0}';
   h += '.ci-info-row b{color:var(--tx)}';
   h += '.ci-total{font-size:.78rem;font-weight:700;color:var(--gp);text-align:center;padding:8px 0}';
@@ -2027,7 +2027,7 @@ function renderCleaningPanel() {
   h += '<button class="ma-btn secondary" onclick="_saveMySelections()">💾 保存我的选择</button>';
   h += '</div>';
   if (myTotalNt > 0) {
-    h += '<div style="text-align:center;font-size:var(--g-font-size-xs);color:var(--g-gold);font-weight:700;margin-bottom:8px">我已选 '+mySelections.length+' 个位置 · 合计 <span style="font-size:1.1rem">+'+myTotalNt+' NT</span></div>';
+    h += '<div style="text-align:center;font-size:var(--g-font-size-xs);color:var(--g-gold);font-weight:700;margin-bottom:8px">我已选 '+mySelections.length+' 个位置 · 合计 <span style="font-size:var(--g-font-size-lg)">+'+myTotalNt+' NT</span></div>';
   }
 
   // ── 快速完成表单 ──
@@ -2295,7 +2295,7 @@ function renderFieldPanel() {
     h += '</div>';
     // 展开子区域
     if (isExpanded) {
-      h += '<div style="grid-column:1/-1;background:#f8faf7;border-radius:10px;padding:8px;margin-bottom:4px"><div style="font-weight:600;font-size:.65rem;margin-bottom:6px">'+p.icon+' '+p.name+' 子区域</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px">';
+      h += '<div style="grid-column:1/-1;background:#f8faf7;border-radius:10px;padding:8px;margin-bottom:4px"><div style="font-weight:600;font-size:var(--g-font-size-xs);margin-bottom:6px">'+p.icon+' '+p.name+' 子区域</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px">';
       (p.zones||[]).forEach(function(z) {
         var isPlanted = z.crop && z.crop!=='—';
         var zPct = isPlanted ? Math.round((1-(z.remain||0)/(z.days||90))*100) : 0;
@@ -2855,9 +2855,9 @@ function _flipMyPresence() {
   var me = _me();
   var cur = (window.AppData && AppData._data.presence && AppData._data.presence[me]) ? AppData._data.presence[me] : {};
   var curStatus = cur.status || 'cloud';
-  var opts = statuses.map(function(s){ return '<button class="ma-btn '+(curStatus===s.val?'primary':'secondary')+'" style="flex:1;font-size:.65rem;padding:6px 4px" onclick="event.stopPropagation();_doFlipSelf(\''+s.val+'\')">'+s.label+'<br><span style="font-size:.5rem;opacity:.7">'+s.desc+'</span></button>'; }).join('');
-  var locSelect = '<select id="flipLocSelect" style="width:100%;padding:6px;border:1px solid var(--green-border);border-radius:6px;font-size:.65rem;margin-top:4px"><option value="">选位置（可选）</option><option value="kitchen">🍳 厨房</option><option value="studio">🎨 画室</option><option value="field">🌿 田地</option><option value="study">📚 书房</option><option value="office">💼 办公室</option><option value="stage">🎭 戏台</option><option value="plaza">🏛️ 广场</option></select>';
-  var html = '<div style="text-align:center"><div style="font-weight:700;font-size:.75rem;margin-bottom:8px">🃏 '+me+' 的状态</div><div style="display:flex;gap:4px;margin-bottom:6px">'+opts+'</div>'+locSelect+'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn-sm sec" style=flex:1 onclick="event.stopPropagation();document.querySelector(\'.flip-popup\').remove()">取消</button></div></div>';
+  var opts = statuses.map(function(s){ return '<button class="ma-btn '+(curStatus===s.val?'primary':'secondary')+'" style="flex:1;font-size:var(--g-font-size-xs);padding:6px 4px" onclick="event.stopPropagation();_doFlipSelf(\''+s.val+'\')">'+s.label+'<br><span style="font-size:.5rem;opacity:.7">'+s.desc+'</span></button>'; }).join('');
+  var locSelect = '<select id="flipLocSelect" style="width:100%;padding:6px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);margin-top:4px"><option value="">选位置（可选）</option><option value="kitchen">🍳 厨房</option><option value="studio">🎨 画室</option><option value="field">🌿 田地</option><option value="study">📚 书房</option><option value="office">💼 办公室</option><option value="stage">🎭 戏台</option><option value="plaza">🏛️ 广场</option></select>';
+  var html = '<div style="text-align:center"><div style="font-weight:700;font-size:var(--g-font-size-sm);margin-bottom:8px">🃏 '+me+' 的状态</div><div style="display:flex;gap:4px;margin-bottom:6px">'+opts+'</div>'+locSelect+'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn-sm sec" style=flex:1 onclick="event.stopPropagation();document.querySelector(\'.flip-popup\').remove()">取消</button></div></div>';
   var el = document.createElement('div'); el.className = 'flip-popup';
   el.style.cssText = 'position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center';
   el.innerHTML = '<div style="position:absolute;inset:0;background:rgba(0,0,0,.4)" onclick="event.stopPropagation();this.parentElement.remove()"></div><div style="position:relative;background:#fff;border-radius:14px;padding:16px;width:300px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.25)">'+html+'</div>';
@@ -3063,10 +3063,10 @@ function _openFarmQuick() {
     { label:'👀查看', key:'view', nt:pricing.view }
   ];
   var plots = getPlots();
-  var body = '<div id="qfActions" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+actionDefs.map(function(a){ return '<div class="quick-sheet__preset-btn" data-action-key="'+a.key+'" onclick="var s=this;var p=this.parentElement;var prev=p.querySelector(\'[data-selected]\');if(prev&&prev!==s){prev.removeAttribute(\'data-selected\');prev.style.background=\'\';prev.style.color=\'\'}if(s.hasAttribute(\'data-selected\')){s.removeAttribute(\'data-selected\');s.style.background=\'\';s.style.color=\'\'}else{s.setAttribute(\'data-selected\',\'1\');s.style.background=\'var(--green-primary)\';s.style.color=\'#fff\'}" style="padding:6px 10px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.65rem;min-width:44px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'+a.label+'<span style="font-size:.45rem;color:#8a6a20">+'+a.nt+'NT</span></div>'; }).join('')+'</div>'+
+  var body = '<div id="qfActions" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">'+actionDefs.map(function(a){ return '<div class="quick-sheet__preset-btn" data-action-key="'+a.key+'" onclick="var s=this;var p=this.parentElement;var prev=p.querySelector(\'[data-selected]\');if(prev&&prev!==s){prev.removeAttribute(\'data-selected\');prev.style.background=\'\';prev.style.color=\'\'}if(s.hasAttribute(\'data-selected\')){s.removeAttribute(\'data-selected\');s.style.background=\'\';s.style.color=\'\'}else{s.setAttribute(\'data-selected\',\'1\');s.style.background=\'var(--green-primary)\';s.style.color=\'#fff\'}" style="padding:6px 10px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:var(--g-font-size-xs);min-width:44px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">'+a.label+'<span style="font-size:.45rem;color:#8a6a20">+'+a.nt+'NT</span></div>'; }).join('')+'</div>'+
     '<div id="qfPlots" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">'+plots.map(function(p){ return '<div class="quick-sheet__preset-btn" style="padding:6px 10px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.6rem" onclick="var s=this;var pa=this.parentElement;var prev=pa.querySelector(\'[data-selected]\');if(prev&&prev!==s){prev.removeAttribute(\'data-selected\');prev.style.background=\'\';prev.style.color=\'\'}if(s.hasAttribute(\'data-selected\')){s.removeAttribute(\'data-selected\');s.style.background=\'\';s.style.color=\'\'}else{s.setAttribute(\'data-selected\',\'1\');s.style.background=\'var(--green-primary)\';s.style.color=\'#fff\'}">'+p.icon+' '+p.name+'</div>'; }).join('')+'</div>'+
     '<input id="qfFarmNote" placeholder="备注（选填）" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.7rem;margin-bottom:6px">'+
-    '<button class="quick-sheet__submit" onclick="_submitFarmEntry()" style="width:100%;padding:10px;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:.75rem;font-weight:700;min-height:44px">✓ 确认记录</button>';
+    '<button class="quick-sheet__submit" onclick="_submitFarmEntry()" style="width:100%;padding:10px;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:var(--g-font-size-sm);font-weight:700;min-height:44px">✓ 确认记录</button>';
   _openQuickSheet('🌿 农活记录', body);
 }
 function _submitFarmEntry() {
@@ -3109,7 +3109,7 @@ function _openCleanQuick() {
       '<div style="color:'+(s.dirtiness>=60?'var(--g-red)':s.dirtiness>=30?'#c8892e':'var(--green-primary)')+'">'+s.statusIcon+' '+s.status+' · +'+s.nt+' NT</div></div>';
   }).join('')+'</div>'+
     '<div style="font-size:.55rem;color:#999;margin:6px 0">🟢整洁 &lt;30% · 🟡注意 30-60% · 🔴需处理 ≥60%</div>'+
-    '<button class="quick-sheet__submit" onclick="_submitCleanEntry()" style="width:100%;padding:10px;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:.75rem;font-weight:700;min-height:44px">✓ 确认打扫</button>';
+    '<button class="quick-sheet__submit" onclick="_submitCleanEntry()" style="width:100%;padding:10px;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:var(--g-font-size-sm);font-weight:700;min-height:44px">✓ 确认打扫</button>';
   _openQuickSheet('🧹 快速打扫', body);
 }
 function _submitCleanEntry() {
@@ -3163,7 +3163,7 @@ function _closeQuickSheet() {
 function closeQuickSheet(){ _closeQuickSheet(); }
 function _undoToast(type) {
   var toast = document.createElement('div'); toast.className = 'toast-undo';
-  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#2a4a30;color:#fff;padding:8px 20px;border-radius:20px;font-size:.75rem;z-index:9999;cursor:pointer';
+  toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#2a4a30;color:#fff;padding:8px 20px;border-radius:20px;font-size:var(--g-font-size-sm);z-index:9999;cursor:pointer';
   toast.innerHTML = '已记录 <span style="text-decoration:underline">撤销</span>';
   toast.onclick = function() {
     var vfys = (window.AppData && AppData._data.pendingVerifications) || [];

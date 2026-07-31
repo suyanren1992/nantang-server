@@ -148,7 +148,7 @@ function renderWizardStep(step) {
   var guideEl = document.getElementById('campWizardGuide');
   if (!guideEl) {
     guideEl = document.createElement('div'); guideEl.id = 'campWizardGuide';
-    guideEl.style.cssText = 'padding:8px 14px;font-size:.65rem;color:#5a6e5c;text-align:center;border-bottom:1px solid #e8ede6;background:#fafaf8;line-height:1.4';
+    guideEl.style.cssText = 'padding:8px 14px;font-size:var(--g-font-size-xs);color:#5a6e5c;text-align:center;border-bottom:1px solid #e8ede6;background:#fafaf8;line-height:1.4';
     var body = document.getElementById('campWizardBody');
     body.parentNode.insertBefore(guideEl, body);
   }
@@ -179,23 +179,23 @@ function renderStep1(el) {
   });
   qsHtml += '</div>';
   el.innerHTML = qsHtml + '<div style="padding:14px">'+
-    '<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">营队名称 *</label>'+
+    '<div style="margin-bottom:12px"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">营队名称 *</label>'+
     '<input id="cwName" class="login-input" value="'+esc(s.name)+'" placeholder="例：第四期南塘共创营" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px"></div>'+
-    '<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">期数</label>'+
+    '<div style="margin-bottom:12px"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">期数</label>'+
     '<select id="cwSeason" class="login-input" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px">'+
       ['第一期','第二期','第三期','第四期','第五期','第六期','第七期','第八期','第九期','第十期','特别期'].map(function(v){ return '<option'+(v===s.season?' selected':'')+'>'+v+'</option>'; }).join('')+
     '</select></div>'+
-    '<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">类型</label>'+
+    '<div style="margin-bottom:12px"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">类型</label>'+
     '<div style="display:flex;gap:12px;margin-top:6px">'+
       '<label style="cursor:pointer;font-size:.78rem"><input type="radio" name="cwType" value="regular"'+(s.type==='regular'?' checked':'')+' style="margin-right:4px">常规共创营</label>'+
       '<label style="cursor:pointer;font-size:.78rem"><input type="radio" name="cwType" value="special"'+(s.type==='special'?' checked':'')+' style="margin-right:4px">特别活动营</label>'+
     '</div></div>'+
-    '<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">一句话主题 *</label>'+
+    '<div style="margin-bottom:12px"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">一句话主题 *</label>'+
     '<input id="cwTheme" class="login-input" value="'+esc(s.theme)+'" placeholder="例：南塘有风，共创有光" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.78rem;padding:8px"></div>'+
-    '<div style="margin-bottom:12px"><label style="font-size:.65rem;color:#5a6e5c;font-weight:600">描述（可选）</label>'+
+    '<div style="margin-bottom:12px"><label style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">描述（可选）</label>'+
     '<textarea id="cwDesc" class="login-input" rows="3" placeholder="七天沉浸式在地创作…" style="margin:4px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.72rem;padding:8px;width:100%;resize:vertical;font-family:inherit">'+esc(s.desc)+'</textarea></div>'+
     '<label style="cursor:pointer;font-size:.72rem;color:#5a6e5c;display:flex;align-items:center;gap:6px"><input type="checkbox" id="cwTestMode"'+(s.testMode?' checked':'')+' style="accent-color:var(--green-primary)"> 🧪 测试模式（不计入正式统计）</label>'+
-    '<div style="margin-top:12px;background:#fafaf8;border:1px solid #e8ede6;border-radius:10px;padding:10px;cursor:pointer" onclick="var el=document.getElementById(\'soulQuestions\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'"><div style="font-size:.65rem;color:#5a6e5c;font-weight:600">💭 Soul Questions <span style="font-size:.55rem;color:#8a8a8a">（可选·点击展开）</span></div></div>'+
+    '<div style="margin-top:12px;background:#fafaf8;border:1px solid #e8ede6;border-radius:10px;padding:10px;cursor:pointer" onclick="var el=document.getElementById(\'soulQuestions\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'"><div style="font-size:var(--g-font-size-xs);color:#5a6e5c;font-weight:600">💭 Soul Questions <span style="font-size:.55rem;color:#8a8a8a">（可选·点击展开）</span></div></div>'+
     '<div id="soulQuestions" style="display:none;padding:8px 10px">'+
     '<div style="margin-bottom:8px"><label style="font-size:.6rem;color:#5a6e5c">为什么做这个营？</label>'+
     '<textarea id="cwSoulWhy" class="login-input" rows="2" placeholder="我想要创造什么样的体验？" style="margin:2px 0;text-align:left;background:#fff;color:#1d2e24;border-color:var(--green-border);font-size:.68rem;padding:6px;width:100%;resize:vertical;font-family:inherit">'+esc(s.soulWhy||'')+'</textarea></div>'+
@@ -242,7 +242,7 @@ function playCreateCeremony() {
   var creator = CURRENT_USER || '';
   content.innerHTML = '<div id="candle" style="font-size:4rem;opacity:0">🕯️</div>'+
     '<div id="fireGlow" style="position:absolute;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,180,50,.6),transparent);opacity:0"></div>'+
-    '<div id="campNameReveal" style="font-size:1.5rem;font-weight:700;color:#fff;margin-top:40px;opacity:0">'+name+'</div>'+
+    '<div id="campNameReveal" style="font-size:var(--g-font-size-xl);font-weight:700;color:#fff;margin-top:40px;opacity:0">'+name+'</div>'+
     '<div id="campThemeReveal" style="font-size:.9rem;color:rgba(255,255,255,.7);margin-top:8px;opacity:0">'+theme+'</div>'+
     '<div id="campCreated" style="font-size:1rem;color:#fff;margin-top:60px;opacity:0">营队正式创立</div>'+
     '<div id="campCreator" style="font-size:.8rem;color:rgba(255,255,255,.6);margin-top:8px;opacity:0">'+creator+' 创建</div>';
@@ -520,8 +520,8 @@ function renderMilestones(s) {
   s.milestones.forEach(function(m, i) {
     var lockedAttr = m.locked ? ' disabled' : '';
     var lockIcon = m.locked ? ' 🔒' : '';
-    h += '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;font-size:.65rem;border-bottom:1px dotted #f0f0f0">'+
-      '<input value="'+esc(m.name)+'" onchange="_campDraft.step2.milestones['+i+'].name=this.value" style="flex:1;border:1px solid #d0d9ce;border-radius:4px;padding:4px;font-size:.65rem;font-family:inherit;min-width:60px"'+lockedAttr+'>'+
+    h += '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;font-size:var(--g-font-size-xs);border-bottom:1px dotted #f0f0f0">'+
+      '<input value="'+esc(m.name)+'" onchange="_campDraft.step2.milestones['+i+'].name=this.value" style="flex:1;border:1px solid #d0d9ce;border-radius:4px;padding:4px;font-size:var(--g-font-size-xs);font-family:inherit;min-width:60px"'+lockedAttr+'>'+
       '<input type="date" value="'+m.date+'" onchange="_campDraft.step2.milestones['+i+'].date=this.value" style="width:110px;border:1px solid #d0d9ce;border-radius:4px;padding:4px;font-size:.62rem"'+lockedAttr+'>'+
       '<span style="font-size:.58rem;color:#aaa;white-space:nowrap">'+m.rule+lockIcon+'</span>'+
       (m.locked ? '' : '<span style="color:#b84c38;cursor:pointer;font-size:.8rem" onclick="removeMilestone('+i+')">✕</span>')+
@@ -589,17 +589,17 @@ function renderStep3(el) {
   var expenseNT = s.lodgingNT * totalPeople * days + s.mealNT * totalPeople * days;
   var balanceRmb = incomeRmb - expenseRmb;
   el.innerHTML = '<div style="padding:14px">'+
-    '<div style="margin-bottom:16px"><div style="font-weight:700;font-size:.75rem;color:#3d6b52;margin-bottom:8px">📥 收入参数</div>'+
+    '<div style="margin-bottom:16px"><div style="font-weight:700;font-size:var(--g-font-size-sm);color:#3d6b52;margin-bottom:8px">📥 收入参数</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">冒险者人数</label><input id="cwAdventurers" class="login-input" type="number" value="'+adventurers+'" min="0" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">共建者人数</label><input id="cwBuilders" class="login-input" type="number" value="'+builders+'" min="1" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">早鸟价 ¥</label><input id="cwEarlyBird" class="login-input" type="number" value="'+s.earlyBirdPrice+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">早鸟比例 %</label><input id="cwEarlyBirdPct" class="login-input" type="number" value="'+s.earlyBirdPct+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">原价 ¥</label><input id="cwFullPrice" class="login-input" type="number" value="'+s.fullPrice+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div></div>'+
     '<button class="wiz-chip" onclick="addBudgetItemMobile(\'income\')" style="margin-top:4px">+ 添加收入项</button>'+
-    '<div style="font-size:.65rem;color:#5a6e5c">' + (s.extraIncome||[]).map(function(item,i){ return '<div style="display:flex;justify-content:space-between;padding:2px 0">'+esc(item.name)+' ¥'+item.amount+'<span style="color:#b84c38;cursor:pointer" onclick="event.stopPropagation();removeBudgetItemMobile(\'income\','+i+')">✕</span></div>'; }).join('') + '</div>'+
+    '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c">' + (s.extraIncome||[]).map(function(item,i){ return '<div style="display:flex;justify-content:space-between;padding:2px 0">'+esc(item.name)+' ¥'+item.amount+'<span style="color:#b84c38;cursor:pointer" onclick="event.stopPropagation();removeBudgetItemMobile(\'income\','+i+')">✕</span></div>'; }).join('') + '</div>'+
     '<div style="font-size:.72rem;color:var(--green-primary);font-weight:600">收入合计：RMB ¥' + incomeRmb.toLocaleString() + '</div></div>'+
-    '<div style="margin-bottom:16px"><div style="font-weight:700;font-size:.75rem;color:#8a6a30;margin-bottom:8px">📤 支出参数（单价 × '+days+'天 × '+totalPeople+'人）</div>'+
+    '<div style="margin-bottom:16px"><div style="font-weight:700;font-size:var(--g-font-size-sm);color:#8a6a30;margin-bottom:8px">📤 支出参数（单价 × '+days+'天 × '+totalPeople+'人）</div>'+
     '<div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">🏠住宿 ¥/人/天</label><input id="cwLodgingRmb" class="login-input" type="number" value="'+s.lodgingRmb+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">🏠住宿 NT/人/天</label><input id="cwLodgingNT" class="login-input" type="number" value="'+s.lodgingNT+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div></div>'+
     '<div style="display:flex;gap:8px;margin-bottom:8px"><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">🍚吃饭 ¥/人/天</label><input id="cwMealRmb" class="login-input" type="number" value="'+s.mealRmb+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div><div style="flex:1"><label style="font-size:.6rem;color:#5a6e5c">🍚吃饭 NT/人/天</label><input id="cwMealNT" class="login-input" type="number" value="'+s.mealNT+'" style="margin:2px 0;background:#fff;font-size:.78rem;padding:8px"></div></div>'+
     '<button class="wiz-chip" onclick="addBudgetItemMobile(\'expense\')" style="margin-top:4px">+ 添加支出项</button>'+
-    '<div style="font-size:.65rem;color:#5a6e5c">' + (s.extraExpense||[]).map(function(item,i){ return '<div style="display:flex;justify-content:space-between;padding:2px 0">'+esc(item.name)+' ¥'+item.amount+'<span style="color:#b84c38;cursor:pointer" onclick="event.stopPropagation();removeBudgetItemMobile(\'expense\','+i+')">✕</span></div>'; }).join('') + '</div>'+
+    '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c">' + (s.extraExpense||[]).map(function(item,i){ return '<div style="display:flex;justify-content:space-between;padding:2px 0">'+esc(item.name)+' ¥'+item.amount+'<span style="color:#b84c38;cursor:pointer" onclick="event.stopPropagation();removeBudgetItemMobile(\'expense\','+i+')">✕</span></div>'; }).join('') + '</div>'+
     '<div style="font-size:.72rem;color:#8a6a30;font-weight:600">支出合计：RMB ¥' + expenseRmb.toLocaleString() + ' ｜ NT ' + expenseNT.toLocaleString() + '</div></div>'+
     (function(){
       var healthPct = incomeRmb > 0 ? balanceRmb / incomeRmb : (balanceRmb > 0 ? 1 : -1);
@@ -828,13 +828,13 @@ function renderStep5(el) {
   var tasks = _campDraft.step4.tasks;
   var assignedCount = builders.reduce(function(sum, b) { return sum + b.taskNames.length; }, 0);
   var h = '<div style="padding:14px">'+
-    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:.65rem;color:#5a6e5c;margin-bottom:8px">共建人</div><div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap">';
+    '<div style="text-align:center;margin-bottom:16px"><div style="font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:8px">共建人</div><div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap">';
   for (var i = 0; i < Math.max(builders.length + 1, 3); i++) {
     if (i < builders.length) {
       var b = builders[i];
-      h += '<div style="text-align:center;cursor:pointer" onclick="selectBuilder('+i+')"><div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#e8f0e4,#dce8d8);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 4px">👤</div><div style="font-size:.68rem;font-weight:600">'+b.name+'</div><div style="font-size:.58rem;color:#5a6e5c">'+b.taskNames.length+'项·'+b.totalNT+'NT</div></div>';
+      h += '<div style="text-align:center;cursor:pointer" onclick="selectBuilder('+i+')"><div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#e8f0e4,#dce8d8);display:flex;align-items:center;justify-content:center;font-size:var(--g-font-size-xl);margin:0 auto 4px">👤</div><div style="font-size:.68rem;font-weight:600">'+b.name+'</div><div style="font-size:.58rem;color:#5a6e5c">'+b.taskNames.length+'项·'+b.totalNT+'NT</div></div>';
     } else if (i === builders.length) {
-      h += '<div style="text-align:center;cursor:pointer" onclick="addNewBuilder()"><div style="width:56px;height:56px;border-radius:50%;border:2px dashed #d0d9ce;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 4px;color:#d0d9ce">+</div><div style="font-size:.62rem;color:#aaa">虚位以待</div></div>';
+      h += '<div style="text-align:center;cursor:pointer" onclick="addNewBuilder()"><div style="width:56px;height:56px;border-radius:50%;border:2px dashed #d0d9ce;display:flex;align-items:center;justify-content:center;font-size:var(--g-font-size-xl);margin:0 auto 4px;color:#d0d9ce">+</div><div style="font-size:.62rem;color:#aaa">虚位以待</div></div>';
     }
   }
   h += '</div></div>';
@@ -853,7 +853,7 @@ function renderStep5(el) {
     h += '<div style="background:#e8f0e4;border-radius:10px;padding:10px;margin-top:10px;text-align:center;font-size:.7rem;color:var(--green-primary);font-weight:600">✅ 全部 '+tasks.length+' 个任务已分配完毕</div>';
   }
   if (tasks.length && assignedCount < tasks.length) {
-    h += '<div style="background:#fef8e8;border-radius:10px;padding:10px;margin-top:10px;text-align:center;font-size:.65rem;color:#c8892e">⚠️ 还有 '+(tasks.length-assignedCount)+' 个任务未分配</div>';
+    h += '<div style="background:#fef8e8;border-radius:10px;padding:10px;margin-top:10px;text-align:center;font-size:var(--g-font-size-xs);color:#c8892e">⚠️ 还有 '+(tasks.length-assignedCount)+' 个任务未分配</div>';
   }
   el.innerHTML = h;
 }
@@ -882,13 +882,13 @@ function renderStep6(el) {
   var h = '<div style="padding:14px">'+
     '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:12px;margin-bottom:12px">'+
     '<div style="font-weight:700;font-size:.7rem;margin-bottom:6px">📊 确认将以下信息发送给共建人</div>'+
-    '<div style="font-size:.65rem;color:#5a6e5c;line-height:1.8">预算 RMB ¥' + calcStep3Total().expenseRmb.toLocaleString() + ' · NT ' + calcStep3Total().expenseNT.toLocaleString() + '<br>日程 ' + (_campDraft.step2.startDate||'?') + ' · ' + _campDraft.step2.days + '天<br>任务 ' + _campDraft.step4.tasks.length + '项</div></div>';
+    '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;line-height:1.8">预算 RMB ¥' + calcStep3Total().expenseRmb.toLocaleString() + ' · NT ' + calcStep3Total().expenseNT.toLocaleString() + '<br>日程 ' + (_campDraft.step2.startDate||'?') + ' · ' + _campDraft.step2.days + '天<br>任务 ' + _campDraft.step4.tasks.length + '项</div></div>';
   h += '<div style="font-weight:700;font-size:.7rem;margin-bottom:8px">发送给：</div>';
   builders.forEach(function(b) {
     h += '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;margin-bottom:8px;display:flex;align-items:center;gap:10px">'+
       '<div style="width:32px;height:32px;border-radius:50%;background:#e8f0e4;display:flex;align-items:center;justify-content:center;font-size:.8rem">👤</div>'+
       '<div style="flex:1"><div style="font-weight:600;font-size:.72rem">'+b.name+'</div><div style="font-size:.6rem;color:#5a6e5c">'+b.taskNames.length+'项 · '+b.totalNT+'NT</div></div>'+
-      '<span style="font-size:.65rem;'+(b.confirmed?'color:var(--green-primary)':'color:#8a8a8a')+'">'+(b.confirmed?'✅ 已确认':'⏳ 等待确认')+'</span></div>';
+      '<span style="font-size:var(--g-font-size-xs);'+(b.confirmed?'color:var(--green-primary)':'color:#8a8a8a')+'">'+(b.confirmed?'✅ 已确认':'⏳ 等待确认')+'</span></div>';
   });
   if (!_campDraft.step6.sentAt && builders.length) {
     h += '<button class="btn-pri btn-full" onclick="sendConfirmations()" style="margin-top:8px">📤 发送确认请求</button>';
@@ -926,9 +926,9 @@ function renderStep7(el) {
     '<div style="font-weight:700;font-size:1rem;margin-bottom:4px">启营仪式</div>'+
     '<div style="font-size:.72rem;color:#5a6e5c;margin-bottom:20px">所有共建者将进入星光汇聚仪式</div>'+
     _campDraft.step5.builders.map(function(b) {
-      return '<div style="display:inline-block;text-align:center;margin:8px 12px"><div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e8f0e4,#dce8d8);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin:0 auto 4px">👤</div><div style="font-size:.65rem">'+b.name+'</div><div style="font-size:.55rem;color:#5a6e5c">'+b.taskNames.length+'项·'+b.totalNT+'NT</div></div>';
+      return '<div style="display:inline-block;text-align:center;margin:8px 12px"><div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#e8f0e4,#dce8d8);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin:0 auto 4px">👤</div><div style="font-size:var(--g-font-size-xs)">'+b.name+'</div><div style="font-size:.55rem;color:#5a6e5c">'+b.taskNames.length+'项·'+b.totalNT+'NT</div></div>';
     }).join('') +
-    '<div style="margin-top:20px;font-size:.65rem;color:#8a8a8a">点击「🏁 正式启动」后营队将正式开启</div>'+
+    '<div style="margin-top:20px;font-size:var(--g-font-size-xs);color:#8a8a8a">点击「🏁 正式启动」后营队将正式开启</div>'+
   '</div>';
 }
 

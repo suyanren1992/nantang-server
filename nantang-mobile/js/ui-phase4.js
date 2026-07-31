@@ -45,12 +45,12 @@ function _innRender() {
   // ── inline styles (follow _showStaySheet pattern) ──
   h += '<style>';
   h += '.inn-tabbar{display:flex;gap:0;margin-bottom:10px;border-radius:10px;overflow:hidden;border:1px solid #d0d9ce}';
-  h += '.inn-tab{flex:1;text-align:center;padding:8px;font-size:.65rem;font-weight:600;cursor:pointer;background:#f0f4ee;color:#5a6e5c;transition:.12s;user-select:none}';
+  h += '.inn-tab{flex:1;text-align:center;padding:8px;font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;background:#f0f4ee;color:#5a6e5c;transition:.12s;user-select:none}';
   h += '.inn-tab.on{background:var(--green-primary);color:#fff}';
   h += '.inn-room-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}';
   h += '.inn-rc{background:#fff;border:2px solid #d0d9ce;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;transition:.12s}';
   h += '.inn-rc:active{transform:scale(.97)}.inn-rc.sel{border-color:var(--green-primary);box-shadow:0 0 0 2px var(--green-primary)}';
-  h += '.inn-rc-icon{font-size:1.4rem}.inn-rc-label{font-size:.65rem;font-weight:700;color:#1d2e24;margin:4px 0 2px}';
+  h += '.inn-rc-icon{font-size:1.4rem}.inn-rc-label{font-size:var(--g-font-size-xs);font-weight:700;color:#1d2e24;margin:4px 0 2px}';
   h += '.inn-rc-meta{font-size:.52rem;color:#5a6e5c}.inn-rc-occ{font-size:.5rem;font-weight:600;margin-top:3px;padding:2px 8px;border-radius:8px;display:inline-block}';
   h += '.inn-rc-occ.avail{background:#e8f5e8;color:var(--green-primary)}.inn-rc-occ.partial{background:#fef8e8;color:#c8892e}.inn-rc-occ.full{background:#fde8e8;color:#b84c38}';
   h += '.inn-stay-banner{background:linear-gradient(135deg,#e8f5e8,#dce8d8);border:1px solid var(--green-primary);border-radius:12px;padding:12px 14px;margin-bottom:10px}';
@@ -63,7 +63,7 @@ function _innRender() {
   // calendar — copy pattern from _showStaySheet cal-* classes with inn- prefix
   h += '.inn-cal-month{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}';
   h += '.inn-cal-month-title{font-size:.68rem;font-weight:700;color:#1d2e24}';
-  h += '.inn-cal-nav{font-size:.85rem;cursor:pointer;padding:4px 10px;border:none;background:#f0f0f0;border-radius:6px;color:#5a6e5c}';
+  h += '.inn-cal-nav{font-size:var(--g-font-size);cursor:pointer;padding:4px 10px;border:none;background:#f0f0f0;border-radius:6px;color:#5a6e5c}';
   h += '.inn-cal-nav:active{background:#e0e0e0}';
   h += '.inn-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;text-align:center;max-width:290px;margin:0 auto}';
   h += '.inn-cal-dow{font-size:.45rem;color:#999;padding:3px 0}';
@@ -90,7 +90,7 @@ function _innRender() {
 
   if (_inn._tab === 'coop') {
     // 合作社 tab — 调 _showStaySheet（一字不改），先关 overlay
-    h += '<div style="text-align:center;padding:20px;font-size:.65rem;color:#5a6e5c">点击下方按钮打开合作社住宿</div>';
+    h += '<div style="text-align:center;padding:20px;font-size:var(--g-font-size-xs);color:#5a6e5c">点击下方按钮打开合作社住宿</div>';
     h += '<button class="inn-book-btn" style="background:#5a6e5c" onclick="document.getElementById(\'overlayInn\').classList.remove(\'open\');if(typeof _showStaySheet===\'function\')_showStaySheet()">🛏️ 打开合作社住宿</button>';
   } else {
     // ── 素社民宿 tab ──
@@ -491,7 +491,7 @@ function _renderCanteenHistory(showAll) {
       h += '</div>';
     }
   }
-  if (!h) h = '<div style="text-align:center;padding:12px;font-size:.65rem;color:#8a8a8a">暂无订餐记录</div>';
+  if (!h) h = '<div style="text-align:center;padding:12px;font-size:var(--g-font-size-xs);color:#8a8a8a">暂无订餐记录</div>';
   if (!showAll && count >= 3) {
     h += '<div class="canteen-expand" onclick="document.getElementById(\'canteenHistory\').innerHTML=_renderCanteenHistory(true)">展开全部记录 ▼</div>';
   }

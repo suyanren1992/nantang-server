@@ -450,7 +450,7 @@ function _renderVerifyTab() {
   });
   var topVerifiers = Object.entries(monthlyVerifiers).sort(function(a,b){ return b[1]-a[1]; }).slice(0,3);
   if (topVerifiers.length) {
-    h += '<div style="font-weight:700;font-size:.65rem;color:#5a6e5c;margin:12px 0 6px">🏆 本月校核贡献 (' + thisMonth + ')</div>';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:#5a6e5c;margin:12px 0 6px">🏆 本月校核贡献 (' + thisMonth + ')</div>';
     var medals = ['🥇','🥈','🥉'];
     topVerifiers.forEach(function(e, i) {
       h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px solid #f0f0f0">' + (medals[i]||'👏') + ' ' + esc(e[0]) + ' · ' + e[1] + '次</div>';
@@ -463,9 +463,9 @@ function _renderVerifyTab() {
 // B-10: 校核作证确认弹窗
 function _confirmWitness(vId, vfyUser, closeAfter) {
   var h = '<div style="text-align:center;padding:8px">';
-  h += '<div style="font-size:1.1rem;font-weight:700;margin-bottom:10px;color:#1a2a20">你正在为这件事作证</div>';
-  h += '<div style="font-size:.75rem;color:#3a3a3a;line-height:1.6;margin-bottom:6px">校核 = 证明劳动成果真实发生，</div>';
-  h += '<div style="font-size:.75rem;color:#3a3a3a;line-height:1.6;margin-bottom:14px">是你亲眼看见了别人的付出。</div>';
+  h += '<div style="font-size:var(--g-font-size-lg);font-weight:700;margin-bottom:10px;color:#1a2a20">你正在为这件事作证</div>';
+  h += '<div style="font-size:var(--g-font-size-sm);color:#3a3a3a;line-height:1.6;margin-bottom:6px">校核 = 证明劳动成果真实发生，</div>';
+  h += '<div style="font-size:var(--g-font-size-sm);color:#3a3a3a;line-height:1.6;margin-bottom:14px">是你亲眼看见了别人的付出。</div>';
   h += '<div style="font-size:.62rem;color:#b84c38;margin-bottom:16px">⚠ 作假证会失去社区对你的信任。</div>';
   h += '<div style="display:flex;gap:8px">';
   h += '<button onclick="var modals=document.querySelectorAll(\'.disc-modal-overlay\');for(var i=0;i<modals.length;i++)modals[i].remove();AppData.verifyAction(\''+vId+'\',\''+vfyUser+'\',true);'+(closeAfter?'closeDiscoveryForm();':'')+'" style="flex:1;padding:10px 8px;border-radius:8px;border:none;background:var(--green-primary);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer">我亲眼所见，确认作证</button>';
@@ -551,11 +551,11 @@ function _openVerifyDetail(vfyId) {
   h += '<div style="padding:16px 16px 10px;text-align:center;background:#fafaf6">';
   h += '<div style="font-size:3rem;line-height:1;margin-bottom:4px">'+icon+'</div>';
   h += '<div style="font-size:.82rem;font-weight:700;color:#1d2e24">'+esc(v.doer||'')+'</div>';
-  h += '<div style="font-size:.65rem;color:#5a6e5c;margin-top:2px">'+esc(v.action||'')+'</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;margin-top:2px">'+esc(v.action||'')+'</div>';
   if (v.detail && v.detail.spaceId) h += '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">📍 '+esc(v.detail.spaceId||'')+'</div>';
   h += '</div>';
   h += '<div style="margin:0 16px 10px;background:#fafaf6;border-radius:12px;padding:12px">';
-  h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">💰 奖励</span><span style="font-size:.65rem;font-weight:700;color:#8a6a20">+'+ntAmt+' NT</span></div>';
+  h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">💰 奖励</span><span style="font-size:var(--g-font-size-xs);font-weight:700;color:#8a6a20">+'+ntAmt+' NT</span></div>';
   h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">📋 状态</span><span style="font-size:.6rem">'+stLabel+'</span></div>';
   if (v.verifier) h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:.62rem;color:#5a6e5c">👤 验证人</span><span style="font-size:.6rem">'+esc(v.verifier)+'</span></div>';
   h += '<div style="font-size:.5rem;color:#aaa;margin-top:4px">'+(v.createdAt||'').slice(0,16).replace('T',' ')+'</div>';
@@ -566,8 +566,8 @@ function _openVerifyDetail(vfyId) {
       h += '<div style="text-align:center;padding:8px;font-size:.72rem;color:var(--g-warn)">⏳ 不能校核自己的卡片，请等待他人校核</div>';
     } else {
       h += '<div style="display:flex;gap:8px">';
-      h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm()})">🙅 不是</button>';
-      h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="_confirmWitness(\''+v.id+'\',CURRENT_USER,true)">✅ 确认 +'+ntAmt+' NT</button>';
+      h += '<button class="btn-sm danger" style="flex:1;font-size:var(--g-font-size-xs);padding:10px" onclick="showConfirm(\'确定认为这条记录不属实吗？\\n拒绝后该成员可重新上报（最多3次）\',function(){AppData.verifyAction(\''+v.id+'\',CURRENT_USER,false);closeDiscoveryForm()})">🙅 不是</button>';
+      h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:10px" onclick="_confirmWitness(\''+v.id+'\',CURRENT_USER,true)">✅ 确认 +'+ntAmt+' NT</button>';
       h += '</div>';
     }
   }
@@ -611,7 +611,7 @@ function renderCardRoom() {
   // ── 顶部庄家信息 ──
   h += '<div style="background:linear-gradient(135deg,#2a1f0a,#4a3820);color:#ffd700;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">';
   h += '<div><div style="font-size:.7rem;font-weight:700">🎴 庄家：社区资金池</div><div style="font-size:.55rem;opacity:.8">💰 池余额 '+poolNT+' NT · 今日已揭 '+todayResolved.length+' 张</div></div>';
-  h += '<div style="font-size:1.5rem">🃏</div>';
+  h += '<div style="font-size:var(--g-font-size-xl)">🃏</div>';
   h += '</div>';
 
   // ── 搜索 ──
@@ -801,12 +801,12 @@ function _renderStep1() {
   var rooms = _getRoomsForBuilding(activeBld);
   h += '<div style="max-height:260px;overflow-y:auto;margin-bottom:10px;-webkit-overflow-scrolling:touch">';
   if (!rooms.length) {
-    h += '<div style="text-align:center;color:#aaa;padding:20px;font-size:.65rem">暂无空间数据</div>';
+    h += '<div style="text-align:center;color:#aaa;padding:20px;font-size:var(--g-font-size-xs)">暂无空间数据</div>';
   } else {
     h += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
     rooms.forEach(function(s) {
       h += '<div onclick="_pickSpace(\''+s.id+'\',\''+encodeURIComponent(s.name)+'\')" style="width:calc(50% - 3px);padding:10px 8px;background:#fff;border:1px solid #e8ede6;border-radius:10px;cursor:pointer;font-size:.68rem;display:flex;align-items:center;gap:6px" onmouseover="this.style.background=\'#f5f8f2\'" onmouseout="this.style.background=\'#fff\'">';
-      h += '<span style="font-size:1.1rem;flex-shrink:0">'+s.icon+'</span>';
+      h += '<span style="font-size:var(--g-font-size-lg);flex-shrink:0">'+s.icon+'</span>';
       h += '<span style="line-height:1.2">'+esc(s.name.replace(/^.* › /,''))+'</span>';
       h += '</div>';
     });
@@ -871,7 +871,7 @@ function _renderStep2() {
 
   if (!actions.length && d.filterCat) {
     // 该空间没有此分类的劳动，引导用户选"其他"
-    h += '<div style="text-align:center;color:#aaa;padding:20px;font-size:.65rem">此空间暂无该分类的劳动项<br><span style="font-size:.55rem">尝试其他分类或使用「其他劳动」</span></div>';
+    h += '<div style="text-align:center;color:#aaa;padding:20px;font-size:var(--g-font-size-xs)">此空间暂无该分类的劳动项<br><span style="font-size:.55rem">尝试其他分类或使用「其他劳动」</span></div>';
   } else {
     h += '<div style="max-height:240px;overflow-y:auto;margin-bottom:10px;-webkit-overflow-scrolling:touch">';
     actions.forEach(function(item) {
@@ -986,7 +986,7 @@ function _renderSRStep3() {
   h += '<textarea id="srNote" rows="3" placeholder="补充说明（选填）：擦了台面、拖了地、倒了垃圾…" style="width:100%;padding:10px;border:1px solid var(--green-border);border-radius:10px;font-size:.7rem;margin-bottom:8px;background:#fff;color:#1d2e24;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>';
 
   // A-LABOR-FE ⑬: 志愿劳动 checkbox — 不计 NT，只加 CV/XP
-  h += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f0f7f0;border-radius:8px;margin-bottom:8px;cursor:pointer;font-size:.65rem;color:#3d6b52">';
+  h += '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f0f7f0;border-radius:8px;margin-bottom:8px;cursor:pointer;font-size:var(--g-font-size-xs);color:#3d6b52">';
   h += '<input type="checkbox" id="srVolunteer" style="width:16px;height:16px;accent-color:#3d6b52;cursor:pointer">';
   h += '🧡 志愿劳动（不领取 NT，只累积贡献值 CV 和经验 XP）';
   h += '</label>';
@@ -1011,12 +1011,12 @@ function _formFooter(leftLabel, rightLabel, rightFn, leftFn) {
   var h = '</div>'; // close content padding
   h += '<div style="position:sticky;bottom:0;z-index:2;background:#fff;padding:10px 16px;border-top:1px solid #f0f0f0;display:flex;gap:8px">';
   if (leftLabel && leftFn) {
-    h += '<button class="btn-sm sec" style="flex:1;font-size:.65rem;padding:8px" onclick="'+leftFn+'()">'+leftLabel+'</button>';
+    h += '<button class="btn-sm sec" style="flex:1;font-size:var(--g-font-size-xs);padding:8px" onclick="'+leftFn+'()">'+leftLabel+'</button>';
   } else if (leftLabel) {
-    h += '<button class="btn-sm sec" style="flex:1;font-size:.65rem;padding:8px" onclick="closeDiscoveryForm()">'+leftLabel+'</button>';
+    h += '<button class="btn-sm sec" style="flex:1;font-size:var(--g-font-size-xs);padding:8px" onclick="closeDiscoveryForm()">'+leftLabel+'</button>';
   }
   if (rightLabel && rightFn) {
-    h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:8px" onclick="'+rightFn+'()">'+rightLabel+'</button>';
+    h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:8px" onclick="'+rightFn+'()">'+rightLabel+'</button>';
   }
   h += '</div>';
   return h;
@@ -1213,7 +1213,7 @@ function openDiscoveryDetail(discId) {
   h += '</div>';
 
   if (d.status === 'confirmed') {
-    h += '<div style="font-size:.65rem;font-weight:600;color:#5d8c52;margin-bottom:4px">🎉 '+esc(d.guessedPerson||'')+' 确认了！</div>';
+    h += '<div style="font-size:var(--g-font-size-xs);font-weight:600;color:#5d8c52;margin-bottom:4px">🎉 '+esc(d.guessedPerson||'')+' 确认了！</div>';
     // 猜中的人
     var winners = (d.guesses||[]).filter(function(g){ return g.guessedPerson === d.guessedPerson; });
     if (winners.length) h += '<div style="font-size:.58rem;color:#5a6e5c">🏆 猜中: '+winners.map(function(g){return g.name;}).join('、')+' (+1 NT)</div>';
@@ -1236,8 +1236,8 @@ function openDiscoveryDetail(discId) {
   if (d.status === 'pending') {
     if (isDoer) {
       h += '<div style="display:flex;gap:8px">';
-      h += '<button class="btn-sm danger" style="flex:1;font-size:.65rem;padding:10px" onclick="denyDiscovery(\''+d.id+'\')">🙅 不是我</button>';
-      h += '<button class="btn-sm pri" style="flex:1;font-size:.65rem;padding:10px" onclick="confirmDiscovery(\''+d.id+'\')">✅ 是我做的！<br><span style="font-size:.5rem;opacity:.8">+'+d.ntDoer+' NT · 🎺全社区公告</span></button>';
+      h += '<button class="btn-sm danger" style="flex:1;font-size:var(--g-font-size-xs);padding:10px" onclick="denyDiscovery(\''+d.id+'\')">🙅 不是我</button>';
+      h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:10px" onclick="confirmDiscovery(\''+d.id+'\')">✅ 是我做的！<br><span style="font-size:.5rem;opacity:.8">+'+d.ntDoer+' NT · 🎺全社区公告</span></button>';
       h += '</div>';
     } else if (hasGuessed) {
       h += '<div style="text-align:center;font-size:.62rem;color:#5a6e5c;padding:8px;background:#f5f8f2;border-radius:8px">👁 你已猜「'+esc(myGuess.guessedPerson||'')+'」· 等待揭晓</div>';
@@ -1289,7 +1289,7 @@ function _checkStreak(userName) {
 function _openCardRules() {
   var h = '<div style="background:#fff;border-radius:16px;width:320px;max-width:92vw;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.25);max-height:70vh;overflow-y:auto">';
   h += '<div style="font-weight:700;font-size:.82rem;margin-bottom:10px">📜 猜牌规则</div>';
-  h += '<div style="font-size:.65rem;color:#5a6e5c;line-height:1.8">';
+  h += '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c;line-height:1.8">';
   h += '🂠 <b>发牌</b>：有人上报劳动或发起发现 → 牌出现在牌桌上<br>';
   h += '🎯 <b>猜牌</b>：点牌 → 选一个人 → 每人限猜 1 次<br>';
   h += '✅ <b>揭晓</b>：做事者确认 → 牌翻开<br>';

@@ -129,7 +129,7 @@ function renderInbox() {
   var h = '';
 
   if (!data.total) {
-    h = '<div style="text-align:center;padding:40px 0;color:#5a6e5c">📭 暂无消息<br><span style="font-size:.65rem;color:#aaa">有新的消息会出现在这里</span></div>';
+    h = '<div style="text-align:center;padding:40px 0;color:#5a6e5c">📭 暂无消息<br><span style="font-size:var(--g-font-size-xs);color:#aaa">有新的消息会出现在这里</span></div>';
   } else {
     if (data.newer.length) {
       h += '<div style="font-weight:700;font-size:.7rem;color:#b84c38;margin-bottom:8px">🔴 新消息</div>';
@@ -139,7 +139,7 @@ function renderInbox() {
       h += '<div style="font-weight:700;font-size:.7rem;color:#5a6e5c;margin:12px 0 8px;padding-top:8px;border-top:1px solid #e8ede6">── 已读 ──</div>';
       data.older.forEach(function(m) { h += inboxMsgRow(m); });
     }
-    h += '<div style="text-align:center;padding:12px 0"><span style="font-size:.65rem;color:var(--green-primary);cursor:pointer" onclick="updateInboxLastOpened();renderInbox();updateInboxBadge()">全部标为已读</span></div>';
+    h += '<div style="text-align:center;padding:12px 0"><span style="font-size:var(--g-font-size-xs);color:var(--green-primary);cursor:pointer" onclick="updateInboxLastOpened();renderInbox();updateInboxBadge()">全部标为已读</span></div>';
   }
   panel.innerHTML = h;
   panel.style.display = 'block';
@@ -303,7 +303,7 @@ function renderArchiveMembers(el) {
       var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + m.seed + '&size=56';
       var onlineDot = m.online ? '🟢' : '🔴';
       h += '<div class="archive-member-row" onclick="openMemberArchive(\'' + encodeURIComponent(m.name) + '\',\'' + m.role + '\',' + (m.nt || 0) + ',\'' + m.seed + '\')">'+
-        '<img src="' + avatarUrl + '" width="32" height="32" class="archive-member-avatar" alt="" onerror="this.outerHTML=\'<div style=width:32px;height:32px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#5a6e5c;flex-shrink:0>\'+(\'' + m.name + '\').charAt(0)+\'</div>\'">'+
+        '<img src="' + avatarUrl + '" width="32" height="32" class="archive-member-avatar" alt="" onerror="this.outerHTML=\'<div style=width:32px;height:32px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:var(--g-font-size-xs);color:#5a6e5c;flex-shrink:0>\'+(\'' + m.name + '\').charAt(0)+\'</div>\'">'+
         '<div class="archive-member-info"><div class="archive-member-name">' + esc(m.name) + '</div><div class="archive-member-sub">' + roleName(m.role) + '</div></div>'+
         '<span class="archive-member-nt">' + (m.nt ? m.nt + ' NT' : '') + '</span>'+
         '<span class="archive-member-dot">' + onlineDot + '</span>'+
@@ -324,7 +324,7 @@ function openMemberArchive(nameEnc, role, nt, seed) {
   var head = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
     '<img src="'+avatarUrl+'" width="56" height="56" style="border-radius:50%;background:#e8ede6" onerror="this.style.display=\'none\'">'+
     '<div><div style="font-weight:700;font-size:.9rem">'+esc(name)+'</div>'+
-    '<div style="font-size:.65rem;color:#5a6e5c">'+(typeof roleName==="function"?roleName(role):role)+'</div></div></div>';
+    '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c">'+(typeof roleName==="function"?roleName(role):role)+'</div></div></div>';
   var loading = '<div id="memberArchiveBody" style="text-align:center;padding:24px;color:#5a6e5c;font-size:.7rem">加载沉淀记录…</div>';
   _showCardPopup("📇 " + esc(name) + " 的沉淀", head + loading, null, false);
 
@@ -332,7 +332,7 @@ function openMemberArchive(nameEnc, role, nt, seed) {
     return '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#f7f5f0;border-radius:10px;margin-bottom:8px">'+
       '<span style="font-size:1.3rem">'+icon+'</span>'+
       '<div style="flex:1"><div style="font-size:.68rem;color:#5a6e5c">'+label+'</div>'+
-      '<div style="font-size:1.1rem;font-weight:700;color:#1d2e24">'+val+'<span style="font-size:.6rem;font-weight:400;color:#8a8a8a;margin-left:2px">'+unit+'</span></div></div></div>';
+      '<div style="font-size:var(--g-font-size-lg);font-weight:700;color:#1d2e24">'+val+'<span style="font-size:.6rem;font-weight:400;color:#8a8a8a;margin-left:2px">'+unit+'</span></div></div></div>';
   }
   function _render(d) {
     var body = document.getElementById("memberArchiveBody");

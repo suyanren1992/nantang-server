@@ -257,7 +257,7 @@
     wrap.innerHTML = '<div style="font-size:2rem;margin-bottom:8px">⚠️</div>' +
       '<div style="font-size:.72rem;font-weight:600;margin-bottom:4px">' + (opts.title || '加载失败') + '</div>' +
       (opts.hint ? '<div style="font-size:.6rem;color:var(--g-text-dim);margin-bottom:8px">' + opts.hint + '</div>' : '') +
-      (opts.retryText ? '<button onclick="' + (opts.onRetry||'location.reload()') + '" style="padding:6px 16px;background:var(--g-red);color:#fff;border:none;border-radius:8px;font-size:.65rem;cursor:pointer">' + opts.retryText + '</button>' : '');
+      (opts.retryText ? '<button onclick="' + (opts.onRetry||'location.reload()') + '" style="padding:6px 16px;background:var(--g-red);color:#fff;border:none;border-radius:8px;font-size:var(--g-font-size-xs);cursor:pointer">' + opts.retryText + '</button>' : '');
     return wrap;
   };
 
@@ -266,7 +266,7 @@
     var wrap = _el('div', 'ui-loading-state', {
       style: 'text-align:center;padding:24px 16px;color:var(--g-text-dim)'
     });
-    wrap.innerHTML = '<div style="font-size:1.5rem;margin-bottom:8px;animation:ui-spin 1s linear infinite;display:inline-block">⏳</div>' +
+    wrap.innerHTML = '<div style="font-size:var(--g-font-size-xl);margin-bottom:8px;animation:ui-spin 1s linear infinite;display:inline-block">⏳</div>' +
       '<div style="font-size:.68rem">' + (opts.text || '加载中…') + '</div>';
     return wrap;
   };

@@ -242,10 +242,13 @@ window.AppData = {
     clearTimeout(this._timerS);
     var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, activity_log: this._data.activity_log, mealOrders: this._data.mealOrders, camp_memberships: this._data.camp_memberships, _lastAccommodationDeduction: this._data._lastAccommodationDeduction, _lastPoolRefill: this._data._lastPoolRefill };
     if (immediate) { this._saveKey('nt_app_v2_shared', data); return; }
-    // 服务器同步：在 _saveShared 末尾统一推送
+    // 21: 服务器同步——限频 ≥5s，避免连续操作触发请求风暴
     if (typeof API !== 'undefined' && API.token) {
-      var self = this;
-      var payload = {
+      var now = Date.now();
+      if (!this._lastSyncPost || (now - this._lastSyncPost) >= 5000) {
+        this._lastSyncPost = now;
+        var self = this;
+        var payload = {
         camps: this._data.camps,
         map_locations: this._data.map_locations,
         inventory: this._data.inventory,

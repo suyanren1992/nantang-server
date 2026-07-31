@@ -117,10 +117,10 @@ function renderCampOverview(el) {
     '<div style="padding:14px">'+
     // 营队概览 header
     '<div style="background:linear-gradient(135deg,#e8f0e4,#dce8d8);border-radius:14px;padding:16px;text-align:center;margin-bottom:12px">'+
-      '<div style="font-weight:700;font-size:.85rem;color:#2a4a30;margin-bottom:6px">📊 '+esc(c.name||'营队')+'</div>'+
+      '<div style="font-weight:700;font-size:var(--g-font-size);color:#2a4a30;margin-bottom:6px">📊 '+esc(c.name||'营队')+'</div>'+
       '<div style="font-size:.7rem;color:#5a6e5c">'+c.date+' · '+(c.people||0)+'人 · '+tasks.length+'个任务 · '+days+'天</div>'+
       '<div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;margin:8px 0"><div style="height:100%;width:'+pct+'%;background:#3d6b52;border-radius:3px"></div></div>'+
-      '<div style="font-size:.65rem;color:#5a6e5c">已完成 '+doneTasks+' / 进行中 '+(tasks.length-doneTasks)+'</div>'+
+      '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c">已完成 '+doneTasks+' / 进行中 '+(tasks.length-doneTasks)+'</div>'+
     '</div>'+
 
     // 📋 我的任务
@@ -294,7 +294,7 @@ function _renderPersonalBlockBody(c, bid) {
     h += '<div style="font-size:.58rem;color:#5a6e5c;text-align:center;margin-top:2px">总池 '+totalPool.toLocaleString()+' · 已发 '+issuedNT.toLocaleString()+'</div>';
   } else if (bid==='publish_task') {
     var pubCount = (c.tasks||[]).filter(function(t){return t.status==='active'||t.status==='进行中';}).length;
-    h += '<div style="text-align:center;font-size:.65rem;color:#5a6e5c">已发布 '+pubCount+' 个任务</div>';
+    h += '<div style="text-align:center;font-size:var(--g-font-size-xs);color:#5a6e5c">已发布 '+pubCount+' 个任务</div>';
     h += '<div style="text-align:center;margin-top:4px"><button class="mgmt-btn pri" style="font-size:.6rem" onclick="switchCampTab(\'manage\')">进入管理面板</button></div>';
   } else {
     var placeholders = {
@@ -320,7 +320,7 @@ function renderCampSchedule(el) {
   var c = getCampData(); if (!c) return;
   var schedule = c.schedule || [];
   var milestones = c.milestones || [];
-  if (!schedule.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#5a6e5c">📅 暂无日程安排<br><span style="font-size:.65rem">创营时未生成日程表</span></div>'; return; }
+  if (!schedule.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:#5a6e5c">📅 暂无日程安排<br><span style="font-size:var(--g-font-size-xs)">创营时未生成日程表</span></div>'; return; }
 
   var startDate = milestones.length>1 ? milestones[1].date : '';
   var days = schedule[0].cells ? schedule[0].cells.length : 0;
@@ -339,7 +339,7 @@ function renderCampSchedule(el) {
     var d = offsetDate(startDate, i);
     var label = d.slice(5);
     var isToday = d === new Date().toISOString().slice(0,10);
-    h += '<span style="display:inline-block;width:44px;height:44px;line-height:44px;text-align:center;border-radius:12px;margin-right:6px;font-size:.65rem;'+(isToday?'background:#3d6b52;color:#fff;font-weight:700':'background:#fff;color:#5a6e5c')+'">'+label+'</span>';
+    h += '<span style="display:inline-block;width:44px;height:44px;line-height:44px;text-align:center;border-radius:12px;margin-right:6px;font-size:var(--g-font-size-xs);'+(isToday?'background:#3d6b52;color:#fff;font-weight:700':'background:#fff;color:#5a6e5c')+'">'+label+'</span>';
   }
   h += '</div></div>';
   h += _renderActivityFeed(c);
@@ -359,7 +359,7 @@ function renderCampTimeline() {
     h += '<div style="margin-bottom:12px"><div style="font-weight:700;font-size:.72rem;color:'+(ms.length?'#3d6b52':'#5a6e5c')+'">'+(ms.length?'● ':'')+d.slice(5)+' '+(ms.length?ms[0].name:'')+'</div>';
     h += '<div style="background:#fff;border-radius:10px;padding:10px">';
     schedule.forEach(function(s) {
-      h += '<div style="display:flex;padding:4px 0;font-size:.65rem"><span style="color:#5a6e5c;width:50px">'+s.time+'</span><span>'+(s.cells&&s.cells[i]||'—')+'</span></div>';
+      h += '<div style="display:flex;padding:4px 0;font-size:var(--g-font-size-xs)"><span style="color:#5a6e5c;width:50px">'+s.time+'</span><span>'+(s.cells&&s.cells[i]||'—')+'</span></div>';
     });
     h += '</div></div>';
   }
@@ -399,21 +399,21 @@ function renderCampFunds(el) {
   // === 阶段3 双卡片 ===
   h += '<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px">'+
     '<div style="font-weight:700;font-size:.78rem;margin-bottom:8px">💰 RMB 金库</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:.65rem;color:#5a6e5c"><span>总预算</span><span>¥'+rmbTotal.toLocaleString()+'</span></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:.65rem;color:#5a6e5c;margin:4px 0"><span>已支出</span><span>¥0</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:var(--g-font-size-xs);color:#5a6e5c"><span>总预算</span><span>¥'+rmbTotal.toLocaleString()+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:var(--g-font-size-xs);color:#5a6e5c;margin:4px 0"><span>已支出</span><span>¥0</span></div>'+
     '<div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:700;color:#3d6b52"><span>剩余</span><span>¥'+rmbTotal.toLocaleString()+'</span></div>'+
     '<div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;margin-top:8px"><div style="height:100%;width:0%;background:#3d6b52;border-radius:3px"></div></div>'+
   '</div>'+
   '<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px">'+
     '<div style="font-weight:700;font-size:.78rem;margin-bottom:8px">🫘 NT 金库</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:.65rem;color:#5a6e5c"><span>总池</span><span>'+ntTotal.toLocaleString()+' NT</span></div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:.65rem;color:#5a6e5c;margin:4px 0"><span>已发放</span><span>0 NT</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:var(--g-font-size-xs);color:#5a6e5c"><span>总池</span><span>'+ntTotal.toLocaleString()+' NT</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:var(--g-font-size-xs);color:#5a6e5c;margin:4px 0"><span>已发放</span><span>0 NT</span></div>'+
     '<div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:700;color:#3d6b52"><span>剩余</span><span>'+ntTotal.toLocaleString()+' NT</span></div>'+
     '<div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;margin-top:8px"><div style="height:100%;width:0%;background:#3d6b52;border-radius:3px"></div></div>'+
   '</div>'+
   '<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px">'+
     '<div style="font-weight:700;font-size:.72rem;margin-bottom:8px">我的 NT</div>'+
-    '<div style="display:flex;justify-content:space-between;font-size:.65rem;color:#5a6e5c"><span>任务激励</span><span>'+(myNT||0)+' NT</span></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:var(--g-font-size-xs);color:#5a6e5c"><span>任务激励</span><span>'+(myNT||0)+' NT</span></div>'+
   '</div>';
 
   // === 阶段4: 最近流水 ===
@@ -477,7 +477,7 @@ function _renderFundsTransactions() {
 
   var h = '';
   if (!pageItems.length) {
-    h += '<div style="text-align:center;padding:16px;font-size:.65rem;color:#8a8a8a">暂无流水记录</div>';
+    h += '<div style="text-align:center;padding:16px;font-size:var(--g-font-size-xs);color:#8a8a8a">暂无流水记录</div>';
   } else {
     pageItems.forEach(function(tx) {
       var icon = _fundsIcon(tx.type);
@@ -582,7 +582,7 @@ function renderCampMembers(el) {
     g.members.forEach(function(m) {
       var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed='+m.seed+'&size=56';
       h += '<div style="display:flex;align-items:center;gap:10px;padding:8px;background:#fff;border-radius:8px;margin-bottom:4px;cursor:pointer" onclick="toggleCampMemberDetail(this,\''+m.name+'\')">'+
-        '<img src="'+avatarUrl+'" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:28px;height:28px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#5a6e5c>\'+(\''+m.name+'\').charAt(0)+\'</div>\'">'+
+        '<img src="'+avatarUrl+'" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:28px;height:28px;border-radius:50%;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:var(--g-font-size-xs);color:#5a6e5c>\'+(\''+m.name+'\').charAt(0)+\'</div>\'">'+
         '<div style="flex:1"><div style="font-weight:600;font-size:.7rem">'+m.name+'</div><div style="font-size:.58rem;color:#5a6e5c">'+(m.nt?m.nt+' NT':'')+(m.tasks?' · '+m.tasks+'项':'')+'</div></div>'+
         '<span style="font-size:.6rem;color:#d0d9ce">▸</span></div>';
     });
@@ -618,7 +618,7 @@ function toggleCampMemberDetail(el, name) {
   var taskNames = b ? b.taskNames : [];
   var detail = document.createElement('div');
   detail.className = 'camp-member-detail';
-  detail.style.cssText = 'padding:8px 12px;margin:0 0 4px 38px;background:#fafaf8;border-radius:8px;font-size:.65rem';
+  detail.style.cssText = 'padding:8px 12px;margin:0 0 4px 38px;background:#fafaf8;border-radius:8px;font-size:var(--g-font-size-xs)';
   var detailH = '<div style="font-weight:600;margin-bottom:4px">📋 任务包</div>';
   if (taskNames.length) {
     taskNames.forEach(function(t){ detailH += '<div style="padding:2px 0;color:#5a6e5c">· '+t+'</div>'; });
@@ -662,7 +662,7 @@ function renderCampSettle(el) {
   var h = '<div style="padding:14px">';
   h += '<div style="font-weight:700;font-size:.78rem;margin-bottom:10px;text-align:center">🏁 通关结算</div>';
 
-  h += '<div style="font-weight:600;font-size:.65rem;color:#5a6e5c;margin-bottom:6px">👥 共建者</div>';
+  h += '<div style="font-weight:600;font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:6px">👥 共建者</div>';
   h += '<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch">';
   builderGroup.forEach(function(m) {
     var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed='+m.seed+'&size=56';
@@ -676,7 +676,7 @@ function renderCampSettle(el) {
   h += '</div>';
 
   if (adventurerGroup.length) {
-    h += '<div style="font-weight:600;font-size:.65rem;color:#5a6e5c;margin:8px 0 6px">⚔️ 冒险者</div>';
+    h += '<div style="font-weight:600;font-size:var(--g-font-size-xs);color:#5a6e5c;margin:8px 0 6px">⚔️ 冒险者</div>';
     h += '<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch">';
     adventurerGroup.forEach(function(m) {
       var avatarUrl = 'https://api.dicebear.com/7.x/avataaars/svg?seed='+m.seed+'&size=56';
@@ -716,7 +716,7 @@ function renderSettleDetail(c, member, users) {
 
   var h = '<div style="background:#fff;border-radius:12px;padding:16px;margin-top:12px">';
   h += '<div style="text-align:center;margin-bottom:12px">';
-  h += '<img src="'+avatarUrl+'" width="56" height="56" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:56px;height:56px;border-radius:50%;background:#e8ede6;display:inline-flex;align-items:center;justify-content:center;font-size:1.5rem;color:#5a6e5c>\'+(\''+member.name+'\').charAt(0)+\'</div>\'">';
+  h += '<img src="'+avatarUrl+'" width="56" height="56" style="border-radius:50%;object-fit:cover" alt="" onerror="this.outerHTML=\'<div style=width:56px;height:56px;border-radius:50%;background:#e8ede6;display:inline-flex;align-items:center;justify-content:center;font-size:var(--g-font-size-xl);color:#5a6e5c>\'+(\''+member.name+'\').charAt(0)+\'</div>\'">';
   h += '<div style="font-weight:700;font-size:.78rem;margin-top:4px">'+member.name+'</div>';
   var roleLabel = member.role==='admin'?'🧱 共建者 · 南塘云村':(member.role==='builder'?'🧱 共建者 · 南塘云村':'⚔️ 冒险者 · 南塘云村');
   h += '<div style="font-size:.62rem;color:#5a6e5c">'+roleLabel+'</div>';
@@ -862,7 +862,7 @@ function renderCampManage(el) {
     });
     h += '</div>';
   } else {
-    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:.65rem">暂无待审批任务</div>';
+    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:var(--g-font-size-xs)">暂无待审批任务</div>';
   }
   h += '</div>';
 
@@ -889,7 +889,7 @@ function renderCampManage(el) {
     });
     h += '</tbody></table></div>';
   } else {
-    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:.65rem">暂无已发布任务</div>';
+    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:var(--g-font-size-xs)">暂无已发布任务</div>';
   }
   h += '</div>';
 
@@ -913,7 +913,7 @@ function renderCampManage(el) {
     });
     h += '</div>';
   } else {
-    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:.65rem">暂无待审核提交</div>';
+    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:var(--g-font-size-xs)">暂无待审核提交</div>';
   }
   h += '</div>';
 
@@ -938,7 +938,7 @@ function renderCampManage(el) {
     h += '</div>';
     h += '</div>';
   } else {
-    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:.65rem">暂无应付未付</div>';
+    h += '<div class="mgmt-section-body" style="text-align:center;color:#aaa;font-size:var(--g-font-size-xs)">暂无应付未付</div>';
   }
   h += '</div>';
 
@@ -950,7 +950,7 @@ function renderCampManage(el) {
   h += '<div class="mgmt-section-head">📦 完结本期</div>';
   h += '<div class="mgmt-section-body">';
   h += '<div class="archive-warn">⚠️ 完结后营队状态变为「已结束」，不可再发布/结算任务。未结算的应付项将被标记为「已过期」。</div>';
-  h += '<button class="mgmt-btn no" style="width:100%;padding:10px;font-size:.75rem" onclick="mgmtArchiveCamp()">📦 完结本期</button>';
+  h += '<button class="mgmt-btn no" style="width:100%;padding:10px;font-size:var(--g-font-size-sm)" onclick="mgmtArchiveCamp()">📦 完结本期</button>';
   h += '</div></div>';
 
   h += '</div>';
@@ -1239,7 +1239,7 @@ function _doSettle(c, t, person, silent) {
 
 function mgmtArchiveCamp() {
   var c = getCampData(); if (!c) return;
-  showConfirm('确定完结本期？<br><span style="font-size:.65rem;color:#b84c38">此操作不可撤销，完结后不可再发布/结算任务</span>', function(){
+  showConfirm('确定完结本期？<br><span style="font-size:var(--g-font-size-xs);color:#b84c38">此操作不可撤销，完结后不可再发布/结算任务</span>', function(){
     // 阶段6: 保存排名快照 + 存档到 archived_periods
     var builders = (c.builders||[]).slice().sort(function(a,b){ return b.totalNT - a.totalNT; });
     c._prevRank = builders.map(function(b){ return { name:b.name, totalNT:b.totalNT }; });
@@ -1345,15 +1345,15 @@ function playCloseCeremony(campId) {
         '<div id="jzt-fire-small" style="width:20px;height:30px;background:radial-gradient(ellipse at bottom, #ffaa00, #ff6600, transparent);border-radius:50% 50% 20% 20%;margin:-30px auto 0;animation:jztFireSmall 0.5s ease-in-out infinite alternate"></div>'+
       '</div>'+
       '<div id="jzt-text" style="text-align:center;margin-top:40px">'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">以</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">字</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">入</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">火</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">，</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">以</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">志</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">成</span>'+
-        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:1.1rem;font-weight:700">林</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">以</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">字</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">入</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">火</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">，</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">以</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">志</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">成</span>'+
+        '<span style="display:inline-block;opacity:0;color:#ffcc80;font-size:var(--g-font-size-lg);font-weight:700">林</span>'+
       '</div>'+
       '<div id="jzt-particles" style="position:absolute;inset:0;opacity:0;pointer-events:none"></div>'+
       '<div id="jzt-report" style="text-align:center;margin-top:30px;opacity:0">'+
@@ -1454,7 +1454,7 @@ function renderCampReport(el, c) {
 
   h += '<div style="font-weight:700;font-size:.72rem;margin-bottom:8px">🏆 贡献榜</div>';
   if (!top5.length) {
-    h += '<div style="text-align:center;padding:20px;color:#5a6e5c;font-size:.65rem">暂无排名数据</div>';
+    h += '<div style="text-align:center;padding:20px;color:#5a6e5c;font-size:var(--g-font-size-xs)">暂无排名数据</div>';
   } else {
     top5.forEach(function(b, i) {
       var medal = i < 3 ? medals[i]+' ' : '    ';
@@ -1481,7 +1481,7 @@ function renderCampReport(el, c) {
     archivedPeriods.forEach(function(ap) {
       if (ap.id === c.id) return;
       h += '<div style="flex-shrink:0;width:140px;background:#fff;border-radius:10px;padding:10px;cursor:pointer" onclick="openCampReport(\''+ap.id+'\')">'+
-        '<div style="font-size:.65rem;font-weight:600">'+(ap.emoji||'🏕️')+' '+ap.name+'</div>'+
+        '<div style="font-size:var(--g-font-size-xs);font-weight:600">'+(ap.emoji||'🏕️')+' '+ap.name+'</div>'+
         '<div style="font-size:.55rem;color:#5a6e5c;margin:4px 0">'+ap.date+' · '+(ap.people||0)+'人</div>'+
         '<div style="font-size:.52rem;color:var(--green-primary)">查看报告 →</div>'+
       '</div>';
@@ -1575,8 +1575,8 @@ function renderArchivePeriods(el) {
       var doneCount = (ap.tasks||[]).filter(function(t){ return t.status==='已结算'; }).length;
       h += '<div style="background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer" onclick="openCampReport(\''+ap.id+'\')">'+
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
-          '<span style="font-size:1.5rem">'+(ap.emoji||'🏕️')+'</span>'+
-          '<div style="flex:1"><div style="font-weight:700;font-size:.75rem">'+ap.name+'</div><div style="font-size:.6rem;color:#5a6e5c">'+ap.date+' · '+ap.people+'人 · '+doneCount+'/'+taskCount+'项</div></div>'+
+          '<span style="font-size:var(--g-font-size-xl)">'+(ap.emoji||'🏕️')+'</span>'+
+          '<div style="flex:1"><div style="font-weight:700;font-size:var(--g-font-size-sm)">'+ap.name+'</div><div style="font-size:.6rem;color:#5a6e5c">'+ap.date+' · '+ap.people+'人 · '+doneCount+'/'+taskCount+'项</div></div>'+
         '</div>'+
         '<div style="text-align:right;font-size:.6rem;color:var(--green-primary)">查看报告 →</div>'+
       '</div>';

@@ -71,14 +71,14 @@ function _briefSchedule(c) {
   var schedule = c.schedule || [];
   if (schedule.length) {
     schedule.forEach(function(item, i) {
-      h += '<div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-start"><span style="background:#e8f0f8;color:#3a5a7a;padding:2px 8px;border-radius:6px;font-size:.6rem;font-weight:700;white-space:nowrap">第'+(i+1)+'天</span><span style="font-size:.65rem">'+esc(item.title||item||'')+'</span></div>';
+      h += '<div style="display:flex;gap:8px;margin-bottom:6px;align-items:flex-start"><span style="background:#e8f0f8;color:#3a5a7a;padding:2px 8px;border-radius:6px;font-size:.6rem;font-weight:700;white-space:nowrap">第'+(i+1)+'天</span><span style="font-size:var(--g-font-size-xs)">'+esc(item.title||item||'')+'</span></div>';
     });
   } else {
-    h += '<div style="color:#999;font-size:.65rem;text-align:center;padding:12px">日程待组织者发布</div>';
+    h += '<div style="color:#999;font-size:var(--g-font-size-xs);text-align:center;padding:12px">日程待组织者发布</div>';
   }
   var milestones = c.milestones || [];
   if (milestones.length) {
-    h += '<div style="font-weight:700;font-size:.65rem;color:#5a6e5c;margin:10px 0 4px">📌 关键节点</div>';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:#5a6e5c;margin:10px 0 4px">📌 关键节点</div>';
     milestones.forEach(function(m) { h += '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:2px">• '+esc(m.title||m||'')+'</div>'; });
   }
   h += '</div>';
