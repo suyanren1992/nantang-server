@@ -303,3 +303,26 @@ async def init_db():
             await session.commit()
         except Exception:
             await session.rollback()
+        # ══ EMPIRICAL-🔴2.3: 建筑种子（从 seed/buildings.json 加载，幂等——空表才播）══
+        try:
+            from models import MapLocation
+            _has_shared = (await session.execute(
+                select(MapLocation).where(MapLocation.key == "shared")
+            )).scalar_one_or_none()
+            if not _has_shared:
+                import json as _json, os as _os
+                _seed_path = _os.path.join(_os.path.dirname(__file__), "seed", "buildings.json")
+                if _os.path.exists(_seed_path):
+                    with open(_seed_path, "r", encoding="utf-8") as _f:
+                        _buildings = _json.load(_f)
+                    _shared_data = _json.dumps({"buildings": _buildings}, ensure_ascii=False)
+                    session.add(MapLocation(key="shared", data=_shared_data))
+                    await session.commit()
+                    logger.info(f"[EMPIRICAL-🔴2.3] seeded {len(_buildings)} buildings into map_locations.shared")
+                else:
+                    logger.warning(f"[EMPIRICAL-🔴2.3] seed file not found: {_seed_path}")
+            else:
+                logger.info("[EMPIRICAL-🔴2.3] map_locations.shared already exists, skip seed")
+        except Exception as e:
+            logger.warning(f"[EMPIRICAL-🔴2.3] buildings seed skipped: {e}")
+            await session.rollback()
