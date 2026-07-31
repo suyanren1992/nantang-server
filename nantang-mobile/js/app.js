@@ -1604,22 +1604,106 @@ function _renderFridgeLocal() {
   _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
 }
 
+// I1: 田间范式重写——接 API.getFields + UI.Card，4 块田每块 Card
 function _showFieldSheet() {
+  // 优先从 API 拉取真实田地数据（B6补）
+  if (typeof API !== 'undefined' && API.token) {
+    _showCardPopup('🌿 田地', '<div style="text-align:center;padding:20px;color:#5a6e5c">⏳ 加载中…</div>', '', true);
+    API.getFields().then(function(r) {
+      if (r && r.ok && r.plots && r.plots.length) {
+        _renderFieldCardsFromAPI(r.plots);
+      } else {
+        _renderFieldCardsLocal();
+      }
+    }).catch(function() {
+      _renderFieldCardsLocal();
+    });
+  } else {
+    _renderFieldCardsLocal();
+  }
+}
+function _renderFieldCardsFromAPI(plots) {
+  var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
+  var stageLabels = { '休耕':'⚫ 休耕', '播种':'🌱 播种', '生长':'🌿 生长中', '成熟':'✅ 可收割', '收割':'🧺 已收割' };
+  var healthLabels = { '健康':'🟢 健康', '缺水':'💧 缺水', '缺肥':'🟡 缺肥', '病虫害':'🔴 病虫害' };
+  var h = '';
+  plots.forEach(function(p) {
+    var icon = cropIcons[p.crop_name] || '🌿';
+    var stageLabel = stageLabels[p.stage] || p.stage;
+    var healthLabel = healthLabels[p.health] || p.health;
+    var isMature = p.stage === '成熟';
+    var isFallow = p.stage === '休耕';
+    var cardBg = isMature ? '#fef8e8' : (isFallow ? '#f8f8f8' : '#fffdf9');
+    var cardBorder = isMature ? '#c88740' : '#c8c0b0';
+    h += '<div class="ui-card" style="background:'+cardBg+';border:1.5px solid '+cardBorder+';border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);margin-bottom:8px">';
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+    h += '<span style="font-size:1.5rem">'+icon+'</span>';
+    h += '<div style="flex:1"><div style="font-weight:700;font-size:var(--g-font-size)">'+esc(p.plot_name)+'</div>';
+    h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">'+(p.crop_name||'未种植')+' · '+stageLabel+' · '+healthLabel+'</div></div>';
+    h += '</div>';
+    // 时间线
+    if (p.planted_at) h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-bottom:4px">📅 种植: '+(p.planted_at||'').slice(0,10)+' | 预计收割: '+(p.harvest_at||'').slice(0,10)+'</div>';
+    if (p.harvested_by) h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-bottom:4px">👤 上次收割: '+esc(p.harvested_by)+'</div>';
+    // 进度条
+    if (p.stage === '生长' || p.stage === '成熟') {
+      var planted = p.planted_at ? new Date(p.planted_at).getTime() : 0;
+      var harvest = p.harvest_at ? new Date(p.harvest_at).getTime() : planted + 30*86400000;
+      var pct = planted && harvest ? Math.min(100, Math.round((Date.now() - planted) / (harvest - planted) * 100)) : 50;
+      h += '<div class="progress-bar" style="margin:6px 0"><div class="progress-fill" style="width:'+pct+'%"></div></div>';
+    }
+    // 操作按钮
+    if (!isFallow) {
+      h += '<div style="display:flex;gap:4px;margin-top:6px">';
+      h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:6px" onclick="event.stopPropagation();_doFieldAction(\''+p.id+'\',\'water\')">💧 浇水</button>';
+      h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:6px" onclick="event.stopPropagation();_doFieldAction(\''+p.id+'\',\'fertilize\')">🪴 施肥</button>';
+      if (isMature) h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:6px;background:#c88740;color:#fff" onclick="event.stopPropagation();_doFieldAction(\''+p.id+'\',\'harvest\')">🧺 收割</button>';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  _updateFieldSheetContent(h);
+}
+function _renderFieldCardsLocal() {
   var plots = getPlots();
   var h = '';
   plots.forEach(function(p) {
     if (!p.crops) p.crops = [];
     if (p.crop && p.crop !== '—' && !p.crops.length) { p.crops.push({ name:p.crop, icon:p.icon, planted:p.planted, days:p.days, remain:p.remain, harvest:p.harvest }); }
     var ci = p.crops.length ? p.crops.map(function(c){ return c.icon+' '+c.name+(c.remain<=0?' ✅':' 剩'+c.remain+'天'); }).join(' · ') : '空闲';
-    var status = p.crops.length > 0 ? 'green' : 'offline';
-    var statusDot = {green:'🟢',offline:'⚫'}[status];
-    h += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:var(--g-font-size-xs)" onclick="var s=this.closest(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.3rem">'+p.icon+'</span><b style="font-size:var(--g-font-size-sm)">'+p.name+'</b><span style="margin-left:auto">'+statusDot+'</span></div>'+
+    h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:var(--g-font-size-xs)" onclick="var s=this.closest(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.3rem">'+p.icon+'</span><b style="font-size:var(--g-font-size-sm)">'+p.name+'</b></div>'+
       '<div style="color:var(--g-text-dim)">'+ci+'</div>'+
       (p.crops.length ? '<div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:'+Math.min(100,Math.max(0,(p.crops[0].remain||0)/((p.crops[0].days||30)||1)*100))+'%"></div></div>' : '')+
       '</div>';
   });
-  _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openFarmQuick()">＋ 记录农活</button>', true);
+  _updateFieldSheetContent(h);
+}
+function _updateFieldSheetContent(h) {
+  var el = document.querySelector('.mgmt-sheet');
+  if (el) {
+    var body = el.querySelector('.mgmt-sheet-body');
+    if (body) body.innerHTML = h;
+    var title = el.querySelector('.mgmt-sheet-title');
+    if (title) title.textContent = '🌿 田地';
+  } else {
+    _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openFarmQuick()">＋ 记录农活</button>', true);
+  }
+}
+// I1: 田间动作调 API
+function _doFieldAction(plotId, action) {
+  if (typeof API === 'undefined' || !API.token) { showToast('离线模式，无法操作田地', 'warn'); return; }
+  var actions = { water: API.waterFieldPlot, fertilize: API.fertilizeFieldPlot, harvest: API.harvestFieldPlot };
+  var labels = { water: '💧 浇水', fertilize: '🪴 施肥', harvest: '🧺 收割' };
+  var fn = actions[action];
+  if (!fn) return;
+  fn.call(API, plotId).then(function(r) {
+    if (r && r.ok) {
+      showToast(labels[action]+' 成功', 'ok');
+      setTimeout(function(){ _showFieldSheet(); }, 500);
+    } else {
+      showToast(labels[action]+' 失败'+(r&&r.detail?': '+r.detail:''), 'error');
+    }
+  }).catch(function() { showToast('网络错误', 'error'); });
 }
 
 // ── 住宿：选房间→展开床位→选床→填日期→申请入住 ──
