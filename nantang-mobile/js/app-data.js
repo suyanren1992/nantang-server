@@ -712,15 +712,29 @@ this._data.map_locations.people_on_site = [];
   try { localStorage.setItem('nt_app_v2', JSON.stringify(old)); } catch(e) {}
 })();
 
-// Phase 3: 跨标签同步（深度合并，非 Object.assign 直接替换）
+// Phase 3: 跨标签同步——B2 深度合并嵌套对象，避免浅合并丢失子对象数据
+var _deepMerge = function(target, source) {
+  if (typeof source !== 'object' || source === null || Array.isArray(source)) return source;
+  if (typeof target !== 'object' || target === null) return source;
+  var result = target;
+  Object.keys(source).forEach(function(key) {
+    var sv = source[key], tv = target[key];
+    if (typeof sv === 'object' && sv !== null && !Array.isArray(sv) && typeof tv === 'object' && tv !== null && !Array.isArray(tv)) {
+      _deepMerge(tv, sv);
+    } else {
+      result[key] = sv;
+    }
+  });
+  return result;
+};
 window.addEventListener('storage', function(e) {
   if (e.key === 'nt_app_v2_shared' && e.newValue) {
     try {
       var d = JSON.parse(e.newValue);
       if (d) {
         Object.keys(d).forEach(function(k) {
-          if (typeof d[k] === 'object' && !Array.isArray(d[k]) && typeof AppData._data[k] === 'object') {
-            Object.assign(AppData._data[k], d[k]);
+          if (typeof d[k] === 'object' && d[k] !== null && !Array.isArray(d[k]) && typeof AppData._data[k] === 'object') {
+            _deepMerge(AppData._data[k], d[k]);
           } else { AppData._data[k] = d[k]; }
         });
       }
