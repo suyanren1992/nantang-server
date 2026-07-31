@@ -1118,8 +1118,8 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
         jentry = JModel(user=vfy.doer, type="verification", content=jtext, time=datetime.utcnow().isoformat())
         db.add(jentry)
         await db.commit()
-    except Exception:
-        logger.warning("archive claim write failed for vfy %s", vfy.id, exc_info=True)
+    except Exception as e:
+        logger.warning("归档失败不阻塞校核: %s", e, exc_info=True)
     # ══ CLEAN-WEEKLY-BE ⑨: 校核通过后自动完成周任务 ══
     if vfy.type == "clean_weekly":
         try:
@@ -1138,8 +1138,8 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
                     if doer:
                         doer.clean_weekly_streak = (doer.clean_weekly_streak or 0) + 1
                     await db.commit()
-        except Exception:
-            logger.warning("clean_weekly task completion failed for vfy %s", vfy.id, exc_info=True)
+        except Exception as e:
+            logger.warning("周任务状态更新失败不阻塞校核: %s", e, exc_info=True)
     # ══ NEW-USER-TASK-BE: 校核通过后标记新人任务待结算 ══
     if vfy.type == "newbie_task":
         try:
@@ -1156,8 +1156,8 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
                     nt_task.verifier_id = user.id
                     nt_task.verified_at = datetime.utcnow().isoformat()
                     await db.commit()
-        except Exception:
-            logger.warning("newbie_task status update failed for vfy %s", vfy.id, exc_info=True)
+        except Exception as e:
+            logger.warning("新人任务状态更新失败不阻塞校核: %s", e, exc_info=True)
     return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
             "verifier_balance": user.nt_balance}
 
@@ -1322,16 +1322,10 @@ async def _run_daily_settlement(db, today: str | None = None):
             results["caught_up_days"] += 1
         t.last_deducted = today
 
-    # 2. 社区池补填 (M2: 50→20，20人规模轻度补填)
-    if pool.balance < 300:
-        pool.balance += 20
-        pool.total_issued += 20
-        lid_r = _ledger_id()
-        await _add_ledger(db, lid_r, None, "community_pool", 20, "pool_refill",
-                         f"每日补填 {today}", status="settled")
-        results["pool_refill"] = 20
+    # 【NT-P0-6】pool_refill 已删除 — NT 只从链上充值来，平台绝不印。
+    # 池空时的劳动价值由劳动 NFT 承载（方案/设计/NFT-三层经济设计稿_v1.md）
 
-    # 3. 盈余划拨：运营池 > 1000 时，超出 500 的部分转入储备池
+    # 2. 盈余划拨：运营池 > 1000 时，超出 500 的部分转入储备池
     if pool.balance > 1000:
         surplus = pool.balance - 500
         pool.balance -= surplus
@@ -1341,7 +1335,7 @@ async def _run_daily_settlement(db, today: str | None = None):
                           "surplus_sweep", f"盈余划拨 {today}", status="settled")
         results["surplus_sweep"] = surplus
 
-    # 4. 自动调水：运营池 < 150 时，从储备池补到 300
+    # 3. 自动调水：运营池 < 150 时，从储备池补到 300
     if pool.balance < 150 and (pool.reserve or 0) > 0:
         need = 300 - pool.balance
         draw = min(need, pool.reserve or 0)

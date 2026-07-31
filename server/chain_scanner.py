@@ -8,6 +8,9 @@ import asyncio
 import json
 from datetime import datetime, timezone
 from web3 import Web3
+import logging
+
+logger = logging.getLogger(__name__)
 
 # == Config (env vars) ==
 RPC_URL = os.environ.get("OP_RPC_URL", "")
@@ -127,7 +130,8 @@ class ChainScanner:
             to_addr = args["to"]
             from_addr = args["from"]
             amount = args["value"] // 10**18  # NT has 18 decimals
-        except Exception:
+        except Exception as e:
+            logger.warning("scanner 异常提前返回: %s", e)
             return
 
         # Only process transfers TO platform wallet
