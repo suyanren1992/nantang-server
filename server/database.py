@@ -73,6 +73,55 @@ def _enforce_admin_password_guard():
         )
 
 
+# ══ P0-IDX: 索引 DDL 清单（在轻量迁移之后统一建，见文件末 _build_indexes）══
+# 原先这 30 条裸跑在本事务里，任一条失败即冒泡到 lifespan → 整站起不来。
+# 两次生产事故均源于此：
+#   ① journal(user) —— user 是 PG 保留字，被解析为函数 USER()
+#   ② nt_tasks(is_newbie_task) —— 该列由下方轻量迁移 ALTER 添加，
+#      建索引却排在迁移之前，PG 上列尚不存在 → UndefinedColumnError
+# 治法：① 清单化，移到迁移之后执行（解决顺序倒置）
+#       ② 逐条独立事务 + 失败仅 logger.warning（索引缺失只影响查询速度，
+#          绝不该阻断启动；与本文件 ALTER 段既有的 try/rollback 惯例一致）
+_INDEX_DDL = [
+    "CREATE INDEX IF NOT EXISTS idx_nt_ledger_from_user ON nt_ledger(from_user)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_ledger_to_user ON nt_ledger(to_user)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_ledger_task_id ON nt_ledger(task_id)",
+    # B+4: NTTask 高频查询列索引
+    "CREATE INDEX IF NOT EXISTS idx_nt_tasks_poster ON nt_tasks(poster)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_tasks_assignee ON nt_tasks(assignee)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_tasks_status ON nt_tasks(status)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_system ON nt_tasks(is_system_generated)",
+    "CREATE INDEX IF NOT EXISTS idx_verifications_status_created ON verifications(status, created_at DESC)",
+    # 50 人承载：sync/checkin/营地/校核高频 WHERE 列补索引（原缺失，随数据增长恶化）
+    "CREATE INDEX IF NOT EXISTS idx_tenancies_user_id ON tenancies(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_tenancies_room_id ON tenancies(room_id)",
+    "CREATE INDEX IF NOT EXISTS idx_tenancies_status ON tenancies(status)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_tasks_camp_ref_id ON nt_tasks(camp_ref_id)",
+    "CREATE INDEX IF NOT EXISTS idx_verifications_doer ON verifications(doer)",
+    "CREATE INDEX IF NOT EXISTS idx_deposit_intents_user_id ON deposit_intents(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_journal_user ON journal(\"user\")",
+    "CREATE INDEX IF NOT EXISTS idx_camp_memberships_camp_id ON camp_memberships(camp_id)",
+    # UI-FIX-P2-BE B1: storage_items 复合索引
+    "CREATE INDEX IF NOT EXISTS idx_storage_items_user_location ON storage_items(user_id, storage_location)",
+    # UI-FIX-P2-BE补 B6: field_plots 索引
+    "CREATE INDEX IF NOT EXISTS idx_field_plots_stage ON field_plots(stage)",
+    # NEW-USER-TASK-BE: 新人任务模板复合索引 + NTTask 新人任务索引
+    "CREATE INDEX IF NOT EXISTS idx_new_user_task_templates_role_order ON new_user_task_templates(target_role, display_order)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_newbie ON nt_tasks(is_newbie_task)",
+    # ══ DB-P1-3 ②: 10 缺失索引（v2 报告附录 A）══
+    "CREATE INDEX IF NOT EXISTS idx_nt_ledger_type_status ON nt_ledger(type, status)",
+    "CREATE INDEX IF NOT EXISTS idx_nt_ledger_created_at ON nt_ledger(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_verifications_verifier ON verifications(verifier)",
+    "CREATE INDEX IF NOT EXISTS idx_camp_builders_camp_id ON camp_builders(camp_id)",
+    "CREATE INDEX IF NOT EXISTS idx_canteen_menu_date ON canteen_menu(date)",
+    "CREATE INDEX IF NOT EXISTS idx_meal_orders_user ON meal_orders(\"user\")",
+    "CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_week_start ON clean_weekly_tasks(week_start_date)",
+    "CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_claimed_by ON clean_weekly_tasks(claimed_by)",
+    "CREATE INDEX IF NOT EXISTS idx_clean_weekly_dist_week_start ON clean_weekly_distributions(week_start_date)",
+    "CREATE INDEX IF NOT EXISTS idx_tenancies_track ON tenancies(track)",
+]
+
+
 async def init_db():
     async with engine.begin() as conn:
         # SQLite 专属 PRAGMA（PG 上跳过，否则报错）
@@ -81,45 +130,6 @@ async def init_db():
             await conn.execute(text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
         # B+3: nt_ledger 高频查询列索引
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_from_user ON nt_ledger(from_user)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_to_user ON nt_ledger(to_user)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_task_id ON nt_ledger(task_id)"))
-        # B+4: NTTask 高频查询列索引
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_poster ON nt_tasks(poster)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_assignee ON nt_tasks(assignee)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_status ON nt_tasks(status)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_system ON nt_tasks(is_system_generated)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_status_created ON verifications(status, created_at DESC)"))
-        # 50 人承载：sync/checkin/营地/校核高频 WHERE 列补索引（原缺失，随数据增长恶化）
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_user_id ON tenancies(user_id)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_room_id ON tenancies(room_id)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_status ON tenancies(status)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_camp_ref_id ON nt_tasks(camp_ref_id)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_doer ON verifications(doer)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_deposit_intents_user_id ON deposit_intents(user_id)"))
-        await conn.execute(text('CREATE INDEX IF NOT EXISTS idx_journal_user ON journal("user")'))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_memberships_camp_id ON camp_memberships(camp_id)"))
-        # UI-FIX-P2-BE B1: storage_items 复合索引
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_storage_items_user_location ON storage_items(user_id, storage_location)"))
-        # UI-FIX-P2-BE补 B6: field_plots 索引
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_field_plots_stage ON field_plots(stage)"))
-        # NEW-USER-TASK-BE: 新人任务模板复合索引 + NTTask 新人任务索引
-        await conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS idx_new_user_task_templates_role_order "
-            "ON new_user_task_templates(target_role, display_order)"))
-        await conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS idx_nt_tasks_is_newbie ON nt_tasks(is_newbie_task)"))
-        # ══ DB-P1-3 ②: 10 缺失索引（v2 报告附录 A）══
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_type_status ON nt_ledger(type, status)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_ledger_created_at ON nt_ledger(created_at)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_verifier ON verifications(verifier)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_builders_camp_id ON camp_builders(camp_id)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_canteen_menu_date ON canteen_menu(date)"))
-        await conn.execute(text('CREATE INDEX IF NOT EXISTS idx_meal_orders_user ON meal_orders("user")'))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_week_start ON clean_weekly_tasks(week_start_date)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_claimed_by ON clean_weekly_tasks(claimed_by)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_dist_week_start ON clean_weekly_distributions(week_start_date)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_tenancies_track ON tenancies(track)"))
     # 轻量迁移：为新列补默认值（create_all 不会给已有表加列）
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错
@@ -441,3 +451,38 @@ async def init_db():
             except Exception as e:
                 logger.warning(f"[P3-二营乙] kitchen seed skipped: {e}")
                 await session.rollback()
+
+    # ══ P0-IDX: 全部迁移/种子完成后，逐条建索引 ══
+    # 放在最后是刻意的：轻量迁移的 ALTER 已把新列补齐，此时建索引才不会撞
+    # UndefinedColumnError（生产事故②的根因是它排在迁移之前）。
+    await _build_indexes()
+
+
+async def _build_indexes():
+    """逐条建索引，单条失败只告警不中断启动。
+
+    设计约束（两次生产事故换来的）：
+      · 每条独立事务——PG 上失败的 DDL 会中止整个事务，必须隔离，
+        否则第一条失败会连带后面全部失败（SQLite 无此问题，故本地测不出）。
+      · 失败仅 logger.warning——索引缺失只让查询变慢，不影响正确性，
+        绝不该让整站起不来。与本文件 ALTER 段既有 try/rollback 惯例一致。
+    返回 (成功数, 失败列表) 供测试断言。
+    """
+    ok, failed = 0, []
+    for _ddl in _INDEX_DDL:
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text(_ddl))
+            ok += 1
+        except Exception as e:
+            name = _ddl.split("EXISTS", 1)[-1].strip().split()[0] if "EXISTS" in _ddl else _ddl[:40]
+            failed.append((name, str(e).split("\n")[0][:160]))
+    if failed:
+        logger.warning(
+            "[P0-IDX] %d/%d 索引建立成功，%d 条失败（不阻断启动）：",
+            ok, len(_INDEX_DDL), len(failed))
+        for name, err in failed:
+            logger.warning("[P0-IDX]   x %s -> %s", name, err)
+    else:
+        logger.info("[P0-IDX] %d 条索引全部就位", ok)
+    return ok, failed
