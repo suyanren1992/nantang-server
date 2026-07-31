@@ -158,11 +158,11 @@ var API = {
   // ── B5补: Archive 档案 ──
   getArchiveItems: function(category) { return this.request('GET', '/archive/items' + (category ? '?category=' + encodeURIComponent(category) : '')); },
   // ── B6补: Fields 田地 ──
-  getFields: function() { return this.request('GET', '/fields'); },
-  getFieldPlot: function(id) { return this.request('GET', '/fields/' + encodeURIComponent(id)); },
-  harvestFieldPlot: function(id) { return this.request('POST', '/fields/' + encodeURIComponent(id) + '/harvest'); },
-  waterFieldPlot: function(id) { return this.request('POST', '/fields/' + encodeURIComponent(id) + '/water'); },
-  fertilizeFieldPlot: function(id) { return this.request('POST', '/fields/' + encodeURIComponent(id) + '/fertilize'); },
+  getFields: function() { return this.request('GET', '/api/fields'); },
+  getFieldPlot: function(id) { return this.request('GET', '/api/fields/' + encodeURIComponent(id)); },
+  harvestFieldPlot: function(id) { return this.request('POST', '/api/fields/' + encodeURIComponent(id) + '/harvest'); },
+  waterFieldPlot: function(id) { return this.request('POST', '/api/fields/' + encodeURIComponent(id) + '/water'); },
+  fertilizeFieldPlot: function(id) { return this.request('POST', '/api/fields/' + encodeURIComponent(id) + '/fertilize'); },
   // ── B7补: Settings 用户设置 ──
   getUserSettings: function() { return this.request('GET', '/users/me/settings'); },
   patchUserSettings: function(data) { return this.request('PATCH', '/users/me/settings', data); },
