@@ -458,7 +458,7 @@ function toggleQuestCard(el,name){
   var nxt=el.nextElementSibling;
   if(nxt&&(nxt.classList.contains('card-expand')||nxt.classList.contains('submit-expand')||nxt.classList.contains('settle-expand')||nxt.classList.contains('withdraw-expand')||nxt.classList.contains('review-expand')||nxt.classList.contains('unclaim-expand'))){nxt.style.maxHeight=nxt.scrollHeight+'px';nxt.style.transition='max-height .2s ease-out,opacity .2s ease-out';nxt.style.overflow='hidden';requestAnimationFrame(function(){nxt.style.maxHeight='0';nxt.style.opacity='0'});setTimeout(function(){nxt.remove()},200);el.scrollIntoView({behavior:'smooth',block:'nearest'});return}
   // Remove all other floating expands EXCEPT cards themselves
-  document.querySelectorAll('.card-expand,.submission-sub,.submit-expand,.withdraw-expand,.settle-expand,.review-expand,.unclaim-expand').forEach(function(c){c.remove()});
+  // A1: 先构建新卡片再删除旧卡片，消空白闪烁
   var d=document.createElement('div');d.className='card-expand';
   d.style.cssText='margin-bottom:16px;background:#fafbfa;border:1px solid var(--green-border);border-radius:10px;padding:14px;font-size:.88rem;animation:fadeIn .2s ease-out;border-bottom:3px solid var(--green-border)';
   var h='';var cs=t.claimants||[];var slots=t.slots||1;var remain=Math.max(0,slots-cs.length);
@@ -538,7 +538,9 @@ function toggleQuestCard(el,name){
     });
     h+='</div>';
   }
-  d.innerHTML=h;el.parentElement.insertBefore(d,el.nextSibling)
+  d.innerHTML=h;el.parentElement.insertBefore(d,el.nextSibling);
+  // A1: 新卡片先入 DOM，再清理旧展开卡片，消空白闪烁
+  document.querySelectorAll('.card-expand,.submission-sub,.submit-expand,.withdraw-expand,.settle-expand,.review-expand,.unclaim-expand').forEach(function(c){if(c!==d)c.remove()})
 }
 function toggleClaimantSub(el,name,cname){
   name = decodeURIComponent(name); cname = decodeURIComponent(cname);
@@ -548,14 +550,15 @@ function toggleClaimantSub(el,name,cname){
     if(sub.getAttribute('data-claimant')===cname){sub.remove();return}
     sub.remove();
   }
-  document.querySelectorAll('.submission-sub').forEach(function(s){s.remove()});
   var t=TASKS[name];if(!t)return;
   var c=(t.claimants||[]).find(function(x){return x.name===cname});if(!c||!c.submission)return;
   var sd=document.createElement('div');sd.className='submission-sub';
   sd.setAttribute('data-claimant',cname);
   sd.style.cssText='margin-bottom:8px;background:#fff;border:1px solid var(--green-border);border-radius:8px;padding:10px 12px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid var(--green-primary)';
   sd.innerHTML='<div style=font-weight:700;margin-bottom:4px;font-size:.7rem>🧑 '+cname+' 的提交 · '+(c.submittedAt||'')+'</div><div style=color:#5a6e5c;line-height:1.5>'+esc(c.submission)+'</div>';
-  cardExpand.parentElement.insertBefore(sd,cardExpand.nextSibling)
+  cardExpand.parentElement.insertBefore(sd,cardExpand.nextSibling);
+  // A1: 新卡片先入 DOM，再清理旧提交卡片，消闪烁
+  document.querySelectorAll('.submission-sub').forEach(function(s){if(s!==sd)s.remove()})
 }
 // Publish Task
 // PUB_USERS 已删除——改为 live call Object.keys(getUsers()) inside filterReviewers/filterPubTargets
