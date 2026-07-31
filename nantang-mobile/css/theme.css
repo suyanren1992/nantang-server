@@ -568,7 +568,7 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 }
 
 /* === 全貌页 + 卡片室（Ch3-5） === */
-.announce-bar{background:linear-gradient(135deg,#fef9e8,#fef0d0);border:1px solid #e8d890;border-radius:8px;padding:6px 10px;margin:8px 10px;overflow:hidden;white-space:nowrap;font-size:.62rem;color:#6a5a30}
+.announce-bar{background:linear-gradient(135deg,#fef9e8,#fef0d0);border:1px solid #e8d890;border-radius:8px;padding:6px 10px;margin:8px 10px;overflow:hidden;white-space:nowrap;font-size:var(--g-font-size-xs);color:#6a5a30}
 .announce-track{display:inline-block;animation:annScroll 30s linear infinite}
 @keyframes annScroll{0%{transform:translateX(60%)}100%{transform:translateX(-100%)}}
 /* 底部轮播 — scroll-snap 居中，规则见上方 .bc-track/.bc-card/.bc-dots */

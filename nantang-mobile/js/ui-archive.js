@@ -386,7 +386,7 @@ function filterArchiveMembers() {
 function renderArchiveLog(el) {
   _archiveLogPage = 0;
   var log = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
-  if (!log.length) { el.innerHTML = '<div class="archive-empty">📜 暂无运行日志<br><span style="font-size:.6rem;color:#aaa">社区活动将自动记录在这里</span></div>'; return; }
+  if (!log.length) { el.innerHTML = '<div class="archive-empty">📜 暂无运行日志<br><span style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">社区活动将自动记录在这里</span></div>'; return; }
 
   var total = log.length;
   var pageSize = _archiveLogPageSize;

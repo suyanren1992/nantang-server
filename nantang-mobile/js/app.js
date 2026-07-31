@@ -857,7 +857,7 @@ function _renderTimelineSection() {
   return recent.map(function(e){
     var t = e.time || '';
     var display = t.slice(0,10) === new Date().toISOString().slice(0,10) ? t.slice(11,16) : t.slice(0,10) === _yesterday() ? '昨天 '+t.slice(11,16) : t.slice(5,10);
-    return '<div class="tl-entry" style="padding:4px 0;font-size:.62rem;border-bottom:1px dotted #f8f8f8"><span style="color:#999">'+display+'</span> '+esc(e.text)+'</div>';
+    return '<div class="tl-entry" style="padding:4px 0;font-size:var(--g-font-size-xs);border-bottom:1px dotted #f8f8f8"><span style="color:var(--g-text-dim)">'+display+'</span> '+esc(e.text)+'</div>';
   }).join('');
 }
 function _yesterday() { var d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
