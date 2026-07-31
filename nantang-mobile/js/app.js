@@ -1506,7 +1506,7 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
     inner.querySelector('.mgmt-sheet-title').textContent = title;
     inner.querySelector('.mgmt-sheet-body').innerHTML = bodyHTML;
     var btnWrap = inner.querySelector('.mgmt-sheet-actions');
-    btnWrap.innerHTML = (actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button>';
+    btnWrap.innerHTML = (actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=this.closest(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button>';
     return;
   }
   el = document.createElement('div'); el.className = 'mgmt-sheet';
@@ -1516,7 +1516,7 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
     '<div class="mgmt-sheet-inner" style="position:relative;background:#fff;border-radius:'+(fullscreen?'0':'16px 16px 0 0')+';width:100%;max-width:'+(fullscreen?'100%':'500px')+';height:'+(fullscreen?'100vh':'auto')+';max-height:'+(fullscreen?'100vh':'72vh')+';overflow-y:auto;padding:'+(fullscreen?'20px 16px 80px':'20px 16px')+';padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 24px rgba(0,0,0,.15);animation:spcPop .2s ease-out">'+
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span class="mgmt-sheet-title" style="font-size:1.2rem">'+title+'</span></div>'+
     '<div class="mgmt-sheet-body">'+bodyHTML+'</div>'+
-    '<div class="mgmt-sheet-actions">'+(actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button></div></div>';
+    '<div class="mgmt-sheet-actions">'+(actionBtn||'')+'<button class="btn-sm sec" style="width:100%;margin-top:8px;min-height:44px" onclick="var s=this.closest(\'.mgmt-sheet\');if(s)s.remove()">✕ 关闭</button></div></div>';
   document.body.appendChild(el);
 }
 
@@ -1560,7 +1560,7 @@ function _showFieldSheet() {
     var ci = p.crops.length ? p.crops.map(function(c){ return c.icon+' '+c.name+(c.remain<=0?' ✅':' 剩'+c.remain+'天'); }).join(' · ') : '空闲';
     var status = p.crops.length > 0 ? 'green' : 'offline';
     var statusDot = {green:'🟢',offline:'⚫'}[status];
-    h += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:var(--g-font-size-xs)" onclick="var s=document.querySelector(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
+    h += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:var(--g-font-size-xs)" onclick="var s=this.closest(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.3rem">'+p.icon+'</span><b style="font-size:var(--g-font-size-sm)">'+p.name+'</b><span style="margin-left:auto">'+statusDot+'</span></div>'+
       '<div style="color:var(--g-text-dim)">'+ci+'</div>'+
       (p.crops.length ? '<div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:'+Math.min(100,Math.max(0,(p.crops[0].remain||0)/((p.crops[0].days||30)||1)*100))+'%"></div></div>' : '')+
