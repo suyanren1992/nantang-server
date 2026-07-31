@@ -292,14 +292,21 @@ function _addBuilder(name, taskNames) {
 }
 var _secFold={claimable:false,active:false,done:false};
 var _pollTimer = null;
-// M5: 离线指示器
+// M5: 离线指示器 + B4 恢复在线时自动触发同步
 (function(){
   var _offBar = document.createElement('div'); _offBar.id = '_offlineBar';
   _offBar.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;z-index:9999;height:3px;background:#f0a030;text-align:center;font-size:.55rem;color:#fff;line-height:18px;padding:1px';
   _offBar.textContent = '📡 离线';
   document.body.appendChild(_offBar);
   function _update(){ _offBar.style.display = navigator.onLine ? 'none' : 'block'; }
-  window.addEventListener('online',_update); window.addEventListener('offline',_update);
+  window.addEventListener('online',function(){
+    _update();
+    // B4: 恢复在线时重启轮询 + 排空离线队列
+    if (typeof _startPolling === 'function') _startPolling();
+    if (window.AppData && typeof AppData._drainPendingEarns === 'function') AppData._drainPendingEarns();
+    if (typeof _drainPendingWithdraws === 'function') _drainPendingWithdraws();
+  });
+  window.addEventListener('offline',_update);
   _update();
 })();
 function _startPolling() {
