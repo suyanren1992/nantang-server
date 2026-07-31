@@ -450,11 +450,14 @@ function _renderVerifyTab() {
   });
   var topVerifiers = Object.entries(monthlyVerifiers).sort(function(a,b){ return b[1]-a[1]; }).slice(0,3);
   if (topVerifiers.length) {
-    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:#5a6e5c;margin:12px 0 6px">🏆 本月校核贡献 (' + thisMonth + ')</div>';
+    // H2: 月榜卡片化
+    h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm) var(--g-pad);margin-top:12px">';
+    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:6px">🏆 本月校核贡献 (' + thisMonth + ')</div>';
     var medals = ['🥇','🥈','🥉'];
     topVerifiers.forEach(function(e, i) {
       h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px solid #f0f0f0">' + (medals[i]||'👏') + ' ' + esc(e[0]) + ' · ' + e[1] + '次</div>';
     });
+    h += '</div>';
   }
   return h;
 }
@@ -499,7 +502,8 @@ function _renderVerifyCard(v, isOnsite) {
   var shadow = ntAmt >= 15 && isPending ? '0 2px 12px rgba(200,135,64,.25)' : '0 1px 4px rgba(0,0,0,.04)';
   var statusIcon = isVerified ? '✅' : (isRejected ? '🚫' : '⏳');
 
-  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:var(--g-radius);padding:8px 6px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
+  // H2: 统一卡片视觉——ui-card class + 花色边框
+  var h = '<div onclick="_openVerifyDetail(\''+v.id+'\')" class="ui-card" style="background:'+bg+';border:'+borderW+' solid '+border+';border-radius:var(--g-radius);padding:8px 6px;box-shadow:'+shadow+';text-align:center;position:relative;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer">';
   // 左上花色
   h += '<div style="position:absolute;top:4px;left:5px;font-size:.55rem;color:var(--g-text-dim);font-weight:700">'+suitChar+'</div>';
   // 右上状态
