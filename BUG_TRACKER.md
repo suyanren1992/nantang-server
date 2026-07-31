@@ -2826,3 +2826,45 @@ conftest.py 加 `_isolate_db` autouse fixture（测后 FK 逆序 `table.delete()
 剩 6 红需逐个溯源（哪些是真 bug、哪些还是隔离不彻底），不可一刀切。
 
 ---
+
+### 2026-08-01 00:20 · 砚仁批甲 → TEST-ISO-3 立案（拆 FK OFF 假绿灯）
+
+**丞相复核 TEST-ISO-1 发现**：`294 passed / 0 failed` 是**关掉外键换来的**。
+
+`conftest.py:38-43` 加了 `PRAGMA foreign_keys=OFF` 的 checkout 监听，
+而生产 `database.py:81` 是 `ON`。→ 测试环境比生产宽松，悬空外键永远照不出来。
+与 GATE-1 修掉的「假绿灯」同类，只是搬进了 conftest。
+
+**改 ON 跑全量实证**：`5 failed, 289 passed, 8 skipped in 196.25s`
+`test_db_p0_1::TestVoteRightStrict` ×3 · `test_inn_rooms_list` ×2，全部 `FOREIGN KEY constraint failed`。
+
+**根因（丞相三探针）**：
+| 探针 | 做法 | 结果 |
+|---|---|---|
+| A | 同 flush 内 `s.add(User)` + `s.add(Tenancy)` | ❌ FAIL |
+| B | 先 commit User，再 add Tenancy | ✅ OK |
+| C | 同 flush + str 日期排除类型干扰，打印 INSERT 顺序 | ❌ FAIL，顺序 = `['tenancies']` |
+
+探针 C 是铁证：**User 的 INSERT 根本没发出去**。
+`Tenancy.user_id` 有 `ForeignKey("users.id")`，但全仓 `relationship()` 数 = **0**，
+SQLAlchemy 无从得知表间依赖，同 flush 按 mapper 注册序先插 tenancies。
+
+**判定**：这 5 条测试**不是烂测试，是写法踩了 ORM 的坑**。
+测试数据合法（`room_id` 无 FK，指向 map_locations 是弱引用）。
+生产侧无此问题——`accommodation.py:114/175` 建 Tenancy 时 user 来自已 commit 的登录态。
+**纯测试写法问题，非业务 bug。**
+
+**新派卡**：`TEST-ISO-3_FK恢复ON修5红_v0.md` → 2 营
+判据 4 定为唯一真判据：撤掉 flush 须能让该测转红。
+教训：「全绿」不是证据，「能照出红」才是证据。
+
+**为什么必须做**：「平台绝不印」靠 `nt_ledger.from_account` 完整性守住，
+nt_ledger 有 FK。删 pool_refill 的决心不该被一行 PRAGMA 抵消。
+
+### 2026-08-01 00:20 · 方案/ 全目录入仓（`e891b8d`）
+
+史官档案此前全程 untracked（120 文件：任务卡/回执/审查报告/设计稿/openapi 契约）。
+砚仁批准单独 commit 收档。已扫密钥：命中均为 `test-secret` 假口令，无真实凭证。
+**此后回执落盘即入仓。**
+
+---
