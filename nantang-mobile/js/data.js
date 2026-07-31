@@ -672,7 +672,7 @@ function closeOverlay(id,showVillage){
   // 有上级 overlay → 恢复；否则回村口
   var prev = _overlayStack[_overlayStack.length-1];
   if(prev){ document.getElementById(prev).classList.add('open'); }
-  else{ document.getElementById('villagePage').classList.remove('hidden'); _unlockBodyIfAllClosed(); }
+  else{ showVillage(); }
 }
 function openCommunityPage(){_pushOverlay('overlayCommunity'); document.getElementById('overlayCommunity').classList.add('open');renderCommunityHub()}
 // 营地数据——从 AppData 读取，服务端同步

@@ -1876,7 +1876,7 @@ function closeMyPage(){
     document.getElementById('villagePage').classList.remove('hidden');
   }
 }
-function showVillage(){document.getElementById('myPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden')}
+function showVillage(){document.getElementById('myPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');if(typeof _unlockBodyIfAllClosed==='function')_unlockBodyIfAllClosed();else document.body.classList.remove('ov-locked')}
 // Village player card — click to workbench
 function initSpcCard(){
   var c=document.getElementById('spcCard');if(!c||c._init)return;c._init=true;
