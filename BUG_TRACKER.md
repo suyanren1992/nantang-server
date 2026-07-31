@@ -2425,3 +2425,125 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 
 ### D-9 结案销记 — 丞相府 2026-07-29（TD-1 commit 5b47201）
 打回点（一键结算原生 confirm）实证落在死函数 `batchSettleAll`（mobile-bundle F7，零活引用）内；TD-1 墓碑清理已将其随 13 死函数一并删除（326→127 行），活体一键结算走 ui-camp.js mgmtSettleAll 不受影响。**D-9 随葬消解，结案。**
+
+---
+
+## FE-API-1 · 前端 API 路径漏写 `/api` 前缀（4 模块 11 接口全断）— 二营勘察 · 派单一营（2026-07-31）
+
+**案由**：二营全面排查前后端 UI 连通性（应砚仁「全面检查 UI 是否后端前端都做到连通」之令），发现 `nantang-mobile/js/api.js` 中 **4 个模块共 11 个接口方法**的请求路径漏写 `/api` 前缀。而后端 router prefix **全部带 `/api`**（storage→`/api/storage`、archive→`/api/archive`、fields→`/api/fields`、user_settings→`/api/users/me`），导致前端请求 100% 落空（404），数据**完全不与服务端同步**。
+
+**阵地**：`nantang-mobile/js/api.js`（一营）
+**禁区**：`server/`（后端 prefix 正确，无需改动）
+
+**范围**（逐条带行号，仅改路径字符串补 `/api` 前缀，不动方法签名/逻辑）：
+
+| # | 行号 | 方法 | HTTP | 改前路径 | 改后路径 |
+|---|------|------|------|----------|----------|
+| 1 | 151 | `addItemStorage` | POST | `/storage/items` | `/api/storage/items` |
+| 2 | 152 | `getStorage` | GET | `/storage/items` | `/api/storage/items` |
+| 3 | 153 | `removeItemStorage` | DELETE | `/storage/items/{id}` | `/api/storage/items/{id}` |
+| 4 | 159 | `getArchiveItems` | GET | `/archive/items` | `/api/archive/items` |
+| 5 | 161 | `getFields` | GET | `/fields` | `/api/fields` |
+| 6 | 162 | `getFieldPlot` | GET | `/fields/{id}` | `/api/fields/{id}` |
+| 7 | 163 | `harvestFieldPlot` | POST | `/fields/{id}/harvest` | `/api/fields/{id}/harvest` |
+| 8 | 164 | `waterFieldPlot` | POST | `/fields/{id}/water` | `/api/fields/{id}/water` |
+| 9 | 165 | `fertilizeFieldPlot` | POST | `/fields/{id}/fertilize` | `/api/fields/{id}/fertilize` |
+| 10 | 167 | `getUserSettings` | GET | `/users/me/settings` | `/api/users/me/settings` |
+| 11 | 168 | `patchUserSettings` | PATCH | `/users/me/settings` | `/api/users/me/settings` |
+
+**UI 调用点（影响面实证）**：
+- 储物：app.js:1544 `API.getStorage()`（冰箱列表）、app.js:1580 `API.removeItemStorage()`（删除）、app.js:3558 `API.addItemStorage()`（入库）
+- 田间：app.js:1620/1712 `API.getFields()`、app.js:1968 `harvest/water/fertilizeFieldPlot`
+- 档案：ui-archive.js:494 `API.getArchiveItems('')`
+- 设置：core.js:1548 `API.getUserSettings()`、core.js:1589 `API.patchUserSettings()`
+
+**为何必须修（用户端表现）**：4 模块 UI 均有本地 fallback（`_renderFridgeLocal()`/`_renderFieldCardsLocal()`/默认设置），页面不白屏、不报错，看似「能用」，但**用户增删储物、浇水施肥、改设置的操作全部不落服务端**，刷新或换设备后数据丢失——隐蔽的数据不一致，比崩溃更危险。
+
+**判据**（可机器验证）：
+1. 改后 `grep -nE "['\"\\`]/(storage|archive|fields|users)" nantang-mobile/js/api.js` 应 **0 匹配**（裸路径全消除）
+2. 连通实测：登录后①冰箱 `_showFridgeSheet()` 显示服务端数据（非本地 fallback）②田间 `_showFieldSheet()` 同 ③档案列表加载出条目 ④设置保存后刷新仍保留
+3. curl 直证：`curl -H "Authorization: Bearer <token>" http://localhost:8000/api/storage/items` → 200（改前 `/storage/items` → 404）
+
+**明确不做**：
+- 不改 `server/`（后端 prefix 正确，是前端漏写）
+- 不改 api.js 以外的文件（其余 18 模块连通正常，已逐一核对）
+- 不接 kitchen 模块（另案，见下）
+
+**纪律**：具名 add（`git add nantang-mobile/js/api.js`，禁 `-A`）、commit 带卡号营号（`FE-API-1 一营`）、不 push、回执四件套（仓/回执/验证/结论）+ 太傅注三行。
+
+> **关联观察 · kitchen 模块未接线（非本卡，记档待产品决策）**：`server/routes/kitchen.py` 注册 10 个 `/api/kitchen/*` 端点（potluck/slots/items），前端**零调用**（全目录搜 `API.kitchen`/`/api/kitchen` 无匹配）；前端共享厨房走 community 版 `/api/potluck/*`。kitchen_router 当前为死代码，不影响现有 UI，待定是否接线。
+
+### 给一营的派单文本（整段复制）
+
+```
+卡号：FE-API-1
+阵地：nantang-mobile/js/api.js
+禁区：server/ 及 api.js 以外所有文件
+范围：仅补 /api 前缀，11 处——
+  L151 addItemStorage: '/storage/items' → '/api/storage/items'
+  L152 getStorage: '/storage/items' → '/api/storage/items'
+  L153 removeItemStorage: '/storage/items/' → '/api/storage/items/'
+  L159 getArchiveItems: '/archive/items' → '/api/archive/items'
+  L161 getFields: '/fields' → '/api/fields'
+  L162 getFieldPlot: '/fields/' → '/api/fields/'
+  L163 harvestFieldPlot: '/fields/' → '/api/fields/'
+  L164 waterFieldPlot: '/fields/' → '/api/fields/'
+  L165 fertilizeFieldPlot: '/fields/' → '/api/fields/'
+  L167 getUserSettings: '/users/me/settings' → '/api/users/me/settings'
+  L168 patchUserSettings: '/users/me/settings' → '/api/users/me/settings'
+判据：grep 裸路径 0 匹配 + 登录后冰箱/田间/档案/设置四模块实连服务端 + curl /api/storage/items 返回 200
+明确不做：不动后端、不动其他文件、不接 kitchen
+纪律：git add nantang-mobile/js/api.js（禁-A）/ commit 带「FE-API-1 一营」/ 不 push / 回执四件套+太傅注三行
+```
+
+---
+
+## 2026-07-31 22:45 · 丞相 Codex 登账（Wave 7 收尾）
+
+### 已修实证（丞相亲证 grep/读码）
+
+| 项 | 状态 | 实证 |
+|---|---|---|
+| 红队B①-A 田间 api.js 缺 /api | ✅ 已修 | `9067611` · api.js:161-165 五行全 `/api/fields` |
+| 红队B②-B 校核低对比色 | ⚠️ 部分 | `76e488d` 建 UI.Alert + 4处接入，但 ui-cardroom.js 残 11 处 `#999/#aaa` → 派 P3-一营戊 |
+| 红队B③-C 世界终端角色判断 | ✅ 已修 | `fe6c223` · app.js×2 + data.js×1 优先 `API.user.role` |
+| 红队B④-D 共享厨房 FE 零接入 | ✅ 已修 | `31ab6d5` · api.js:244-254 十端点 ↔ kitchen.py 十路由逐条对齐 |
+| 全面审查 P0① admin密码 | ✅ 已修 | `2bb840a` · database.py `_enforce_admin_password_guard` |
+| 全面审查 P0② HTTPS | ✅ 已修 | `5bf7ac7` · deploy.sh certbot + 443 重定向 |
+
+### 🔴 全面审查报告误报 2 项（记档防重复派工）
+
+| 报告项 | 判定 | 实证 |
+|---|---|---|
+| P0③「密码无最大长度」 | ❌ **误报** | `routes/auth.py:19` `_PASSWORD_MAX=128`，129/166/218 三处校验齐备，test_auth.py 21 passed。**H-10 早已修复** |
+| P0④「chain-balance 端点无认证」 | ❌ **误报** | `routes/nt.py:682` `async def chain_balance(admin: User = Depends(require_admin))` —— **已有 admin 依赖** |
+
+**教训**：多 Agent 并行审查会产出「已修项复报」。见报告先派红队验，再施工（铁律6）—— 本次丞相亲证省下 2 张 2 营卡的窗口。
+
+### 🆕 新登 bug
+
+**FE-API-2 · api.js 6 处裸路径未补 /api 前缀**（P0 · 数据静默不落盘）
+- 亲证 22:45：BUG_TRACKER 的 FE-API-1 列 11 处，1营丁只修了 fields 系列 5 处，**剩 6 处**
+- 残留：151/152/153（storage）· 159（archive）· 167/168（users/me/settings）
+- 后端 prefix 全对（main.py:114-117）：`/api/storage` `/api/archive` `/api/users/me` `/api/fields`
+- 表现：冰箱增删/档案列表/设置保存 → 404 → catch 兜底 → **看似能用，实际不落盘，刷新丢数据**
+- 已并入 `P3-一营戊_B2补漏_v0.md` 施工项 ④
+
+**GATE-1 · deploy_check「API契约」检查存在盲区**（P1 · 闸门自身缺陷）
+- 症状：api.js 有 6 处裸路径（后端无此路由）却 PASS
+- 根因：契约检查只验「前端调的路径后端有」，裸路径 `/storage/items` 不匹配任何后端路由时被**当作未知跳过**而非报错
+- 影响：假绿灯。红队B①田间根因（缺 /api → 404 → 假数据）本该被闸门拦住
+- 建议：加规则「前端所有 request 路径必须以 `/api/` 开头，否则 FAIL」
+- 状态：待派（未修）
+
+**UI-1 · ui-cardroom.js:959 中文全角分号**（P2）
+- `style="...padding:20px；font-size:.7rem"` ← U+FF1B
+- 后果：padding 之后整条 style 声明被浏览器丢弃，font-size 不生效
+- 已并入 `P3-一营戊_B2补漏_v0.md` 施工项 ②
+
+### 在途
+
+- `NT-P0-6_删pool_refill_v0.md` → 2营（删 nt.py:1325-1332 凭空印 20 NT + 5处 except pass 补日志 + 3测）
+- `P3-一营戊_B2补漏_v0.md` → 1营（11处色值 + 全角分号 + 6处裸路径 + ?v= bump）
+
+---
