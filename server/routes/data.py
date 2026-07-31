@@ -421,6 +421,9 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
     if _presence and isinstance(_presence, dict):
         for uid, pdata in _presence.items():
             if not isinstance(pdata, dict): continue
+            # EMPIRICAL-🔴2.4: 所属权校验——非 admin 不得改他人 presence
+            if uid != user.id and user.role != "admin":
+                raise HTTPException(status_code=403, detail="无权修改他人在线状态")
             # updatedAt 防回写：只有更新的数据才覆盖
             pk = f"presence:{uid}"
             pr = (await db.execute(select(MapLocation).where(MapLocation.key == pk))).scalar_one_or_none()
