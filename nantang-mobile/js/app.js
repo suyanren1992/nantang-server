@@ -1536,13 +1536,66 @@ function _rerenderKitchen() {
 }
 
 function _showFridgeSheet() {
+  // G2: 优先从 API 拉取储物数据（B3 契约），离线 fallback 本地 inventory
+  if (typeof API !== 'undefined' && API.token) {
+    _showCardPopup('🍳 冰箱', '<div style="text-align:center;padding:20px;color:#5a6e5c">⏳ 加载中…</div>', '', true);
+    API.getStorage().then(function(r) {
+      if (r && r.ok && r.items) {
+        _renderFridgeFromAPI(r.items);
+      } else {
+        // fallback 本地
+        _renderFridgeLocal();
+      }
+    }).catch(function() {
+      _renderFridgeLocal();
+    });
+  } else {
+    _renderFridgeLocal();
+  }
+}
+function _renderFridgeFromAPI(items) {
+  var zoneOrder = [
+    { key:'冰箱', name:'🧊 冰箱', icon:'🧊' },
+    { key:'储物间', name:'📦 储物间', icon:'📦' },
+    { key:'共享', name:'🤝 共享', icon:'🤝' }
+  ];
+  var h = '';
+  zoneOrder.forEach(function(z) {
+    var list = (items[z.key] || []).filter(function(it) {
+      // 只显示未过期：expires_at 为 null 或 > now
+      if (!it.expires_at) return true;
+      return new Date(it.expires_at) > new Date();
+    });
+    h += '<div style="font-weight:600;font-size:.7rem;color:#5a6e5c;margin:8px 0 2px">'+z.name+' ('+list.length+'件)</div>';
+    if (!list.length) { h += '<div style="font-size:var(--g-font-size-xs);color:#999;padding:4px 0">空</div>'; return; }
+    list.forEach(function(it) {
+      var expHtml = '';
+      if (it.expires_at) {
+        var daysLeft = Math.ceil((new Date(it.expires_at) - new Date()) / 86400000);
+        expHtml = daysLeft <= 0 ? ' <span style="color:var(--g-red)">过期</span>' : daysLeft <= 2 ? ' <span style="color:var(--g-warn)">'+daysLeft+'天</span>' : '';
+      }
+      var addedDate = (it.added_at||'').slice(0,10);
+      h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px dotted #f0f0f0;display:flex;justify-content:space-between;align-items:center"><span>📦 '+esc(it.item_name)+' ×'+it.quantity+' · '+esc(it.user_id)+expHtml+'</span><span style="display:flex;align-items:center;gap:6px"><span style="color:#999;font-size:.55rem">'+addedDate+'</span><button class="btn-sm danger" style="font-size:.45rem;padding:1px 5px" onclick="event.stopPropagation();if(!confirm(\'删除 '+esc(it.item_name)+'？\'))return;API.removeItemStorage(\''+it.id+'\').then(function(r){if(r&&r.ok){showToast(\'已删除\',\'ok\');_showFridgeSheet()}else{showToast(\'删除失败\',\'error\')}}).catch(function(){showToast(\'网络错误\',\'error\')})">🗑</button></span></div>';
+    });
+  });
+  var el = document.querySelector('.mgmt-sheet');
+  if (el) {
+    var body = el.querySelector('.mgmt-sheet-body');
+    if (body) body.innerHTML = h;
+    var title = el.querySelector('.mgmt-sheet-title');
+    if (title) title.textContent = '🍳 冰箱';
+  } else {
+    _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
+  }
+}
+function _renderFridgeLocal() {
   var zones = [{ key:'fridge_upper', name:'🧊 冷藏上层', items:[] },{ key:'fridge_lower', name:'❄️ 冷冻下层', items:[] },{ key:'fridge_door', name:'🚪 门架', items:[] },{ key:'storage', name:'📦 储物间', items:[] }];
   var inv = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
   inv.forEach(function(it) { var z = zones.find(function(z){ return z.key === (it.location||''); }) || zones[3]; z.items.push(it); });
   var h = '';
   zones.forEach(function(z) {
     h += '<div style="font-weight:600;font-size:.7rem;color:#5a6e5c;margin:8px 0 2px">'+z.name+' ('+z.items.length+'件)</div>';
-    if (!z.items.length) { h += '<div style="font-size:.6rem;color:#999;padding:4px 0">空</div>'; return; }
+    if (!z.items.length) { h += '<div style="font-size:var(--g-font-size-xs);color:#999;padding:4px 0">空</div>'; return; }
     z.items.forEach(function(it) {
       var w = ''; if (it.expiryDays && it.putDate) { var d = it.expiryDays - Math.floor((Date.now() - new Date(it.putDate+'T00:00:00'))/86400000); w = d <= 0 ? ' <span style="color:var(--g-red)">过期</span>' : d <= 2 ? ' <span style="color:#c8892e">'+d+'天</span>' : ''; }
       h += '<div style="font-size:.62rem;padding:3px 0;border-bottom:1px dotted #f0f0f0;display:flex;justify-content:space-between"><span>📦 '+esc(it.name)+' · '+esc(it.putBy)+w+'</span><span style="color:#999;font-size:.55rem">'+it.putDate+'</span></div>';
@@ -3033,10 +3086,27 @@ function _submitKitchenEntry() {
   var note = (document.getElementById('qkItemNote')||{}).value || '';
   var name = sel.icon + ' ' + sel.name;
   var fullNote = act.label + ' ' + name + (note ? ' · ' + note : '');
+  // G1: stock_in/store_in 接 API.addItemStorage（B2 契约）
+  var locMap = { stock_in: '冰箱', store_in: '储物间' };
+  var location = locMap[act.action];
+  if (location && typeof API !== 'undefined' && API.token) {
+    var self = this;
+    API.addItemStorage({ item_name: sel.name, category: '食物', quantity: 1, storage_location: location }).then(function(r) {
+      if (r && r.ok) {
+        if (window.AppData) {
+          var actionMap = { stock_in: '放入物品', stock_out: '取出/消耗', store_in: '放入物品' };
+          _syncItemToAppData(actionMap[act.action] || act.action, sel.name, '', true, ((curBuilding()||{}).id === 'study' ? 'study' : 'office'));
+          AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: ((curBuilding()||{}).id === 'study' ? 'study' : 'office') }, act.nt, AppData._verifierReward(act.nt));
+        }
+        _closeQuickSheet();
+        showToast('✅ '+act.label+' '+name, 'ok');
+        if (typeof _showFridgeSheet === 'function') _showFridgeSheet();
+      } else { showToast('放入失败'+(r&&r.detail?': '+r.detail:''), 'error'); }
+    }).catch(function(){ showToast('网络错误，请重试', 'error'); });
+    return;
+  }
   if (window.AppData) {
-    // act.action 是英文（stock_in/stock_out/store_in），_syncItemToAppData 吃中文
     var actionMap = { stock_in: '放入物品', stock_out: '取出/消耗', store_in: '放入物品' };
-    // skipVerify=true：校核记录只由下面这条写，避免一次动作两条记录
     _syncItemToAppData(actionMap[act.action] || act.action, sel.name, '', true, ((curBuilding()||{}).id === 'study' ? 'study' : 'office'));
     AppData.addVerification(act.action, _me(), fullNote, { item: sel.name, action: act.action, space: ((curBuilding()||{}).id === 'study' ? 'study' : 'office') }, act.nt, AppData._verifierReward(act.nt));
     // 写入卡片室

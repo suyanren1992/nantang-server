@@ -147,6 +147,10 @@ var API = {
   checkin: function(roomId, track, checkIn, checkOut, bedNum) { return this.request('POST', '/api/accommodation/checkin', {room_id: roomId, track: track || 'coop', check_in: checkIn || null, check_out: checkOut || null, bed_num: bedNum || 1}); },
   checkout: function() { return this.request('POST', '/api/accommodation/checkout'); },
   accommodationStatus: function() { return this.request('GET', '/api/accommodation/status'); },  // G-3 记账/欠费状态
+  // ── B2/B3/B4: Storage 储物 ──
+  addItemStorage: function(data) { return this.request('POST', '/storage/items', data); },
+  getStorage: function() { return this.request('GET', '/storage/items'); },
+  removeItemStorage: function(id) { return this.request('DELETE', '/storage/items/' + encodeURIComponent(id)); },
   // ── C-B-3: 营地报到（幂等）──
   campCheckin: function(campId) { return this.request('POST', '/api/camps/' + encodeURIComponent(campId) + '/checkin'); },
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
