@@ -116,7 +116,7 @@ app.include_router(fields.router)  # UI-FIX-P2-BE补 B6 田间
 app.include_router(user_settings.router)  # UI-FIX-P2-BE补 B7 设置
 app.include_router(new_user_tasks.router)  # NEW-USER-TASK-BE 新人任务
 app.include_router(nt.system_router)
-app.include_router(potluck_router)         # P1-#6 ③ 田间接龙
+app.include_router(potluck_router)         # K-REDTEAM-FIX ① 共享厨房接龙
 app.include_router(proposals_router)       # P1-#6 ⑤⑥⑦ 议事厅提案
 app.include_router(camp_proposals_router)  # P1-#6 ⑧ 营地议事
 app.include_router(notifications_router)   # P1-#6 ⑬ 通报

@@ -119,6 +119,46 @@ async def camps_budget(camp_id: str = None,
     return {"ok": True, "items": items}
 
 
+@router.get("/schedule")
+async def camps_schedule(
+    start_date: str = None,  # 可选 YYYY-MM-DD
+    end_date: str = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """GET /api/camps/schedule — 营地时间表聚合视图。
+
+    跨所有 active 营地的 schedule 字段合并，按日期升序排序，
+    标 camp_id + camp_name。可选 start_date / end_date 过滤。
+    """
+    result = await db.execute(
+        select(Camp).where(Camp.status != "archived")
+        .order_by(Camp.created_at.desc()).limit(100)
+    )
+    items = []
+    for c in result.scalars():
+        try:
+            sched = json.loads(c.schedule) if c.schedule else []
+        except (json.JSONDecodeError, TypeError):
+            sched = []
+        if not sched:
+            continue
+        for ev in sched:
+            items.append({
+                "camp_id": c.id,
+                "camp_name": c.name,
+                "event": ev,  # {date, time, title, capacity, ...}
+            })
+    # 按 date 升序
+    items.sort(key=lambda x: (x["event"].get("date", ""), x["event"].get("time", "")))
+    # 过滤日期范围
+    if start_date:
+        items = [i for i in items if i["event"].get("date", "") >= start_date]
+    if end_date:
+        items = [i for i in items if i["event"].get("date", "") <= end_date]
+    return {"ok": True, "count": len(items), "items": items}
+
+
 @router.get("")
 async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                      limit: int = 50, offset: int = 0):
