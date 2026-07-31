@@ -298,6 +298,14 @@ if (window.location.protocol !== 'file:') {
   </div>
   <div class="overlay-body" id="campReportBody"></div>
 </div>
+<!-- ═══ A-FIELD-PAGE: 田间页 overlay ═══ -->
+<div id="overlayFieldPage" class="overlay">
+  <div class="overlay-top">
+    <button class="overlay-close" onclick="closeOverlay('overlayFieldPage')">✕</button>
+    <span class="overlay-title">🌿 田间管理</span>
+  </div>
+  <div class="overlay-body" id="fieldPageBody" style="padding:10px 14px"></div>
+</div>
 
 <!-- 创营仪式动画层 -->
 <div id="campCeremonyLayer" style="position:fixed;inset:0;z-index:300;background:#1a1f1a;display:none;flex-direction:column;align-items:center;justify-content:center">
@@ -543,7 +551,7 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-social.js?v=21"></script>
 <script src="js/ui-archive.js?v=25"></script>
 <script src="js/ui-cardroom.js?v=19"></script>
-<script src="js/app.js?v=45"></script>
+<script src="js/app.js?v=46"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};

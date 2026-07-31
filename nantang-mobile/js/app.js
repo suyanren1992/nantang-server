@@ -236,9 +236,9 @@ function _updateFAB(b) {
   if (!fab) { fab = document.createElement('button'); fab.id = 'fabMain'; fab.style.cssText = 'position:fixed;bottom:100px;right:16px;width:56px;height:56px;border-radius:50%;border:none;background:var(--green-primary);color:#fff;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:90;display:none;align-items:center;justify-content:center'; var container = document.getElementById('app') || document.body; container.appendChild(fab); }
   if (b.id === 'info') { fab.style.display = 'none'; return; }
   var icon = '🧹', action = function(){ _openCleanQuick(); };
-  if (b.id === 'field') { icon = '🌱'; action = function(){ _openFarmQuick(); }; }
+  if (b.id === 'field') { icon = '🌱'; action = function(){ openFieldPage(); }; }
   else if (b.id === 'office' || b.id === 'toilet_b') { icon = '🧹'; }
-  else if (b.plots && b.plots.length > 0) { icon = '🌱'; action = function(){ _openFarmQuick(); }; }
+  else if (b.plots && b.plots.length > 0) { icon = '🌱'; action = function(){ openFieldPage(); }; }
   fab.textContent = icon; fab.onclick = action; fab.style.display = 'flex';
 }
 
@@ -422,7 +422,7 @@ function _renderQuickEntryCards() {
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
     (isMember ? '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:var(--g-font-size-xs);font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
     '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:var(--g-font-size-xs);font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'farming\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:var(--g-font-size-xs);font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
+    '<div class="quick-card" onclick="openFieldPage()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:var(--g-font-size-xs);font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
     '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'explore\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🗺️</div><div style="font-size:var(--g-font-size-xs);font-weight:600">探索南塘</div><div style="font-size:.55rem;color:#999">地图·建筑</div></div>'+
   '</div>';
 }
@@ -997,7 +997,7 @@ function buildFieldDetail(plot) {
         '</div>';
     });
   } else { body += '<div style="color:var(--g-text-dim);font-size:.72rem;padding:8px">暂无种植</div>'; }
-  body += '<button class="btn-sm pri" style="width:100%;font-size:var(--g-font-size-xs);padding:6px;margin-top:4px" onclick="event.stopPropagation();_openFarmQuick()">＋ 记录农活</button>';
+  body += '<button class="btn-sm pri" style="width:100%;font-size:var(--g-font-size-xs);padding:6px;margin-top:4px" onclick="event.stopPropagation();openFieldPage()">🌿 田间管理</button>';
   return body + '<button class="back-to-overview" onclick="closeRoom()">←返回田地总览</button>';
 }
 function _harvestCrop(plotId, cropIdx) {
@@ -1524,7 +1524,7 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 // 管理卡片点击 → 弹窗
 function _openMgmtSheet(type) {
   if (type === 'kitchen') { try { var kp = renderKitchenPanel(); _showCardPopup('🍳 厨房 · 冰箱', kp||'', null, true); } catch(e) { console.error(e); _showCardPopup('🍳 厨房 · 冰箱', '<div style="padding:20px;text-align:center;color:#b84c38;font-size:var(--g-font-size-sm)">⚠ 面板加载失败<br><span style="font-size:.6rem;color:#999">请刷新页面后重试</span></div>', null, true); } return; }  // J 修复 + SM-1.5: try-catch 兜底——renderKitchenPanel 异常时至少弹出面板壳而非静默无反应
-  if (type === 'field')   { _showFieldSheet(); return; }
+  if (type === 'field')   { openFieldPage(); return; }
   if (type === 'cleaning') { _showCardPopup('🧹 大扫除管理', renderCleaningPanel()||'', null, true); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
 }
@@ -1605,6 +1605,104 @@ function _renderFridgeLocal() {
   _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
 }
 
+// A-FIELD-PAGE: 田间页卡片化——4 块田 UI.Card 网格，onAction 委托
+function openFieldPage() {
+  _pushOverlay('overlayFieldPage');
+  document.getElementById('overlayFieldPage').classList.add('open');
+  renderFieldPage();
+}
+function renderFieldPage() {
+  var el = document.getElementById('fieldPageBody'); if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:#5a6e5c">⏳ 加载中…</div>';
+  // 优先 API
+  if (typeof API !== 'undefined' && API.token) {
+    API.getFields().then(function(r) {
+      if (r && r.ok && r.plots && r.plots.length) {
+        _renderFieldCards(r.plots, el);
+      } else { _renderFieldCardsLocal(el); }
+    }).catch(function(){ _renderFieldCardsLocal(el); });
+  } else { _renderFieldCardsLocal(el); }
+}
+function _renderFieldCards(plots, el) {
+  el.innerHTML = '';
+  var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
+  plots.forEach(function(p) {
+    var icon = cropIcons[p.crop_name] || '🌿';
+    var status = p.stage === '成熟' ? 'green' : p.stage === '休耕' ? 'offline' : p.health === '缺水' ? 'yellow' : p.health === '缺肥' ? 'yellow' : 'green';
+    var statusText = p.stage === '休耕' ? '休耕' : p.stage === '成熟' ? '可收割' : p.health === '缺水' ? '缺水' : p.health === '缺肥' ? '缺肥' : '生长中';
+    var planted = p.planted_at ? p.planted_at.slice(0,10) : '—';
+    var harvest = p.harvest_at ? p.harvest_at.slice(0,10) : '—';
+    var daysLeft = p.harvest_at && p.stage !== '休耕' ? Math.max(0, Math.ceil((new Date(p.harvest_at) - new Date()) / 86400000)) : 0;
+    var totalDays = p.planted_at && p.harvest_at && p.stage !== '休耕' ? Math.max(1, Math.ceil((new Date(p.harvest_at) - new Date(p.planted_at)) / 86400000)) : 30;
+    var progress = p.stage === '休耕' ? 0 : p.stage === '成熟' ? 100 : Math.min(100, Math.max(0, Math.round((Date.now() - new Date(p.planted_at||Date.now())) / (totalDays * 86400000) * 100)));
+    var isFallow = p.stage === '休耕';
+
+    var card = UI.Card({
+      object: 'field_'+p.id,
+      head: UI.Icon({ name:icon, size:'md', status:status }).outerHTML +
+            ' <span style="flex:1">'+esc(p.plot_name)+'</span>' +
+            UI.StatusBadge({ status:status, text:statusText }).outerHTML,
+      body: '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">'+
+              '<span style="font-size:2rem">'+icon+'</span>'+
+              '<div style="flex:1;font-size:var(--g-font-size-xs);color:var(--g-text-dim);line-height:1.6">'+
+                '<div>🌱 种植: '+planted+'</div>'+
+                '<div>🧺 收割: '+harvest+'</div>'+
+                '<div>📅 剩余: '+(isFallow?'—':daysLeft+'天')+' / 周期 '+totalDays+'天</div>'+
+              '</div>'+
+            '</div>'+
+            UI.Progress({ value:progress, max:100, label:'生长度 '+progress+'%' }).outerHTML,
+      actions: isFallow ? '<button data-action="plant" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🌱 新种</button>' :
+               '<button data-action="water" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">💧 浇水</button>'+
+               '<button data-action="fertilize" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🪴 施肥</button>'+
+               (p.stage === '成熟' ? '<button data-action="harvest" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);background:#c88740;color:#fff">🧺 收割</button>' : ''),
+      onAction: function(action, props) {
+        var plotId = (props.object||'').replace('field_','');
+        if (action === 'plant') { _openFarmQuick(); return; }
+        if (typeof _doFieldAction === 'function') _doFieldAction(plotId, action);
+      }
+    });
+    el.appendChild(card);
+  });
+}
+function _renderFieldCardsLocal(el) {
+  el.innerHTML = '';
+  var plots=[]; try { var obj = (window.AppData&&AppData._data.map_locations)||{}; plots=obj.plots||[]; } catch(e){}
+  if (!plots.length) { var b = (getBuildings()||[]).find(function(x){return x.id==='field';}); if (b&&b.plots) plots=b.plots; }
+  plots.forEach(function(p){
+    var isGrowing = (p.status === 'growing');
+    var isWarning = (p.status === 'warning');
+    var isDone = (p.remain <= 0);
+    var isEmpty = !p.crop || p.crop === '—';
+    var status = isEmpty ? 'offline' : isDone ? 'green' : isWarning ? 'yellow' : 'green';
+    var statusText = isEmpty ? '空闲' : isDone ? '可收割' : isWarning ? '即将收割' : '生长中';
+    var progress = isEmpty ? 0 : Math.min(100, Math.max(0, Math.round((p.days - (p.remain||0)) / (p.days||30) * 100)));
+
+    var card = UI.Card({
+      object: 'field_'+p.id,
+      head: UI.Icon({ name:p.icon||'🌿', size:'md', status:status }).outerHTML +
+            ' <span style="flex:1">'+esc(p.name)+'</span>' +
+            UI.StatusBadge({ status:status, text:statusText }).outerHTML,
+      body: '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">'+
+              '<span style="font-size:2rem">'+(p.icon||'🌿')+'</span>'+
+              '<div style="flex:1;font-size:var(--g-font-size-xs);color:var(--g-text-dim);line-height:1.6">'+
+                '<div>🌱 种植: '+(p.planted||'—')+'</div>'+
+                '<div>🧺 收割: '+(p.harvest||'—')+'</div>'+
+                '<div>📅 剩余: '+(isEmpty?'—':p.remain+'天')+' / 周期 '+(p.days||0)+'天</div>'+
+              '</div>'+
+            '</div>'+
+            UI.Progress({ value:progress, max:100, label:'生长度 '+progress+'%' }).outerHTML,
+      actions: isEmpty ? '<button data-action="plant" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🌱 新种</button>' :
+               '<button data-action="water" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">💧 浇水</button>'+
+               '<button data-action="fertilize" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🪴 施肥</button>'+
+               (isDone ? '<button data-action="harvest" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);background:#c88740;color:#fff">🧺 收割</button>' : ''),
+      onAction: function(action, props) {
+        if (action === 'plant') { _openFarmQuick(); return; }
+        if (typeof _doFieldAction === 'function') _doFieldAction((props.object||'').replace('field_',''), action);
+      }
+    });
+    el.appendChild(card);
+  });
+}
 // I1: 田间范式重写——接 API.getFields + UI.Card，4 块田每块 Card
 function _showFieldSheet() {
   // 优先从 API 拉取真实田地数据（B6补）
