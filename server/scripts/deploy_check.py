@@ -297,6 +297,26 @@ def _frontend_api_corpus():
     return corpus
 
 
+def check_api_prefix(js_dir):
+    """GATE-1: 扫 js/*.js 所有 this.request 路径，非 /api/ 开头 → 违规列表。
+
+    纯函数，可单测。返回 list[str]: "file.js:行号: METHOD path" 或空列表。
+    变量拼接路径（如 '/api/fields/' + id）只判前缀字面量，不做求值。
+    """
+    violations = []
+    p = Path(js_dir)
+    if not p.exists():
+        return violations
+    for f in sorted(p.glob("*.js")):
+        src = f.read_text(encoding="utf-8", errors="replace")
+        for m in re.finditer(r"this\.request\(\s*'(\w+)'\s*,\s*'([^']*)'", src):
+            method, path = m.group(1), m.group(2)
+            if not path.startswith("/api/"):
+                lineno = src[:m.start()].count("\n") + 1
+                violations.append(f"{f.name}:{lineno}: {method} {path}")
+    return violations
+
+
 def check_api_contract():
     """S-2: API 契约机检——双向对扫 api.js this.request vs routes/*.py @router。
 
@@ -318,9 +338,10 @@ def check_api_contract():
         be_by_path.setdefault(path, set()).add(mth)
 
     ok = True
-    # GATE-1: 裸路径检查 — api.js 中所有 request 路径必须以 /api/ 开头
-    for mth, path in sorted(bare_paths):
-        print(f"  {RED}X 裸路径(非 /api/ 前缀): {mth} {path}{RST}"); ok = False
+    # GATE-1: 裸路径检查 — 扫全 js/*.js，路径必须以 /api/ 开头
+    bare_violations = check_api_prefix(FRONTEND / "js")
+    for v in bare_violations:
+        print(f"  {RED}X 裸路径(非 /api/ 前缀): {v}{RST}"); ok = False
     for mth, path in sorted(fe):
         if path not in be_by_path:
             print(f"  {RED}X 前端调后端没有: {mth} {path}{RST}"); ok = False
@@ -339,12 +360,12 @@ def check_api_contract():
         print(f"  {YEL}! 后端有前端未调: {mth} {path} (WARN 不阻塞){RST}")
 
     if ok:
-        bare_note = f", 裸路径 0" if not bare_paths else ""
+        bare_note = f", 裸路径 0" if not bare_violations else ""
         print(f"  {GRN}V 前端 {len(fe)} 调用全部命中后端路由(路径/方法一致){bare_note}; "
               f"后端 {len(be)} 路由中 {len(warns)} 个前端未调(WARN){RST}")
     else:
-        if bare_paths:
-            print(f"  {RED}X 存在 {len(bare_paths)} 个裸路径(非 /api/ 前缀), 请补全 /api/ 前缀后重跑{RST}")
+        if bare_violations:
+            print(f"  {RED}X 存在 {len(bare_violations)} 个裸路径(非 /api/ 前缀), 请补全 /api/ 前缀后重跑{RST}")
         else:
             print(f"  {RED}X 存在前端调用与后端路由不匹配, 请修复后重跑{RST}")
     return ok
