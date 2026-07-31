@@ -10,8 +10,8 @@ DOMAIN="${1:-nantang.example.com}"
 
 echo "=== 南塘云村 · 部署 ==="
 
-# 1. 安装依赖
-apt update && apt install -y python3 python3-venv python3-pip nginx
+# 1. 安装依赖（certbot + nginx 插件用于 HTTPS · H-6）
+apt update && apt install -y python3 python3-venv python3-pip nginx certbot python3-certbot-nginx
 
 # 2. 创建目录
 mkdir -p $APP_DIR
@@ -53,7 +53,7 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-# 6. nginx 反代
+# 6. nginx 反代（先监听 80；certbot 随后自动追加 443 服务器块 + HTTP→HTTPS 重定向 · H-6）
 cat > /etc/nginx/sites-available/nantang << EOF
 server {
     listen 80;
@@ -81,12 +81,24 @@ rm -f /etc/nginx/sites-enabled/default
 systemctl daemon-reload
 systemctl enable nantang
 systemctl restart nantang
-systemctl restart nginx
+nginx -t && systemctl restart nginx
 
-# 8. 环境变量
+# 7b. H-6: HTTPS — Let's Encrypt certbot 申请证书 + 自动配置 443 + 重定向
+CERTBOT_EMAIL="${CERTBOT_EMAIL:-webmaster@$DOMAIN}"
+if certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$CERTBOT_EMAIL" --redirect; then
+    echo "✅ HTTPS 证书已申请并启用 (Let's Encrypt)"
+else
+    echo "⚠️ certbot 申请失败——请确认 DNS 已解析到本机后手动运行："
+    echo "   certbot --nginx -d $DOMAIN --redirect"
+fi
+
+# 8. 环境变量（ADMIN_BOOTSTRAP_PASSWORD 必须设置——C-1 守卫会在生产环境拒绝默认密码）
 JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+ADMIN_BOOTSTRAP_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(18))")
 cat > /etc/nantang.env << EOF
 JWT_SECRET=$JWT_SECRET
+ADMIN_BOOTSTRAP_PASSWORD=$ADMIN_BOOTSTRAP_PASSWORD
+ENVIRONMENT=production
 CRON_ACTIVE=1
 FRONTEND_ORIGIN=https://$DOMAIN
 MAX_BEDS_PER_ROOM=6
@@ -98,6 +110,7 @@ echo "=== 部署完成 ==="
 echo "访问: https://$DOMAIN"
 echo "CRON_ACTIVE=1 · 服务端 cron 已激活"
 echo "JWT 密钥已随机生成"
+echo "管理员初始密码（仅本次显示，请立即登录修改）: $ADMIN_BOOTSTRAP_PASSWORD"
 echo ""
 echo "查看日志: journalctl -u nantang -f"
 echo ""
