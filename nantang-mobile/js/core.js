@@ -357,7 +357,7 @@ function openQuestHallPage(){
           exists = localTasks.find(function(lt){return lt.name===t.title && lt.publisher===t.poster;});
         }
         if(!exists){
-          AppData._data.tasks[t.id] = {name:t.title,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:'',is_system_generated:t.is_system_generated||false};
+          AppData._data.tasks[t.id] = {name:t.title,title:t.title,type:t.category,nt:t.reward,scope:t.scope,status:t.status,publisher:t.poster,deadline:t.deadline,reviewer:t.reviewer,slots:t.slots,note:t.note,claimants:[],action:'',is_system_generated:t.is_system_generated||false,is_newbie_task:t.is_newbie_task||false};
         }
       })}
       filterQuests();
