@@ -1515,6 +1515,71 @@ function openSettings(){
     if (inner) inner.innerHTML = '<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a;z-index:1" onclick="document.getElementById(\'profileCard\').remove()">✕</button><div style="text-align:center;padding:20px;color:#b84c38;font-size:.72rem">⚠ 设置加载失败<br><span style="font-size:.6rem;color:#aaa">请刷新后重试</span></div>';
   }
 }
+// F2: 全貌页设置按钮重写——调 API.getUserSettings + PATCH 保存
+function _openUserSettings() {
+  if (!CURRENT_USER) { showToast('请先登录','warn'); return; }
+  var m = document.createElement('div'); m.className = 'disc-modal-overlay';
+  m.style.cssText = 'position:fixed;inset:0;z-index:350;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);animation:fadeIn .15s ease-out';
+  m.addEventListener('click', function(e) { if (e.target === m) m.remove(); });
+  m.innerHTML = '<div class="ui-card" style="background:#fff;border-radius:16px;width:300px;max-width:90vw;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.25)"><div style="text-align:center;color:#5a6e5c">⏳ 加载设置…</div></div>';
+  document.body.appendChild(m);
+  // 从 API 拉取设置
+  if (typeof API !== 'undefined' && API.token) {
+    API.getUserSettings().then(function(r) {
+      var settings = (r && r.ok && r.settings) ? r.settings : { notification: true, theme: 'light', language: 'zh-CN' };
+      _renderUserSettingsUI(m.querySelector('.ui-card'), settings);
+    }).catch(function() {
+      _renderUserSettingsUI(m.querySelector('.ui-card'), { notification: true, theme: 'light', language: 'zh-CN' });
+    });
+  } else {
+    _renderUserSettingsUI(m.querySelector('.ui-card'), { notification: true, theme: 'light', language: 'zh-CN' });
+  }
+}
+function _renderUserSettingsUI(card, settings) {
+  var notifyOn = settings.notification !== false;
+  var theme = settings.theme || 'light';
+  var lang = settings.language || 'zh-CN';
+  var h = '<button style="position:absolute;top:10px;right:10px;background:none;border:none;font-size:1.2rem;cursor:pointer;color:#5a5a5a" onclick="this.closest(\'.disc-modal-overlay\').remove()">✕</button>';
+  h += '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:14px;text-align:center">⚙️ 用户设置</div>';
+  // 通知
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:var(--g-font-size-sm)">🔔 消息通知</span>';
+  h += '<button class="btn-sm '+(notifyOn?'pri':'sec')+'" style="font-size:var(--g-font-size-xs);padding:4px 12px" onclick="var b=this;var on=b.textContent===\'已关闭\';b.textContent=on?\'已开启\':\'已关闭\';b.className=\'btn-sm \'+(on?\'pri\':\'sec\')" id="setNotifyBtn">'+(notifyOn?'已开启':'已关闭')+'</button></div>';
+  // 主题
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:var(--g-font-size-sm)">🎨 主题</span>';
+  h += '<select id="setTheme" style="font-size:var(--g-font-size-xs);padding:4px 8px;border:1px solid #d0d9ce;border-radius:6px;background:#fff">';
+  h += '<option value="light"'+(theme==='light'?' selected':'')+'>☀️ 浅色</option>';
+  h += '<option value="dark"'+(theme==='dark'?' selected':'')+'>🌙 深色</option></select></div>';
+  // 语言
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0"><span style="font-size:var(--g-font-size-sm)">🌐 语言</span>';
+  h += '<select id="setLang" style="font-size:var(--g-font-size-xs);padding:4px 8px;border:1px solid #d0d9ce;border-radius:6px;background:#fff">';
+  h += '<option value="zh-CN"'+(lang==='zh-CN'?' selected':'')+'>🇨🇳 中文</option>';
+  h += '<option value="en"'+(lang==='en'?' selected':'')+'>🇺🇸 English</option></select></div>';
+  // 保存
+  h += '<div style="display:flex;gap:6px;margin-top:14px"><button class="btn-sm sec" style="flex:1;font-size:var(--g-font-size-xs)" onclick="this.closest(\'.disc-modal-overlay\').remove()">取消</button>';
+  h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)" onclick="_saveUserSettings()">💾 保存</button></div>';
+  card.style.position = 'relative';
+  card.innerHTML = h;
+}
+function _saveUserSettings() {
+  var notifyBtn = document.getElementById('setNotifyBtn');
+  var notifyOn = notifyBtn ? notifyBtn.textContent === '已开启' : true;
+  var theme = (document.getElementById('setTheme')||{}).value || 'light';
+  var lang = (document.getElementById('setLang')||{}).value || 'zh-CN';
+  if (typeof API !== 'undefined' && API.token) {
+    API.patchUserSettings({ notification: notifyOn, theme: theme, language: lang }).then(function(r) {
+      if (r && r.ok) {
+        showToast('设置已保存', 'ok');
+        var modals = document.querySelectorAll('.disc-modal-overlay');
+        for (var i = 0; i < modals.length; i++) modals[i].remove();
+      } else { showToast('保存失败'+(r&&r.detail?': '+r.detail:''), 'error'); }
+    }).catch(function(){ showToast('网络错误', 'error'); });
+  } else {
+    localStorage.setItem('nt_user_settings', JSON.stringify({ notification: notifyOn, theme: theme, language: lang }));
+    showToast('设置已保存（离线）', 'ok');
+    var modals = document.querySelectorAll('.disc-modal-overlay');
+    for (var i = 0; i < modals.length; i++) modals[i].remove();
+  }
+}
 var _profileSeed=null;  // null="未选头像",注册/渲染时从池子随机取
 var _avatarStyles=['avataaars','bottts','fun-emoji','pixel-art','micah','lorelei','adventurer','big-ears','big-smile','croodles','identicon','personas'];
 var _avatarStyleIdx=0;
