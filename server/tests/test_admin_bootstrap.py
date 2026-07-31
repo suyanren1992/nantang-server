@@ -7,12 +7,14 @@
   3. ADMIN_BOOTSTRAP_PASSWORD 环境变量生效
 """
 import json
+import logging
 import os
 import pytest
 from sqlalchemy import select
 
 from auth_utils import hash_password, verify_password
-from database import async_session, DB_PATH
+from database import async_session, DB_PATH, init_db
+from models import User
 
 
 # ══ seed 文件路径 ══
@@ -106,3 +108,66 @@ class TestAdminBootstrapSeed:
             assert verify_password("admin123", pwd_env) is False
         finally:
             del os.environ["ADMIN_BOOTSTRAP_PASSWORD"]
+
+
+class TestAdminDefaultPasswordWarning:
+    """REDTEAM-B-P2: 默认密码运行时告警测试。"""
+
+    @pytest.mark.asyncio
+    async def test_default_password_triggers_warning(self, db, caplog):
+        """默认密码 admin123 → logger.warning 触发。"""
+        # 确保无任何 admin（init_db 检查 role==admin 任意用户）
+        async with async_session() as s:
+            all_admins = (await s.execute(
+                select(User).where(User.role == "admin")
+            )).scalars().all()
+            for a in all_admins:
+                await s.delete(a)
+            await s.commit()
+        # 确保未设环境变量（使用默认值）
+        os.environ.pop("ADMIN_BOOTSTRAP_PASSWORD", None)
+        with caplog.at_level(logging.WARNING, logger="database"):
+            await init_db()
+        assert any(
+            "ADMIN_BOOTSTRAP_PASSWORD 使用默认值 admin123" in record.message
+            for record in caplog.records
+        ), "默认密码应触发 logger.warning"
+        # 清理
+        async with async_session() as s:
+            u = (await s.execute(
+                select(User).where(User.id == "admin_bootstrap")
+            )).scalar_one_or_none()
+            if u:
+                await s.delete(u)
+                await s.commit()
+
+    @pytest.mark.asyncio
+    async def test_custom_password_no_warning(self, db, caplog):
+        """自定义密码 → logger.warning 不触发。"""
+        # 确保无任何 admin
+        async with async_session() as s:
+            all_admins = (await s.execute(
+                select(User).where(User.role == "admin")
+            )).scalars().all()
+            for a in all_admins:
+                await s.delete(a)
+            await s.commit()
+        # 设自定义密码
+        os.environ["ADMIN_BOOTSTRAP_PASSWORD"] = "SecurePwd2026!"
+        try:
+            with caplog.at_level(logging.WARNING, logger="database"):
+                await init_db()
+            assert not any(
+                "ADMIN_BOOTSTRAP_PASSWORD 使用默认值 admin123" in record.message
+                for record in caplog.records
+            ), "自定义密码不应触发默认密码警告"
+        finally:
+            del os.environ["ADMIN_BOOTSTRAP_PASSWORD"]
+        # 清理
+        async with async_session() as s:
+            u = (await s.execute(
+                select(User).where(User.id == "admin_bootstrap")
+            )).scalar_one_or_none()
+            if u:
+                await s.delete(u)
+                await s.commit()

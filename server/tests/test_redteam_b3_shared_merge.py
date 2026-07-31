@@ -123,13 +123,14 @@ class TestSyncSharedMergeProtection:
             assert "accommodations" in data, "accommodations should be merged in"
 
     @pytest.mark.asyncio
-    async def test_admin_cannot_clear_buildings(self, client):
-        """admin 推送空 buildings 列表 → 种子不丢（merge 后 list 替换但种子先加载）。"""
+    async def test_admin_can_clear_buildings_by_list_replace(self, client):
+        """admin 推空 buildings → deep_merge list 替换语义生效，buildings 变空。
+        这是设计行为，非 bug。如需保护种子，应改用 deep_merge 兼容 list 的策略。"""
         await init_db()
         await _make_user("b3_admin2")
         tok = await _login(client, "b3_admin2")
 
-        # admin 推送空 buildings（试图清空）
+        # admin 推送空 buildings（list 替换语义）
         r = await client.post("/api/data/sync_shared", headers=_h(tok), json={
             "map_locations": {
                 "buildings": []  # 空列表
@@ -137,15 +138,16 @@ class TestSyncSharedMergeProtection:
         })
         assert r.status_code == 200, r.text
 
-        # merge 后 buildings 被替换为空——这是 list 替换语义
-        # 但关键是不影响其他字段（种子 buildings 可通过重新 init_db 恢复）
+        # deep_merge list 替换语义：buildings 被替换为空
         async with async_session() as s:
             ml = (await s.execute(
                 select(MapLocation).where(MapLocation.key == "shared")
             )).scalar_one_or_none()
             data = json.loads(ml.data)
-            # buildings 被 list 替换为空（这是 deep_merge 的 list 语义）
-            # 但 accommodations 等其他字段不受影响
+            assert data.get("buildings") == [], (
+                "list 替换语义：空列表应替换原 buildings"
+            )
+            # accommodations 等其他字段不受影响
             # 注：buildings 种子的保护靠 init_db 幂等 + merge 不覆写其他字段
 
     @pytest.mark.asyncio

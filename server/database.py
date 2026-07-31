@@ -343,6 +343,11 @@ async def init_db():
                     with open(_admin_path, "r", encoding="utf-8") as _f:
                         _admin_seed = _json.load(_f)
                     _admin_pwd = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "admin123")
+                    if _admin_pwd == "admin123":
+                        logger.warning(
+                            "⚠️ ADMIN_BOOTSTRAP_PASSWORD 使用默认值 admin123，"
+                            "生产环境必须设置环境变量！"
+                        )
                     _now = datetime.utcnow().isoformat()
                     session.add(_User(
                         id=_admin_seed["id"],
