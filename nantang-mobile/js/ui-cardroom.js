@@ -359,12 +359,14 @@ function openCardRoom() {
   if (typeof getBuildings === 'function') getBuildings();
   var el = document.getElementById('overlayCardRoom');
   if (!el) { showToast('卡片室模块未加载', 'error'); return; }
+  _pushOverlay('overlayCardRoom');
   el.classList.add('open');
   renderCardRoom();
 }
 function openVerifyRoom() {
   var el = document.getElementById('overlayVerifyRoom');
   if (!el) { console.error('[VerifyRoom] overlay not found'); return; }
+  _pushOverlay('overlayVerifyRoom');
   el.classList.add('open');
   try { renderVerifyRoom(); } catch(e) { console.error('[VerifyRoom] render failed', e); }
 }
@@ -374,13 +376,11 @@ function renderVerifyRoom() {
   el.innerHTML = _renderVerifyTab();
 }
 function closeVerifyRoom() {
-  var el = document.getElementById('overlayVerifyRoom');
-  if (el) el.classList.remove('open');
+  closeOverlay('overlayVerifyRoom');
 }
 
 function closeCardRoom() {
-  var el = document.getElementById('overlayCardRoom');
-  if (el) el.classList.remove('open');
+  closeOverlay('overlayCardRoom');
 }
 
 var _cardFilter = '全部';

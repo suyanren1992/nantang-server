@@ -12,8 +12,7 @@ function openInn() {
 }
 
 function closeInn() {
-  document.getElementById('overlayInn').classList.remove('open');
-  document.getElementById('overlayCampHome').classList.add('open');
+  closeOverlay('overlayInn');
 }
 
 function _innSeed() {
@@ -387,8 +386,7 @@ function openCanteen() {
 }
 
 function closeCanteen() {
-  document.getElementById('overlayCanteen').classList.remove('open');
-  document.getElementById('overlayCampHome').classList.add('open');
+  closeOverlay('overlayCanteen');
 }
 
 function _canteenDateLabel(d) {
