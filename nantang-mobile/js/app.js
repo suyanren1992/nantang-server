@@ -1790,6 +1790,7 @@ function _updateFieldSheetContent(h) {
 }
 // A-CLEAN-WEEKLY: 大扫除周任务——选英雄式选卡+3s轮询+校核闭环
 var _cleanPollTimer = null;
+var _cleanWeeklyTasks = [];
 function openCleanWeekly() {
   _pushOverlay('overlayCleanWeekly');
   document.getElementById('overlayCleanWeekly').classList.add('open');
@@ -1826,6 +1827,7 @@ function renderCleanWeekly() {
   if (typeof API !== 'undefined' && API.token) {
     API.cleanWeeklyTasks('').then(function(r) {
       if (r && r.tasks) {
+        _cleanWeeklyTasks = r.tasks;
         if (isAdmin) _renderCleanAdmin(el, r); else _renderCleanUserCards(el, r);
       } else { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">🧹 本周暂无大扫除任务</div>'; }
     }).catch(function() { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">加载失败</div>'; });
@@ -1948,7 +1950,14 @@ function _doCleanUnclaim(taskId) {
 }
 function _doCleanSubmit(taskId) {
   API.cleanWeeklySubmit(taskId).then(function(r) {
-    if (r && r.ok) { showToast('已提交校核 +'+(r.nt_amount||'')+' NT','ok'); renderCleanWeekly(); }
+    if (r && r.ok) {
+      var t = _cleanWeeklyTasks.find(function(t){ return t.id === taskId; });
+      var nt = r.nt_amount || (t&&t.reward_nt) || 15;
+      if (t && window.AppData && typeof AppData.addVerification === 'function') {
+        AppData.addVerification('cleaning', CURRENT_USER, '打扫了 '+t.space_name, { taskId: taskId, space: t.space_name }, nt, AppData._verifierReward(nt));
+      }
+      showToast('已提交校核 +'+nt+' NT','ok'); renderCleanWeekly();
+    }
     else { showToast((r&&r.detail)||'提交失败','error'); }
   }).catch(function(){ showToast('网络错误','error'); });
 }
