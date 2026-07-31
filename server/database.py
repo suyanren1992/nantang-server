@@ -72,7 +72,7 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_nt_tasks_camp_ref_id ON nt_tasks(camp_ref_id)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_doer ON verifications(doer)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_deposit_intents_user_id ON deposit_intents(user_id)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_journal_user ON journal(user)"))
+        await conn.execute(text('CREATE INDEX IF NOT EXISTS idx_journal_user ON journal("user")'))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_memberships_camp_id ON camp_memberships(camp_id)"))
         # UI-FIX-P2-BE B1: storage_items 复合索引
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_storage_items_user_location ON storage_items(user_id, storage_location)"))
@@ -90,7 +90,7 @@ async def init_db():
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_verifications_verifier ON verifications(verifier)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_camp_builders_camp_id ON camp_builders(camp_id)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_canteen_menu_date ON canteen_menu(date)"))
-        await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_meal_orders_user ON meal_orders(user)"))
+        await conn.execute(text('CREATE INDEX IF NOT EXISTS idx_meal_orders_user ON meal_orders("user")'))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_week_start ON clean_weekly_tasks(week_start_date)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_claimed_by ON clean_weekly_tasks(claimed_by)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_clean_weekly_dist_week_start ON clean_weekly_distributions(week_start_date)"))
