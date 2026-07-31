@@ -297,11 +297,30 @@ def _frontend_api_corpus():
     return corpus
 
 
+_BARE_PATH_RE = re.compile(r"this\.request\(\s*'(\w+)'\s*,\s*'([^']*)'")
+
+
+def _scan_js_bare_paths(filename, src):
+    """单文件裸路径扫描——纯函数，不碰文件系统，可单测。
+
+    filename: 仅用于生成违规描述中的文件名（如 "api.js"）
+    src: JS 源码字符串
+    返回 list[str]: "file.js:行号: METHOD path" 或空列表。
+    变量拼接路径（如 '/api/fields/' + id）只判前缀字面量，不做求值。
+    """
+    violations = []
+    for m in _BARE_PATH_RE.finditer(src):
+        method, path = m.group(1), m.group(2)
+        if not path.startswith("/api/"):
+            lineno = src[:m.start()].count("\n") + 1
+            violations.append(f"{filename}:{lineno}: {method} {path}")
+    return violations
+
+
 def check_api_prefix(js_dir):
     """GATE-1: 扫 js/*.js 所有 this.request 路径，非 /api/ 开头 → 违规列表。
 
-    纯函数，可单测。返回 list[str]: "file.js:行号: METHOD path" 或空列表。
-    变量拼接路径（如 '/api/fields/' + id）只判前缀字面量，不做求值。
+    返回 list[str]: "file.js:行号: METHOD path" 或空列表。
     """
     violations = []
     p = Path(js_dir)
@@ -309,11 +328,7 @@ def check_api_prefix(js_dir):
         return violations
     for f in sorted(p.glob("*.js")):
         src = f.read_text(encoding="utf-8", errors="replace")
-        for m in re.finditer(r"this\.request\(\s*'(\w+)'\s*,\s*'([^']*)'", src):
-            method, path = m.group(1), m.group(2)
-            if not path.startswith("/api/"):
-                lineno = src[:m.start()].count("\n") + 1
-                violations.append(f"{f.name}:{lineno}: {method} {path}")
+        violations.extend(_scan_js_bare_paths(f.name, src))
     return violations
 
 
