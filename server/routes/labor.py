@@ -5,10 +5,12 @@ labor_pricing 48 项入 map_locations.config.labor（后端真源，前端对齐
 D-15 提案-校核-生效路径可修改价目。
 """
 import logging
+import json
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from database import get_db
-from models import User
+from models import User, NTTask, NTLedger, Verification
 from routes.auth import get_current_user
 
 logger = logging.getLogger("labor")
@@ -71,6 +73,66 @@ BED_RATES_CONFIG = {
     "dorm101": 20, "dorm102": 30, "dorm103": 30,
     "dorm104": 60, "dorm105": 30, "dorm106": 35,
 }
+
+
+@router.get("/history")
+async def labor_history(user: User = Depends(get_current_user),
+                        db: AsyncSession = Depends(get_db),
+                        limit: int = 50):
+    """GET /api/labor/history — 个人劳动历史（已完成任务 + 校核记录 + 相关流水）。"""
+    lim = min(limit, 200)
+    uid = user.id.replace('%', r'\%').replace('_', r'\_')
+    items = []
+
+    # 1. 已完成/已结算的任务
+    task_r = await db.execute(
+        select(NTTask).where(
+            (NTTask.assignee == user.id) |
+            (NTTask.assignees.like(f'%"{uid}"%', escape='\\')),
+            NTTask.status.in_(("待结算", "已结算")),
+        ).order_by(NTTask.completed_at.desc()).limit(lim)
+    )
+    for t in task_r.scalars():
+        items.append({
+            "type": "task", "id": t.id,
+            "title": t.title, "category": t.category,
+            "reward": t.reward, "status": t.status,
+            "time": t.completed_at or t.settled_at or t.created_at,
+            "poster": t.poster, "camp_ref_id": t.camp_ref_id,
+        })
+
+    # 2. 校核通过的记录
+    vfy_r = await db.execute(
+        select(Verification).where(
+            Verification.doer == user.id,
+            Verification.status == "verified",
+        ).order_by(Verification.verified_at.desc()).limit(lim)
+    )
+    for v in vfy_r.scalars():
+        items.append({
+            "type": "verification", "id": v.id,
+            "action": v.action, "nt_amount": v.nt_amount,
+            "verifier": v.verifier,
+            "time": v.verified_at or v.created_at,
+        })
+
+    # 3. 劳动收入流水
+    ledger_r = await db.execute(
+        select(NTLedger).where(
+            NTLedger.to_user == user.id,
+            NTLedger.type.in_(("earn", "task_reward", "personal_earn")),
+        ).order_by(NTLedger.created_at.desc()).limit(lim)
+    )
+    for e in ledger_r.scalars():
+        items.append({
+            "type": "ledger", "entry_id": e.entry_id,
+            "amount": e.amount, "reason": e.reason,
+            "time": e.created_at,
+        })
+
+    # 按时间倒序
+    items.sort(key=lambda x: x.get("time") or "", reverse=True)
+    return {"ok": True, "items": items[:lim]}
 
 
 @router.get("/config")

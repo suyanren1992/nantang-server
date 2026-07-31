@@ -546,6 +546,26 @@ async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
             "queued": queue_amount, "expected_time": "24小时内"}
 
 
+@router.get("/withdraw/history")
+async def withdraw_history(user: User = Depends(get_current_user),
+                           db: AsyncSession = Depends(get_db),
+                           limit: int = 30):
+    """GET /api/nt/withdraw/history — 提现历史记录。"""
+    result = await db.execute(
+        select(NTLedger).where(
+            NTLedger.from_user == user.id,
+            NTLedger.type.in_(("withdraw", "withdraw_confirmed", "withdraw_rejected")),
+        ).order_by(NTLedger.created_at.desc()).limit(min(limit, 100))
+    )
+    items = [{
+        "entry_id": e.entry_id, "amount": e.amount,
+        "status": e.status, "reason": e.reason,
+        "time": e.created_at, "settled_at": e.settled_at,
+        "tx_hash": e.tx_hash,
+    } for e in result.scalars()]
+    return {"ok": True, "items": items}
+
+
 @router.get("/verify")
 async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User))

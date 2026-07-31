@@ -81,6 +81,44 @@ async def _camp_people_count(db: AsyncSession, camp_id: str) -> int:
     )).scalar_one()
 
 
+@router.get("/budget")
+async def camps_budget(camp_id: str = None,
+                       user: User = Depends(get_current_user),
+                       db: AsyncSession = Depends(get_db)):
+    """GET /api/camps/budget — 营地预算。camp_id 可选，不传则返回所有营地预算汇总。"""
+    if camp_id:
+        camp = (await db.execute(
+            select(Camp).where(Camp.id == camp_id)
+        )).scalar_one_or_none()
+        if not camp:
+            raise HTTPException(status_code=404, detail="营地不存在")
+        try:
+            budget = json.loads(camp.budget) if camp.budget else {}
+        except (json.JSONDecodeError, TypeError):
+            budget = {}
+        return {
+            "ok": True,
+            "camp_id": camp.id, "name": camp.name,
+            "budget": budget,
+        }
+    # 全量汇总
+    result = await db.execute(
+        select(Camp).where(Camp.status != "archived")
+        .order_by(Camp.created_at.desc()).limit(100)
+    )
+    items = []
+    for c in result.scalars():
+        try:
+            b = json.loads(c.budget) if c.budget else {}
+        except (json.JSONDecodeError, TypeError):
+            b = {}
+        items.append({
+            "camp_id": c.id, "name": c.name,
+            "budget": b,
+        })
+    return {"ok": True, "items": items}
+
+
 @router.get("")
 async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
                      limit: int = 50, offset: int = 0):

@@ -12,6 +12,10 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from database import init_db, async_session
 from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant, governance, labor, clean_weekly, storage, archive, fields, user_settings, new_user_tasks
+from routes.community import (
+    potluck_router, proposals_router, camp_proposals_router,
+    notifications_router, health_report_router, cleaning_pricing_router,
+)
 
 # BE-2②: 日志写文件——INFO 级以上落盘，cron 等模块的 logger 自动接入根配置
 LOG_DIR = Path(__file__).resolve().parent / "logs"
@@ -112,6 +116,12 @@ app.include_router(fields.router)  # UI-FIX-P2-BE补 B6 田间
 app.include_router(user_settings.router)  # UI-FIX-P2-BE补 B7 设置
 app.include_router(new_user_tasks.router)  # NEW-USER-TASK-BE 新人任务
 app.include_router(nt.system_router)
+app.include_router(potluck_router)         # P1-#6 ③ 田间接龙
+app.include_router(proposals_router)       # P1-#6 ⑤⑥⑦ 议事厅提案
+app.include_router(camp_proposals_router)  # P1-#6 ⑧ 营地议事
+app.include_router(notifications_router)   # P1-#6 ⑬ 通报
+app.include_router(health_report_router)   # P1-#6 ⑫ 体检报告
+app.include_router(cleaning_pricing_router) # P1-#6 ⑭ 清洁定价
 
 
 @app.middleware("http")

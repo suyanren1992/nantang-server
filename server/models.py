@@ -447,6 +447,49 @@ FIELD_STAGES = ("休耕", "播种", "生长", "成熟", "收割")
 FIELD_HEALTH = ("健康", "缺水", "缺肥", "病虫害")
 
 
+# ══ Phase E: 社区功能（potluck 接龙 / proposals 议事 / votes 投票）══
+
+
+class Potluck(Base):
+    """共享厨房接龙——村民报名带菜/物品。"""
+    __tablename__ = "potlucks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_name = Column(String(100), nullable=False)
+    category = Column(String, default="菜品")            # 菜品 / 饮品 / 工具 / 其他
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    quantity = Column(Integer, default=1)
+    note = Column(String, nullable=True)
+    event_date = Column(String, nullable=True)           # 关联日期（可选）
+    created_at = Column(String, nullable=False)
+
+
+class CommunityProposal(Base):
+    """社区议事提案——村民发起、投票表决。"""
+    __tablename__ = "community_proposals"
+    id = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    proposer_id = Column(String, ForeignKey("users.id"), nullable=False)
+    camp_id = Column(String, ForeignKey("camps.id"), nullable=True)  # 营地提案有此字段
+    category = Column(String, default="general")         # general / pricing / rule / event
+    status = Column(String, default="active")            # active / passed / rejected / expired
+    created_at = Column(String, nullable=False)
+    closed_at = Column(String, nullable=True)
+
+
+class ProposalVote(Base):
+    """提案投票记录——每人每提案一票。"""
+    __tablename__ = "proposal_votes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    proposal_id = Column(String, ForeignKey("community_proposals.id"), nullable=False)
+    voter_id = Column(String, ForeignKey("users.id"), nullable=False)
+    vote = Column(String, nullable=False)                # for / against
+    created_at = Column(String, nullable=False)
+    __table_args__ = (
+        UniqueConstraint("proposal_id", "voter_id", name="uq_proposal_voter"),
+    )
+
+
 class FieldPlot(Base):
     """田间地块——作物种植/生长/收割生命周期。"""
     __tablename__ = "field_plots"
