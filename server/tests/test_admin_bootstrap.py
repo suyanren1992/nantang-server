@@ -13,7 +13,7 @@ import pytest
 from sqlalchemy import select
 
 from auth_utils import hash_password, verify_password
-from database import async_session, DB_PATH, init_db
+from database import async_session, DB_PATH, init_db, _enforce_admin_password_guard
 from models import User
 
 
@@ -108,6 +108,56 @@ class TestAdminBootstrapSeed:
             assert verify_password("admin123", pwd_env) is False
         finally:
             del os.environ["ADMIN_BOOTSTRAP_PASSWORD"]
+
+
+class TestAdminPasswordGuardBlock:
+    """C-1: 默认管理员密码守卫——非 dev 环境 + 默认密码 = 阻断启动。
+
+    判据（机器可验证）：
+      1. 非 dev（无 TESTING / ENVIRONMENT=production）+ 默认 admin123 → raise RuntimeError
+      2. dev（TESTING=1）+ 默认 admin123 → 不 raise（仅告警）
+      3. 自定义密码 → 不 raise
+    """
+
+    @pytest.mark.asyncio
+    async def test_prod_default_password_raises(self):
+        """非 dev 环境 + 默认密码 → RuntimeError 阻断。"""
+        saved_testing = os.environ.pop("TESTING", None)
+        saved_env = os.environ.get("ENVIRONMENT")
+        saved_pwd = os.environ.pop("ADMIN_BOOTSTRAP_PASSWORD", None)
+        os.environ["ENVIRONMENT"] = "production"
+        try:
+            with pytest.raises(RuntimeError, match="非开发环境拒绝启动"):
+                _enforce_admin_password_guard()
+        finally:
+            if saved_testing is not None:
+                os.environ["TESTING"] = saved_testing
+            if saved_env is not None:
+                os.environ["ENVIRONMENT"] = saved_env
+            else:
+                os.environ.pop("ENVIRONMENT", None)
+            if saved_pwd is not None:
+                os.environ["ADMIN_BOOTSTRAP_PASSWORD"] = saved_pwd
+
+    @pytest.mark.asyncio
+    async def test_dev_default_password_no_raise(self):
+        """dev 环境（TESTING=1）+ 默认密码 → 不阻断。"""
+        os.environ["TESTING"] = "1"
+        os.environ.pop("ADMIN_BOOTSTRAP_PASSWORD", None)
+        _enforce_admin_password_guard()  # 不应 raise
+
+    @pytest.mark.asyncio
+    async def test_custom_password_no_raise(self):
+        """自定义密码 → 守卫直接放行。"""
+        saved_pwd = os.environ.get("ADMIN_BOOTSTRAP_PASSWORD")
+        os.environ["ADMIN_BOOTSTRAP_PASSWORD"] = "SecurePwd2026!"
+        try:
+            _enforce_admin_password_guard()  # 不应 raise
+        finally:
+            if saved_pwd is not None:
+                os.environ["ADMIN_BOOTSTRAP_PASSWORD"] = saved_pwd
+            else:
+                os.environ.pop("ADMIN_BOOTSTRAP_PASSWORD", None)
 
 
 class TestAdminDefaultPasswordWarning:

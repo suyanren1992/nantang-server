@@ -48,6 +48,31 @@ async def get_db():
         yield session
 
 
+def _enforce_admin_password_guard():
+    """C-1: 默认管理员密码守卫。
+
+    默认密码 admin123 时：dev/test 环境（TESTING 或 ENVIRONMENT=dev/development/test/local）
+    仅 logger.warning 告警；非开发环境直接 raise RuntimeError 阻断启动，
+    杜绝公开已知凭据（admin_bootstrap / admin123）被部署上线。
+    """
+    pwd = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "admin123")
+    if pwd != "admin123":
+        return
+    _is_dev = bool(
+        os.getenv("TESTING")
+        or os.getenv("ENVIRONMENT", "").lower() in ("dev", "development", "test", "local")
+    )
+    logger.warning(
+        "⚠️ ADMIN_BOOTSTRAP_PASSWORD 使用默认值 admin123，"
+        "生产环境必须设置环境变量！"
+    )
+    if not _is_dev:
+        raise RuntimeError(
+            "ADMIN_BOOTSTRAP_PASSWORD 未设置（默认 admin123），非开发环境拒绝启动。"
+            "请设置 ADMIN_BOOTSTRAP_PASSWORD 环境变量后再部署。"
+        )
+
+
 async def init_db():
     async with engine.begin() as conn:
         # SQLite 专属 PRAGMA（PG 上跳过，否则报错）
@@ -343,11 +368,7 @@ async def init_db():
                     with open(_admin_path, "r", encoding="utf-8") as _f:
                         _admin_seed = _json.load(_f)
                     _admin_pwd = os.getenv("ADMIN_BOOTSTRAP_PASSWORD", "admin123")
-                    if _admin_pwd == "admin123":
-                        logger.warning(
-                            "⚠️ ADMIN_BOOTSTRAP_PASSWORD 使用默认值 admin123，"
-                            "生产环境必须设置环境变量！"
-                        )
+                    _enforce_admin_password_guard()  # C-1: 默认密码守卫（dev 告警 / 非 dev 阻断）
                     _now = datetime.utcnow().isoformat()
                     session.add(_User(
                         id=_admin_seed["id"],
