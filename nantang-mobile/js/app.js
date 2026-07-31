@@ -2396,10 +2396,17 @@ function renderKitchenPanel() {
   var upperWarn = upperItems.filter(function(i){ return _itemExpired(i)==='warn'||_itemExpired(i)==='expired'; }).length;
   var lowerWarn = lowerItems.filter(function(i){ return _itemExpired(i)==='warn'||_itemExpired(i)==='expired'; }).length;
 
-  // ═══ ① 提醒 ═══
+  // ═══ ① 提醒 + 库存清单 ═══
   h += '<div class="mgmt-reminders">';
   if (upperWarn+lowerWarn > 0) h += '<div class="mr-item warn">⚠ 冰箱 '+upperWarn+lowerWarn+' 件物品临期/过期 · 建议清理</div>';
-  h += '<div class="mr-item info">🧊 冷冻 '+lowerItems.length+'件 · 冷藏 '+upperItems.length+'件</div>';
+  h += '<div class="mr-item info">🧊 冷冻 '+lowerItems.length+'件 · 冷藏 '+upperItems.length+'件 · 储物间 '+(inv.length-upperItems.length-lowerItems.length)+'件</div>';
+  // ⑩ 库存清单
+  var allFridge = inv.filter(function(it){ return it.status !== 'consumed'; });
+  if (allFridge.length) {
+    h += '<div class="mr-item" style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📋 '+
+      allFridge.slice(0,8).map(function(it){ return esc(it.name); }).join('、')+
+      (allFridge.length > 8 ? ' …等'+allFridge.length+'件' : '')+'</div>';
+  }
   h += '</div>';
 
   // ═══ ② 操作按钮 ═══
