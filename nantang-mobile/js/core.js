@@ -315,11 +315,13 @@ function _startPolling() {
       // D-18: 排空离线提现队列
       if (typeof _drainPendingWithdraws === 'function') _drainPendingWithdraws();
     }).catch(function(e){console.warn('[poll] sync failed',e)});
-    // 退避
+    // 退避 + jitter
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
     _pollInterval = (typeof API !== 'undefined' && API._serverOnline === false)
       ? Math.min(_pollInterval * 2, 120000) : 30000;
-    _pollTimer = setInterval(_pollCycle, _pollInterval);
+    // B3: ±20% jitter 防所有客户端同时请求（thundering herd）
+    var jitter = Math.floor(_pollInterval * (Math.random() * 0.4 - 0.2));
+    _pollTimer = setInterval(_pollCycle, _pollInterval + jitter);
   }
   _pollCycle();  // 立即执行首次，后续由内部 setInterval 递归调度
 }
