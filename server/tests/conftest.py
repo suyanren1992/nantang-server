@@ -13,6 +13,7 @@ if str(_SERVER_DIR) not in sys.path:
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import text
 from httpx import AsyncClient, ASGITransport
 
 _TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -61,13 +62,33 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="session")
 async def _setup_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # init_db 一步到位：create_all + 索引 + 轻量迁移 + 种子数据。
+    # 后续每测由 _isolate_db 清表后重种，保证种子常驻。
+    await init_db()
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
     Path(_TMP_DB.name).unlink(missing_ok=True)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _isolate_db(_setup_db):
+    """每测隔离：测后 FK 逆序清空全表 + init_db 重种基线。
+
+    session 引擎只建一次 schema；此 fixture teardown 先清全表再 init_db，
+    保证下一测拿到「干净 schema + 种子基线」。autouse 覆盖 client（走 app
+    get_db）与 db 两条路径；teardown 在两者之后执行（autouse 先建后拆）。
+    """
+    yield
+    async with engine.begin() as conn:
+        for tbl in reversed(Base.metadata.sorted_tables):
+            await conn.execute(tbl.delete())
+        try:
+            await conn.execute(text("DELETE FROM sqlite_sequence"))
+        except Exception:
+            pass  # sqlite_sequence 不存在时跳过
+    await init_db()
 
 
 @pytest_asyncio.fixture

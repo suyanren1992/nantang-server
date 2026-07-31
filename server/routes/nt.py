@@ -1322,7 +1322,6 @@ async def _run_daily_settlement(db, today: str | None = None):
             results["caught_up_days"] += 1
         t.last_deducted = today
 
-    # 【NT-P0-6】pool_refill 已删除 — NT 只从链上充值来，平台绝不印。
     # 池空时直接拒绝派工（见本函数上游 400 分支），不补印、不欠账。
 
     # 2. 盈余划拨：运营池 > 1000 时，超出 500 的部分转入储备池
