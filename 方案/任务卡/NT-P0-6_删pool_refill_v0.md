@@ -77,3 +77,28 @@
   格式：交付表（文件/改动行数）+ pytest 前后对比 + commit hash
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  【卡面更正 · 丞相 22:55】
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ②项范围缩小：nt.py 三处 except pass 已由 2 营 `3ae6ef9` 完成
+  （1121/1141/1159 均已 logger.warning + exc_info=True）。
+
+  ② 修正后只做 2 处：
+     · server/database.py:182  → 真 pass（迁移跳过）
+       改 logger.debug("迁移跳过: %s", e)  ★用 debug 不用 warning，避免启动噪音
+     · server/chain_scanner.py:130 → 静默 return
+       改 logger.warning("scanner 提前返回: %s", e) 后再 return
+
+     不动：chain_scanner.py:72/101/110（已有 print，统一改 logger 另案 P2）
+     不动：database.py 其余 await session.rollback() 分支（有意为之）
+
+  ①项（删 pool_refill）**未做**，仍是本卡核心。
+  丞相 22:55 亲证 nt.py 仍有：
+     1330  await _add_ledger(db, lid_r, None, "community_pool", 20, "pool_refill",
+     1332  results["pool_refill"] = 20
+
+  基线更正：2 营已推进到 P0⑤，pytest 基线需自行跑一遍确认再对比。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

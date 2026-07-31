@@ -2547,3 +2547,46 @@ nantang-mobile/js/ui-cardroom.js   | 10 ++++----
 - `P3-一营戊_B2补漏_v0.md` → 1营（11处色值 + 全角分号 + 6处裸路径 + ?v= bump）
 
 ---
+
+### ⚠️ 丞相自纠（22:55）— 撤回上条「误报 2 项」判定
+
+**上条记档有误，此处更正。**
+
+我 21:20 勘察时看到 `auth.py:19 _PASSWORD_MAX=128` 与 `nt.py:682 Depends(require_admin)` 已存在，
+遂判定「全面审查报告 P0③④ 误报」。**判错了。**
+
+`git log -S` 亲证：
+- `5eb52d1`（21:40）2营 P0③ 才加的 `_PASSWORD_MAX`
+- `0342062`（21:47）2营 P0④ 才加的 `require_admin`
+
+即：**2 营在我勘察之后才施工**，我看到的是 2 营的成果，却记成「早已存在」。
+报告没错，是我的勘察时间点晚于施工、又没查 `git log -S` 溯源。
+
+**失职归因**：铁律 1「制卡前必亲证」我做了 grep，但漏了铁律 2「派工前必查 git log」的溯源动作。
+只 grep 当前状态无法区分「历史就有」与「刚刚做完」。
+
+**改正规则（自定）**：判定「某项早已修复/报告误报」前，必须跑
+`git log --oneline -S "<关键标识>" -- <file>` 溯源到具体 commit，看时间戳。
+只看当前代码状态不足以下「误报」结论。
+
+**结论更正**：全面审查报告 5 项 P0 **无误报**，2 营已全部完成：
+
+| 项 | commit | 时间 |
+|---|---|---|
+| P0① admin密码 ENVIRONMENT 守卫 | `2bb840a` | 21:33 |
+| P0② deploy.sh certbot HTTPS | `5bf7ac7` | 21:35 |
+| P0③ 密码 128 上限（三入口 + bcrypt 72字节截断） | `5eb52d1` | 21:40 |
+| P0④ chain-balance require_admin | `0342062` | 21:47 |
+| P0⑤ 三处 except pass → logger.warning | `3ae6ef9` | 21:50 |
+
+### NT-P0-6 卡面更正（②项范围缩小）
+
+原卡 ②「5 处 except pass 补日志」中 nt.py 三处（1121/1141/1159）
+**已由 2 营 `3ae6ef9` 完成**（logger.warning + exc_info=True）。
+
+剩余 2 处待修：
+- `server/database.py:182` → 真 `pass`（迁移跳过，建议 logger.debug 而非 warning，避免启动噪音）
+- `server/chain_scanner.py:130` → `return`（非 pass，但静默；建议加 logger.warning）
+- `server/chain_scanner.py:72/101/110` → 已有 `print(...)`，建议统一改 logger（P2，非本卡）
+
+---
