@@ -82,6 +82,7 @@ async def list_tasks(response: Response, scope: str = None, status: str = None, 
              "location_id": t.location_id, "note": t.note, "evidence": t.evidence,
              "reject_reason": t.reject_reason, "settler_id": t.settler_id,
              "is_system_generated": t.is_system_generated,
+             "is_newbie_task": getattr(t, "is_newbie_task", False),
              "created_at": t.created_at, "accepted_at": t.accepted_at, "completed_at": t.completed_at,
              "settled_at": t.settled_at} for t in tasks]
 

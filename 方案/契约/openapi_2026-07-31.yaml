@@ -666,6 +666,71 @@ components:
           type: string
           format: date-time
 
+    # ── NTTask (tasks) ──
+    NTTask:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "nb_user1_tpl1_abc123"
+        title:
+          type: string
+        reward:
+          type: integer
+        category:
+          type: string
+        scope:
+          type: string
+        status:
+          type: string
+          example: "进行中"
+        poster:
+          type: string
+        assignee:
+          type: string
+          nullable: true
+        slots:
+          type: integer
+        deadline:
+          type: string
+          nullable: true
+          format: date-time
+          description: 任务截止时间（ISO 8601）
+        reviewer:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        location_id:
+          type: string
+          nullable: true
+        evidence:
+          type: string
+          nullable: true
+        is_system_generated:
+          type: boolean
+          default: false
+        is_newbie_task:
+          type: boolean
+          default: false
+          description: 新人任务标记（NEW-USER-TASK-BE/FE）
+        created_at:
+          type: string
+          format: date-time
+        accepted_at:
+          type: string
+          nullable: true
+          format: date-time
+        completed_at:
+          type: string
+          nullable: true
+          format: date-time
+        settled_at:
+          type: string
+          nullable: true
+          format: date-time
+
   responses:
     BadRequest:
       description: 请求参数错误（400）
