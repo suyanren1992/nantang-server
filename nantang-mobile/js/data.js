@@ -709,7 +709,9 @@ function openCommunityPage(){_pushOverlay('overlayCommunity'); document.getEleme
 function getCamps(){ return (window.AppData&&AppData._data.camps) ? Object.values(AppData._data.camps) : []; }
 function renderCommunityHub() {
   var el = document.getElementById('communityHubContent'); if (!el) return;
-  var role = (typeof getUsers==='function'?getUsers():{})[CURRENT_USER]||{};
+  // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
+  var serverRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role : null;
+  var role = serverRole ? {role:serverRole} : ((typeof getUsers==='function'?getUsers():{})[CURRENT_USER]||{});
   var isMember = isMemberByRole(role.role);
   var isAdmin = role.role==='admin';
   var active = getCamps().filter(function(c){ return c.status==='active'; });

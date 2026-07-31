@@ -356,7 +356,9 @@ function _renderMgmtCards() {
   var h = '<div class="info-cards">';
   // ⑳ 角色仪表盘：visitor 只看住宿+世界终端，npc/admin 看全部
   var me = _me();
-  var myRole = (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
+  // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
+  var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
+               (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
   var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
   // visitor 专属：住宿引导卡
   if (!isMember) {
@@ -401,11 +403,10 @@ function _renderMgmtCards() {
     var warn = d !== null && d <= 0 ? ' <span class="ic-warn">过期</span>' : d !== null && d <= 2 ? ' <span class="ic-warn">'+d+'天</span>' : '';
     return '<div>📦 '+esc(it.name)+' · '+esc(it.putBy)+warn+'</div>';
   }).join('') : '';
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'kitchen\')"><div class="ic-head">🍳 厨房·冰箱</div>'+
+  h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房·冰箱</div>'+
     '<div class="ic-body">'+(kitchenLines||'<div class="ic-muted">暂无物品，点此录入</div>')+'</div></div>';
   // ⑫ 世界终端——admin 专属入口
-  var me = _me();
-  if (me && (typeof getUsers==='function') && ((getUsers()[me]||{}).role==='admin')) {
+  if (myRole === 'admin') {
     h += '<div class="ic-card world-terminal" onclick="openCreateCamp()"><div class="ic-head">🌍 世界终端</div>'+
       '<div class="ic-body"><div class="ic-muted">创建新的共创营队</div></div></div>';
   }
@@ -416,7 +417,9 @@ function _renderMgmtCards() {
 function _renderQuickEntryCards() {
   // ⑳ 角色仪表盘：visitor 不显示操作卡片
   var me = _me();
-  var myRole = (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
+  // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
+  var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
+               (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
   var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
   // SM-3.3: 恢复 🧹 快捷打扫卡——D 修复误删了真入口（openSelfReport 走校核闭环），留的假入口 _submitMyCleaning 只写本地历史不触发 NT
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
