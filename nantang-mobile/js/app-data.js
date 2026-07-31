@@ -240,14 +240,18 @@ window.AppData = {
   _timerS: null, _timerP: null,
   _saveShared: function(immediate) {
     clearTimeout(this._timerS);
-    var data = { tasks: this._data.tasks, camps: this._data.camps, users: this._data.users, canteenMenu: this._data.canteenMenu, spaces: this._data.spaces, inventory: this._data.inventory, map_locations: this._data.map_locations, member_locations: this._data.member_locations, campRmb: this._data.campRmb, pendingTransactions: this._data.pendingTransactions, pendingVerifications: this._data.pendingVerifications, announcements: this._data.announcements, presence: this._data.presence, discoveries: this._data.discoveries, cardDiscoveries: this._data.cardDiscoveries, pendingConfigChanges: this._data.pendingConfigChanges, configHistory: this._data.configHistory, activity_log: this._data.activity_log, mealOrders: this._data.mealOrders, camp_memberships: this._data.camp_memberships, _lastAccommodationDeduction: this._data._lastAccommodationDeduction, _lastPoolRefill: this._data._lastPoolRefill };
-    if (immediate) { this._saveKey('nt_app_v2_shared', data); return; }
+    // B1: 延迟构建 data 对象——多次同步调用只写一次，批量省序列化开销
+    var self = this;
+    var doWrite = function() {
+      var data = { tasks: self._data.tasks, camps: self._data.camps, users: self._data.users, canteenMenu: self._data.canteenMenu, spaces: self._data.spaces, inventory: self._data.inventory, map_locations: self._data.map_locations, member_locations: self._data.member_locations, campRmb: self._data.campRmb, pendingTransactions: self._data.pendingTransactions, pendingVerifications: self._data.pendingVerifications, announcements: self._data.announcements, presence: self._data.presence, discoveries: self._data.discoveries, cardDiscoveries: self._data.cardDiscoveries, pendingConfigChanges: self._data.pendingConfigChanges, configHistory: self._data.configHistory, activity_log: self._data.activity_log, mealOrders: self._data.mealOrders, camp_memberships: self._data.camp_memberships, _lastAccommodationDeduction: self._data._lastAccommodationDeduction, _lastPoolRefill: self._data._lastPoolRefill };
+      self._saveKey('nt_app_v2_shared', data);
+    };
+    if (immediate) { doWrite(); return; }
     // 21: 服务器同步——限频 ≥5s，避免连续操作触发请求风暴
     if (typeof API !== 'undefined' && API.token) {
       var now = Date.now();
       if (!this._lastSyncPost || (now - this._lastSyncPost) >= 5000) {
         this._lastSyncPost = now;
-        var self = this;
         var payload = {
         camps: this._data.camps,
         map_locations: this._data.map_locations,
@@ -260,8 +264,7 @@ window.AppData = {
       };
       API.request('POST', '/api/data/sync_shared', payload);
     }
-    var self = this;
-    this._timerS = setTimeout(function() { self._saveKey('nt_app_v2_shared', data); }, 200);
+    this._timerS = setTimeout(doWrite, 200);
   },
   _savePrivate: function(immediate) {
     if (!this._currentUser) return;
