@@ -403,12 +403,18 @@ async def sync_shared(req: dict, user: User = Depends(get_current_user), db: Asy
             if not existing:
                 db.add(Camp(id=camp_id, name=camp_data.get("name",""), created_by=user.id,
                            created_at=datetime.utcnow().isoformat()))
-    # 地图（仅管理员可覆盖）
-    if _ml and user.role == "admin":
+    # 地图（仅管理员可写——REDTEAM-B-B3: merge 而非覆写，保护 buildings 种子）
+    if _ml:
+        if user.role != "admin":
+            raise HTTPException(status_code=403, detail="仅管理员可修改地图数据")
         ml = (await db.execute(select(MapLocation).where(MapLocation.key == "shared"))).scalar_one_or_none()
         if not ml:
             ml = MapLocation(key="shared"); db.add(ml)
-        ml.data = json.dumps(_ml, ensure_ascii=False)
+        # REDTEAM-B-B3: deep_merge 保护种子——新数据 merge 到已有数据上
+        from utils.merge import deep_merge
+        _existing = json.loads(ml.data) if ml.data else {}
+        _merged = deep_merge(_existing, _ml)
+        ml.data = json.dumps(_merged, ensure_ascii=False)
     # 食堂菜单（仅管理员可设置）
     if _cm and user.role == "admin":
         for date, menu in _cm.items():
