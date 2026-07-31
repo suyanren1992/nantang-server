@@ -11,6 +11,26 @@ import json
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool, BED_RATES
 from nt_helpers import _safe_assignees
+
+
+async def _checkin_newbie_hook(user: User, db, original_role: str | None = None) -> list[dict]:
+    """NEW-USER-TASK-BE: 首次入住派发新人任务。
+    复用 User.first_checkin_date 判断是否已派发。
+    original_role: 角色升级前的原始角色（用于模板匹配）。
+    返回派发的任务列表（供调用方拼入响应）。不 commit。"""
+    if user.first_checkin_date is not None:
+        return []  # 已派发过，不重复
+    from datetime import date as _d
+    user.first_checkin_date = _d.today()
+    from routes.new_user_tasks import _auto_assign_newbie_tasks
+    # 用原始角色查模板（checkin 先升级再派发，但模板应匹配升级前的角色）
+    if original_role and original_role != user.role:
+        _saved = user.role
+        user.role = original_role
+        result = await _auto_assign_newbie_tasks(db, user)
+        user.role = _saved
+        return result
+    return await _auto_assign_newbie_tasks(db, user)
 router = APIRouter(prefix="/api/accommodation", tags=["accommodation"])
 
 # G-3: 欠费上限阈值（天数进 config 不硬编码）——超 REMIND 天房费提醒、超 LIMIT 天房费限新预定
@@ -95,13 +115,17 @@ async def _inn_checkin(req: "CheckinRequest", user: User, db: AsyncSession):
                 checkin_date=req.check_in, check_out_date=req.check_out,
                 track="inn", room_type=room.room_type, status="active")
     db.add(t)
+    old_role = user.role
     if user.role == "visitor":
         user.role = "npc"
+    # NEW-USER-TASK-BE: 首次入住派发新人任务（用升级前角色匹配模板）
+    newbie_tasks = await _checkin_newbie_hook(user, db, original_role=old_role)
     await db.commit()
     return {"ok": True, "track": "inn", "room_id": req.room_id,
             "room_type": room.room_type, "room_label": room.label,
             "check_in": req.check_in, "check_out": req.check_out,
-            "role": user.role}
+            "role": user.role,
+            "assigned_newbie_tasks": newbie_tasks}
 
 
 @router.post("/checkin")
@@ -152,12 +176,16 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
                 checkin_date=now, status="active")
     db.add(t)
     # 角色升级：visitor → npc
+    old_role = user.role
     if user.role == "visitor":
         user.role = "npc"
+    # NEW-USER-TASK-BE: 首次入住派发新人任务（用升级前角色匹配模板）
+    newbie_tasks = await _checkin_newbie_hook(user, db, original_role=old_role)
     await db.commit()
     return {"ok": True, "room_id": req.room_id, "bed_num": req.bed_num,
             "checkin_date": now, "role": user.role,
-            "switched_from": old_room}
+            "switched_from": old_room,
+            "assigned_newbie_tasks": newbie_tasks}
 
 
 @router.post("/checkout")

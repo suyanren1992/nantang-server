@@ -1117,6 +1117,24 @@ async def approve_verification(vfy_id: str, req: VerificationApproveRequest,
                     await db.commit()
         except Exception:
             pass  # 周任务状态更新失败不阻塞校核
+    # ══ NEW-USER-TASK-BE: 校核通过后标记新人任务待结算 ══
+    if vfy.type == "newbie_task":
+        try:
+            vfy_detail = json.loads(vfy.detail) if vfy.detail else {}
+            newbie_task_id = vfy_detail.get("newbie_task_id")
+            if newbie_task_id:
+                nt_r = await db.execute(
+                    select(NTTask).where(NTTask.id == newbie_task_id)
+                    .with_for_update().execution_options(populate_existing=True)
+                )
+                nt_task = nt_r.scalar_one_or_none()
+                if nt_task and nt_task.status == TASK_STATUSES["submitted"]:
+                    nt_task.status = TASK_STATUSES["verified"]
+                    nt_task.verifier_id = user.id
+                    nt_task.verified_at = datetime.utcnow().isoformat()
+                    await db.commit()
+        except Exception:
+            pass  # 新人任务状态更新失败不阻塞校核
     return {"ok": True, "doer_balance": doer.nt_balance if doer else None,
             "verifier_balance": user.nt_balance}
 
