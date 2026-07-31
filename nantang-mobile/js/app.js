@@ -3370,10 +3370,10 @@ function _doVerify(vfyId) {
 // ── P1-#6: 活动总入口（社区活动卡片点击）──
 function _openActivityHub() {
   var body = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  // 田间接龙
-  body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openQuickMenu(\'接龙\')">';
-  body += '<div style="font-size:1.3rem">🥘</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">田间接龙</div>';
-  body += '<div style="font-size:.5rem;color:var(--g-text-dim)">共享厨房·报名</div></div>';
+  // 共享厨房接龙（砚仁原话；D2 已修，红队A 指正）
+  body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openKitchenQuick()">';
+  body += '<div style="font-size:1.3rem">🥘</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">共享厨房接龙</div>';
+  body += '<div style="font-size:.5rem;color:var(--g-text-dim)">冰箱·仓库·存取</div></div>';
   // 议事厅提案
   body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openCommunityProposals()">';
   body += '<div style="font-size:1.3rem">🏛️</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">议事厅</div>';
