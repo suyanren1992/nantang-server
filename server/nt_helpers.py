@@ -7,10 +7,13 @@ A-LABOR-BE: 新增 _get_4pool() 四池视图 + _calc_escrow_drift() 漂移校验
 """
 
 import json
+import logging
 import secrets
 from datetime import datetime
 from sqlalchemy import select
 from models import CommunityPool, NTLedger
+
+logger = logging.getLogger("nt_helpers")
 
 
 def _ledger_id():
@@ -61,6 +64,16 @@ async def _get_pool(db, lock: bool = False):
         pool.reserve = 0
     if pool.frozen is None:
         pool.frozen = 0
+    # SSOT-CHAIN A' N-1b: reserve ≤ balance 硬不变量。
+    # reserve 是提现额度上限（available = reserve - frozen），虚高 = 用户能提出
+    # 超过运营池实有的钱。clamp 只收窄不放大；改动时 warning 打印原值与新值
+    # （涉钱大忌：静默修数据）。
+    _bal = pool.balance or 0
+    _res = pool.reserve or 0
+    if _res > _bal:
+        logger.warning("[SSOT-CHAIN N-1b] reserve(%s) > balance(%s), clamp→%s",
+                       _res, _bal, _bal)
+        pool.reserve = _bal
     return pool
 
 

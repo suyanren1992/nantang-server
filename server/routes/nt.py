@@ -593,15 +593,20 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
                     + pool.camp_balance + (pool.frozen or 0))
     # 背书台账独立硬检查：储备池须覆盖提现待审
     reserve_covers_frozen = (pool.reserve or 0) >= (pool.frozen or 0)
+    # SSOT-CHAIN A' N-1b: reserve ≤ balance 硬不变量——reserve 是 pool.balance 的
+    # 内部额控，虚高 = 可提现金额失控。此处是读侧防线（写侧 clamp 在 _get_pool）。
+    reserve_within_balance = (pool.reserve or 0) <= (pool.balance or 0)
 
     return {
-        "pass": abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0 and reserve_covers_frozen and escrow_drift == 0,
+        "pass": (abs(total_system - pool.total_issued) <= 1 and camp_pool_drift == 0
+                 and reserve_covers_frozen and reserve_within_balance and escrow_drift == 0),
         "checks": {
             "total_user_balance": total_user_balance,
             "community_pool": pool.balance,
             "task_escrow": pool.task_escrow,
             "reserve": pool.reserve or 0,  # SSOT-CHAIN: 内部额控，不等于式项（已在 pool.balance 内）
             "reserve_covers_frozen": reserve_covers_frozen,
+            "reserve_within_balance": reserve_within_balance,  # N-1b
             "frozen": pool.frozen or 0,
             "camp_balance": pool.camp_balance,
             "camp_pool_ledger": camp_pool_ledger,
@@ -1405,27 +1410,9 @@ async def _run_daily_settlement(db, today: str | None = None):
         t.last_deducted = today
 
     # 池空时直接拒绝派工（见本函数上游 400 分支），不补印、不欠账。
-
-    # 2. 盈余划拨：运营池 > 1000 时，超出 500 的部分转入储备池
-    if pool.balance > 1000:
-        surplus = pool.balance - 500
-        pool.balance -= surplus
-        pool.reserve = (pool.reserve or 0) + surplus
-        lid_s = _ledger_id()
-        await _add_ledger(db, lid_s, "community_pool", "reserve", surplus,
-                          "surplus_sweep", f"盈余划拨 {today}", status="settled")
-        results["surplus_sweep"] = surplus
-
-    # 3. 自动调水：运营池 < 150 时，从储备池补到 300
-    if pool.balance < 150 and (pool.reserve or 0) > 0:
-        need = 300 - pool.balance
-        draw = min(need, pool.reserve or 0)
-        pool.balance += draw
-        pool.reserve = (pool.reserve or 0) - draw
-        lid_a = _ledger_id()
-        await _add_ledger(db, lid_a, "reserve", "community_pool", draw,
-                          "auto_rebalance", f"自动调水 {today}", status="settled")
-        results["auto_rebalance"] = draw
+    # SSOT-CHAIN A' N-1: 盈余划拨/自动调水已移除——旧设计假设运营池/储备池是
+    # 两个独立资金池可互相调水；SSOT-CHAIN 下 reserve 已降格为提现额度标尺
+    # （pool.balance 的内部子项），调水无对象。reserve ≤ balance 由 N-1b clamp + verify 守。
 
     pool.last_tick_date = today
     await db.commit()
