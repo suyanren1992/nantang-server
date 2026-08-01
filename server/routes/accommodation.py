@@ -104,7 +104,7 @@ async def _inn_checkin(req: "CheckinRequest", user: User, db: AsyncSession):
             Tenancy.room_id == req.room_id,
             Tenancy.track == "inn",
             Tenancy.status == "active",
-        ).with_for_update()
+        ).with_for_update().execution_options(populate_existing=True)
     )
     overlaps = [t for t in existing_r.scalars()
                 if _intervals_overlap(req.check_in, req.check_out,
