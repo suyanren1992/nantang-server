@@ -3368,11 +3368,11 @@ function _doVerify(vfyId) {
 // ── P1-#6: 活动总入口（社区活动卡片点击）──
 function _openActivityHub() {
   var body = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  // 共享厨房接龙（砚仁原话；D2 已修，红队A 指正）
+  // 共享厨房（砚仁原话；D2 已修，红队A 指正）
   body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openKitchenQuick()">';
   body += '<div style="font-size:1.3rem">🥘</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">共享厨房</div>';
   body += '<div style="font-size:.5rem;color:var(--g-text-dim)">冰箱·仓库·存取</div></div>';
-  // 议事厅提案
+  // 萝卜议事厅提案
   body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openCommunityProposals()">';
   body += '<div style="font-size:1.3rem">🏛️</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">萝卜议事厅</div>';
   body += '<div style="font-size:.5rem;color:var(--g-text-dim)">提案·投票</div></div>';
@@ -3387,7 +3387,7 @@ function _openActivityHub() {
   body += '</div>';
   _openQuickSheet('🎯 社区活动', body);
 }
-// ── P1-#6: 社区议事厅（/api/proposals）──
+// ── P1-#6: 萝卜议事厅（/api/proposals）──
 function _openCommunityProposals() {
   var body = '<div style="margin-bottom:8px;display:flex;gap:4px"><input id="commPropTitle" placeholder="提案标题" style="flex:1;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff"><button class="btn-sm pri" style="font-size:var(--g-font-size-xs);white-space:nowrap;min-height:36px" onclick="var t=document.getElementById(\'commPropTitle\').value.trim();if(t)_submitCommunityProposal(t)">📜 提交</button></div>';
   body += '<div id="communityProposalCards"></div>';
@@ -3712,7 +3712,7 @@ function _submitCleanEntry() {
   _undoToast('cleaning');
 }
 
-// D1+D2: 快捷表单——订餐/接龙等
+// D1+D2: 快捷表单——素社订餐/共享厨房等
 function _quickForm(type) {
   var d = today();
   if (type === 'order_meal') {
@@ -3734,7 +3734,7 @@ function _quickForm(type) {
     });
     _openQuickSheet('🍽️ 素社订餐', body);
   } else if (type === 'kitchen_chain') {
-    // D2: 共享厨房接龙——物品/菜品接龙报名
+    // D2: 共享厨房——物品/菜品报名
     var potluckItems = (window.AppData && AppData._data._potluckList) || [];
     var body = '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:8px">🥘 谁带什么菜？</div>';
     body += '<div style="margin-bottom:8px;display:flex;gap:4px"><input id="potluckItem" placeholder="菜名/物品名" style="flex:1;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff"><input id="potluckQty" type="number" value="1" min="1" style="width:50px;padding:6px 4px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff;text-align:center"></div>';
@@ -3793,7 +3793,7 @@ function _postAnnouncement(text) {
   _renderAnnounceTicker();
   showToast('公告已发布', 'ok');
 }
-// D6: 营地提案区——议事厅 UI.Card 网格，提案+投票
+// D6: 营地提案区——萝卜议事厅 UI.Card 网格，提案+投票
 function _renderProposalCards(el) {
   if (!el) { el = document.getElementById('proposalCards'); if (!el) return; }
   var proposals = (window.AppData && AppData._data._proposals) || [];

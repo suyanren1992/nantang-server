@@ -252,7 +252,7 @@ var API = {
   addKitchenItem: function(data) { return this.request('POST', '/api/kitchen/items/add', data).catch(API._offlineOk); },
   takeKitchenItem: function(data) { return this.request('POST', '/api/kitchen/items/take', data).catch(API._offlineOk); },
   removeKitchenItem: function(id) { return this.request('DELETE', '/api/kitchen/items/' + encodeURIComponent(id)).catch(API._offlineOk); },
-  // ── P1-#6 ⑤⑥⑦ proposals 议事厅提案 ──
+  // ── P1-#6 ⑤⑥⑦ proposals 萝卜议事厅提案 ──
   getProposalsList: function() { return this.request('GET', '/api/proposals/list').catch(API._offlineOk); },
   submitProposal: function(data) { return this.request('POST', '/api/proposals/submit', data).catch(API._offlineOk); },
   voteProposal: function(propId, vote) { return this.request('POST', '/api/proposals/vote', {proposal_id: propId, vote: vote}).catch(API._offlineOk); },
@@ -262,7 +262,7 @@ var API = {
   getGossipList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'茶馆板块即将开放'}); },
   // ── P1-#6 ⑩ market 二手集市（冻结）──
   getMarketList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'集市板块即将开放'}); },
-  // ── P1-#6 ⑪ auction 拍卖会（冻结）──
+  // ── P1-#6 ⑪ auction 白菜拍卖行（冻结）──
   getAuctionList: function() { return Promise.resolve({ok:true, _frozen:true, items:[], hint:'拍卖板块即将开放'}); },
   // ── P1-#6 ⑫ health 体检报告 ──
   getHealthReport: function() { return this.request('GET', '/api/health/report').catch(function(){ return {ok:true,_offline:true,status:'未知',db:'—',uptime:'—'}; }); },

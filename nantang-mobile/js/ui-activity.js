@@ -1,4 +1,4 @@
-// ═══ 活动总览页：活动/营地/茶馆/集市/拍卖 入口收敛 ═══
+// ═══ 活动总览页：活动/营地/茶馆/集市/白菜拍卖行 入口收敛 ═══
 // 卡号：A-ACTIVITY-PAGE · 一营 Claude Code · 2026-07-31
 // 范式：W6-UI-CARD-API
 
@@ -99,7 +99,7 @@ function openCampSubPage() {
         '<button class="btn-sm pri" style="font-size:.58rem;padding:4px 10px" onclick="event.stopPropagation();closeOverlay(\'overlayActivityHub\');openCampHome(\''+c.id+'\')">进入 ▸</button>'+
       '</div>';
 
-      // 3 子卡片（D2: 删田间断掉伪需求，砚仁原话「共享厨房接龙」已修）
+      // 3 子卡片（D2: 删田间断掉伪需求，砚仁原话「共享厨房」已修）
       var subCards = [
         { icon:'📋', label:'子活动', desc:'营地日程与活动', tab:'schedule' },
         { icon:'💰', label:'账本',   desc:'资金流水',      tab:'funds' },
@@ -182,5 +182,5 @@ function openActivitySubPage() {
   el.innerHTML = h;
 }
 
-// ═══ 冻结页面（茶馆/集市/拍卖） ═══
+// ═══ 冻结页面（茶馆/集市/白菜拍卖行） ═══
 // 仅做入口置灰，无独立子页；点击由 renderActivityHub 的 pointer-events:none 阻止

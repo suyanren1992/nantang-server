@@ -75,7 +75,7 @@ function _renderAccomToolbar(parent) {
     addBtn.onclick = function() { _accomState.mode = 'grid'; renderAccomPage(); };
     bar.appendChild(addBtn);
 
-    // 订餐入口（冻结 B 板块）
+    // 素社订餐入口（冻结 B 板块）
     var mealBtn = document.createElement('button');
     mealBtn.className = 'btn-sm sec';
     mealBtn.style.cssText = 'font-size:.58rem;padding:4px 10px;opacity:.45;cursor:default';

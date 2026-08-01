@@ -107,7 +107,7 @@ function renderCampOverview(el) {
   });
   if (allMemberNames.length > 5) memberAvatars += '<span style="font-size:.55rem;color:#5a6e5c;margin-left:2px">+'+(allMemberNames.length-5)+'</span>';
 
-  // 订餐摘要
+  // 素社订餐摘要
   var mealRmb = budget.mealRmb || 0;
   var mealNT = budget.mealNT || 0;
 
@@ -145,7 +145,7 @@ function renderCampOverview(el) {
       '<div style="display:flex;gap:12px;margin-top:3px"><div style="font-size:.58rem;color:#5a6e5c">¥'+(rmbTotal||0).toLocaleString()+' <span style="color:#8a6a30">RMB</span></div><div style="font-size:.58rem;color:#5a6e5c">'+(ntTotal||0).toLocaleString()+' <span style="color:#3d6b52">NT</span></div><div style="font-size:.58rem;color:#aaa">¥'+(rmbPerDay||0)+'/天</div></div></div>'+
       '<span style="color:#d0d9ce">→</span></div>'+
 
-    // 🥬 订餐
+    // 🥬 素社订餐
     '<div class="camp-nav-card" onclick="showToast(\'素社订餐功能将在阶段4上线\',\'warn\')"><span>🥬</span>'+
       '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">素社订餐</div>'+
       '<div style="font-size:.58rem;color:'+(mealNT?'#5a6e5c':'#aaa')+';margin-top:2px">'+(mealNT?mealNT+' NT/餐 · ¥'+(mealRmb||0)+'/餐':'暂无菜单')+'</div></div>'+
@@ -1588,7 +1588,7 @@ function renderArchivePeriods(el) {
   h += '</div>';
   el.innerHTML = h;
 }
-// D6: 议事厅——营地提案区，UI.Card 网格
+// D6: 萝卜议事厅——营地提案区，UI.Card 网格
 function renderCampDiscuss(el) {
   var h = '<div style="padding:14px">';
   h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';

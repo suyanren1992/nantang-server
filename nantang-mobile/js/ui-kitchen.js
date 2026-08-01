@@ -1,6 +1,6 @@
 /* ══════════════════════════════════════════════════════════════════
    ui-kitchen.js — 共享厨房 FE（P3-一营丁·卡D · 2026-07-31）
-   接入 P3 后端 10 端点 · 3 Tab（接龙/时段/冰箱）· UI.Card 包裹
+   接入 P3 后端 10 端点 · 3 Tab（共享厨房·接龙/时段/冰箱）· UI.Card 包裹
    法源：P3-一营丁_4UI根本性修_v1.md + DESIGN-共享厨房_v0
    ══════════════════════════════════════════════════════════════════ */
 
@@ -26,7 +26,7 @@ function _renderKitchenPage() {
   var el = document.getElementById('kitchenContent');
   if (!el) return;
   var tabs = [
-    {key:'potluck', label:'🍲 接龙'},
+    {key:'potluck', label:'🥘 共享厨房·接龙'},
     {key:'slots',   label:'⏰ 时段'},
     {key:'items',   label:'🧊 冰箱'}
   ];
@@ -42,12 +42,12 @@ function _renderKitchenPage() {
   else _renderItemsTab();
 }
 
-// ═══ 接龙 ═══
+// ═══ 共享厨房·接龙 ═══
 function _renderPotluckTab() {
   var el = document.getElementById('ktTabContent'); if(!el) return;
   _loadPotluckData(function(items){
-    var h = '<button onclick="_showPotluckCreate()" style="width:100%;padding:10px;border-radius:var(--g-radius);border:2px dashed var(--g-accent);background:var(--g-accent-bg);color:var(--g-accent);font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;margin-bottom:var(--g-gap)">＋ 发起新接龙</button>';
-    if(!items||!items.length){ h+='<div style="text-align:center;padding:24px;color:var(--g-text-muted)">暂无接龙，快来发起一个吧！</div>'; }
+    var h = '<button onclick="_showPotluckCreate()" style="width:100%;padding:10px;border-radius:var(--g-radius);border:2px dashed var(--g-accent);background:var(--g-accent-bg);color:var(--g-accent);font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;margin-bottom:var(--g-gap)">＋ 发起共享</button>';
+    if(!items||!items.length){ h+='<div style="text-align:center;padding:24px;color:var(--g-text-muted)">暂无共享，快来发起一个吧！</div>'; }
     else items.forEach(function(e){
       var full=e.current_count>=e.capacity;
       h+='<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);margin-bottom:var(--g-gap)">';
@@ -64,8 +64,8 @@ function _renderPotluckTab() {
 }
 
 function _showPotluckCreate(){
-  var h='<div style="padding:var(--g-pad)"><div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:var(--g-pad)">发起新接龙</div>';
-  h+='<input id="pcTitle" placeholder="接龙标题（如：周五包饺子）" style="width:100%;padding:8px;border:1px solid var(--g-card-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:var(--g-gap)">';
+  var h='<div style="padding:var(--g-pad)"><div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:var(--g-pad)">发起共享</div>';
+  h+='<input id="pcTitle" placeholder="共享标题（如：周五包饺子）" style="width:100%;padding:8px;border:1px solid var(--g-card-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:var(--g-gap)">';
   h+='<input id="pcDish" placeholder="菜品（如：猪肉白菜饺）" style="width:100%;padding:8px;border:1px solid var(--g-card-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:var(--g-gap)">';
   h+='<input id="pcTime" type="datetime-local" style="width:100%;padding:8px;border:1px solid var(--g-card-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:var(--g-gap)">';
   h+='<select id="pcCap" style="width:100%;padding:8px;border:1px solid var(--g-card-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:var(--g-gap)">';
@@ -73,7 +73,7 @@ function _showPotluckCreate(){
   h+='</select><input id="pcDesc" placeholder="补充说明（可选）" style="width:100%;padding:8px;border:1px solid var(--g-card-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:var(--g-pad)">';
   h+='<div style="display:flex;gap:var(--g-gap)"><button onclick="_doCreatePotluck()" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--g-accent);color:#fff;font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer">确认发起</button>';
   h+='<button onclick="closeAllExpands();_renderKitchenPage()" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--g-card-border);background:var(--g-card);color:var(--g-text-dim);font-size:var(--g-font-size-xs);cursor:pointer">取消</button></div></div>';
-  _showCardPopup('🍲 发起接龙',h,null,true);
+  _showCardPopup('🥘 发起共享',h,null,true);
 }
 
 function _doCreatePotluck(){
@@ -81,12 +81,12 @@ function _doCreatePotluck(){
   var eventAt=document.getElementById('pcTime').value,cap=parseInt(document.getElementById('pcCap').value)||8,desc=document.getElementById('pcDesc').value.trim();
   if(!title||!dish||!eventAt){showToast('请填写标题、菜品和时间','error');return}
   API.createPotluck({title:title,dish:dish,event_at:eventAt,capacity:cap,description:desc}).then(function(r){
-    if(r&&r.ok){showToast('接龙已发起','ok');closeAllExpands();_renderKitchenPage()}else showToast((r&&r.error)||'发起失败','error');
+    if(r&&r.ok){showToast('共享已发起','ok');closeAllExpands();_renderKitchenPage()}else showToast((r&&r.error)||'发起失败','error');
   });
 }
 
 function _doJoinPotluck(eventId){
-  UI.Alert.show({type:'info',title:'报名接龙',message:'是否确认报名参加此接龙？',actions:[{label:'取消',value:false,style:'ghost'},{label:'确认报名',value:true,style:'pri'}]}).then(function(ok){if(ok){
+  UI.Alert.show({type:'info',title:'报名共享',message:'是否确认报名参加此共享？',actions:[{label:'取消',value:false,style:'ghost'},{label:'确认报名',value:true,style:'pri'}]}).then(function(ok){if(ok){
     API.joinPotluck(eventId).then(function(r){
       if(r&&r.ok){if(r.already_joined)showToast('已报过名啦','ok');else showToast('报名成功！','ok');_renderKitchenPage()}else showToast((r&&r.error)||'报名失败','error');
     });
