@@ -339,7 +339,7 @@ class ChainScanner:
         else:
             # 个人充值: 必须匹配用户（行锁防并发充值覆盖）
             user_result = await db.execute(
-                select(User).where(func.lower(User.wallet_address) == from_addr.lower()).with_for_update()
+                select(User).where(func.lower(User.wallet_address) == from_addr.lower()).with_for_update().execution_options(populate_existing=True)
             )
             user = user_result.scalar_one_or_none()
             if not user:
