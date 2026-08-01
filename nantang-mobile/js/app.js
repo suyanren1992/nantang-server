@@ -3370,11 +3370,11 @@ function _openActivityHub() {
   var body = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   // 共享厨房接龙（砚仁原话；D2 已修，红队A 指正）
   body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openKitchenQuick()">';
-  body += '<div style="font-size:1.3rem">🥘</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">共享厨房接龙</div>';
+  body += '<div style="font-size:1.3rem">🥘</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">共享厨房</div>';
   body += '<div style="font-size:.5rem;color:var(--g-text-dim)">冰箱·仓库·存取</div></div>';
   // 议事厅提案
   body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openCommunityProposals()">';
-  body += '<div style="font-size:1.3rem">🏛️</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">议事厅</div>';
+  body += '<div style="font-size:1.3rem">🏛️</div><div style="font-weight:700;font-size:var(--g-font-size-xs)">萝卜议事厅</div>';
   body += '<div style="font-size:.5rem;color:var(--g-text-dim)">提案·投票</div></div>';
   // 劳动历史
   body += '<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);cursor:pointer;text-align:center" onclick="_closeQuickSheet();_openLaborHistory()">';
@@ -3391,7 +3391,7 @@ function _openActivityHub() {
 function _openCommunityProposals() {
   var body = '<div style="margin-bottom:8px;display:flex;gap:4px"><input id="commPropTitle" placeholder="提案标题" style="flex:1;padding:6px 8px;border:1px solid var(--green-border);border-radius:6px;font-size:var(--g-font-size-xs);background:#fff"><button class="btn-sm pri" style="font-size:var(--g-font-size-xs);white-space:nowrap;min-height:36px" onclick="var t=document.getElementById(\'commPropTitle\').value.trim();if(t)_submitCommunityProposal(t)">📜 提交</button></div>';
   body += '<div id="communityProposalCards"></div>';
-  _openQuickSheet('🏛️ 议事厅提案', body);
+  _openQuickSheet('🏛️ 萝卜议事厅', body);
   _renderCommunityProposals();
 }
 function _submitCommunityProposal(title) {
@@ -3715,7 +3715,7 @@ function _submitCleanEntry() {
 // D1+D2: 快捷表单——订餐/接龙等
 function _quickForm(type) {
   var d = today();
-  if (type === '订餐') {
+  if (type === 'order_meal') {
     var menu = (window.AppData && AppData._data.canteenMenu || {})[d] || { lunch:[], dinner:[] };
     var now = new Date(); var lunchExpired = now.getHours() >= 10; var dinnerExpired = now.getHours() >= 16;
     var body = '<div style="font-size:var(--g-font-size);font-weight:700;margin-bottom:8px">📅 '+d+' 今日菜单</div>';
@@ -3732,8 +3732,8 @@ function _quickForm(type) {
       else if (items.length) { body += '<button class="btn-sm pri" style="font-size:var(--g-font-size-xs);padding:4px 12px" onclick="if(typeof _orderMeal===\'function\')_orderMeal(\''+d+'\',\''+meal+'\')">🟢 预定</button>'; }
       body += '</div>';
     });
-    _openQuickSheet('🍽️ 订餐', body);
-  } else if (type === '接龙') {
+    _openQuickSheet('🍽️ 素社订餐', body);
+  } else if (type === 'kitchen_chain') {
     // D2: 共享厨房接龙——物品/菜品接龙报名
     var potluckItems = (window.AppData && AppData._data._potluckList) || [];
     var body = '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:8px">🥘 谁带什么菜？</div>';
@@ -3745,7 +3745,7 @@ function _quickForm(type) {
         body += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dotted #f0f0f0;font-size:var(--g-font-size-xs)"><span>🥬 '+esc(p.item)+' ×'+p.qty+'</span><span style="color:var(--g-text-dim)">'+esc(p.user)+'</span></div>';
       });
     } else { body += '<div style="text-align:center;color:var(--g-text-muted);font-size:var(--g-font-size-xs);padding:10px">还没有人报名</div>'; }
-    _openQuickSheet('🥘 共享接龙', body);
+    _openQuickSheet('🥘 共享厨房', body);
   }
 }
 function _submitPotluck() {

@@ -459,7 +459,7 @@ function renderCanteen() {
   h += _renderSection('lunch', '午餐（11:30-13:00）', 10, lunchExpired);
   h += _renderSection('dinner', '晚餐（17:30-19:00）', 16, dinnerExpired);
 
-  h += '<div class="canteen-divider">📋 我的订餐记录</div>';
+  h += '<div class="canteen-divider">📋 素社订餐记录</div>';
   h += '<div id="canteenHistory">' + _renderCanteenHistory(false) + '</div>';
 
   el.innerHTML = h;
@@ -489,7 +489,7 @@ function _renderCanteenHistory(showAll) {
       h += '</div>';
     }
   }
-  if (!h) h = '<div style="text-align:center;padding:12px;font-size:var(--g-font-size-xs);color:#8a8a8a">暂无订餐记录</div>';
+  if (!h) h = '<div style="text-align:center;padding:12px;font-size:var(--g-font-size-xs);color:#8a8a8a">暂无素社订餐记录</div>';
   if (!showAll && count >= 3) {
     h += '<div class="canteen-expand" onclick="document.getElementById(\'canteenHistory\').innerHTML=_renderCanteenHistory(true)">展开全部记录 ▼</div>';
   }

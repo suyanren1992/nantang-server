@@ -79,7 +79,7 @@ function _renderAccomToolbar(parent) {
     var mealBtn = document.createElement('button');
     mealBtn.className = 'btn-sm sec';
     mealBtn.style.cssText = 'font-size:.58rem;padding:4px 10px;opacity:.45;cursor:default';
-    mealBtn.textContent = '🥬 订餐';
+    mealBtn.textContent = '🥬 素社订餐';
     mealBtn.title = 'B 板块冻结 · 即将开放';
     mealBtn.onclick = function() { showToast('订餐功能即将开放', 'warn'); };
     bar.appendChild(mealBtn);

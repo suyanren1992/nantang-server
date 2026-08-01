@@ -26,7 +26,7 @@ function renderActivityHub() {
     { icon: '🏕️', title: '营地架构',  status: campStatus, statusText: campStatusText, action: 'camp' },
     { icon: '🍵', title: '茶馆八卦',  status: 'offline', statusText: '即将开放',     frozen: true },
     { icon: '🛒', title: '二手集市',  status: 'offline', statusText: '即将开放',     frozen: true },
-    { icon: '🔨', title: '拍卖会',    status: 'offline', statusText: '即将开放',     frozen: true },
+    { icon: '🔨', title: '白菜拍卖行',    status: 'offline', statusText: '即将开放',     frozen: true },
   ];
 
   var h = '<div class="activity-hub-grid">';

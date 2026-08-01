@@ -24,7 +24,7 @@ function openCampHome(campId) {
   var inboxBtn = document.getElementById('cbBtnInbox');
   var plusBtn = document.getElementById('cbBtnPlus');
   if (isAdventurer || isBuilder) {
-    inboxBtn.innerHTML = '<span style="font-size:1.2rem">🥬</span><span class="cb-label">订餐</span>';
+    inboxBtn.innerHTML = '<span style="font-size:1.2rem">🥬</span><span class="cb-label">素社订餐</span>';
     inboxBtn.onclick = function(){ openCanteen(); };
     plusBtn.innerHTML = '<span style="font-size:1.2rem">🃏</span><span class="cb-label">卡片</span>';
     plusBtn.onclick = function(){ openCardRoom(); };
@@ -146,8 +146,8 @@ function renderCampOverview(el) {
       '<span style="color:#d0d9ce">→</span></div>'+
 
     // 🥬 订餐
-    '<div class="camp-nav-card" onclick="showToast(\'订餐功能将在阶段4上线\',\'warn\')"><span>🥬</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">订餐</div>'+
+    '<div class="camp-nav-card" onclick="showToast(\'素社订餐功能将在阶段4上线\',\'warn\')"><span>🥬</span>'+
+      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">素社订餐</div>'+
       '<div style="font-size:.58rem;color:'+(mealNT?'#5a6e5c':'#aaa')+';margin-top:2px">'+(mealNT?mealNT+' NT/餐 · ¥'+(mealRmb||0)+'/餐':'暂无菜单')+'</div></div>'+
       (mealNT ? '<span style="font-size:.6rem;background:#e8f0e4;color:#3d6b52;padding:3px 8px;border-radius:10px">预定</span>' : '')+
       '<span style="color:#d0d9ce">→</span></div>'+
@@ -1593,7 +1593,7 @@ function renderCampDiscuss(el) {
   var h = '<div style="padding:14px">';
   h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
   h += '<span style="font-size:var(--g-font-size-lg)">🏛️</span>';
-  h += '<span style="font-weight:700;font-size:var(--g-font-size)">营地议事厅</span>';
+  h += '<span style="font-weight:700;font-size:var(--g-font-size)">萝卜议事厅</span>';
   h += '</div>';
   h += '<div style="margin-bottom:10px">';
   h += '<input id="propTitle" placeholder="提案标题" style="width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:var(--g-font-size-xs);margin-bottom:4px;background:#fff;box-sizing:border-box">';

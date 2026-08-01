@@ -1388,10 +1388,11 @@ function refreshUserUI(){
   }
 }
 function showMy(opts){document.getElementById('villagePage').classList.add('hidden');document.getElementById('villagePage').classList.add('behind');document.getElementById('myPage').classList.remove('hidden');
-  // W7-UI-4: 底栏去任务tab后，入口强制复位到任务面板
+  // W7-UI-4-返修: 入口强制复位到任务面板 + 底栏任务键高亮
   var panels=document.querySelectorAll('.my-tab-panel');for(var i=0;i<panels.length;i++)panels[i].classList.remove('on');
   var tp=document.getElementById('myTabTasks');if(tp)tp.classList.add('on');
   var tabs=document.querySelectorAll('.my-tabbar .my-tab');for(var j=0;j<tabs.length;j++)tabs[j].classList.remove('on');
+  if(tabs[0])tabs[0].classList.add('on');  // 底栏第一键=任务
   var chipRow=document.getElementById('myChipRow');if(chipRow)chipRow.style.display='flex';
   renderMyTasks();refreshUserUI();
   // 刷新工作台动态
@@ -1999,14 +2000,43 @@ function closeMyPage(){
     document.getElementById('villagePage').classList.remove('hidden');
   }
 }
-// W7-UI-4: 工作台底栏抽屉柜 —— K-2 内容待皇帝定夺，暂弹建设中
+// W7-UI-4-返修: 工作台底栏抽屉柜 —— 六格三档（吃/睡/议事/市集/拍卖）
 function openDrawerCabinet(){
   if(!window.UI||!window.UI.Sheet){showToast('UI 组件未加载','warn');return;}
-  UI.Sheet({
-    title:'🗄️ 抽屉柜',
-    body:'<div style="text-align:center;padding:40px 0;color:var(--g-text-dim)"><div style="font-size:2rem;margin-bottom:12px">🚧</div><div style="font-size:.78rem;font-weight:600;margin-bottom:6px">建设中</div><div style="font-size:.6rem;color:var(--g-text-muted);line-height:1.6">集市订餐 · 民宿住宿 · 拍卖场<br>二手市集 · 议事厅<br><br>即将上线，敬请期待</div></div>',
-    height:'50vh'
-  });
+  var ad=(window.AppData&&AppData._data)||{};
+  var potluckCount=(ad._potluckList||[]).length;
+  var accs=(ad.map_locations||{}).accommodations||{};
+  var occCount=Object.values(accs).filter(function(a){return a.status==='occupied'}).length;
+  var propCount=(ad._communityProposals||ad._proposals||[]).length;
+  var items=window.MOCK_ITEMS||[];
+  var sellingCount=items.filter(function(i){return i.status==='selling'}).length;
+  var auctionCount=items.filter(function(i){return i.status==='auction'}).length;
+  var badge=function(n){return n>0?'<span style="background:var(--green-primary);color:#fff;font-size:.52rem;padding:1px 6px;border-radius:9px;margin-left:4px;vertical-align:middle">'+n+'</span>':'';};
+  var cell=function(icon,title,sub,onclick,badgeHtml){
+    return '<div onclick="'+onclick+'" style="background:var(--g-card);border:1px solid var(--g-card-border);border-radius:var(--g-radius);padding:var(--g-pad-sm);cursor:pointer;text-align:center;transition:all .15s" onmousedown="this.style.transform=\'scale(.97)\'" onmouseup="this.style.transform=\'\'" ontouchend="this.style.transform=\'\'">'+
+      '<div style="font-size:1.5rem;line-height:1.2">'+icon+'</div>'+
+      '<div style="font-weight:700;font-size:.72rem;margin:2px 0">'+title+badgeHtml+'</div>'+
+      '<div style="font-size:.55rem;color:var(--g-text-dim);line-height:1.3">'+sub+'</div></div>';
+  };
+  var body='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    // 第一档：吃
+    cell('🍚','素社订餐','今天吃什么',"_closeQuickSheet();openCanteen()",'')+
+    cell('🥘','共享厨房','场域预定 · 物品取放',"_closeQuickSheet();if(typeof openSelfReport==='function')openSelfReport({cat:'cooking'})",badge(potluckCount))+
+    // 第二档：睡
+    cell('🏠','素社民宿','订房 · 住宿',"_closeQuickSheet();if(typeof openInn==='function')openInn()",badge(occCount))+
+    '</div>'+
+    '<div style="border-top:1px dashed #d0d9ce;margin:10px 0"></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    // 第三档：议事
+    cell('🥕','萝卜议事厅','提案 · 会议通知',"_closeQuickSheet();if(typeof _openCommunityProposals==='function')_openCommunityProposals()",badge(propCount))+
+    '</div>'+
+    '<div style="border-top:1px dashed #d0d9ce;margin:10px 0"></div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    // 第四档：市集 + 拍卖
+    cell('🛒','二手集市','闲置流转',"_closeQuickSheet();switchMyTab('items');renderItemsInTab('selling')",badge(sellingCount))+
+    cell('🥬','白菜拍卖行','竞拍',"_closeQuickSheet();switchMyTab('items');renderItemsInTab('auction')",badge(auctionCount))+
+    '</div>';
+  UI.Sheet({title:'🗄️ 抽屉柜',body:body,height:'62vh'});
 }
 function showVillage(){document.getElementById('myPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');if(typeof _unlockBodyIfAllClosed==='function')_unlockBodyIfAllClosed();else document.body.classList.remove('ov-locked')}
 // Village player card — click to workbench
