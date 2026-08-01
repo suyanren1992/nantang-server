@@ -132,6 +132,7 @@ def check_cache_busting():
 REQUIRED_ENV = {"JWT_SECRET", "DATABASE_URL"}
 OPTIONAL_INFO = {
     "INVITE_CODES": "邀请制码池, 空=关闭邀请制",
+    "NATIVE_INVITE_CODES": "在地码池(逗号分隔), 空=无在地码池",
     "FRONTEND_ORIGIN": "额外 CORS 白名单(逗号分隔)",
     "MAX_BEDS_PER_ROOM": "宿舍每间最大床位数(默认 6)",
     "CRON_ACTIVE": "cron 开关(1/true/yes 启用)",
