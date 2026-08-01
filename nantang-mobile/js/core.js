@@ -1387,7 +1387,13 @@ function refreshUserUI(){
     var taskEl=document.getElementById('ubStatTasks'); if(taskEl) taskEl.textContent='📋'+tasks.length+'待领';
   }
 }
-function showMy(opts){document.getElementById('villagePage').classList.add('hidden');document.getElementById('villagePage').classList.add('behind');document.getElementById('myPage').classList.remove('hidden');renderMyTasks();refreshUserUI();
+function showMy(opts){document.getElementById('villagePage').classList.add('hidden');document.getElementById('villagePage').classList.add('behind');document.getElementById('myPage').classList.remove('hidden');
+  // W7-UI-4: 底栏去任务tab后，入口强制复位到任务面板
+  var panels=document.querySelectorAll('.my-tab-panel');for(var i=0;i<panels.length;i++)panels[i].classList.remove('on');
+  var tp=document.getElementById('myTabTasks');if(tp)tp.classList.add('on');
+  var tabs=document.querySelectorAll('.my-tabbar .my-tab');for(var j=0;j<tabs.length;j++)tabs[j].classList.remove('on');
+  var chipRow=document.getElementById('myChipRow');if(chipRow)chipRow.style.display='flex';
+  renderMyTasks();refreshUserUI();
   // 刷新工作台动态
   var af=document.getElementById('activityFeed');if(af&&window.AppData){var log=AppData._data.activity_log||[];if(log.length){var h='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div>';log.slice(0,5).forEach(function(a){h+='<div style="padding:6px 12px;border-bottom:1px solid #f0f0f0;font-size:var(--g-font-size-xs);color:#5a6e5c">'+(a.time||'').slice(0,16).replace('T',' ')+' · '+esc(a.text||'')+'</div>'});h+='</div>';af.innerHTML=h;}else{af.innerHTML='<div style="background:#fff;border:1px solid var(--green-border);border-radius:10px;overflow:hidden"><div style="padding:8px 12px;border-bottom:1px solid #e8ede6"><div class="my-flow-title" style="margin:0">🕐 最近动态</div></div><div style="padding:12px;text-align:center;color:#5a5a5a;font-size:.7rem">暂无动态</div></div>';}}
   // M-1: 仅 file:// 开发态跑 NT 模拟器自检，线上不跑（消"会计等式不成立"假警报）
@@ -1992,6 +1998,15 @@ function closeMyPage(){
     _fromQuestHall=false;
     document.getElementById('villagePage').classList.remove('hidden');
   }
+}
+// W7-UI-4: 工作台底栏抽屉柜 —— K-2 内容待皇帝定夺，暂弹建设中
+function openDrawerCabinet(){
+  if(!window.UI||!window.UI.Sheet){showToast('UI 组件未加载','warn');return;}
+  UI.Sheet({
+    title:'🗄️ 抽屉柜',
+    body:'<div style="text-align:center;padding:40px 0;color:var(--g-text-dim)"><div style="font-size:2rem;margin-bottom:12px">🚧</div><div style="font-size:.78rem;font-weight:600;margin-bottom:6px">建设中</div><div style="font-size:.6rem;color:var(--g-text-muted);line-height:1.6">集市订餐 · 民宿住宿 · 拍卖场<br>二手市集 · 议事厅<br><br>即将上线，敬请期待</div></div>',
+    height:'50vh'
+  });
 }
 function showVillage(){document.getElementById('myPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');if(typeof _unlockBodyIfAllClosed==='function')_unlockBodyIfAllClosed();else document.body.classList.remove('ov-locked')}
 // Village player card — click to workbench

@@ -282,7 +282,7 @@ function switchMyTab(tab){
   document.querySelectorAll('.my-tab-panel').forEach(function(p){p.classList.remove('on')});
   var inboxPanel = document.getElementById('myInboxPanel'); if (inboxPanel) inboxPanel.style.display = 'none';
   var tabs=document.querySelectorAll('.my-tabbar .my-tab');
-  var idx={'tasks':0,'ledger':1,'items':2}[tab]||0;
+  var idx={'ledger':0,'items':1}[tab]||0;
   if(tabs[idx])tabs[idx].classList.add('on');
   var panel=document.getElementById('myTab'+tab.charAt(0).toUpperCase()+tab.slice(1));
   if(panel)panel.classList.add('on');
