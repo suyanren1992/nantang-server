@@ -158,15 +158,17 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
             raise HTTPException(status_code=403,
                 detail=f"住宿欠费 {_outstanding} NT 已达 {ACCOMMODATION_LIMIT_DAYS} 天房费上限，请先结清欠费再预定/入住")
 
-    # 原子化：子查询检查房间是否已满
+    # 原子化：先锁同房间所有 active 租约明细行 → 在应用层 count
     # ponytail: max_beds 从 map_locations JSON blob 读取，可通过环境变量覆盖
+    # W7-LOCK-2 L-5: PG 禁止 FOR UPDATE + 聚合函数，改为"先锁明细后聚合"标准模式
     MAX_BEDS = int(os.environ.get("MAX_BEDS_PER_ROOM", "6"))
-    count_r = await db.execute(
-        select(func.count(Tenancy.id)).where(
+    locked_rows = await db.execute(
+        select(Tenancy.id).where(
             Tenancy.room_id == req.room_id, Tenancy.status == "active"
         ).with_for_update().execution_options(populate_existing=True)
+        .limit(MAX_BEDS + 5)
     )
-    occupied = count_r.scalar() or 0
+    occupied = len(locked_rows.scalars().all())
     if occupied >= MAX_BEDS:
         raise HTTPException(status_code=400, detail="该房间已满")
 

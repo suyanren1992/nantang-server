@@ -356,7 +356,7 @@ class ChainScanner:
                 ).order_by(DepositIntent.created_at.desc())
             )).scalar_one_or_none()
 
-        pool = await _get_pool(db)
+        pool = await _get_pool(db, lock=True)  # W7-LOCK-2 #359: 资本金写入须行锁
 
         if is_capital:
             pool.balance += amount

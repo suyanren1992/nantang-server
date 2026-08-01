@@ -24,7 +24,7 @@ if str(_SERVER_DIR) not in sys.path:
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy import select, text
+from sqlalchemy import select, text, func
 
 from models import Base, User, CommunityPool, Tenancy, NTLedger, CardDiscovery
 
@@ -765,6 +765,157 @@ async def test_get_pool_lock_populate_existing_reads_fresh(pg_engine):
             f"若为 100 → populate_existing 未加，session 返回缓存旧值 → 脏写。"
         )
         await sA.rollback()
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-2 L-5: 房间占用并发 —— 先锁明细后 count 防超员入住
+# ══════════════════════════════════════════════════════════════════════
+async def test_room_occupancy_concurrent_lock_rows_then_count(pg_engine):
+    """W7-LOCK-2 L-5: 房间 N=6 床位，已住 5 人，并发 5 路申请。
+
+    修复前：select(func.count(Tenancy.id)).with_for_update() —— PG 禁止聚合+FOR UPDATE，
+    锁加不上，并发可能都读到 occupied=5 从而全部通过（超员）。
+    修复后：先 select(Tenancy.id).with_for_update() 锁明细行 → Python count →
+    只有 1 路成功（5+1=6 满），其余 4 路阻塞后读到已满。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(User(id="lock2_u1", password_hash="x", nt_balance=100))
+        s.add(User(id="lock2_u2", password_hash="x", nt_balance=100))
+        s.add(User(id="lock2_u3", password_hash="x", nt_balance=100))
+        s.add(User(id="lock2_u4", password_hash="x", nt_balance=100))
+        s.add(User(id="lock2_u5", password_hash="x", nt_balance=100))
+        s.add(User(id="lock2_u6", password_hash="x", nt_balance=100))
+        await s.commit()
+        # 5 人已入住 dorm_l5
+        for i in range(1, 6):
+            s.add(Tenancy(user_id=f"lock2_u{i}", room_id="dorm_l5", bed_num=i,
+                          checkin_date="2026-08-01", status="active", debt=0))
+        await s.commit()
+
+    N_CONCURRENT = 5
+    MAX_BEDS = 6
+    success_count = 0
+    lock_obj = asyncio.Lock()
+
+    async def _checkin(sf, uid):
+        nonlocal success_count
+        async with sf() as s:
+            # 复现 accommodation.py checkin 的锁模式（修复后）
+            locked_rows = await s.execute(
+                select(Tenancy.id).where(
+                    Tenancy.room_id == "dorm_l5", Tenancy.status == "active"
+                ).with_for_update().execution_options(populate_existing=True)
+                .limit(MAX_BEDS + 5)
+            )
+            occupied = len(locked_rows.scalars().all())
+            if occupied >= MAX_BEDS:
+                await s.rollback()
+                return False
+            s.add(Tenancy(user_id=uid, room_id="dorm_l5", bed_num=occupied + 1,
+                          checkin_date="2026-08-02", status="active", debt=0))
+            await s.commit()
+            async with lock_obj:
+                success_count += 1
+            return True
+
+    ok = await asyncio.gather(*[
+        _checkin(factory, f"lock2_u{i}") for i in range(1, 6)
+    ])
+
+    assert sum(ok) == 1, (
+        f"W7-LOCK-2 L-5 房间占用并发: 5路并发应只有1路成功（5+1=6满），"
+        f"实际成功 {sum(ok)} 路: {ok}。若 >1 → 行锁未生效或聚合模式未修正。"
+    )
+    async with factory() as s:
+        count_r = await s.execute(
+            select(func.count(Tenancy.id)).where(
+                Tenancy.room_id == "dorm_l5", Tenancy.status == "active"
+            )
+        )
+        total = count_r.scalar() or 0
+        assert total == 6, (
+            f"W7-LOCK-2 L-5: 房间应恰好 6 人（5 初始 + 1 新），实得 {total}。"
+            f"若 >6 → 超员入住。"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM tenancies WHERE room_id = 'dorm_l5'"))
+        for i in range(1, 7):
+            await s.execute(text(f"DELETE FROM users WHERE id = 'lock2_u{i}'"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-2 #359: 链扫资本金与手动划拨并发 —— _get_pool(lock=True) 防覆写
+# ══════════════════════════════════════════════════════════════════════
+async def test_capital_scan_and_manual_reserve_concurrent_no_overwrite(pg_engine):
+    """W7-LOCK-2 #359: 链扫 +1 NT 资本金 vs 同时 admin 手动 reserve 划拨。
+
+    修复前：chain_scanner.py:359 调用 _get_pool(db) 缺 lock=True，
+    资本金 pool.reserve += amount 无行锁保护，可能与并发的 reserve 划拨互相覆写。
+    修复后：_get_pool(db, lock=True) 持行锁 → 两操作序列化 → reserve 总额正确。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(CommunityPool(balance=200, total_issued=200,
+                            reserve=100, frozen=0))
+        await s.commit()
+
+    async def _capital_scan(sf, amount):
+        """模拟 chain_scanner 资本金入池。"""
+        async with sf() as s:
+            pool = (await s.execute(
+                select(CommunityPool).limit(1)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            pool.balance += amount
+            pool.reserve = (pool.reserve or 0) + amount
+            pool.total_issued += amount
+            await s.commit()
+
+    async def _manual_reserve(sf, amount):
+        """模拟 admin 手动 reserve 划拨。"""
+        async with sf() as s:
+            pool = (await s.execute(
+                select(CommunityPool).limit(1)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            pool.reserve = (pool.reserve or 0) + amount
+            # N-1b clamp
+            if (pool.reserve or 0) > (pool.balance or 0):
+                pool.reserve = pool.balance
+            await s.commit()
+
+    await asyncio.gather(
+        _capital_scan(factory, 50),
+        _manual_reserve(factory, 30),
+    )
+
+    async with factory() as s:
+        pool = (await s.execute(
+            select(CommunityPool).limit(1)
+        )).scalar_one()
+        expected_reserve = 100 + 50 + 30  # 初始 + 资本金 + 划拨
+        assert pool.reserve == expected_reserve, (
+            f"W7-LOCK-2 #359: reserve 应为 {expected_reserve}（100+50+30），"
+            f"实得 {pool.reserve}。若 < {expected_reserve} → 并发覆写，"
+            f"_get_pool(lock=True) 未生效。"
+        )
+        assert pool.balance == 250, (
+            f"W7-LOCK-2 #359: balance 应为 250（200+50），实得 {pool.balance}"
+        )
+        assert pool.total_issued == 250, (
+            f"W7-LOCK-2 #359: total_issued 应为 250（200+50），实得 {pool.total_issued}"
+        )
 
     # cleanup
     async with factory() as s:
