@@ -19,7 +19,7 @@ import pytest
 from sqlalchemy import select
 from database import async_session
 from auth_utils import hash_password, create_access_token
-from models import User, CommunityPool
+from models import User, CommunityPool, NTLedger
 
 
 def _h(t): return {"Authorization": f"Bearer {t}"}
@@ -35,12 +35,14 @@ async def _mk_user(name, nt=0, trust=100):
     return create_access_token(name, "villager", 0)
 
 
-async def _set_pool(balance=0, task_escrow=0, camp_balance=0, reserve=0, frozen=0):
+async def _set_pool(balance=0, task_escrow=0, camp_balance=0, reserve=0, frozen=0, total_issued=None):
     async with async_session() as s:
         pool = (await s.execute(select(CommunityPool).limit(1))).scalar_one_or_none()
         if pool is None:
             pool = CommunityPool(total_issued=500)
             s.add(pool)
+        if total_issued is not None:
+            pool.total_issued = total_issued
         pool.balance = balance
         pool.task_escrow = task_escrow
         pool.camp_balance = camp_balance
@@ -115,3 +117,208 @@ class TestWithdrawAdmissionHardened:
                               json={"amount": 50, "to_address": WALLET})
         assert r.status_code == 200, r.text
         assert r.json()["ok"] is True
+
+
+class TestWithdrawQueueConservation:
+    """W7-NT-2: 提现排队不守恒修复 — B-最小方向"""
+
+    @pytest.mark.asyncio
+    async def test_partial_queue_reject_conservation(self, client):
+        """部分排队(提200,发100,排100) → reject → verify 全绿"""
+        # admin 登录
+        admin_r = await client.post("/api/auth/login",
+                                    json={"name": "admin_bootstrap", "password": "admin123"})
+        assert admin_r.status_code == 200, admin_r.text
+        admin_tok = admin_r.json()["token"]
+
+        uid = f"nt2_rj_{uuid.uuid4().hex[:6]}"
+        user_tok = await _mk_user(uid, nt=500, trust=100)
+        # pool: balance=500, reserve=100, frozen=0 → available=100
+        # total_issued=1000 闭环: user(500) + pool(500) = 1000
+        await _set_pool(balance=500, reserve=100, frozen=0, total_issued=1000)
+
+        # verify before
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"before: {r.json()['checks']}"
+
+        # withdraw 200 (pay_now=100, queue=100)
+        r = await client.post("/api/nt/withdraw", headers=_h(user_tok),
+                              json={"amount": 200, "to_address": WALLET})
+        assert r.status_code == 200, r.text
+        assert r.json()["paid"] == 100
+        assert r.json()["queued"] == 100
+        entry_id = r.json()["entry_id"]
+
+        # verify after withdraw
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"withdraw: {r.json()['checks']}"
+
+        # reject
+        r = await client.post(f"/api/admin/withdraw/reject?entry_id={entry_id}",
+                              headers=_h(admin_tok))
+        assert r.status_code == 200, r.text
+
+        # verify after reject
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"reject: {r.json()['checks']}"
+
+    @pytest.mark.asyncio
+    async def test_partial_queue_confirm_conservation(self, client):
+        """部分排队(提200,发100,排100) → confirm → verify 全绿"""
+        admin_r = await client.post("/api/auth/login",
+                                    json={"name": "admin_bootstrap", "password": "admin123"})
+        assert admin_r.status_code == 200, admin_r.text
+        admin_tok = admin_r.json()["token"]
+
+        uid = f"nt2_cf_{uuid.uuid4().hex[:6]}"
+        user_tok = await _mk_user(uid, nt=500, trust=100)
+        await _set_pool(balance=500, reserve=100, frozen=0, total_issued=1000)
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"before: {r.json()['checks']}"
+
+        r = await client.post("/api/nt/withdraw", headers=_h(user_tok),
+                              json={"amount": 200, "to_address": WALLET})
+        assert r.status_code == 200, r.text
+        assert r.json()["paid"] == 100
+        assert r.json()["queued"] == 100
+        entry_id = r.json()["entry_id"]
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"withdraw: {r.json()['checks']}"
+
+        r = await client.post(f"/api/admin/withdraw/confirm?entry_id={entry_id}",
+                              headers=_h(admin_tok))
+        assert r.status_code == 200, r.text
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"confirm: {r.json()['checks']}"
+
+    @pytest.mark.asyncio
+    async def test_full_amount_confirm_conservation(self, client):
+        """全额场景(提50,排0) → confirm → verify 全绿 — 防止改坏"""
+        admin_r = await client.post("/api/auth/login",
+                                    json={"name": "admin_bootstrap", "password": "admin123"})
+        assert admin_r.status_code == 200, admin_r.text
+        admin_tok = admin_r.json()["token"]
+
+        uid = f"nt2_full_{uuid.uuid4().hex[:6]}"
+        user_tok = await _mk_user(uid, nt=500, trust=100)
+        # pool: balance=200, reserve=200, frozen=0 → available=200, 提50全发
+        # total_issued=700: user(500) + pool(200) = 700
+        await _set_pool(balance=200, reserve=200, frozen=0, total_issued=700)
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"before: {r.json()['checks']}"
+
+        r = await client.post("/api/nt/withdraw", headers=_h(user_tok),
+                              json={"amount": 50, "to_address": WALLET})
+        assert r.status_code == 200, r.text
+        assert r.json()["paid"] == 50
+        assert r.json()["queued"] == 0
+        entry_id = r.json()["entry_id"]
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"withdraw: {r.json()['checks']}"
+
+        r = await client.post(f"/api/admin/withdraw/confirm?entry_id={entry_id}",
+                              headers=_h(admin_tok))
+        assert r.status_code == 200, r.text
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"confirm: {r.json()['checks']}"
+
+
+class TestQueuedWithdrawalSettlement:
+    """W7-ORPHAN-QUEUE: 排队提现兑现机制"""
+
+    @pytest.mark.asyncio
+    async def test_queued_skip_when_reserve_insufficient(self, client):
+        """OQ-D ①: reserve 不够 → 跳过排队，verify 仍 pass。"""
+        uid = f"oq_skip_{uuid.uuid4().hex[:6]}"
+        user_tok = await _mk_user(uid, nt=500, trust=100)
+        # pool: balance=200, reserve=100, frozen=50 → available=50
+        # total_issued=750: user(500) + pool(200) + frozen(50) = 750
+        await _set_pool(balance=200, reserve=100, frozen=50, total_issued=750)
+
+        # verify before
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"before: {r.json()['checks']}"
+
+        # withdraw 200 (pay_now=50, queue=150)
+        r = await client.post("/api/nt/withdraw", headers=_h(user_tok),
+                              json={"amount": 200, "to_address": WALLET})
+        assert r.status_code == 200, r.text
+        assert r.json()["paid"] == 50
+        assert r.json()["queued"] == 150
+
+        # verify after withdraw
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"withdraw: {r.json()['checks']}"
+
+        # 此时 reserve(100) - frozen(100) = 0 → 不够兑现 150
+        from cron import _settle_queued_withdrawals
+        await _settle_queued_withdrawals()
+
+        # verify still passes — nothing was settled
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"after settle(skip): {r.json()['checks']}"
+
+        # 排队流水状态仍为 queued
+        async with async_session() as s:
+            q_entries = (await s.execute(
+                select(NTLedger).where(
+                    NTLedger.type == "withdraw_queued",
+                    NTLedger.from_user == uid,
+                )
+            )).scalars().all()
+            assert len(q_entries) == 1
+            assert q_entries[0].status == "queued"
+
+    @pytest.mark.asyncio
+    async def test_queued_settled_when_reserve_sufficient(self, client):
+        """OQ-D ②: reserve 够 → 兑现排队，verify 仍 pass。"""
+        uid = f"oq_settle_{uuid.uuid4().hex[:6]}"
+        user_tok = await _mk_user(uid, nt=500, trust=100)
+        # pool: balance=200, reserve=100, frozen=50 → available=50
+        await _set_pool(balance=200, reserve=100, frozen=50, total_issued=750)
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"before: {r.json()['checks']}"
+
+        # withdraw 200 (pay_now=50, queue=150)
+        r = await client.post("/api/nt/withdraw", headers=_h(user_tok),
+                              json={"amount": 200, "to_address": WALLET})
+        assert r.status_code == 200, r.text
+        assert r.json()["paid"] == 50
+        assert r.json()["queued"] == 150
+
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"withdraw: {r.json()['checks']}"
+
+        # 补 reserve+balance+total_issued（模拟别人充值），使 available≥queue
+        async with async_session() as s:
+            pool = (await s.execute(select(CommunityPool).limit(1))).scalar_one()
+            pool.reserve = 250   # +150
+            pool.balance = 350   # +150（N-1b: reserve ≤ balance）
+            pool.total_issued = 900  # +150（新钱进系统）
+            await s.commit()
+
+        # 现在 reserve(250) - frozen(100) = 150 ≥ 150 → 该兑现
+        from cron import _settle_queued_withdrawals
+        await _settle_queued_withdrawals()
+
+        # verify must pass
+        r = await client.get("/api/nt/verify", headers=_h(user_tok))
+        assert r.json()["pass"] is True, f"after settle: {r.json()['checks']}"
+
+        # 排队流水状态应为 settled
+        async with async_session() as s:
+            q_entries = (await s.execute(
+                select(NTLedger).where(
+                    NTLedger.type == "withdraw_queued",
+                    NTLedger.from_user == uid,
+                )
+            )).scalars().all()
+            assert len(q_entries) == 1
+            assert q_entries[0].status == "settled"

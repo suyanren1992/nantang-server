@@ -527,7 +527,9 @@ async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
     # 第一阶段：冻结（可能部分）
     # SSOT-CHAIN: reserve 只作额控不扣减。扣减 reserve 再 +frozen 会导致
     # total_system 减 N（total_issued 未变→等式不平）。money flow: user→frozen。
-    user.nt_balance -= req.amount
+    # W7-NT-2 B-最小: 只扣能发的部分(pay_now)，排队部分(queue_amount)留在余额。
+    # 守恒: user -pay_now, frozen +pay_now → 净 0。
+    user.nt_balance -= pay_now
     pool.frozen = (pool.frozen or 0) + pay_now
     lid = _ledger_id()
     status_note = f"提现至 {addr[:10]}... 等待管理员签名"

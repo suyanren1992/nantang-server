@@ -10,7 +10,7 @@ import secrets
 from datetime import datetime, timedelta
 from sqlalchemy import select
 from database import async_session
-from models import NTTask
+from models import NTTask, User, NTLedger
 from nt_helpers import _ledger_id, _add_ledger, _get_pool, _accounting_check
 logger = logging.getLogger("cron")
 
@@ -174,10 +174,74 @@ async def tick_daily():
             _check_blocked = True
             logger.critical(f"cron: 会计检查连续异常，已阻断日结")
 
+    # ══ W7-ORPHAN-QUEUE: 兑现排队提现 ══
+    await _settle_queued_withdrawals()
+
     # ══ SSOT-CHAIN: 每日链上对账 ══
     # 上面的会计检查右边用 total_issued(系统自己记的数), 是自证。
     # 这里拿链上真余额做右边 — 链上是底账, 系统是副本。
     await _chain_reconcile()
+
+
+async def _settle_queued_withdrawals():
+    """W7-ORPHAN-QUEUE: 兑现所有 status=queued 的 withdraw_queued 流水。
+
+    资金流（每兑现一笔，照搬 admin.py confirm 烧币模式）：
+      user.nt_balance -= queue_amount    （真扣用户余额——排队金额 NT-2-A 留在余额未动）
+      pool.total_issued -= queue_amount   （烧币：NT 离开系统）
+      _add_ledger(..., "withdraw_settled", ..., status="settled")
+
+    注意：queue_amount 从未进入 frozen（NT-2-A 只冻结 pay_now），
+    故 frozen 不动——与 confirm 路径不同（confirm 解冻 frozen）。
+    等式验证：user-N + total_issued-N → Δtotal_system=Δtotal_issued=-N → diff 不变 ✓
+    """
+    async with async_session() as db:
+        pool = await _get_pool(db, lock=True)
+        result = await db.execute(
+            select(NTLedger).where(
+                NTLedger.type == "withdraw_queued",
+                NTLedger.status == "queued"
+            ).order_by(NTLedger.created_at.asc())
+        )
+        queued_entries = list(result.scalars())
+        if not queued_entries:
+            return
+
+        settled_count = 0
+        for entry in queued_entries:
+            # 检查 reserve 是否有可用空间
+            available = max(0, (pool.reserve or 0) - (pool.frozen or 0))
+            if available < entry.amount:
+                continue  # 不够，下小时再试
+
+            # 找用户并加行锁
+            user = (await db.execute(
+                select(User).where(User.id == entry.from_user)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one_or_none()
+            if not user:
+                logger.warning(f"cron: queued withdraw {entry.entry_id} user {entry.from_user} not found, skip")
+                continue
+            if user.nt_balance < entry.amount:
+                logger.warning(f"cron: queued withdraw {entry.entry_id} user {entry.from_user} "
+                               f"balance {user.nt_balance} < {entry.amount}, skip")
+                continue
+
+            # 兑现：扣用户余额 + 烧币
+            user.nt_balance -= entry.amount
+            pool.total_issued -= entry.amount
+
+            await _add_ledger(db, _ledger_id(), entry.from_user, None, entry.amount,
+                              "withdraw_settled",
+                              f"排队兑现 {entry.amount} NT（原流水 #{entry.entry_id[:8]}）",
+                              status="settled")
+            entry.status = "settled"
+            entry.settled_at = datetime.utcnow().isoformat()
+            settled_count += 1
+
+        if settled_count > 0:
+            await db.commit()
+            logger.info(f"cron: settled {settled_count} queued withdrawals")
 
 
 async def _chain_reconcile():

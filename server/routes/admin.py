@@ -7,7 +7,7 @@ from sqlalchemy import select, delete
 from database import get_db
 from models import Verification, User, NTLedger, CommunityPool, NTTask, Camp, MapLocation
 from routes.auth import require_admin, get_current_user, hash_password
-from nt_helpers import _get_pool, _ledger_id
+from nt_helpers import _get_pool, _ledger_id, _add_ledger
 import logging
 
 logger = logging.getLogger("nantang.admin")
@@ -66,8 +66,12 @@ async def confirm_withdraw(entry_id: str, admin: User = Depends(require_admin),
         raise HTTPException(404, "提现记录不存在或已处理")
 
     pool = await _get_pool(db, lock=True)
+    # W7-NT-2 B-最小: entry.amount = pay_now（账本存的就是能发金额）
+    # 用户已被扣 pay_now，confirm 只销毁冻结，不再动用户余额
     pool.frozen = (pool.frozen or 0) - entry.amount
-    pool.total_issued -= entry.amount
+    pool.total_issued -= entry.amount  # 烧币：NT 离开系统，total_issued 减少
+    await _add_ledger(db, _ledger_id(), entry.from_user, None, entry.amount,
+                      "withdraw_confirmed", f"提现确认 #{entry_id[:8]}", status="confirmed")
     entry.status = "settled"
     entry.settled_at = datetime.utcnow().isoformat()
     await db.commit()
@@ -87,12 +91,24 @@ async def reject_withdraw(entry_id: str, admin: User = Depends(require_admin),
         raise HTTPException(404, "提现记录不存在或已处理")
 
     pool = await _get_pool(db, lock=True)
+    # W7-NT-2 B-最小: entry.amount = pay_now，解冻并退回用户已被扣的部分
     pool.frozen = (pool.frozen or 0) - entry.amount
     # SSOT-CHAIN: 不退回 reserve。reserve 是 pool.balance 的内部额控，退款只回用户余额。
     user = (await db.execute(select(User).where(User.id == entry.from_user))).scalar_one_or_none()
     if user:
         user.nt_balance += entry.amount
+    await _add_ledger(db, _ledger_id(), entry.from_user, "frozen_pool", entry.amount,
+                      "withdraw_rejected", f"提现拒绝 #{entry_id[:8]}", status="rejected")
     entry.status = "cancelled"
+
+    # W7-ORPHAN-QUEUE OQ-C: 连带取消排队流水（queue_amount 在 NT-2-A 留在余额，
+    # 只需标记取消即可，无需资金操作）
+    queued_entry = (await db.execute(
+        select(NTLedger).where(NTLedger.entry_id == entry.entry_id + "-q")
+    )).scalar_one_or_none()
+    if queued_entry and queued_entry.status == "queued":
+        queued_entry.status = "cancelled"
+
     await db.commit()
     return {"ok": True, "entry_id": entry_id, "refunded": True}
 
