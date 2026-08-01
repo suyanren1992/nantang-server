@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import json
 from database import get_db
-from models import Camp, CampBuilder, CampMembership, NTTask, User
+from models import Camp, CampBuilder, CampMembership, CampJob, NTTask, User
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
 
@@ -308,6 +308,42 @@ async def update_camp(camp_id: str, req: dict, user: User = Depends(get_current_
         camp.highlights = json.dumps(req["highlights"], ensure_ascii=False)
     if req.get("status") == "archived":
         camp.closed_at = datetime.utcnow().isoformat()
+        # W7-ID-1a ⓔ: 归档收回本营地全部 camp_job:* 与 camp_member:{camp_id} 标签
+        # native / tenancy:* 不受影响（互不牵连）
+        from identity import revoke_by_source_prefix, sync_user_role
+        from models import UserTag, CampMembership
+        # 找出本营地所有 active 成员 + 工作岗人员，收标签后回写 role
+        _members = await db.execute(
+            select(CampMembership.user_id).where(
+                CampMembership.camp_id == camp_id,
+                CampMembership.status == "active",
+            )
+        )
+        _affected_users = set(_members.scalars().all())
+        # camp_job 人员
+        _jobs = await db.execute(
+            select(CampJob).where(CampJob.camp_id == camp_id, CampJob.status == "active")
+        )
+        for _j in _jobs.scalars():
+            _affected_users.add(_j.user_id)
+            _j.status = "ended"
+            _j.ended_at = datetime.utcnow().isoformat()
+        for _uid in _affected_users:
+            await revoke_by_source_prefix(db, _uid, f"camp_member:{camp_id}")
+            await revoke_by_source_prefix(db, _uid, f"camp_job:")
+            _u = await db.execute(select(User).where(User.id == _uid))
+            _user_obj = _u.scalar_one_or_none()
+            if _user_obj:
+                await sync_user_role(db, _user_obj)
+        # 成员关系也标记 left
+        _all_members = await db.execute(
+            select(CampMembership).where(
+                CampMembership.camp_id == camp_id,
+                CampMembership.status == "active",
+            )
+        )
+        for _m in _all_members.scalars():
+            _m.status = "left"
     camp.updated_at = datetime.utcnow().isoformat()
     await db.commit()
     return {"ok": True}
@@ -446,3 +482,57 @@ async def delete_camp(camp_id: str, user: User = Depends(get_current_user),
     await db.delete(camp)
     await db.commit()
     return {"ok": True}
+
+
+# ══ W7-ID-1a ⓕ: 营地工作岗（工作人员 ≠ 被服务的营员）══
+
+class CampJobRequest(BaseModel):
+    user_id: str = Field(..., description="工作人员用户 ID")
+    job_title: str = Field(..., min_length=1, description="岗位名（如厨房组长）")
+
+
+@router.post("/{camp_id}/jobs")
+async def create_camp_job(camp_id: str, req: CampJobRequest,
+                         admin: User = Depends(require_admin),
+                         db: AsyncSession = Depends(get_db)):
+    """W7-ID-1a: 管理员派工作岗 → grant_tag(builder, camp_job:{id})。
+    工作人员 ≠ 被服务的营员，走 CampJob 表（FK 到真用户，可承载权限）。"""
+    camp = (await db.execute(select(Camp).where(Camp.id == camp_id))).scalar_one_or_none()
+    if not camp:
+        raise HTTPException(status_code=404, detail="营地不存在")
+    target = (await db.execute(select(User).where(User.id == req.user_id))).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    job = CampJob(
+        camp_id=camp_id, user_id=req.user_id, job_title=req.job_title,
+        status="active", created_at=datetime.utcnow().isoformat(),
+    )
+    db.add(job)
+    await db.flush()  # 拿 job.id
+    from identity import grant_tag, sync_user_role
+    await grant_tag(db, req.user_id, "builder", f"camp_job:{job.id}")
+    await sync_user_role(db, target)
+    await db.commit()
+    return {"ok": True, "job_id": job.id, "camp_id": camp_id,
+            "user_id": req.user_id, "job_title": req.job_title}
+
+
+@router.delete("/{camp_id}/jobs/{job_id}")
+async def end_camp_job(camp_id: str, job_id: int,
+                       admin: User = Depends(require_admin),
+                       db: AsyncSession = Depends(get_db)):
+    """W7-ID-1a: 撤岗 → revoke_by_source_prefix(camp_job:{job_id})。"""
+    job = (await db.execute(
+        select(CampJob).where(CampJob.id == job_id, CampJob.camp_id == camp_id)
+    )).scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="工作岗不存在")
+    job.status = "ended"
+    job.ended_at = datetime.utcnow().isoformat()
+    from identity import revoke_by_source_prefix, sync_user_role
+    await revoke_by_source_prefix(db, job.user_id, f"camp_job:{job_id}")
+    target = (await db.execute(select(User).where(User.id == job.user_id))).scalar_one_or_none()
+    if target:
+        await sync_user_role(db, target)
+    await db.commit()
+    return {"ok": True, "job_id": job_id, "status": "ended"}
