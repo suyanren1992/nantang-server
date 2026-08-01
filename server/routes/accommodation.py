@@ -164,7 +164,7 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
     count_r = await db.execute(
         select(func.count(Tenancy.id)).where(
             Tenancy.room_id == req.room_id, Tenancy.status == "active"
-        ).with_for_update()
+        ).with_for_update().execution_options(populate_existing=True)
     )
     occupied = count_r.scalar() or 0
     if occupied >= MAX_BEDS:
