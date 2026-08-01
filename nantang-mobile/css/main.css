@@ -556,7 +556,7 @@ body.ov-locked{overflow:hidden;position:fixed;width:100%}
 .activity-hub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 .ah-card{transition:transform .12s ease,box-shadow .12s ease}
 .ah-card:active{transform:scale(.97);box-shadow:var(--g-shadow)}
-.ah-card-frozen{pointer-events:none}
+.ah-card-frozen{opacity:.55}
 .ah-sub-card{transition:transform .1s ease}
 .ah-sub-card:active{transform:scale(.95)}
 .ah-event-card{transition:transform .1s ease}

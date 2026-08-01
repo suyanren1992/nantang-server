@@ -36,7 +36,7 @@ function renderActivityHub() {
     var badge = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:.58rem;padding:2px 7px;border-radius:6px;color:'+st[1]+';background:'+st[2]+';flex-shrink:0">'+st[0]+' '+m.statusText+'</span>';
     var desc = frozen ? 'B 板块冻结 · UI 已就位等开放' : '';
     var cls = frozen ? ' ah-card-frozen' : '';
-    var act = frozen ? '' : ' data-ah-action="'+m.action+'"';
+    var act = frozen ? ' onclick="showToast(\'即将开放，敬请期待\',\'warn\')"' : ' data-ah-action="'+m.action+'"';
     h += '<div class="ah-card'+cls+'"'+act+' style="background:var(--g-card);border:1px solid '+(frozen?'var(--g-card-border)':'#d0d9ce')+';border-radius:var(--g-radius);padding:12px;cursor:'+(frozen?'default':'pointer')+';opacity:'+(frozen?'0.45':'1')+'">'+
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+
         '<span style="font-size:1.6rem;line-height:1">'+m.icon+'</span>'+
