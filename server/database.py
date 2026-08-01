@@ -122,6 +122,23 @@ _INDEX_DDL = [
 ]
 
 
+def _log_migration_skip(exc: Exception) -> None:
+    """迁移 ALTER 失败的分级日志。
+
+    "列/表已存在" 是幂等重跑的正常结果 -> debug。
+    其余(语法错/类型不兼容/保留字)是真故障: 列不会被创建, 运行时查询必 500,
+    但 except 会把它咽掉, 启动照常成功 -> 必须 warning, 否则无人知晓。
+    三次生产事故(journal(user) 保留字 / is_newbie_task BOOLEAN DEFAULT 0)
+    都是被静默吞掉的这一类。
+    """
+    msg = str(exc)
+    low = msg.lower()
+    if "already exists" in low or "duplicate column" in low:
+        logger.debug("迁移跳过(已存在): %s", msg)
+    else:
+        logger.warning("[MIGRATION-FAIL] ALTER 未生效, 相关列缺失将导致运行时 500: %s", msg)
+
+
 async def init_db():
     async with engine.begin() as conn:
         # SQLite 专属 PRAGMA（PG 上跳过，否则报错）
@@ -134,33 +151,38 @@ async def init_db():
     async with async_session() as session:
         # T1: CommunityPool 防多行 — 必须在查询前执行，否则旧表无此列会报错
         try:
-            await session.execute(text("ALTER TABLE community_pool ADD COLUMN singleton BOOLEAN DEFAULT 1"))
+            await session.execute(text("ALTER TABLE community_pool ADD COLUMN singleton BOOLEAN DEFAULT TRUE"))
             await session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_community_pool_singleton ON community_pool(singleton)"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()  # PG: 失败 DDL 会中止事务，必须回滚才能继续
         # R7: 为已有 User 补 token_version（SQLite ALTER TABLE 加列 + 默认值）
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
         # G-3: Tenancy.accommodation_due（住宿费日记账累计；存量表补列默认 0）
         try:
             await session.execute(text("ALTER TABLE tenancies ADD COLUMN accommodation_due INTEGER DEFAULT 0"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
         # Step 1: 社区资金系统 — reserve/frozen 列
         try:
             await session.execute(text("ALTER TABLE community_pool ADD COLUMN reserve INTEGER DEFAULT 0"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()  # PG: 同上，回滚恢复事务
         try:
             await session.execute(text("ALTER TABLE community_pool ADD COLUMN frozen INTEGER DEFAULT 0"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()  # PG: 同上，回滚恢复事务
         from models import CommunityPool, NTLedger
         from nt_helpers import _add_ledger, _ledger_id
@@ -228,7 +250,8 @@ async def init_db():
         try:
             await session.execute(text("ALTER TABLE card_discoveries ADD COLUMN doer_name_snapshot VARCHAR(64)"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()  # PG: 同上，回滚恢复事务
         # C-B-4: Tenancy 加 track/room_type/check_out_date（存量表补列，向后兼容默认值）
         for _ddl in (
@@ -239,7 +262,8 @@ async def init_db():
             try:
                 await session.execute(text(_ddl))
                 await session.commit()
-            except Exception:
+            except Exception as _e:
+                _log_migration_skip(_e)
                 await session.rollback()  # 列已存在则跳过（PG 需回滚恢复事务）
         # C-B-4: 素社 InnRoom 种子（幂等——空表才播；沿 CommunityPool 池初始化惯例）
         try:
@@ -267,48 +291,55 @@ async def init_db():
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN first_checkin_date DATE"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ④ User.xp_by_category (Text/JSON)
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN xp_by_category TEXT"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ② Tenancy.last_active_at (String/DateTime)
         try:
             await session.execute(text("ALTER TABLE tenancies ADD COLUMN last_active_at VARCHAR"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ══ DB-P0-1: User.last_active_at (Date) ══
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN last_active_at DATE"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ══ CLEAN-WEEKLY-BE ③: User.clean_weekly_streak ══
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN clean_weekly_streak INTEGER DEFAULT 0"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ══ UI-FIX-P2-BE补 B7: User.user_settings (JSON) ══
         try:
             await session.execute(text("ALTER TABLE users ADD COLUMN user_settings TEXT"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ══ NEW-USER-TASK-BE: NTTask 加 3 字段 ══
         for _ddl in (
-            "ALTER TABLE nt_tasks ADD COLUMN is_newbie_task BOOLEAN DEFAULT 0",
-            "ALTER TABLE nt_tasks ADD COLUMN assigned_by_system BOOLEAN DEFAULT 0",
+            "ALTER TABLE nt_tasks ADD COLUMN is_newbie_task BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE nt_tasks ADD COLUMN assigned_by_system BOOLEAN DEFAULT FALSE",
             "ALTER TABLE nt_tasks ADD COLUMN template_id VARCHAR",
         ):
             try:
                 await session.execute(text(_ddl))
                 await session.commit()
-            except Exception:
+            except Exception as _e:
+                _log_migration_skip(_e)
                 await session.rollback()
         # ══ NEW-USER-TASK-BE: 种子数据（4 个模板，幂等——空表才播）══
         try:
@@ -338,7 +369,8 @@ async def init_db():
         try:
             await session.execute(text("DROP TABLE IF EXISTS camp_ledgers"))
             await session.commit()
-        except Exception:
+        except Exception as _e:
+            _log_migration_skip(_e)
             await session.rollback()
         # ══ EMPIRICAL-🔴2.3: 建筑种子（从 seed/buildings.json 加载，幂等——空表才播）══
         try:
