@@ -421,3 +421,99 @@ def test_backfill_is_idempotent_by_txhash():
     seg = src[i:i + 1800]
     assert "NTLedger.tx_hash == _tx" in seg, "补录未按 tx_hash 去重"
     assert "continue" in seg
+
+
+# ── A' N-5: 端到端日结闭环（调真函数，不复刻端点逻辑）────────
+
+@pytest.mark.asyncio
+async def test_daily_settlement_keeps_verify_pass(_setup_db):
+    """N-5: 高余额日结后 verify pass + reserve≤balance。
+
+    设池 balance=1200 reserve=1200 → 真 _run_daily_settlement → 真 verify。
+    旧 A-LABOR-BE 在 balance>1000 时触发 surplus_sweep（池→储备划拨）破坏守恒
+    与 reserve≤balance；删 N-1 后应原样保持 pass。
+    """
+    from database import async_session
+    from models import User, CommunityPool, NTLedger
+    from sqlalchemy import delete
+    from routes.nt import _run_daily_settlement, verify as _verify
+
+    async with async_session() as db:
+        await db.execute(delete(NTLedger))
+        await db.execute(delete(User))
+        await db.execute(delete(CommunityPool))
+        await db.commit()
+
+        admin = User(id="adm_ds1", password_hash="x", role="admin", nt_balance=0,
+                     avatar_seed="x", created_at="2026-01-01", updated_at="2026-01-01")
+        db.add(admin)
+        pool = CommunityPool(singleton=True, balance=1200, total_issued=1200,
+                             task_escrow=0, contribution_pool=0, camp_balance=0,
+                             reserve=1200, frozen=0)
+        db.add(pool)
+        await db.commit()
+
+    # Step 1: 调真 _run_daily_settlement（不走 HTTP，不复制端点逻辑）
+    async with async_session() as db:
+        result = await _run_daily_settlement(db, today="2026-08-01")
+        assert "surplus_sweep" not in result, \
+            f"N-1 未生效: surplus_sweep={result.get('surplus_sweep')}"
+        assert "auto_rebalance" not in result, \
+            f"N-1 未生效: auto_rebalance={result.get('auto_rebalance')}"
+
+    # Step 2: 调真 verify（不走 HTTP，不复制等式逻辑）
+    async with async_session() as db:
+        v = await _verify(user=admin, db=db)
+        assert v["pass"] is True, (
+            f"高余额日结后 verify 应 pass: diff={v['checks']['diff']}, "
+            f"reserve={v['checks']['reserve']}, balance={v['checks']['community_pool']}")
+        assert v["checks"]["reserve_within_balance"] is True, (
+            f"reserve_within_balance 应为 True: reserve={v['checks']['reserve']}, "
+            f"balance={v['checks']['community_pool']}")
+        assert (v["checks"]["reserve"] or 0) <= (v["checks"]["community_pool"] or 0)
+
+
+@pytest.mark.asyncio
+async def test_daily_settlement_low_balance_keeps_verify_pass(_setup_db):
+    """N-5: 低余额日结后 verify pass + reserve≤balance。
+
+    设池 balance=100 reserve=100 → 真 _run_daily_settlement → 真 verify。
+    旧 A-LABOR-BE 在 balance<150 时触发 auto_rebalance（储备→池调水）破坏守恒；
+    删 N-1 后应原样保持 pass。
+    """
+    from database import async_session
+    from models import User, CommunityPool, NTLedger
+    from sqlalchemy import delete
+    from routes.nt import _run_daily_settlement, verify as _verify
+
+    async with async_session() as db:
+        await db.execute(delete(NTLedger))
+        await db.execute(delete(User))
+        await db.execute(delete(CommunityPool))
+        await db.commit()
+
+        admin = User(id="adm_ds2", password_hash="x", role="admin", nt_balance=0,
+                     avatar_seed="x", created_at="2026-01-01", updated_at="2026-01-01")
+        db.add(admin)
+        pool = CommunityPool(singleton=True, balance=100, total_issued=100,
+                             task_escrow=0, contribution_pool=0, camp_balance=0,
+                             reserve=100, frozen=0)
+        db.add(pool)
+        await db.commit()
+
+    # Step 1: 调真 _run_daily_settlement
+    async with async_session() as db:
+        result = await _run_daily_settlement(db, today="2026-08-02")
+        assert "surplus_sweep" not in result, \
+            f"N-1 未生效: surplus_sweep={result.get('surplus_sweep')}"
+        assert "auto_rebalance" not in result, \
+            f"N-1 未生效: auto_rebalance={result.get('auto_rebalance')}"
+
+    # Step 2: 调真 verify
+    async with async_session() as db:
+        v = await _verify(user=admin, db=db)
+        assert v["pass"] is True, (
+            f"低余额日结后 verify 应 pass: diff={v['checks']['diff']}, "
+            f"reserve={v['checks']['reserve']}, balance={v['checks']['community_pool']}")
+        assert v["checks"]["reserve_within_balance"] is True
+        assert (v["checks"]["reserve"] or 0) <= (v["checks"]["community_pool"] or 0)
