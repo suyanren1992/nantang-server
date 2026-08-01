@@ -255,7 +255,7 @@ function saveItemForm(mode,id){
   _saveItems();closeItemPopup();renderItemsInTab();
 }
 function pickChip(el){el.parentElement.querySelectorAll('.my-fchip').forEach(function(c){c.classList.remove('on')});el.classList.add('on');renderMyTasks()}
-function openSub(t){document.getElementById('subTitle').textContent=t.name;document.getElementById('subPage').classList.add('open');
+function openSub(t){_pushOverlay('subPage');document.getElementById('subTitle').textContent=t.name;document.getElementById('subPage').classList.add('open');
   document.body.classList.add('ov-locked');
   var h='<span class="sub-badge sb-gold">'+t.type+'</span> ';
   if (t.status) h+='<span class="sub-badge sb-blue">'+t.status+'</span> ';

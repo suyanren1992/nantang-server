@@ -814,7 +814,7 @@ function openMapPage(){
   if(typeof _initMap==='function'){_initMap()}
 }
 // Item system
-function closeSub(){document.getElementById('subPage').classList.remove('open');if(typeof _unlockBodyIfAllClosed==='function')_unlockBodyIfAllClosed();else document.body.classList.remove('ov-locked')}
+function closeSub(){if(typeof closeOverlay==='function')closeOverlay('subPage');else{document.getElementById('subPage').classList.remove('open');document.body.classList.remove('ov-locked')}}
 function S(id){
   ['scrEntry','scrRegister','scrLogin'].forEach(function(s){document.getElementById(s).classList.add('hidden')});
   document.getElementById(id).classList.remove('hidden');

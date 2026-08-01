@@ -25,7 +25,7 @@ window.NM = {
     // 尝试桥接 openSub，但签名不同（openSub 接受 task 对象），fallback no-op
     if (typeof renderFn === 'function') {
       var el = document.getElementById('subBody');
-      if (el) { document.getElementById('subTitle').textContent = title; renderFn(el); document.getElementById('subPage').classList.add('open'); }
+      if (el) { document.getElementById('subTitle').textContent = title; renderFn(el); if(typeof _pushOverlay==='function')_pushOverlay('subPage'); document.getElementById('subPage').classList.add('open'); }
     }
   }
 };
