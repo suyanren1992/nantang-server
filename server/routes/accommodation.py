@@ -137,7 +137,7 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
         return await _inn_checkin(req, user, db)
     # 已有入住 → 自动退旧房（换房场景）
     existing = await db.execute(
-        select(Tenancy).where(Tenancy.user_id == user.id, Tenancy.status == "active").with_for_update()  # 行锁：防同一用户并发 checkin 创建双份活跃入住
+        select(Tenancy).where(Tenancy.user_id == user.id, Tenancy.status == "active").with_for_update().execution_options(populate_existing=True)  # 行锁：防同一用户并发 checkin 创建双份活跃入住
     )
     old = existing.scalar_one_or_none()
     old_room = None
