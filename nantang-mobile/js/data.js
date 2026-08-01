@@ -718,44 +718,67 @@ function renderCommunityHub() {
   var upcoming = getCamps().filter(function(c){ return c.status==='upcoming'; });
   var archived = getCamps().filter(function(c){ return c.status==='archived'; });
   var h = '';
-  // ── K 窗: 活动集市 L 窗入口（替代旧 inline 5 格子网格） ──
-  h += '<div onclick="closeOverlay(\'overlayCommunity\');setTimeout(function(){openActivityHub()},100)" style="background:var(--g-card);border:1px solid var(--green-primary);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad-sm);margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:8px">';
-  h += '<span style="font-size:1.2rem">🎪</span><div style="flex:1"><div style="font-weight:700;font-size:var(--g-font-size-xs)">活动集市</div><div style="font-size:.55rem;color:var(--g-text-dim)">活动 · 营地 · 共享厨房 · 茶馆 · 集市 · 拍卖</div></div><span style="color:var(--green-primary);font-size:.7rem">进入 ▸</span>';
-  h += '</div>';
-  function card(c, showEnter) {
+  // W7-UI-3 B1: 报名状态 mock（sessionStorage 驱动，真接口待 B3 批联调）
+  // ⚠ B3 联调时须改为按 camp_id 查 membership：GET /api/camps/{camp_id}/my-enrollment
+  // 当前 isMember||isAdmin 是全局角色判断，npc/builder 对所有营地均返回 'joined'——mock 简化，勿照抄
+  function _enrollState(campId) {
+    if (isMember || isAdmin) return 'joined';
+    try { if (sessionStorage.getItem('nt_enroll_'+campId)) return 'pending'; } catch(e) {}
+    return 'none';
+  }
+  function card(c) {
     var cls = c.status==='active'?' camp-card active-camp':' camp-card';
     var btns = '';
-    if (c.status==='active') {
-      if (isMember||isAdmin) btns += '<button class=camp-btn-enter onclick="enterCamp(\''+c.id+'\')">进入营地</button>';
-      btns += '<button class=camp-btn-window onclick="showCampWindow(\''+c.id+'\')">查看窗口</button>';
-      if (!isMember) btns += '<span style=font-size:.62rem;color:var(--green-primary);cursor:pointer;margin-left:auto;white-space:nowrap onclick="enterCamp(\''+c.id+'\')">我要报名 →</span>';
-    } else if (c.status==='upcoming') {
-      btns += '<button class=camp-btn-window onclick="showCampWindow(\''+c.id+'\')">查看窗口</button>';
-    } else {
-      btns += '<button class=camp-btn-review onclick="showCampWindow(\''+c.id+'\')">查看回顾</button>';
+    // U-4: 往期营地——整卡点击查看结项信息
+    if (c.status==='archived') {
+      btns += '<button class=camp-btn-review onclick="event.stopPropagation();showCampWindow(\''+c.id+'\')">📋 查看回顾</button>';
+      return '<div class="'+cls+'" onclick="showCampWindow(\''+c.id+'\')" style="cursor:pointer">'+
+        '<div class=camp-header><div class=camp-emoji>'+(c.emoji||'🏕️')+'</div>'+
+        '<div class=camp-info><div class=camp-name>'+esc(c.name||'未命名')+'</div>'+
+        '<div class=camp-meta>'+esc(c.date||'日期待定')+' · '+(c.people||0)+'人 · '+esc(c.location||'')+'</div></div></div>'+
+        '<div class=camp-theme>'+esc(c.theme||'')+'</div>'+
+        '<div class=camp-actions>'+btns+'</div></div>';
     }
-    return '<div class="'+cls+'"><div class=camp-header><div class=camp-emoji>'+(c.emoji||'🏕️')+'</div><div class=camp-info><div class=camp-name>'+esc(c.name||'未命名')+'</div><div class=camp-meta>'+esc(c.date||'日期待定')+' · '+(c.status==='active'?'进行中':c.status==='upcoming'?'招募中':'已结束')+' · '+(c.people||0)+'人</div></div></div><div class=camp-theme>'+esc(c.theme||'')+'</div><div class=camp-actions>'+btns+'</div></div>';
+    // U-2: 左报名三态 + 右查看窗口（恒常可见）
+    var es = _enrollState(c.id);
+    if (es==='joined') {
+      btns += '<button class=camp-btn-enter onclick="enterCamp(\''+c.id+'\')">🚪 进入营地</button>';
+    } else if (es==='pending') {
+      btns += '<button style="flex:1;padding:8px;border-radius:8px;font-size:.72rem;font-weight:600;background:#e8ede6;color:#8a8a8a;cursor:not-allowed;border:none" disabled>⏳ 报名待审</button>';
+    } else {
+      btns += '<button class=camp-btn-enter onclick="event.stopPropagation();_mockEnroll(\''+c.id+'\')">📝 报名入口</button>';
+    }
+    btns += '<button class=camp-btn-window onclick="event.stopPropagation();showCampWindow(\''+c.id+'\')">👁 查看窗口</button>';
+    return '<div class="'+cls+'"><div class=camp-header><div class=camp-emoji>'+(c.emoji||'🏕️')+'</div>'+
+      '<div class=camp-info><div class=camp-name>'+esc(c.name||'未命名')+'</div>'+
+      '<div class=camp-meta>'+esc(c.date||'日期待定')+' · '+(c.status==='active'?'进行中':'招募中')+' · '+(c.people||0)+'人</div></div></div>'+
+      '<div class=camp-theme>'+esc(c.theme||'')+'</div>'+
+      '<div class=camp-actions>'+btns+'</div></div>';
   }
-  if (active.length) { h += '<div class=event-section-label style=margin-top:0>🟢 进行中</div>'; active.forEach(function(c){ h += card(c, true); }); }
-  if (upcoming.length) { h += '<div class=event-section-label>📅 即将开始</div>'; upcoming.forEach(function(c){ h += card(c, false); }); }
-  if (archived.length) { h += '<div class=event-section-label>📁 往期归档</div>'; archived.forEach(function(c){ h += card(c, false); }); }
-  if (isAdmin) h += '<div class=world-terminal onclick="openCreateCamp()">🌍 世界终端 · 创建新的共创营队</div>';
-  // 社区动态流
+  // ── ① 营地区（第四期置顶 + 往期回顾）──
+  if (active.length) { h += '<div class=event-section-label style=margin-top:0>🟢 进行中</div>'; active.forEach(function(c){ h += card(c); }); }
+  if (upcoming.length) { h += '<div class=event-section-label>📅 即将开始</div>'; upcoming.forEach(function(c){ h += card(c); }); }
+  if (archived.length) { h += '<div class=event-section-label>📁 往期回顾</div>'; archived.forEach(function(c){ h += card(c); }); }
+  // ── ② 社区窗口（最近动态，持续更新）──
+  h += '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px">';
+  h += '<div style="font-size:var(--g-font-size-xs);font-weight:700;color:#5a6e5c;margin-bottom:6px">👁 社区窗口</div>';
   var actLog = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
   if (actLog.length) {
-    h += '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px">';
-    h += '<div style="font-size:var(--g-font-size-xs);font-weight:700;color:#5a6e5c;margin-bottom:6px">📡 社区动态</div>';
     actLog.slice(0,5).forEach(function(a){
       var time = (a.time||'').slice(0,16).replace('T',' ');
       h += '<div style="font-size:.6rem;color:#5a6e5c;padding:3px 0;border-bottom:1px solid #f5f5f5">'+time+' · '+esc(a.text)+'</div>';
     });
-    h += '</div>';
+  } else {
+    h += '<div style="font-size:.6rem;color:#aaa;padding:6px 0;text-align:center">暂无动态，敬请期待</div>';
   }
-  // 阶段 1 前置B：社区档案室入口
+  h += '</div>';
+  // ── ③ 📚 历史档案库（最下方）──
   h += '<div style="text-align:center;padding:14px 0 4px;border-top:1px solid #e8ede6;margin-top:8px">'+
-    '<span style="font-size:.72rem;color:var(--green-primary);cursor:pointer;font-weight:600" onclick="closeOverlay(\'overlayCommunity\');openArchive(\'members\')">📚 社区档案室 →</span>'+
-    '<div style="font-size:.58rem;color:#8a8a8a;margin-top:2px">成员目录 · 运行日志</div>'+
+    '<span style="font-size:.72rem;color:var(--green-primary);cursor:pointer;font-weight:600" onclick="closeOverlay(\'overlayCommunity\');openArchive(\'members\')">📚 历史档案库 →</span>'+
+    '<div style="font-size:.58rem;color:#8a8a8a;margin-top:2px">所有社区活动的历史记录</div>'+
   '</div>';
+  // ── ④ 🌍 世界终端（admin 可见，档案库下方）──
+  if (isAdmin) h += '<div class=world-terminal onclick="openCreateCamp()">🌍 世界终端 · 创建新的共创营队</div>';
   // FIX-24: 空状态
   if (!h) {
     h = '<div style="text-align:center;padding:40px 20px;color:#5a6e5c">'+
@@ -765,6 +788,12 @@ function renderCommunityHub() {
     '</div>';
   }
   el.innerHTML = h;
+}
+// W7-UI-3 B1: mock 报名——真接口待 B3 批联调
+function _mockEnroll(campId) {
+  try { sessionStorage.setItem('nt_enroll_'+campId, '1'); } catch(e) {}
+  showToast('📝 报名已提交（即将开放）', 'ok');
+  renderCommunityHub();
 }
 // ══ 经济常量（统一调参面）══
 // 调参范围：roleBonus 5-50, activityBonus 0-30, canteenMealCost 5-30
