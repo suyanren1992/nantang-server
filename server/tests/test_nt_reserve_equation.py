@@ -1,7 +1,15 @@
-"""NT-P0-2: reserve 移出会计等式 + reserve_covers_frozen + withdraw 准入加固。
+"""reserve 提现额控 + reserve_covers_frozen + withdraw 准入加固。
+
+【SSOT-CHAIN 修正】
+reserve 不等于式独立项——它是 pool.balance 的内部额控(提现上限),
+资金仍在 pool.balance 内, 不单独计入 total_system。
+若 reserve 入等式, 提现流程(user→frozen)会破守恒:
+  withdraw_request: reserve-=N, frozen+=N → total_system-N（total_issued 不变→不平）
+
+链上充值现在进 pool.balance（不再藏 reserve）, 故 reserve 无需入等式。
 
 覆盖判据：
-  ① verify() total_system 不再含 reserve 项（旧 diff 永久 -X 消除）
+  ① verify() total_system 不含 reserve 项（它在 pool.balance 内部）
   ② reserve_covers_frozen 字段存在且值正确
   ③ withdraw 准入：A-LABOR-BE ⑭ 部分提现+排队（reserve 无可用空间时 400）
 """
@@ -41,21 +49,25 @@ async def _set_pool(balance=0, task_escrow=0, camp_balance=0, reserve=0, frozen=
         await s.commit()
 
 
-class TestReserveOutOfEquation:
+class TestReserveInEquation:
     @pytest.mark.asyncio
     async def test_total_system_excludes_reserve(self, client):
+        """SSOT-CHAIN: reserve 不计入 total_system — 它是 pool.balance 内部额控。
+
+        reserve 的资金已在 pool.balance 里, 入等式会 double-count 且提现破守恒。
+        """
         tok = await _mk_user(f"p2_a_{uuid.uuid4().hex[:6]}")
         await _set_pool(balance=100, task_escrow=0, camp_balance=0, reserve=777, frozen=0)
         r = await client.get("/api/nt/verify", headers=_h(tok))
         assert r.status_code == 200, r.text
         c = r.json()["checks"]
-        # total_system = \u7528\u6237\u603b\u989d + \u8fd0\u8425 + \u6258\u7ba1 + \u8425\u961f + \u51bb\u7ed3\uff08\u4e0d\u542b reserve\uff09
-        expected = (c["total_user_balance"] + c["community_pool"] + c["task_escrow"]
-                    + c["camp_balance"] + c["frozen"])
-        assert c["total_system"] == expected, c
-        # reserve \u4ecd\u5c55\u793a\u4f46\u4e0d\u53c2\u4e0e total_system
+        # total_system 应不含 reserve
+        expected_no_reserve = (c["total_user_balance"] + c["community_pool"]
+                               + c["task_escrow"] + c["camp_balance"] + c["frozen"])
+        assert c["total_system"] == expected_no_reserve, (
+            f"total_system={c['total_system']} ≠ {expected_no_reserve} (含reserve会被double-count)")
+        # reserve 字段仍存在（展示用）
         assert c["reserve"] == 777, c
-        assert c["total_system"] != expected + 777
 
     @pytest.mark.asyncio
     async def test_reserve_covers_frozen_flag(self, client):

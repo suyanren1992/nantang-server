@@ -53,6 +53,21 @@ FAIL_ALERT_AFTER = int(os.environ.get("SCAN_FAIL_ALERT", "3"))
 _DEFAULT_FALLBACKS = "https://mainnet.optimism.io,https://optimism-rpc.publicnode.com"
 RPC_FALLBACKS = os.environ.get("OP_RPC_FALLBACKS", _DEFAULT_FALLBACKS)
 
+# 资本金来源地址(逗号分隔, 小写比较)。
+# 从这些地址转入多签的 NT 视为"社区起始资金/追加资本金" -> 全额进社区池,
+# 不计入任何个人余额。其余地址转入 -> 视为该用户个人充值 -> 进个人余额。
+# 缘由: 砚仁从 0xeb55...86ac 充入的 1000 NT 是社区本金而非个人零花钱,
+# 原实现只有"个人充值"一种钱路, 会把社区本金错记成个人余额。
+CAPITAL_SOURCES = {
+    a.strip().lower()
+    for a in os.environ.get("NT_CAPITAL_SOURCES", "").split(",")
+    if a.strip()
+}
+
+
+def _is_capital_source(addr: str) -> bool:
+    return bool(addr) and addr.lower() in CAPITAL_SOURCES
+
 
 def _rpc_candidates() -> list[str]:
     """主 RPC 在前, 去重保序附加备用节点。"""
@@ -313,41 +328,57 @@ class ChainScanner:
         if dup:
             return
 
-        # Match user by wallet_address (case-insensitive) — 行锁防并发充值覆盖
+        is_capital = _is_capital_source(from_addr)
+
         from sqlalchemy import func
-        user_result = await db.execute(
-            select(User).where(func.lower(User.wallet_address) == from_addr.lower()).with_for_update()
-        )
-        user = user_result.scalar_one_or_none()
-        if not user:
-            # 真钱已到多签钱包但匹配不到用户 -> 账目会比链上少这笔, 必须告警人工认领
-            logger.error(
-                "[scanner][ALERT] 收到未知钱包转入, 无法入账(对账将出现差额): "
-                "from=%s amount=%s tx=%s", from_addr, amount, tx_hash)
-            return
+        if is_capital:
+            # 社区资本金: 无需匹配用户, 全额进社区池。
+            # pool.balance 进运营池, pool.reserve 作提现额控(≤balance, 非独立资金)。
+            user = None
+            intent = None
+        else:
+            # 个人充值: 必须匹配用户（行锁防并发充值覆盖）
+            user_result = await db.execute(
+                select(User).where(func.lower(User.wallet_address) == from_addr.lower()).with_for_update()
+            )
+            user = user_result.scalar_one_or_none()
+            if not user:
+                logger.error(
+                    "[scanner][ALERT] 收到未知钱包转入, 无法入账(对账将出现差额): "
+                    "from=%s amount=%s tx=%s", from_addr, amount, tx_hash)
+                return
 
-        # Find matching pending intent
-        intent = (await db.execute(
-            select(DepositIntent).where(
-                DepositIntent.user_id == user.id,
-                DepositIntent.status == "pending"
-            ).order_by(DepositIntent.created_at.desc())
-        )).scalar_one_or_none()
+            # Find matching pending intent
+            intent = (await db.execute(
+                select(DepositIntent).where(
+                    DepositIntent.user_id == user.id,
+                    DepositIntent.status == "pending"
+                ).order_by(DepositIntent.created_at.desc())
+            )).scalar_one_or_none()
 
-        # Credit user
-        user.nt_balance += amount
-        user.updated_at = datetime.now(timezone.utc).isoformat()
-
-        # Update CommunityPool — 走 _get_pool 确保池行不存在时自动创建
         pool = await _get_pool(db)
-        pool.total_issued += amount
-        pool.reserve = (pool.reserve or 0) + amount  # 充值进储备池
+
+        if is_capital:
+            pool.balance += amount
+            pool.reserve = (pool.reserve or 0) + amount  # 提现额控，≤ pool.balance
+            pool.total_issued += amount
+            ledger_to = "community_pool"
+            ledger_type = "deposit_capital"
+            ledger_reason = f"社区资本金入池 {tx_hash[:10]}..."
+        else:
+            # 个人充值: 进个人余额。不再重复记 reserve（旧 bug 已修正）。
+            user.nt_balance += amount
+            user.updated_at = datetime.now(timezone.utc).isoformat()
+            pool.total_issued += amount
+            ledger_to = user.id
+            ledger_type = "deposit_onchain"
+            ledger_reason = f"onchain deposit {tx_hash[:10]}..."
 
         # Write ledger with tx_hash（D15: 统一走 routes.nt._add_ledger，tx_hash 与类型不变）
         from routes.nt import _add_ledger, _ledger_id
         now = datetime.now(timezone.utc)
-        await _add_ledger(db, _ledger_id(), None, user.id, amount, "deposit_onchain",
-                          f"onchain deposit {tx_hash[:10]}...", status="settled", tx_hash=tx_hash)
+        await _add_ledger(db, _ledger_id(), None, ledger_to, amount, ledger_type,
+                          ledger_reason, status="settled", tx_hash=tx_hash)
 
         # Update intent
         if intent:
@@ -356,8 +387,10 @@ class ChainScanner:
             intent.detected_at = now.isoformat()
 
         self.credited_total += 1
-        logger.info("[scanner] 已入账 user_id_hex=%s amount=%s tx=%s",
-                    user.id.encode("utf-8").hex(), amount, tx_hash[:18])
+        logger.info("[scanner] 已入账 kind=%s target=%s amount=%s tx=%s",
+                    "capital->pool" if is_capital else "personal",
+                    "community_pool" if is_capital else user.id.encode("utf-8").hex(),
+                    amount, tx_hash[:18])
 
 
 def _scanner_singleton(db_factory):

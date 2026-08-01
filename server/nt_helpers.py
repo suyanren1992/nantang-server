@@ -44,8 +44,10 @@ async def _get_pool(db, lock: bool = False):
     result = await db.execute(q)
     pool = result.scalar_one_or_none()
     if not pool:
+        # SSOT-CHAIN: 池行自动创建时一律从 0 开始 — 钱只能从链上进来。
+        # 原为 500, 意味着任何一个碰到空池的请求都会凭空发 500 NT。
         pool = CommunityPool(
-            balance=500, total_issued=500, task_escrow=0,
+            balance=0, total_issued=0, task_escrow=0,
             contribution_pool=0, camp_balance=0,
             reserve=0, frozen=0,
             updated_at=datetime.utcnow().isoformat(),
@@ -131,8 +133,11 @@ async def _accounting_check(db) -> dict:
     pool4 = await _get_4pool(db)
     user_result = await db.execute(select(User))
     total_user = sum(u.nt_balance for u in user_result.scalars())
-    # 等式: total_issued = Σuser + operating + escrow + frozen (不含 reserve)
-    total_system = total_user + pool4["operating"] + pool4["escrow"] + pool4["frozen"]
+    # SSOT-CHAIN: 等式口径与 /verify 一致
+    # total_issued = Σuser + operating + escrow + camp + frozen
+    # reserve 不等于式项（它是 pool.balance 的内部额控，非独立资金池）
+    total_system = (total_user + pool4["operating"] + pool4["escrow"]
+                    + pool4["camp_balance"] + pool4["frozen"])
     diff = total_system - pool4["total_issued"]
     reserve_covers_frozen = pool4["reserve"] >= pool4["frozen"]
     escrow_drift = await _calc_escrow_drift(db)

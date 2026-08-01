@@ -173,3 +173,45 @@ async def tick_daily():
         if _consecutive_check_failures >= _CHECK_BLOCK_THRESHOLD:
             _check_blocked = True
             logger.critical(f"cron: 会计检查连续异常，已阻断日结")
+
+    # ══ SSOT-CHAIN: 每日链上对账 ══
+    # 上面的会计检查右边用 total_issued(系统自己记的数), 是自证。
+    # 这里拿链上真余额做右边 — 链上是底账, 系统是副本。
+    await _chain_reconcile()
+
+
+async def _chain_reconcile():
+    """拿链上余额校账本, 不平即告警。
+
+    不阻断日结: 链上读取依赖外部 RPC, 报错不应拖垮结算。
+    但差额必须大声喊 — 这是"钱是否真存在"的唯一判据。
+    """
+    try:
+        from routes.nt import _read_chain_balance
+        from models import User as _U
+        from sqlalchemy import select as _sel
+        chain = await _read_chain_balance()
+        if chain is None:
+            logger.warning("[reconcile] 链上余额读不到, 本日跳过链上对账")
+            return
+        async with async_session() as db:
+            users = list((await db.execute(_sel(_U))).scalars())
+            pool = await _get_pool(db)
+            book = (sum(u.nt_balance for u in users) + pool.balance
+                    + pool.task_escrow + pool.camp_balance
+                    + (pool.frozen or 0))
+        diff = book - chain
+        if diff == 0:
+            logger.info("[reconcile] 链上对账平: %s NT", chain)
+        elif diff > 0:
+            logger.critical(
+                "[reconcile][ALERT] 账上比链上多 %s NT "
+                "(账本=%s 链上=%s) — 存在无链上支撑的记账, "
+                "这部分 NT 永远无法兑付", diff, book, chain)
+        else:
+            logger.error(
+                "[reconcile][ALERT] 链上比账上多 %s NT "
+                "(账本=%s 链上=%s) — 有充值未入账"
+                "(扫链漏扫或未知钱包转入)", -diff, book, chain)
+    except Exception as e:
+        logger.error("[reconcile] 链上对账异常: %s", e)

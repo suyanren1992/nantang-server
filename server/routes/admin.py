@@ -8,6 +8,9 @@ from database import get_db
 from models import Verification, User, NTLedger, CommunityPool, NTTask, Camp, MapLocation
 from routes.auth import require_admin, get_current_user, hash_password
 from nt_helpers import _get_pool, _ledger_id
+import logging
+
+logger = logging.getLogger("nantang.admin")
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -74,7 +77,7 @@ async def confirm_withdraw(entry_id: str, admin: User = Depends(require_admin),
 @router.post("/withdraw/reject")
 async def reject_withdraw(entry_id: str, admin: User = Depends(require_admin),
                            db: AsyncSession = Depends(get_db)):
-    """管理员拒绝提现——退回冻结资金到储备池和用户余额"""
+    """管理员拒绝提现——退回冻结资金到用户余额"""
     # P0-1: 同型行锁——reject 同样销/退冻结资金，双并发 reject 会双退，同款补锁。
     entry = (await db.execute(
         select(NTLedger).where(NTLedger.entry_id == entry_id, NTLedger.status == "pending")
@@ -85,7 +88,7 @@ async def reject_withdraw(entry_id: str, admin: User = Depends(require_admin),
 
     pool = await _get_pool(db, lock=True)
     pool.frozen = (pool.frozen or 0) - entry.amount
-    pool.reserve = (pool.reserve or 0) + entry.amount
+    # SSOT-CHAIN: 不退回 reserve。reserve 是 pool.balance 的内部额控，退款只回用户余额。
     user = (await db.execute(select(User).where(User.id == entry.from_user))).scalar_one_or_none()
     if user:
         user.nt_balance += entry.amount
@@ -112,6 +115,58 @@ def _seed_id(key: str) -> str:
 
 
 SEED_KEY_PREFIXES = ("seed_", "presence:")
+
+
+async def _chain_balance_or_none():
+    """读多签钱包链上 NT 余额。读不到返 None(不猜、不默认数字)。"""
+    import os
+    wallet = os.environ.get("PLATFORM_WALLET_ADDRESS", "")
+    token = os.environ.get("NT_TOKEN_CONTRACT", "")
+    if not wallet or not token:
+        return None
+    try:
+        from web3 import Web3
+        rpc = os.environ.get("OP_RPC_URL", "https://mainnet.optimism.io")
+        w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 15}))
+        abi = ('[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],'
+               '"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},'
+               '{"constant":true,"inputs":[],"name":"decimals",'
+               '"outputs":[{"name":"","type":"uint8"}],"type":"function"}]')
+        c = w3.eth.contract(address=w3.to_checksum_address(token), abi=abi)
+        dec = c.functions.decimals().call()
+        raw = c.functions.balanceOf(w3.to_checksum_address(wallet)).call()
+        return raw // 10 ** dec
+    except Exception as e:
+        logger.warning("[dev-reset] 链上余额读取失败: %s", e)
+        return None
+
+
+async def _reset_pool_to_chain(db, pool, now, mode):
+    """SSOT-CHAIN: 重置后池子对齐链上余额, 而非写死 500。
+
+    原实现 balance=500/total_issued=500 写死了数字。链上实际是 1000 时,
+    跑一次重置就把池子打回 500 — 凭空蒸发 500 NT, 账立刻不平。
+    读不到链上余额时置 0(宁可偏少不可凭空多记)。
+    """
+    chain = await _chain_balance_or_none()
+    amount = chain if chain is not None else 0
+    pool.balance = amount
+    pool.total_issued = amount
+    pool.task_escrow = 0
+    pool.contribution_pool = 0
+    pool.camp_balance = 0
+    pool.reserve = 0
+    pool.frozen = 0
+    pool.updated_at = now
+    if amount:
+        db.add(NTLedger(entry_id=_ledger_id(), type="pool_init",
+                        from_user="system", to_user="community_pool",
+                        amount=amount,
+                        reason=f"社区池对齐链上余额（dev-reset {mode}）",
+                        status="settled", created_at=now, settled_at=now))
+    logger.info("[dev-reset %s] 池子对齐链上余额=%s (chain_read=%s)",
+                mode, amount, "ok" if chain is not None else "failed->0")
+    return amount
 
 
 @router.post("/dev-reset")
@@ -151,13 +206,11 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         pool = await _get_pool(db, lock=True)  # CR-3: dev 工具写池补行锁
         await db.execute(delete(CommunityPool).where(CommunityPool.singleton == True))
         await db.commit()
-        new_pool = CommunityPool(singleton=True, balance=500, total_issued=500, task_escrow=0,
+        new_pool = CommunityPool(singleton=True, balance=0, total_issued=0, task_escrow=0,
                                   contribution_pool=0, camp_balance=0, reserve=0, frozen=0)
         db.add(new_pool)
-        lid = _ledger_id()
-        db.add(NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
-                        amount=500, reason="社区池初始化（dev-reset hard）", status="settled",
-                        created_at=now, settled_at=now))
+        await db.flush()
+        await _reset_pool_to_chain(db, new_pool, now, "hard")
     else:
         # soft: 保留 users，清业务表
         await db.execute(delete(NTTask))
@@ -176,12 +229,7 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
         await db.execute(delete(CampBuilder))   # U-2: FK->camps，先于 delete(Camp)（soft 不删 users，其余三表不动）
         await db.execute(delete(Camp))
         pool = await _get_pool(db, lock=True)  # CR-3: dev 工具写池补行锁
-        pool.balance = 500; pool.total_issued = 500; pool.task_escrow = 0
-        pool.contribution_pool = 0; pool.camp_balance = 0; pool.reserve = 0; pool.frozen = 0
-        lid = _ledger_id()
-        db.add(NTLedger(entry_id=lid, type="pool_init", from_user="system", to_user="community_pool",
-                        amount=500, reason="社区池重置（dev-reset soft）", status="settled",
-                        created_at=now, settled_at=now))
+        await _reset_pool_to_chain(db, pool, now, "soft")
         users = (await db.execute(select(User))).scalars().all()
         for u in users:
             u.nt_balance = 0; u.contribution_value = 0; u.experience_value = 0
@@ -290,16 +338,12 @@ async def dev_seed(admin: User = Depends(get_current_user),
     #     实证前端冰箱面板读 localStorage（AppData._data.inventory.office），非 InventoryItem 表；
     #     服务端 seed 填不进冰箱 UI，改真机手动录入 1 件验证录入链路。
 
-    # ── 确保社区池 >= 500 ──
-    pool = await _get_pool(db, lock=True)  # CR-3: dev 工具写池补行锁
-    if pool.balance < 500:
-        diff = 500 - pool.balance
-        pool.balance += diff; pool.total_issued += diff
-        lid = _ledger_id()
-        db.add(NTLedger(entry_id=lid, type="pool_seed", from_user="system", to_user="community_pool",
-                        amount=diff, reason=f"社区池补至500（dev-seed +{diff}）", status="settled",
-                        created_at=now, settled_at=now))
-        created.append(f"pool:+{diff}->500")
+    # ── SSOT-CHAIN: 删除"补池至 500" ──
+    # 原实现在池子 < 500 时凭空补差额并 total_issued += diff — 这是印钱。
+    # 链上没有对应的 NT, 补出来的部分永远无法兑付, 对账必不平。
+    # 测试需要池子有钱 -> 往多签钱包真充 NT(扫链自动入池), 不得凭空造。
+    pool = await _get_pool(db, lock=True)
+    created.append(f"pool:unchanged({pool.balance})")
 
     # cleaning/spaces 为纯本地数据（仅 localStorage），无法通过 server 端点 seed——已跳过
 

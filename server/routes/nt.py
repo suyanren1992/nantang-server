@@ -525,8 +525,9 @@ async def withdraw(req: WithdrawRequest, user: User = Depends(get_current_user),
             f"本次 {req.amount} NT 全部排队，请等待下次发")
 
     # 第一阶段：冻结（可能部分）
+    # SSOT-CHAIN: reserve 只作额控不扣减。扣减 reserve 再 +frozen 会导致
+    # total_system 减 N（total_issued 未变→等式不平）。money flow: user→frozen。
     user.nt_balance -= req.amount
-    pool.reserve = (pool.reserve or 0) - pay_now
     pool.frozen = (pool.frozen or 0) + pay_now
     lid = _ledger_id()
     status_note = f"提现至 {addr[:10]}... 等待管理员签名"
@@ -583,8 +584,13 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
     # A-LABOR-BE ⑩: 新增 escrow_drift 校验
     from nt_helpers import _calc_escrow_drift as _calc_ed
     escrow_drift = await _calc_ed(db)
-    # NT-P0-2: reserve 移出会计等式（链上兑付背书台账，与 contribution_pool 同级不计 total_system）
-    total_system = total_user_balance + pool.balance + pool.task_escrow + pool.camp_balance + (pool.frozen or 0)
+    # SSOT-CHAIN: reserve 不计入等式 — 它是 pool.balance 的内部子项（提现额度上限），
+    # 不是独立资金。旧 bug（链上充值记 reserve）已修正——资本金现在进 pool.balance。
+    # 若 reserve 入等式，提现流程（user→frozen→confirm/reject）会破坏守恒：
+    #   withdraw_request: reserve-=N, frozen+=N → total_system-N（total_issued 不变→不平）
+    # 修正后 reserve 只作额控，不在等式内。
+    total_system = (total_user_balance + pool.balance + pool.task_escrow
+                    + pool.camp_balance + (pool.frozen or 0))
     # 背书台账独立硬检查：储备池须覆盖提现待审
     reserve_covers_frozen = (pool.reserve or 0) >= (pool.frozen or 0)
 
@@ -594,7 +600,7 @@ async def verify(user: User = Depends(get_current_user), db: AsyncSession = Depe
             "total_user_balance": total_user_balance,
             "community_pool": pool.balance,
             "task_escrow": pool.task_escrow,
-            "reserve": pool.reserve or 0,  # NT-P0-2: 仅展示，不再计入 total_system
+            "reserve": pool.reserve or 0,  # SSOT-CHAIN: 内部额控，不等于式项（已在 pool.balance 内）
             "reserve_covers_frozen": reserve_covers_frozen,
             "frozen": pool.frozen or 0,
             "camp_balance": pool.camp_balance,
@@ -676,6 +682,82 @@ async def admin_deposit_intents(admin: User = Depends(require_admin), db: AsyncS
              "tx_hash": i.tx_hash, "status": i.status,
              "created_at": i.created_at, "detected_at": i.detected_at}
             for i in result.scalars()]
+
+
+async def _read_chain_balance():
+    """读多签钱包链上 NT 余额(整数 NT)。失败返 None — 不猜不默认。"""
+    if not PLATFORM_WALLET:
+        return None
+    try:
+        from web3 import Web3
+        import os as _os
+        rpc = _os.environ.get("OP_RPC_URL", "https://mainnet.optimism.io")
+        token_addr = _os.environ.get("NT_TOKEN_CONTRACT", "")
+        if not token_addr:
+            return None
+        w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={"timeout": 15}))
+        abi = ('[{"constant":true,"inputs":[{"name":"_owner","type":"address"}],'
+               '"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},'
+               '{"constant":true,"inputs":[],"name":"decimals",'
+               '"outputs":[{"name":"","type":"uint8"}],"type":"function"}]')
+        c = w3.eth.contract(address=w3.to_checksum_address(token_addr), abi=abi)
+        dec = c.functions.decimals().call()
+        raw = c.functions.balanceOf(w3.to_checksum_address(PLATFORM_WALLET)).call()
+        return raw // 10 ** dec
+    except Exception as e:
+        logger.warning("[reconcile] 链上余额读取失败: %s", e)
+        return None
+
+
+@router.get("/reconcile-chain")
+async def reconcile_chain(admin: User = Depends(require_admin),
+                          db: AsyncSession = Depends(get_db)):
+    """GET /api/nt/reconcile-chain — 链上对账(真对账)。
+
+    砂仁定的铁律:
+        所有人余额 + 社区池 + 任务托管 + 营队池 + 冻结
+            == 多签钱包链上余额
+
+    reserve 不等于式项——它是 pool.balance 的内部额控(提现上限), 非独立资金。
+
+    与 /verify 的区别(关键):
+      /verify 右边用 pool.total_issued — 系统自己记的数。充值时两边同时涨,
+      是个闭环, 永远"平", 验证不了钱是否真存在。
+      本端点右边用链上真余额 — 链上是底账, 系统是副本。
+    """
+    result = await db.execute(select(User))
+    users = list(result.scalars())
+    total_user_balance = sum(u.nt_balance for u in users)
+    pool = await _get_pool(db)
+
+    book_total = (total_user_balance + pool.balance + pool.task_escrow
+                  + pool.camp_balance + (pool.frozen or 0))
+
+    chain = await _read_chain_balance()
+    if chain is None:
+        return {"ok": False, "error": "链上余额读取失败, 无法对账",
+                "book_total": book_total}
+
+    diff = book_total - chain
+    return {
+        "ok": True,
+        "balanced": diff == 0,
+        "chain_balance": chain,
+        "book_total": book_total,
+        "diff": diff,
+        "hint": ("平" if diff == 0 else
+                 (f"账上比链上多 {diff} NT — 存在无链上支撑的记账(凭空发币/重复计数)"
+                  if diff > 0 else
+                  f"链上比账上多 {-diff} NT — 有充值未入账(扫链漏或未知钱包转入)")),
+        "breakdown": {
+            "total_user_balance": total_user_balance,
+            "community_pool": pool.balance,
+            "task_escrow": pool.task_escrow,
+            "camp_balance": pool.camp_balance,
+            "frozen": pool.frozen or 0,
+            "reserve": pool.reserve or 0,
+        },
+    }
 
 
 @router.get("/chain-balance")

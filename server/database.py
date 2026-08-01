@@ -184,29 +184,76 @@ async def init_db():
         except Exception as _e:
             _log_migration_skip(_e)
             await session.rollback()  # PG: 同上，回滚恢复事务
-        from models import CommunityPool, NTLedger
+        from models import CommunityPool, NTLedger, MapLocation
         from nt_helpers import _add_ledger, _ledger_id
         r = await session.execute(select(CommunityPool).limit(1))
         pool = r.scalar_one_or_none()
         if not pool:
-            # C-7: 新库池起始值 500，账上留痕（照社区池多钱包设计稿）
-            pool = CommunityPool(balance=500, total_issued=500, task_escrow=0,
+            # SSOT-CHAIN: 池子起始值不再写死数字。
+            #
+            # 原实现 balance=500/total_issued=500 是凭空造币: 链上一分钱没有时,
+            # 账上就凭空多出 500, 而 /verify 右边用的是系统自己记的
+            # total_issued, 两边同时涨 -> 永远"平", 永远验不出钱是否真存在。
+            # 新库一律从 0 开始; 钱只能从链上进来(chain_scanner 认
+            # CAPITAL_SOURCES 入社区池), 账上每一分都有链上凭据。
+            pool = CommunityPool(balance=0, total_issued=0, task_escrow=0,
                          contribution_pool=0, camp_balance=0, reserve=0, frozen=0,
                          updated_at=datetime.utcnow().isoformat())
             session.add(pool)
-            await _add_ledger(session, _ledger_id(), "system", "community_pool", 500,
-                              "pool_init", "社区池初始化", status="settled")
             await session.commit()
-        else:
-            # C-7: 存量库池为 0 且从未补过 → 幂等补一次 500（有 pool_init 账则永不重复）
-            has_init = await session.execute(select(NTLedger).where(NTLedger.type == "pool_init").limit(1))
-            if (pool.balance or 0) == 0 and not has_init.scalar_one_or_none():
-                pool.balance = 500
-                pool.total_issued = (pool.total_issued or 0) + 500
-                pool.updated_at = datetime.utcnow().isoformat()
-                await _add_ledger(session, _ledger_id(), "system", "community_pool", 500,
-                                  "pool_init", "社区池初始化（存量库补齐）", status="settled")
+            logger.info("[SSOT-CHAIN] 新建社区池 balance=0 "
+                        "(起始资金须由链上充值入池, 不再凭空发币)")
+        # ══ SSOT-CHAIN: 历史充值补录(幂等, MapLocation 持久化去重) ══
+        # 下方交易已在链上确认到账多签钱包, 但扫链扫不到:
+        # 它们落在扫链游标之前(远超免费节点归档窗口), 永远追不回。
+        # 无此补录, 对账会永远显示"链上比账上多"。
+        # 去重改用 MapLocation(key="backfill_applied") — 原实现查 NTLedger.tx_hash,
+        # 但 soft-reset 会 delete(NTLedger) → 重启后去重失效 → 重复入账。
+        # MapLocation 的 key 不以 "seed_"/"presence:" 开头则不被 soft-reset 删除。
+        BACKFILL_KEY = "backfill_applied"
+        BACKFILL_DEPOSITS = [
+            # (tx_hash, amount NT, 说明)
+            ("0x1b0a693e3cb9449a79430a4773a22252b1df7166c5e8e06993e9a595e9128918",
+             1, "社区资本金补录(2026-07-21 链上区块 154506642)"),
+        ]
+        _bf_row = (await session.execute(
+            select(MapLocation).where(MapLocation.key == BACKFILL_KEY)
+        )).scalar_one_or_none()
+        _applied = set(json.loads(_bf_row.data)) if (_bf_row and _bf_row.data) else set()
+        for _tx, _amt, _why in BACKFILL_DEPOSITS:
+            if _tx in _applied:
+                continue
+            try:
+                # 双重去重: MapLocation(主, 存活 soft-reset) + NTLedger(副, 防崩溃半写)
+                _dup = (await session.execute(
+                    select(NTLedger).where(NTLedger.tx_hash == _tx).limit(1)
+                )).scalar_one_or_none()
+                if _dup:
+                    _applied.add(_tx); continue
+                _p = (await session.execute(select(CommunityPool).limit(1))).scalar_one_or_none()
+                if _p is None:
+                    break
+                _p.balance = (_p.balance or 0) + _amt
+                _p.reserve = (_p.reserve or 0) + _amt  # 提现额控
+                _p.total_issued = (_p.total_issued or 0) + _amt
+                _p.updated_at = datetime.utcnow().isoformat()
+                await _add_ledger(session, _ledger_id(), None, "community_pool", _amt,
+                                  "deposit_capital", _why, status="settled", tx_hash=_tx)
                 await session.commit()
+                _applied.add(_tx)
+                logger.info("[SSOT-CHAIN] 补录历史充值 %s NT tx=%s", _amt, _tx[:18])
+            except Exception as _e:
+                await session.rollback()
+                logger.error("[SSOT-CHAIN] 补录失败 tx=%s: %s", _tx[:18], _e)
+        if _applied and _applied != set(t[0] for t in BACKFILL_DEPOSITS if t[0] in _applied):
+            # Persist applied set to MapLocation (survives soft-reset)
+            _payload = json.dumps(list(_applied))
+            if _bf_row:
+                _bf_row.data = _payload
+            else:
+                session.add(MapLocation(key=BACKFILL_KEY, data=_payload))
+            await session.commit()
+
         # Fix 2: 为已有 NTTask 补 assignees 列（多槽位）
         try:
             await session.execute(text("ALTER TABLE nt_tasks ADD COLUMN assignees TEXT"))
