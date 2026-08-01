@@ -146,6 +146,15 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
     pool = await db.execute(select(CommunityPool).limit(1)); pool = pool.scalar_one_or_none()
     if not pool: pool = CommunityPool(balance=0, total_issued=0, task_escrow=0, contribution_pool=0, camp_balance=0, reserve=0, frozen=0); db.add(pool)
     # ponytail: NT 仅来自链上充值，注册不再赠送
+    # W7-ID-1a ⓐ: 在地码池 → 本地村民身份（native=true + npc标签，永久事实）
+    _native_codes = os.environ.get("NATIVE_INVITE_CODES", "")
+    if _native_codes.strip():
+        _native_pool = [c.strip() for c in _native_codes.split(",") if c.strip()]
+        if req.invite_code in _native_pool:
+            u.native = True
+            from identity import grant_tag
+            await grant_tag(db, u.id, "npc", "native")
+            # native 是永久事实，不触发 role 回写（visitor→npc 由后续 sync 或 derive 处理）
     await db.commit()
     _rt = create_refresh_token(u.id, u.token_version)
     _set_rt_cookie(response, _rt)
