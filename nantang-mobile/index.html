@@ -32,7 +32,7 @@ if (window.location.protocol !== 'file:') {
   }, 500);
   // 3s 超时保底：API 无响应 → 显示加载提示，不继续白屏
   setTimeout(function(){
-    if (document.documentElement.style.visibility === 'hidden') {
+    if (document.body.style.visibility !== 'visible') {
       var fb = document.getElementById('loadingFallback');
       if (fb) fb.style.display = 'block';
     }
