@@ -327,9 +327,10 @@ this._data.map_locations.people_on_site = [];
     }
     if (!this._data.camps || Object.keys(this._data.camps).length === 0) {
       this._data.camps = {
-        camp4:{id:'camp4',name:'第四期共创营',emoji:'🏕️',theme:'南塘有风，共创有光',date:'7/20 — 7/27',status:'active',people:12,max:16,location:'南塘合作社大院',desc:'七天沉浸式在地创作：工笔画、陶艺、书法、田园生活。适合所有对传统文化感兴趣的朋友。',highlights:['7/20 开营仪式 + 欢迎晚餐','7/22 工笔画大师课','7/25 作品展览日','7/27 结营仪式 + 敬字亭'],_seed:true},
-        camp5:{id:'camp5',name:'工笔画写生营',emoji:'🎨',theme:'五天集中写生，导师一对一点评',date:'8/1 — 8/5',status:'upcoming',people:5,max:10,location:'大地书房',desc:'五天集中写生，导师一对一点评。适合有基础的同学。',highlights:['8/1 开营','8/2-4 写生+点评','8/5 作品展'],_seed:true},
-        camp1:{id:'camp1',name:'春季写生周',emoji:'🌸',theme:'春季户外写生',date:'4/10 — 4/17',status:'archived',people:8,max:12,location:'南塘周边',desc:'春季户外写生。',highlights:['已结束'],_seed:true}
+        camp1:{id:'camp1',name:'第一期共创营',emoji:'🌸',theme:'南塘',date:'2025年11月',status:'archived',people:20,max:20,location:'南塘村',desc:'南塘艺术共创营第一期。主题由共创者自己选定——「南塘」。免费，15天，约20人满员。',highlights:['免费 · 15天','约20人满员','展览：村内展'],fee:'免费',_seed:true},
+        camp2:{id:'camp2',name:'第二期共创营',emoji:'🎨',theme:'南塘人物志',date:'2026年1—2月',status:'archived',people:20,max:20,location:'南塘村',desc:'主题从空间转向人物——「南塘人物志」。首次收费300元，20天跨春节，团队从5人扩至15人。',highlights:['300元 · 20天','满员','首次收费验证'],fee:'300元',_seed:true},
+        camp3:{id:'camp3',name:'第三期共创营',emoji:'🏕️',theme:'寻找',date:'2026.6.6 — 6.22',status:'archived',people:10,max:20,location:'南塘村',desc:'NT系统首次完整运行。寻自然、寻自我、寻链接。599元，17天，约10人参与。',highlights:['599元 · 17天','约10人参与','展览：乡村展+城市展','NT系统首次运行'],fee:'599元',_seed:true},
+        camp4:{id:'camp4',name:'第四期共创营',emoji:'🏕️',theme:'待定',date:'暂定9月1日',status:'upcoming',people:0,max:20,location:'南塘村',desc:'即将开放报名。',highlights:['即将报名','具体安排待定'],fee:'待定',_seed:true}
       };
     }
     this._saveShared();
