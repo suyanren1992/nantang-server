@@ -718,3 +718,55 @@ async def test_daily_tick_after_nt1_keeps_verify_pass_on_pg(pg_engine):
         await s.execute(text("DELETE FROM users WHERE id IN ('d4b_u1', 'd4b_u2')"))
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-1 L-1: _get_pool(lock=True) 缺 populate_existing → 加锁重查读缓存旧值
+# ══════════════════════════════════════════════════════════════════════
+async def test_get_pool_lock_populate_existing_reads_fresh(pg_engine):
+    """W7-LOCK-1 L-1: _get_pool(db, lock=True) 修复前缺 populate_existing。
+
+    同 session 先无锁读 pool（缓存到 identity map, balance=100），
+    另一 session 并发改 balance=50 并提交，
+    原 session 再以 _get_pool(lock=True) 加锁重查 →
+    修复前返回缓存旧值 100（脏写源头），
+    修复后加 populate_existing → 读到最新值 50。
+
+    复现 nt_helpers.py:_get_pool 的锁模式：
+      select(CommunityPool).with_for_update().execution_options(populate_existing=True)
+    """
+    from nt_helpers import _get_pool
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(CommunityPool(balance=100, total_issued=200,
+                            reserve=80, frozen=0))
+        await s.commit()
+
+    async with factory() as sA:
+        # A 首次无锁读——缓存旧值 100 到 session identity map
+        pool_A_first = await _get_pool(sA, lock=False)
+        assert pool_A_first.balance == 100
+
+        # B 并发改 balance=50 并提交
+        async with factory() as sB:
+            pool_B = (await sB.execute(
+                select(CommunityPool).limit(1)
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            pool_B.balance = 50
+            await sB.commit()
+
+        # A 有锁重查——_get_pool(lock=True) 修复后应读到 B 的 50
+        pool_A_locked = await _get_pool(sA, lock=True)
+        assert pool_A_locked.balance == 50, (
+            f"W7-LOCK-1 L-1: _get_pool(lock=True) 应读到并发提交值 50，"
+            f"实得 {pool_A_locked.balance}。"
+            f"若为 100 → populate_existing 未加，session 返回缓存旧值 → 脏写。"
+        )
+        await sA.rollback()
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()

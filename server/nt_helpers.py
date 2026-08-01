@@ -43,7 +43,7 @@ async def _get_pool(db, lock: bool = False):
     """Get or create CommunityPool singleton. pass lock=True for row-level lock."""
     q = select(CommunityPool).limit(1)
     if lock:
-        q = q.with_for_update()
+        q = q.with_for_update().execution_options(populate_existing=True)
     result = await db.execute(q)
     pool = result.scalar_one_or_none()
     if not pool:
