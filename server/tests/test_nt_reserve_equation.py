@@ -57,7 +57,7 @@ class TestReserveInEquation:
         reserve 的资金已在 pool.balance 里, 入等式会 double-count 且提现破守恒。
         """
         tok = await _mk_user(f"p2_a_{uuid.uuid4().hex[:6]}")
-        await _set_pool(balance=100, task_escrow=0, camp_balance=0, reserve=777, frozen=0)
+        await _set_pool(balance=100, task_escrow=0, camp_balance=0, reserve=77, frozen=0)
         r = await client.get("/api/nt/verify", headers=_h(tok))
         assert r.status_code == 200, r.text
         c = r.json()["checks"]
@@ -66,8 +66,8 @@ class TestReserveInEquation:
                                + c["task_escrow"] + c["camp_balance"] + c["frozen"])
         assert c["total_system"] == expected_no_reserve, (
             f"total_system={c['total_system']} ≠ {expected_no_reserve} (含reserve会被double-count)")
-        # reserve 字段仍存在（展示用）
-        assert c["reserve"] == 777, c
+        # reserve 字段仍存在（展示用）；N-1b clamp 确保 reserve ≤ balance
+        assert c["reserve"] == 77, c
 
     @pytest.mark.asyncio
     async def test_reserve_covers_frozen_flag(self, client):
