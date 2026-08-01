@@ -177,10 +177,10 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
     # W7-ID-1a ⓑ: coop 入住发 local_partner 标签（不论原身份）
     # 先 flush 拿 tenancy.id，再用 source=tenancy:{id} 发标签
     await db.flush()
+    old_role = user.role  # sync 前取（_checkin_newbie_hook 需升级前角色匹配模板）
     from identity import grant_tag, sync_user_role
     await grant_tag(db, user.id, "local_partner", f"tenancy:{t.id}")
     await sync_user_role(db, user)
-    old_role = user.role
     # NEW-USER-TASK-BE: 首次入住派发新人任务（用升级前角色匹配模板）
     newbie_tasks = await _checkin_newbie_hook(user, db, original_role=old_role)
     await db.commit()
