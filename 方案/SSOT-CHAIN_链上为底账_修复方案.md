@@ -125,6 +125,8 @@ pool.total_issued += amount   ← 发行总量
 **reserve 始终 ≤ pool.balance**，是 balance 的内部子项，不是独立资金池。
 这样提现时有额控可用（`reserve - frozen ≥ withdraw_amount`），资金本身在 balance 内只计一次。
 
+> N-1b（W7-NT-1 A'）: 该不变量已由 `_get_pool` clamp + `/verify` `reserve_within_balance` 代码强制，不再"碰巧成立"。
+
 ### 4.9 修正重复计数 bug（v1 已做，保留）
 
 个人充值的旧逻辑：
@@ -184,7 +186,7 @@ pool.total_issued += amount ← 发行总量跟踪
 
 | 改动 | 说明 |
 |------|------|
-| `/verify` 等式 | `total_system` 重新包含 `reserve` |
+| `/verify` 等式 | `total_system` 不含 `reserve`（v2 修正：reserve 是 pool.balance 内部额控，非独立资金）|
 | `/verify` 返回注释 | reserve 标注回归 |
 | 新增 `_read_chain_balance()` | 共享的链上余额读取函数，供 reconcile 和 cron 复用 |
 | 新增 `GET /reconcile-chain` | 链上对账端点（admin only），返回 `balanced` + `diff` + `hint` + `breakdown` |
@@ -208,7 +210,7 @@ pool.total_issued += amount ← 发行总量跟踪
 | 4 | `test_dev_seed_no_longer_mints_to_500` | 禁止印钱（静态检查） |
 | 5 | `test_reset_pool_to_chain_uses_zero_when_chain_unreadable` | 链不可用时置 0 |
 | 6 | `test_reset_pool_aligns_to_chain_balance` | 链上 1000 → 账上 1000 |
-| 7 | `test_verify_equation_includes_reserve` | reserve 回归等式（AST 验证） |
+| 7 | `test_verify_equation_excludes_reserve` | reserve 不算等式项（AST 验证） |
 | 8 | `test_reconcile_chain_endpoint_exists_and_uses_chain` | 真对账端点存在且不引用 total_issued |
 | 9 | `test_cron_has_daily_chain_reconcile` | 每日自动对账 |
 | 10 | `test_capital_source_routes_to_pool_not_personal` | 资本金入池不分叉 |
@@ -219,7 +221,8 @@ pool.total_issued += amount ← 发行总量跟踪
 运行命令：
 ```bash
 cd server
-../.venv/Scripts/python.exe -m pytest tests/test_p0_ssot_chain.py -q
+$env:PYTHONUTF8='1'; $env:JWT_SECRET='<测试值>'
+.\..\.venv\Scripts\python.exe -m pytest tests/test_p0_ssot_chain.py tests/test_nt_reserve_equation.py -q
 ```
 
 ### 5.8 `server/chain_scanner.py` — 补充修复（审查发现，待施工，+15/-10）
