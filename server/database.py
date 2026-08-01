@@ -530,6 +530,48 @@ async def init_db():
             except Exception as e:
                 logger.warning(f"[P3-二营乙] kitchen seed skipped: {e}")
                 await session.rollback()
+        # ══ W7-ID-1a I-6: 事实驱动身份层迁移 ══
+        # 1. User.native 列补齐（存量表 ALTER TABLE）
+        try:
+            await session.execute(text("ALTER TABLE users ADD COLUMN native BOOLEAN DEFAULT FALSE"))
+            await session.commit()
+        except Exception as _e:
+            _log_migration_skip(_e)
+            await session.rollback()
+        # 2. 存量用户回填 UserTag（幂等——靠联合唯一约束 + grant_tag 幂等）
+        try:
+            from models import User as _U, UserTag, Tenancy as _T
+            from identity import grant_tag, sync_user_role
+            _all_users = (await session.execute(select(_U))).scalars().all()
+            for _u in _all_users:
+                _changed = False
+                # role=='npc' → 保守视为本地村民（native=true + npc/native）
+                if _u.role == "npc":
+                    _u.native = True
+                    await grant_tag(session, _u.id, "npc", "native")
+                    _changed = True
+                # role=='adventurer' → camp_member:legacy（不被任何 revoke 规则匹配）
+                elif _u.role == "adventurer":
+                    await grant_tag(session, _u.id, "adventurer", "camp_member:legacy")
+                    _changed = True
+                # role=='builder' → camp_job:legacy
+                elif _u.role == "builder":
+                    await grant_tag(session, _u.id, "builder", "camp_job:legacy")
+                    _changed = True
+                # 有 active coop tenancy → local_partner
+                _coop_t = (await session.execute(
+                    select(_T).where(_T.user_id == _u.id, _T.track == "coop", _T.status == "active")
+                )).scalars().first()
+                if _coop_t:
+                    await grant_tag(session, _u.id, "local_partner", f"tenancy:{_coop_t.id}")
+                    _changed = True
+                if _changed:
+                    await sync_user_role(session, _u)
+            await session.commit()
+            logger.info("[W7-ID-1a] identity migration applied (%d users scanned)", len(_all_users))
+        except Exception as e:
+            logger.warning(f"[W7-ID-1a] identity migration skipped: {e}")
+            await session.rollback()
 
     # ══ P0-IDX: 全部迁移/种子完成后，逐条建索引 ══
     # 放在最后是刻意的：轻量迁移的 ALTER 已把新列补齐，此时建索引才不会撞
