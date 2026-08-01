@@ -262,7 +262,6 @@ function renderInfoPage() {
     function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
     function(){ return _s('cardVerifyRow', _renderCardVerifyRow()); },
     function(){ return _s('mgmtGrid', _renderMgmtCards()); },
-    function(){ return _s('statusPills', _renderStatusPills()); },
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
     function(){ return _s('covenantCard', _renderCovenantCard()); },
     function(){ return _s('poolCard', _renderPoolCard()); }
@@ -359,14 +358,16 @@ function _renderMgmtCards() {
   // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
   var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
                (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
-  var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
-  // visitor 专属：住宿引导卡
+  var isMember = isMemberByRole(myRole);
+  // visitor: 见成员布局但点击被拦（W7-UI-1 M-8:§八第4条）
   if (!isMember) {
     h += '<div class="ic-card" style="border:2px solid var(--g-accent)" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🛏️ 入住南塘</div>'+
       '<div class="ic-body"><div class="ic-big">🏠</div><div class="ic-muted">入住后才能使用厨房/打扫/田地功能</div></div></div>';
-    h += '</div>'; return h;
+    h += '</div>';
   }
   // 打扫
+  h += '<div style="position:relative">';
+  if (!isMember) h += '<div style="position:absolute;inset:0;z-index:1;cursor:default" onclick="showToast(\'请先入住\',\'warn\')"></div>';
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
   var cfgPricing = _mlConfig().cleaning_pricing || {};
@@ -405,11 +406,7 @@ function _renderMgmtCards() {
   }).join('') : '';
   h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房·冰箱</div>'+
     '<div class="ic-body">'+(kitchenLines||'<div class="ic-muted">暂无物品，点此录入</div>')+'</div></div>';
-  // ⑫ 世界终端——admin 专属入口
-  if (myRole === 'admin') {
-    h += '<div class="ic-card world-terminal" onclick="openCreateCamp()"><div class="ic-head">🌍 世界终端</div>'+
-      '<div class="ic-body"><div class="ic-muted">创建新的共创营队</div></div></div>';
-  }
+  h += '</div>'; // close position:relative visitor gate wrapper
   h += '</div>';
   return h;
 }
@@ -420,14 +417,11 @@ function _renderQuickEntryCards() {
   // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
   var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
                (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
-  var isMember = myRole === 'npc' || myRole === 'admin' || myRole === 'builder';
-  // SM-3.3: 恢复 🧹 快捷打扫卡——D 修复误删了真入口（openSelfReport 走校核闭环），留的假入口 _submitMyCleaning 只写本地历史不触发 NT
+  var isMember = isMemberByRole(myRole);
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
     (isMember ? '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:var(--g-font-size-xs);font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
     '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:var(--g-font-size-xs);font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
-    '<div class="quick-card" onclick="openCleanWeekly()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:var(--g-font-size-xs);font-weight:600">周大扫除</div><div style="font-size:.55rem;color:#999">选卡·领任务</div></div>'+
     '<div class="quick-card" onclick="openFieldPage()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:var(--g-font-size-xs);font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'explore\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🗺️</div><div style="font-size:var(--g-font-size-xs);font-weight:600">探索南塘</div><div style="font-size:.55rem;color:#999">地图·建筑</div></div>'+
   '</div>';
 }
 
@@ -559,7 +553,7 @@ function _renderCovenantOverlay() {
     body += '<button class="btn-sm pri" style="width:100%;margin-top:6px;font-size:var(--g-font-size-xs)" onclick="closeQuickSheet();_openCovenantProposal()">📝 发起修改提案</button>';
   }
   body += '<div style="font-size:.55rem;color:#999;margin-top:8px">⚠ 所有定价由线下公约大会决定。管理员修改需24h公示+2人在线校核。</div>';
-  _openQuickSheet('📜 南塘社区公约', body);
+  _showCardPopup('📜 南塘社区公约', body, null, true);
 }
 
 // D-15: 发起公约修改提案
@@ -1833,9 +1827,10 @@ function renderCleanWeekly() {
       if (r && r.tasks) {
         _cleanWeeklyTasks = r.tasks;
         if (isAdmin) _renderCleanAdmin(el, r); else _renderCleanUserCards(el, r);
-      } else { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">🧹 本周暂无大扫除任务</div>'; }
-    }).catch(function() { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">加载失败</div>'; });
-  } else { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">离线模式不可用</div>'; }
+        el.innerHTML = (_renderStatusPills()||'') + el.innerHTML;
+      } else { el.innerHTML = (_renderStatusPills()||'') + '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">🧹 本周暂无大扫除任务</div>'; }
+    }).catch(function() { el.innerHTML = (_renderStatusPills()||'') + '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">加载失败</div>'; });
+  } else { el.innerHTML = (_renderStatusPills()||'') + '<div style="text-align:center;padding:40px;color:var(--g-text-dim)">离线模式不可用</div>'; }
 }
 // ① 管理员面板
 function _renderCleanAdmin(el, r) {
