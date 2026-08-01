@@ -3467,15 +3467,12 @@ function _openHealthReport() {
   });
 }
 // ══ 章5: 快捷录入 ══
+// v0.5 M-4b: _openQuickSheet → UI.Sheet 薄壳转发（11 调用方不变，内部走 UI.* 原语）
 function _openQuickSheet(title, bodyHTML) {
-  var el = document.createElement('div'); el.className = 'quick-sheet';
-  el.innerHTML = '<div class="quick-sheet__backdrop" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:260" onclick="this.parentElement.remove()"></div>'+
-    '<div style="position:fixed;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));max-height:65vh;overflow-y:auto;z-index:261;animation:spcPop .2s ease-out">'+
-    '<div style="font-weight:700;font-size:.8rem;margin-bottom:10px">'+title+'</div>'+bodyHTML+'</div>';
-  document.body.appendChild(el); return el;
+  return UI.Sheet({ title: title, body: bodyHTML });
 }
 
-// ── 厨房 ──
+// ── 厨房（v0.5 M-4b 样板：UI.Sheet + UI.IconGrid + UI.Field 组装）──
 function _openKitchenQuick() {
   // E3.7: 权限门 — visitor 不能存取物品
   if (typeof userCan === 'function' && !userCan({role:(AppData.me()||{}).role||'visitor'}, 'isMember')) {
@@ -3493,26 +3490,53 @@ function _openKitchenQuick() {
     {a:'store_in',l:'📦 存入仓库',nt:2}
   ];
 
-  var body = '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:6px;font-weight:600">选物品：</div>';
-  body += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px">';
-  presets.forEach(function(p){
-    body += '<div onclick="_selectKitchenItem(\''+p.n+'\',\''+p.i+'\')" class="qk-item-btn" style="padding:8px 4px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.62rem;text-align:center;background:#fff;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center">';
-    body += '<div style="font-size:1.2rem;line-height:1">'+p.i+'</div>';
-    body += '<div style="margin-top:1px">'+p.n+'</div>';
-    body += '</div>';
-  });
-  body += '</div>';
-  body += '<div style="font-size:.62rem;color:#5a6e5c;margin-bottom:4px;font-weight:600">选动作：</div>';
-  body += '<div style="display:flex;gap:5px;margin-bottom:8px">';
-  actions.forEach(function(a){
-    body += '<div onclick="_doKitchenAction(\''+a.a+'\',\''+a.l+'\','+a.nt+')" class="qk-act-btn" style="flex:1;padding:8px 4px;border:1px solid #d0d9ce;border-radius:8px;cursor:pointer;font-size:.6rem;text-align:center;background:#fff;min-height:44px;display:flex;align-items:center;justify-content:center">'+a.l+'<br><span style="font-size:.5rem;color:#8a6a20">+'+a.nt+' NT</span></div>';
-  });
-  body += '</div>';
-  body += '<div style="font-size:.55rem;color:#5a6e5c;margin-bottom:6px;background:#f8f8f8;padding:6px;border-radius:6px">已选：<span id="qkSelectedItem" style="color:#1d2e24;font-weight:600">—</span></div>';
-  body += '<input id="qkItemNote" placeholder="备注（选填）：数量、位置…" style="width:100%;padding:8px;border:1px solid #d0d9ce;border-radius:8px;font-size:.68rem;margin-bottom:6px;background:#fff;box-sizing:border-box">';
-  body += '<button class="quick-sheet__submit" onclick="_submitKitchenEntry()" style="width:100%;padding:10px;background:var(--green-primary);color:#fff;border:none;border-radius:10px;font-size:.7rem;font-weight:700;min-height:44px">✅ 确认</button>';
-  _openQuickSheet('📦 放取物品', body);
   window._qkSelected = null;
+  window._qkAction = null;
+  window._qkNoteVal = '';
+
+  var bodyDiv = document.createElement('div');
+
+  // 物品选择 —— UI.IconGrid
+  var itemLbl = document.createElement('div');
+  itemLbl.style.cssText = 'font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:4px;font-weight:600';
+  itemLbl.textContent = '选物品：';
+  bodyDiv.appendChild(itemLbl);
+
+  var ig = UI.IconGrid({
+    items: presets.map(function(p){ return {icon:p.i, label:p.n, value:p.n}; }),
+    onChange: function(v) {
+      window._qkSelected = v ? {name:v, icon:presets.find(function(p){return p.n===v;}).i} : null;
+    }
+  });
+  bodyDiv.appendChild(ig.el);
+
+  // 动作选择 —— UI.Field radio
+  var actLbl = document.createElement('div');
+  actLbl.style.cssText = 'font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin:var(--g-gap) 0 4px;font-weight:600';
+  actLbl.textContent = '选动作：';
+  bodyDiv.appendChild(actLbl);
+
+  var af = UI.Field({
+    type: 'radio',
+    options: actions.map(function(a){ return {icon:a.l.split(' ')[0], label:a.l, value:a.a}; }),
+    onChange: function(v) {
+      window._qkAction = v ? actions.find(function(a){return a.a===v;}) : null;
+    }
+  });
+  bodyDiv.appendChild(af.el);
+
+  // 备注 —— UI.Field text
+  bodyDiv.appendChild(UI.Field({
+    type: 'text',
+    placeholder: '备注（选填）：数量、位置…',
+    onChange: function(v) { window._qkNoteVal = v; }
+  }).el);
+
+  UI.Sheet({
+    title: '📦 放取物品',
+    body: bodyDiv,
+    primaryAction: { label: '✅ 确认', onClick: _submitKitchenEntry }
+  });
 }
 
 function _selectKitchenItem(name, icon) {
@@ -3545,7 +3569,8 @@ function _submitKitchenEntry() {
   var act = window._qkAction;
   if (!sel) { showToast('请先选一个物品','warn'); return; }
   if (!act) { showToast('请选动作：放入/取出/存仓库','warn'); return; }
-  var note = (document.getElementById('qkItemNote')||{}).value || '';
+  var note = window._qkNoteVal || '';
+  window._qkNoteVal = '';
   var name = sel.icon + ' ' + sel.name;
   var fullNote = act.label + ' ' + name + (note ? ' · ' + note : '');
   // G1: stock_in/store_in 接 API.addItemStorage（B2 契约）
@@ -3843,8 +3868,12 @@ function _voteLocal(propId, vote) {
 }
 // ── 撤销 + 通用 ──
 function _closeQuickSheet() {
-  var sheet = document.querySelector('.quick-sheet');
-  if (sheet) sheet.remove();
+  var sheet = document.querySelector('.ui-sheet-backdrop');
+  if (sheet) {
+    var id = sheet.id;
+    sheet.remove();
+    if (id && typeof closeOverlay === 'function') closeOverlay(id, false);
+  }
 }
 function closeQuickSheet(){ _closeQuickSheet(); }
 function _undoToast(type) {

@@ -271,6 +271,292 @@
     return wrap;
   };
 
+  // ═══ ⑧ UI.Sheet — 底部弹层外壳 ═══
+  // 收编 _openQuickSheet（11 处调用），配置化，与 overlay 栈打通
+  // 用法：UI.Sheet({ title, body(html或DOM), primaryAction:{label,onClick}, height })
+  // 返回 { el, id, close() }
+  UI.Sheet = function (opts) {
+    opts = opts || {};
+    var id = 'ui-sheet-' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+    var height = opts.height || '65vh';
+
+    // overlay 栈
+    if (typeof _pushOverlay === 'function') _pushOverlay(id);
+
+    var backdrop = _el('div', 'ui-sheet-backdrop', {
+      id: id,
+      style: 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:260'
+    });
+
+    var panel = _el('div', 'ui-sheet-panel', {
+      style: 'position:fixed;bottom:0;left:0;right:0;background:var(--g-card);' +
+             'border-radius:var(--g-radius-lg) var(--g-radius-lg) 0 0;' +
+             'padding:var(--g-pad);padding-bottom:calc(var(--g-pad) + env(safe-area-inset-bottom,0px));' +
+             'max-height:' + height + ';overflow-y:auto;z-index:261;animation:spcPop .2s ease-out'
+    });
+
+    // title + close
+    panel.innerHTML = '<div style="font-weight:700;font-size:var(--g-font-size);margin-bottom:var(--g-pad-sm);' +
+      'display:flex;align-items:center;justify-content:space-between">' +
+      '<span>' + (opts.title || '') + '</span>' +
+      '<span onclick="var bd=document.getElementById(\'' + id + '\');if(bd)bd.remove();' +
+      'if(typeof closeOverlay===\'function\')closeOverlay(\'' + id + '\',false)" ' +
+      'style="cursor:pointer;font-size:1.3rem;color:var(--g-text-dim);line-height:1;padding:0 4px">&times;</span></div>';
+
+    // body
+    if (opts.body) {
+      if (typeof opts.body === 'string') {
+        var bd = _el('div', 'ui-sheet-body');
+        bd.innerHTML = opts.body;
+        panel.appendChild(bd);
+      } else if (opts.body.nodeType) {
+        panel.appendChild(opts.body);
+      }
+    }
+
+    // primary action button
+    if (opts.primaryAction) {
+      var btn = _el('button', 'ui-sheet-action', {
+        style: 'width:100%;padding:var(--g-pad-sm);margin-top:var(--g-gap);' +
+               'background:var(--g-accent);color:#fff;border:none;' +
+               'border-radius:var(--g-radius-sm);font-size:var(--g-font-size-sm);' +
+               'font-weight:700;min-height:44px;cursor:pointer'
+      });
+      btn.textContent = opts.primaryAction.label || '确认';
+      btn.addEventListener('click', function () {
+        opts.primaryAction.onClick && opts.primaryAction.onClick();
+      });
+      panel.appendChild(btn);
+    }
+
+    backdrop.appendChild(panel);
+
+    // backdrop click dismiss
+    backdrop.addEventListener('click', function (e) {
+      if (e.target !== backdrop) return;
+      backdrop.remove();
+      if (typeof closeOverlay === 'function') closeOverlay(id, false);
+      if (opts.onClose) opts.onClose();
+    });
+
+    document.body.appendChild(backdrop);
+
+    return {
+      el: backdrop,
+      id: id,
+      close: function () {
+        backdrop.remove();
+        if (typeof closeOverlay === 'function') closeOverlay(id, false);
+        if (opts.onClose) opts.onClose();
+      }
+    };
+  };
+
+  // ═══ ⑨ UI.IconGrid — 图标网格快选 ═══
+  // 用法：UI.IconGrid({ items:[{icon,label,value}], multi:false, selected:null, onChange(v) })
+  // 返回 { el, getSelected, setSelected, clear }
+  UI.IconGrid = function (opts) {
+    opts = opts || {};
+    var items = opts.items || [];
+    var multi = opts.multi || false;
+    var selected = multi ? (opts.selected || []).slice() : (opts.selected !== undefined ? opts.selected : null);
+
+    var grid = _el('div', 'ui-icon-grid', {
+      style: 'display:grid;grid-template-columns:repeat(4,1fr);gap:var(--g-gap)'
+    });
+
+    var _btns = [];
+
+    function _highlight(b, on) {
+      b.style.borderColor = on ? 'var(--g-accent)' : 'var(--g-card-border)';
+      b.style.background = on ? 'var(--g-accent-bg)' : 'var(--g-card)';
+    }
+
+    items.forEach(function (item, i) {
+      var btn = _el('div', 'ui-icon-grid-item', {
+        style: 'padding:var(--g-pad-sm) 4px;border:1px solid var(--g-card-border);' +
+               'border-radius:var(--g-radius-sm);cursor:pointer;text-align:center;' +
+               'background:var(--g-card);min-height:44px;display:flex;' +
+               'flex-direction:column;align-items:center;justify-content:center;' +
+               'font-size:var(--g-font-size-xs);transition:border-color var(--g-trans),background var(--g-trans)'
+      });
+      btn.innerHTML = '<div style="font-size:1.2rem;line-height:1">' + (item.icon || '📦') + '</div>' +
+        '<div style="margin-top:2px">' + (item.label || item.value || '') + '</div>';
+
+      // initial state
+      if ((multi ? selected.indexOf(item.value) !== -1 : selected === item.value)) _highlight(btn, true);
+
+      btn.addEventListener('click', function () {
+        if (multi) {
+          var idx = selected.indexOf(item.value);
+          if (idx !== -1) { selected.splice(idx, 1); _highlight(btn, false); }
+          else { selected.push(item.value); _highlight(btn, true); }
+        } else {
+          _btns.forEach(function (b) { _highlight(b, false); });
+          selected = selected === item.value ? null : item.value;
+          if (selected === item.value) _highlight(btn, true);
+        }
+        if (opts.onChange) opts.onChange(multi ? selected.slice() : selected);
+      });
+
+      _btns.push(btn);
+      grid.appendChild(btn);
+    });
+
+    return {
+      el: grid,
+      getSelected: function () { return multi ? selected.slice() : selected; },
+      setSelected: function (v) {
+        selected = multi ? (v || []).slice() : v;
+        _btns.forEach(function (btn, i) {
+          _highlight(btn, multi ? selected.indexOf(items[i].value) !== -1 : selected === items[i].value);
+        });
+      },
+      clear: function () {
+        selected = multi ? [] : null;
+        _btns.forEach(function (btn) { _highlight(btn, false); });
+      }
+    };
+  };
+
+  // ═══ ⑩ UI.Field — 输入控件族 ═══
+  // type: 'text' | 'number' | 'radio' | 'select'
+  // 统一 label + 校验提示 + 令牌化样式
+  // 返回 { el, getValue, setValue, validate, setHint }
+  UI.Field = function (opts) {
+    opts = opts || {};
+    var type = opts.type || 'text';
+    var value = opts.value !== undefined ? opts.value : (type === 'number' ? 1 : '');
+    var wrap = _el('div', 'ui-field', { style: 'margin-bottom:var(--g-gap)' });
+
+    // label
+    if (opts.label) {
+      wrap.appendChild(_el('div', 'ui-field-label', {
+        html: opts.label,
+        style: 'font-size:var(--g-font-size-xs);font-weight:600;color:var(--g-text-dim);margin-bottom:4px'
+      }));
+    }
+
+    var input; // the primary input element (for text/select)
+
+    if (type === 'text') {
+      input = _el('input', 'ui-field-input', {
+        style: 'width:100%;padding:var(--g-pad-sm);border:1px solid var(--g-card-border);' +
+               'border-radius:var(--g-radius-sm);font-size:var(--g-font-size-sm);' +
+               'background:var(--g-card);color:var(--g-text);box-sizing:border-box',
+        placeholder: opts.placeholder || '',
+        value: value
+      });
+      input.addEventListener('input', function () { value = input.value; if (opts.onChange) opts.onChange(value); });
+      wrap.appendChild(input);
+
+    } else if (type === 'number') {
+      var min = opts.min !== undefined ? opts.min : 1;
+      var max = opts.max !== undefined ? opts.max : 99;
+      var step = opts.step || 1;
+      var row = _el('div', '', {
+        style: 'display:flex;align-items:center;gap:var(--g-gap)'
+      });
+
+      var minus = _el('button', '', {
+        style: 'width:36px;height:36px;border:1px solid var(--g-card-border);border-radius:var(--g-radius-sm);' +
+               'background:var(--g-card);font-size:1.1rem;font-weight:700;color:var(--g-accent);' +
+               'cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0'
+      }); minus.textContent = '−';
+
+      input = _el('input', 'ui-field-number', {
+        style: 'flex:1;text-align:center;padding:var(--g-pad-sm);border:1px solid var(--g-card-border);' +
+               'border-radius:var(--g-radius-sm);font-size:var(--g-font-size);' +
+               'background:var(--g-card);color:var(--g-text);box-sizing:border-box;min-width:0',
+        type: 'number', min: min, max: max, step: step, value: value
+      });
+
+      var plus = _el('button', '', {
+        style: 'width:36px;height:36px;border:1px solid var(--g-card-border);border-radius:var(--g-radius-sm);' +
+               'background:var(--g-card);font-size:1.1rem;font-weight:700;color:var(--g-accent);' +
+               'cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0'
+      }); plus.textContent = '+';
+
+      function _updateNum(n) { n = Math.max(min, Math.min(max, isNaN(n) ? min : n)); value = n; input.value = n; if (opts.onChange) opts.onChange(n); }
+      minus.addEventListener('click', function () { _updateNum(value - step); });
+      plus.addEventListener('click', function () { _updateNum(value + step); });
+      input.addEventListener('input', function () { _updateNum(parseInt(input.value, 10)); });
+
+      row.appendChild(minus); row.appendChild(input); row.appendChild(plus);
+      wrap.appendChild(row);
+
+    } else if (type === 'radio') {
+      var rWrap = _el('div', '', { style: 'display:flex;gap:var(--g-gap);flex-wrap:wrap' });
+      var _rBtns = [];
+      (opts.options || []).forEach(function (opt) {
+        var isSel = value === opt.value;
+        var btn = _el('div', 'ui-field-radio', {
+          style: 'padding:var(--g-pad-sm) var(--g-pad);border:1px solid ' +
+                 (isSel ? 'var(--g-accent)' : 'var(--g-card-border)') + ';' +
+                 'border-radius:var(--g-radius-sm);cursor:pointer;font-size:var(--g-font-size-xs);' +
+                 'background:' + (isSel ? 'var(--g-accent-bg)' : 'var(--g-card)') + ';' +
+                 'color:' + (isSel ? 'var(--g-accent)' : 'var(--g-text)') + ';' +
+                 'font-weight:' + (isSel ? '600' : '400'),
+          'data-value': opt.value
+        });
+        btn.textContent = (opt.icon || '') + ' ' + (opt.label || opt.value);
+        btn.addEventListener('click', function () {
+          _rBtns.forEach(function (b) {
+            b.style.borderColor = 'var(--g-card-border)'; b.style.background = 'var(--g-card)';
+            b.style.color = 'var(--g-text)'; b.style.fontWeight = '400';
+          });
+          btn.style.borderColor = 'var(--g-accent)'; btn.style.background = 'var(--g-accent-bg)';
+          btn.style.color = 'var(--g-accent)'; btn.style.fontWeight = '600';
+          value = opt.value;
+          if (opts.onChange) opts.onChange(value);
+        });
+        _rBtns.push(btn);
+        rWrap.appendChild(btn);
+      });
+      wrap.appendChild(rWrap);
+
+    } else if (type === 'select') {
+      input = _el('select', 'ui-field-select', {
+        style: 'width:100%;padding:var(--g-pad-sm);border:1px solid var(--g-card-border);' +
+               'border-radius:var(--g-radius-sm);font-size:var(--g-font-size-sm);' +
+               'background:var(--g-card);color:var(--g-text);box-sizing:border-box;min-height:40px'
+      });
+      (opts.options || []).forEach(function (opt) {
+        var o = _el('option', '', { value: opt.value });
+        o.textContent = opt.label || opt.value;
+        if (opt.value === value) o.selected = true;
+        input.appendChild(o);
+      });
+      input.addEventListener('change', function () { value = input.value; if (opts.onChange) opts.onChange(value); });
+      wrap.appendChild(input);
+    }
+
+    // hint text
+    var hintEl = _el('div', 'ui-field-hint', {
+      style: 'font-size:var(--g-font-size-xs);color:var(--g-warn);margin-top:3px;min-height:1em;display:none'
+    });
+    wrap.appendChild(hintEl);
+
+    return {
+      el: wrap,
+      getValue: function () { return type === 'number' ? parseInt(value, 10) : value; },
+      setValue: function (v) {
+        value = v;
+        if (input && (type === 'text' || type === 'select')) input.value = v;
+        else if (type === 'number') { input.value = v; }
+        // radio: caller should re-render if needed
+      },
+      setHint: function (msg) { hintEl.textContent = msg || ''; hintEl.style.display = msg ? 'block' : 'none'; },
+      validate: function () {
+        if (opts.required && (value === null || value === '' || value === undefined)) {
+          hintEl.textContent = opts.requiredMsg || '此项为必填';
+          hintEl.style.display = 'block'; return false;
+        }
+        hintEl.style.display = 'none'; return true;
+      }
+    };
+  };
+
   // ═══ ⑦ Alert — 通用确认/提示弹窗（Promise 式·一次定义全站复用）═══
   // 用法：
   //   UI.Alert.show({
