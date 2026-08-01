@@ -71,6 +71,8 @@ class User(Base):
     last_active_at = Column(Date, nullable=True)
     # ══ UI-FIX-P2-BE补 B7: 用户设置 ══
     user_settings = Column(Text, nullable=True)  # JSON: {notification, theme, language}
+    # ══ W7-ID-1a: 事实驱动身份层 ══
+    native = Column(Boolean, default=False)  # 本地村民（家在本地）——永久事实，永不 revoke
 
 
 class NTLedger(Base):
@@ -569,3 +571,35 @@ class FieldPlot(Base):
     harvested_by = Column(String, ForeignKey("users.id"), nullable=True)
     planted_by = Column(String, ForeignKey("users.id"), nullable=True)
     created_at = Column(String, nullable=True)
+
+
+# ══ W7-ID-1a: 事实驱动身份层 ══
+# 皇帝原则：权限不挂在身份上，挂在事实记录上。身份只是事实的显示名。
+# UserTag = 标签事实台账：每行记录"谁因什么事实获得了什么标签"。
+# source 前缀决定收回策略：退房收 tenancy:*、归档收 camp_job:* / camp_member:*、native 永不收。
+class UserTag(Base):
+    """标签事实台账——从现实事实推导的身份证，唯一身份权威。"""
+    __tablename__ = "user_tags"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    tag = Column(String, nullable=False)        # npc | local_partner | adventurer | builder
+    source = Column(String, nullable=False)     # native | tenancy:<id> | camp_job:<id> | camp_member:<camp_id>
+    granted_at = Column(String, nullable=False)
+    revoked_at = Column(String, nullable=True)
+    status = Column(String, default="active")   # active | revoked
+    __table_args__ = (
+        UniqueConstraint("user_id", "tag", "source", name="uq_user_tag_source"),
+    )
+
+
+class CampJob(Base):
+    """营地工作岗——工作人员（≠被服务的营员）。权限来源，FK 到真用户。
+    与 CampBuilder 区别：后者 name 是字符串非外键，是展示用名录，不能承载权限。"""
+    __tablename__ = "camp_jobs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    camp_id = Column(String, ForeignKey("camps.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    job_title = Column(String, nullable=False)   # 岗位名（如"厨房组长"）
+    status = Column(String, default="active")    # active | ended
+    created_at = Column(String, nullable=True)
+    ended_at = Column(String, nullable=True)
