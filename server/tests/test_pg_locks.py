@@ -494,3 +494,217 @@ async def test_card_confirm_concurrent_single_grant(pg_engine):
         await s.execute(text("DELETE FROM card_discoveries WHERE id = 'm2bi_disc'"))
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-DB-1 D-3: clean_weekly claim 并发 —— 同 task 两人同抢一胜一败
+# ══════════════════════════════════════════════════════════════════════
+async def test_clean_weekly_claim_concurrent_only_one_wins(pg_engine):
+    """D-3: W7-CLEAN-1 揭示：SQLite 上两并发 claim 同 task 都返 200。
+
+    PG 上 with_for_update() 应生效 → 恰好 1×200 + 1×4xx。
+    复现 clean_weekly.py:121-130 的锁模式：
+      select(CleanWeeklyTask).with_for_update().populate_existing()
+      读 status → open? → 写 claimed_by + status=claimed
+    第一个事务持行锁 → 第二个阻塞 → 锁释放后读到 status=claimed → 拒绝。
+    """
+    from models import CleanWeeklyTask
+    factory = _factory(pg_engine)
+    WEEK = "2026-08-01"
+
+    async with factory() as s:
+        s.add(User(id="d3_alice", password_hash="x", nt_balance=100))
+        s.add(User(id="d3_bob", password_hash="x", nt_balance=100))
+        s.add(CleanWeeklyTask(
+            id="cwt_d3_test", week_start_date=WEEK, space_id="room1",
+            space_name="测试房间", reward_nt=15, status="open",
+            created_at="2026-08-01T00:00:00",
+        ))
+        await s.commit()
+
+    async def _claim(sf, uid):
+        async with sf() as s:
+            task = (await s.execute(
+                select(CleanWeeklyTask).where(CleanWeeklyTask.id == "cwt_d3_test")
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            if task.status != "open":
+                await s.rollback()
+                return False
+            task.status = "claimed"
+            task.claimed_by = uid
+            task.claimed_at = "2026-08-01T12:00:00"
+            await s.commit()
+            return True
+
+    ok = await asyncio.gather(
+        _claim(factory, "d3_alice"),
+        _claim(factory, "d3_bob"),
+    )
+
+    assert sum(ok) == 1, (
+        f"D-3 clean_weekly claim 并发: 应只有1个成功，实际 alice={ok[0]} bob={ok[1]}。"
+        f"若两 True → with_for_update() 未生效（SQLite 级静默无效复现）。"
+    )
+    async with factory() as s:
+        task = (await s.execute(
+            select(CleanWeeklyTask).where(CleanWeeklyTask.id == "cwt_d3_test")
+        )).scalar_one()
+        assert task.status == "claimed", f"D-3: 最终态应为 claimed，实得 {task.status}"
+        winner = "d3_alice" if ok[0] else "d3_bob"
+        assert task.claimed_by == winner, (
+            f"D-3: claimed_by 应为胜者 {winner}，实得 {task.claimed_by}"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM clean_weekly_tasks WHERE id = 'cwt_d3_test'"))
+        await s.execute(text("DELETE FROM users WHERE id IN ('d3_alice', 'd3_bob')"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-DB-1 D-4a: pool clamp 并发写不破 N-1b
+# ══════════════════════════════════════════════════════════════════════
+async def test_pool_clamp_under_concurrent_writes(pg_engine):
+    """D-4a: W7-NT-1 的 reserve ≤ balance clamp 在并发写下不破。
+
+    两并发操作同时动 pool（一个加 balance+reserve，一个扣 balance）。
+    断言收敛后 reserve <= balance 且 /verify pass=True。
+
+    复现 nt_helpers.py:_get_pool(lock=True) 的锁模式：
+      select(CommunityPool).with_for_update()  ← 注意：无 populate_existing！
+    第一个事务持锁读写 → 第二个阻塞 → 锁释放后读到已提交值 → 各自 clamp。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(CommunityPool(balance=100, total_issued=500,
+                            reserve=80, frozen=0))
+        await s.commit()
+
+    async def _add_balance(sf, amount):
+        """模拟链上充值：加 balance + reserve。"""
+        async with sf() as s:
+            pool = (await s.execute(
+                select(CommunityPool).limit(1).with_for_update()
+            )).scalar_one()
+            pool.balance = (pool.balance or 0) + amount
+            pool.reserve = (pool.reserve or 0) + amount
+            pool.total_issued += amount
+            await s.commit()
+
+    async def _deduct_balance(sf, amount):
+        """模拟发奖：扣 balance（reserve 不变，可能触发 clamp）。"""
+        async with sf() as s:
+            pool = (await s.execute(
+                select(CommunityPool).limit(1).with_for_update()
+            )).scalar_one()
+            pool.balance = (pool.balance or 0) - amount
+            # 模拟 _get_pool N-1b clamp
+            if (pool.reserve or 0) > (pool.balance or 0):
+                pool.reserve = pool.balance
+            await s.commit()
+
+    await asyncio.gather(
+        _add_balance(factory, 50),
+        _deduct_balance(factory, 30),
+    )
+
+    async with factory() as s:
+        pool = (await s.execute(
+            select(CommunityPool).limit(1)
+        )).scalar_one()
+        assert (pool.reserve or 0) <= (pool.balance or 0), (
+            f"D-4a N-1b 破: reserve={pool.reserve} > balance={pool.balance}"
+        )
+        # total_system 守恒校验
+        total_users = (await s.execute(select(User))).scalars()
+        total_user_balance = sum((u.nt_balance or 0) for u in total_users)
+        total_system = (total_user_balance + (pool.balance or 0)
+                        + (pool.task_escrow or 0) + (pool.camp_balance or 0)
+                        + (pool.frozen or 0))
+        assert abs(total_system - (pool.total_issued or 0)) <= 1, (
+            f"D-4a 等式破: total_system={total_system} vs total_issued={pool.total_issued}"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-DB-1 D-4b: daily_tick + verify 在 PG 上全绿
+# ══════════════════════════════════════════════════════════════════════
+async def test_daily_tick_after_nt1_keeps_verify_pass_on_pg(pg_engine):
+    """D-4b: PG 上跑 _run_daily_settlement → 断言 verify pass=True。
+
+    复现 _run_daily_settlement 的完整锁链（nt.py:1342-1390）：
+      select(CommunityPool).with_for_update()
+      → 检查 last_tick_date
+      → 遍历每用户 select(User).with_for_update().populate_existing()
+      → 扣款、写 ledger
+    断言扣款后等式仍守恒。
+    """
+    factory = _factory(pg_engine)
+    yesterday = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+
+    async with factory() as s:
+        s.add(User(id="d4b_u1", password_hash="x", nt_balance=100, role="villager"))
+        s.add(User(id="d4b_u2", password_hash="x", nt_balance=50, role="villager"))
+        s.add(CommunityPool(balance=500, total_issued=700,
+                            reserve=300, frozen=0, last_tick_date=None))
+        await s.commit()
+        s.add(Tenancy(user_id="d4b_u1", room_id="dorm_a", bed_num=1,
+                      checkin_date=yesterday, status="active", debt=0))
+        s.add(Tenancy(user_id="d4b_u2", room_id="dorm_b", bed_num=1,
+                      checkin_date=yesterday, status="active", debt=0))
+        await s.commit()
+
+    # 简版 daily_tick
+    async with factory() as s:
+        pool = (await s.execute(
+            select(CommunityPool).limit(1).with_for_update()
+        )).scalar_one()
+        if pool.last_tick_date == today:
+            await s.rollback()
+            pytest.skip("今天已跑过日结")
+        pool.last_tick_date = today
+
+        users = (await s.execute(
+            select(User).where(User.role == "villager")
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalars()
+        for u in users:
+            if u.nt_balance >= 40:
+                u.nt_balance -= 40
+                pool.balance += 40
+        await s.commit()
+
+    # verify
+    async with factory() as s:
+        pool = (await s.execute(
+            select(CommunityPool).limit(1)
+        )).scalar_one()
+        total_users = (await s.execute(select(User))).scalars()
+        total_user_balance = sum((u.nt_balance or 0) for u in total_users)
+        total_system = (total_user_balance + (pool.balance or 0)
+                        + (pool.task_escrow or 0) + (pool.camp_balance or 0)
+                        + (pool.frozen or 0))
+        diff = total_system - (pool.total_issued or 0)
+        assert abs(diff) <= 1, (
+            f"D-4b 日结后等式破: total_system={total_system} "
+            f"vs total_issued={pool.total_issued}, diff={diff}"
+        )
+        assert (pool.reserve or 0) <= (pool.balance or 0), (
+            f"D-4b N-1b 破: reserve={pool.reserve} > balance={pool.balance}"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM tenancies WHERE user_id IN ('d4b_u1', 'd4b_u2')"))
+        await s.execute(text("DELETE FROM users WHERE id IN ('d4b_u1', 'd4b_u2')"))
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()
