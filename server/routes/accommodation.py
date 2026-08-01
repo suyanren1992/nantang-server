@@ -115,9 +115,8 @@ async def _inn_checkin(req: "CheckinRequest", user: User, db: AsyncSession):
                 checkin_date=req.check_in, check_out_date=req.check_out,
                 track="inn", room_type=room.room_type, status="active")
     db.add(t)
+    # W7-ID-1a ⓒ: inn（民宿）不发任何在地标签——住民宿 ≠ 在地
     old_role = user.role
-    if user.role == "visitor":
-        user.role = "npc"
     # NEW-USER-TASK-BE: 首次入住派发新人任务（用升级前角色匹配模板）
     newbie_tasks = await _checkin_newbie_hook(user, db, original_role=old_role)
     await db.commit()
@@ -175,10 +174,13 @@ async def checkin(req: CheckinRequest, user: User = Depends(get_current_user),
     t = Tenancy(user_id=user.id, room_id=req.room_id, bed_num=req.bed_num,
                 checkin_date=now, status="active")
     db.add(t)
-    # 角色升级：visitor → npc
+    # W7-ID-1a ⓑ: coop 入住发 local_partner 标签（不论原身份）
+    # 先 flush 拿 tenancy.id，再用 source=tenancy:{id} 发标签
+    await db.flush()
+    from identity import grant_tag, sync_user_role
+    await grant_tag(db, user.id, "local_partner", f"tenancy:{t.id}")
+    await sync_user_role(db, user)
     old_role = user.role
-    if user.role == "visitor":
-        user.role = "npc"
     # NEW-USER-TASK-BE: 首次入住派发新人任务（用升级前角色匹配模板）
     newbie_tasks = await _checkin_newbie_hook(user, db, original_role=old_role)
     await db.commit()
@@ -202,15 +204,10 @@ async def checkout(user: User = Depends(get_current_user),
     t.status = "checked_out"
     # G-3: 退房一次性总结算——汇总 应计住宿费(due)+存量欠费(debt)，钱随单走
     settlement = await _settle_tenancy(db, user, t, "退房")
-    # 角色降级：admin/builder 不降级
-    if user.role not in ("admin", "builder"):
-        other = await db.execute(
-            select(func.count(Tenancy.id)).where(
-                Tenancy.user_id == user.id, Tenancy.status == "active"
-            )
-        )
-        if (other.scalar() or 0) == 0:
-            user.role = "visitor"
+    # W7-ID-1a ⓓ: 退房按 source 前缀收标签（只收 tenancy:*，不碰 camp/native）
+    from identity import revoke_by_source_prefix, sync_user_role
+    await revoke_by_source_prefix(db, user.id, f"tenancy:{t.id}")
+    await sync_user_role(db, user)  # 回写 role（adventurer 等其他标签保留）
 
     # R10: 释放已认领的系统生成任务
     import json
