@@ -1,7 +1,7 @@
 """NT economy routes: transfer, earn, spend, topup, verify."""
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel, Field
@@ -1354,6 +1354,23 @@ async def _run_daily_settlement(db, today: str | None = None):
 async def daily_tick(admin: User = Depends(require_admin), db: AsyncSession = Depends(get_db)):
     """D-26 G5 收敛：仅管理员可手动触发；日常由 cron.py 00:05 内部调用 _run_daily_settlement。"""
     return await _run_daily_settlement(db)
+
+
+# ══ SCAN-FIX: 扫链健康状态 ══
+@system_router.get("/scanner-status")
+async def scanner_status(request: Request, admin: User = Depends(require_admin)):
+    """GET /api/system/scanner-status — 扫链器健康状态。
+
+    扫链是链上充值的唯一入口, 它停了就没人能充值。
+    原实现只 print 日志, 停了好几天无人发现, 故开此端点。
+    healthy=false 即表示充值实际停摆, 需立即处理。
+    """
+    scanner = getattr(request.app.state, "chain_scanner", None)
+    if scanner is None:
+        return {"ok": True, "configured": False, "healthy": False,
+                "reason": "扫链器未启动(环境变量未配置或初始化失败), "
+                          "链上充值不会入账"}
+    return {"ok": True, "configured": True, **scanner.status}
 
 
 # ══ A-LABOR-BE ⑪: 会计检查阻断状态 + 手动解锁 ══
