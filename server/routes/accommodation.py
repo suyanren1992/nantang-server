@@ -288,7 +288,10 @@ role_router = APIRouter(prefix="/api/user", tags=["user"])
 @role_router.post("/role")
 async def change_role(req: RoleChangeRequest, admin: User = Depends(require_admin),
                       db: AsyncSession = Depends(get_db)):
-    """管理员变更用户角色。"""
+    """管理员变更用户角色。
+    ⚠ W7-ID-1a: 本端点只改 User.role 显示值，不写 UserTag。
+    持久化身份走 grant_tag()。ID-1b 前端能力清单以 UserTag 为准。
+    此处保留为 admin 紧急覆盖通道（如下次标签变动 sync_user_role 会覆盖手写值）。"""
     result = await db.execute(select(User).where(User.id == req.user_id))
     target = result.scalar_one_or_none()
     if not target:
