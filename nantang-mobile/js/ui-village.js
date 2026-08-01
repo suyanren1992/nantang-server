@@ -170,6 +170,7 @@ function showCampWindow(campId) {
     _campCurrentId = campId;
     document.getElementById('campReportTitle').textContent = '📁 ' + c.name + ' · 归档';
     renderCampReport(document.getElementById('campReportBody'), c);
+    _pushOverlay('overlayCampReport');
     document.getElementById('overlayCampReport').classList.add('open');
     return;
   }
@@ -232,5 +233,6 @@ function showCampWindow(campId) {
   }
 
   document.getElementById('campWindowBody').innerHTML = h;
+  _pushOverlay('overlayCampWindow');
   document.getElementById('overlayCampWindow').classList.add('open');
 }

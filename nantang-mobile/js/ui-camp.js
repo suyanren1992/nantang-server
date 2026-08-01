@@ -42,6 +42,7 @@ function openCampHome(campId) {
   avImg.style.display = 'block';
   avImg.onerror = function(){ this.style.display='none'; };
 
+  _pushOverlay('overlayCampHome');
   document.getElementById('overlayCampHome').classList.add('open');
   switchCampTab('overview');
 }
@@ -1322,6 +1323,7 @@ function openCampReport(campId) {
   var c = getCampData(); if (!c) return;
   document.getElementById('campReportTitle').textContent = '结营报告';
   renderCampReport(document.getElementById('campReportBody'), c);
+  _pushOverlay('overlayCampReport');
   document.getElementById('overlayCampReport').classList.add('open');
 }
 

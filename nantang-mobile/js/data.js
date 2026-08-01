@@ -480,6 +480,7 @@ function editTask(name){
   if(t.reqFile){document.getElementById('pubReqFile').checked=true;document.getElementById('pubReqFileCount').value=t.reqFile}
   var locSel=document.getElementById('pubLocation');if(locSel&&t.locationId)locSel.value=t.locationId;
   onPubTypeChange();
+  _pushOverlay('overlayPublishTask');
   document.getElementById('overlayPublishTask').classList.add('open');
 }
 function withdrawTask(name){

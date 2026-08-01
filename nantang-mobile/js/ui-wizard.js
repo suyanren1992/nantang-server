@@ -4,6 +4,7 @@ var _campWizardStep = 1;
 var _ceremonyTL = null;
 
 function openCreateCamp() {
+  _pushOverlay('overlayCreateCamp');
   // P0-1: 检测未完成草稿
   var saved = null;
   try { saved = JSON.parse(sessionStorage.getItem('nantang_camp_draft')); } catch(e) {}
