@@ -578,13 +578,15 @@ async def test_pool_clamp_under_concurrent_writes(pg_engine):
     """
     factory = _factory(pg_engine)
 
+    # 初始态自洽：total_issued = user_balance(0) + pool_balance(100) = 100
     async with factory() as s:
-        s.add(CommunityPool(balance=100, total_issued=500,
+        s.add(User(id="d4a_user", password_hash="x", nt_balance=0))
+        s.add(CommunityPool(balance=100, total_issued=100,
                             reserve=80, frozen=0))
         await s.commit()
 
     async def _add_balance(sf, amount):
-        """模拟链上充值：加 balance + reserve。"""
+        """模拟链上充值：加 balance + reserve + total_issued。"""
         async with sf() as s:
             pool = (await s.execute(
                 select(CommunityPool).limit(1).with_for_update()
@@ -595,7 +597,7 @@ async def test_pool_clamp_under_concurrent_writes(pg_engine):
             await s.commit()
 
     async def _deduct_balance(sf, amount):
-        """模拟发奖：扣 balance（reserve 不变，可能触发 clamp）。"""
+        """模拟发奖：扣 pool balance → 转给用户（守恒）。"""
         async with sf() as s:
             pool = (await s.execute(
                 select(CommunityPool).limit(1).with_for_update()
@@ -604,6 +606,12 @@ async def test_pool_clamp_under_concurrent_writes(pg_engine):
             # 模拟 _get_pool N-1b clamp
             if (pool.reserve or 0) > (pool.balance or 0):
                 pool.reserve = pool.balance
+            # 发奖给用户（total_issued 不变，钱从池→用户）
+            u = (await s.execute(
+                select(User).where(User.id == "d4a_user")
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            u.nt_balance += amount
             await s.commit()
 
     await asyncio.gather(
@@ -630,6 +638,7 @@ async def test_pool_clamp_under_concurrent_writes(pg_engine):
 
     # cleanup
     async with factory() as s:
+        await s.execute(text("DELETE FROM users WHERE id = 'd4a_user'"))
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
 
@@ -654,7 +663,8 @@ async def test_daily_tick_after_nt1_keeps_verify_pass_on_pg(pg_engine):
     async with factory() as s:
         s.add(User(id="d4b_u1", password_hash="x", nt_balance=100, role="villager"))
         s.add(User(id="d4b_u2", password_hash="x", nt_balance=50, role="villager"))
-        s.add(CommunityPool(balance=500, total_issued=700,
+        # 初始态自洽：total_issued = user(100+50) + pool(500) = 650
+        s.add(CommunityPool(balance=500, total_issued=650,
                             reserve=300, frozen=0, last_tick_date=None))
         await s.commit()
         s.add(Tenancy(user_id="d4b_u1", room_id="dorm_a", bed_num=1,
