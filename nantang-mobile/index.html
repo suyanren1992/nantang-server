@@ -1430,7 +1430,7 @@ var _om=openMapPage;openMapPage=function(){_hashFromCode=true;window.location.ha
 var _oc=openCommunityPage;openCommunityPage=function(){_hashFromCode=true;window.location.hash='community';_oc();};
 var _oq=openQuestHallPage;openQuestHallPage=function(){_hashFromCode=true;window.location.hash='quests';_oq();};
 var _sm=showMy;showMy=function(o){_hashFromCode=true;window.location.hash='workbench';_sm(o);};
-var _co=closeOverlay;closeOverlay=function(id){if(window.location.hash!=='')_hashFromCode=true;window.location.hash='';_co(id);};
+var _co=closeOverlay;closeOverlay=function(id){if(!id&&_overlayStack.length>0)id=_overlayStack[_overlayStack.length-1];if(window.location.hash!=='')_hashFromCode=true;window.location.hash='';_co(id);};
 </script>
 </body>
 </html>

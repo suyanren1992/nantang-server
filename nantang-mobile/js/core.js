@@ -649,6 +649,7 @@ function onPubTypeChange(){
   }
 }
 function openPublishTask(){
+  _pushOverlay('overlayPublishTask');
   document.getElementById('overlayPublishTask').classList.add('open');
   document.getElementById('pubReviewer').value = CURRENT_USER;  // ⑤ 默认审核人=自己
   var d=document.getElementById('pubStartDate');if(d&&!d.value)d.value=today();
@@ -808,6 +809,7 @@ function editDraft(name){
   renderDrafts();
 }
 function openMapPage(){
+  _pushOverlay('overlayMap');
   document.getElementById('overlayMap').classList.add('open');
   if(typeof _initMap==='function'){_initMap()}
 }
@@ -1977,6 +1979,7 @@ function changePwd(){
   showToast('密码已修改！','ok');renderProfile('view');
 }
 function closeMyPage(){
+  _hashFromCode = true;
   window.location.hash = '';
   var p=document.getElementById('myPage');p.classList.add('hidden');p.style.zIndex='';
   document.getElementById('villagePage').classList.remove('behind');
