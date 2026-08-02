@@ -221,6 +221,9 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
   border-radius: var(--g-radius); box-shadow: var(--g-shadow); padding: var(--g-pad);
 }
 .card--dashed { border-style: dashed; border-color: var(--g-sep); }
+.card--active { border-color:var(--g-accent); border-width:2px; background:var(--g-accent-bg); }
+.card--warn { border-color:var(--g-warn); border-width:2px; background:var(--g-warn-bg); }
+.card--danger { border-color:var(--g-red); border-width:2px; background:var(--g-red-bg); }
 
 /* ═══ 全貌页 ═══ */
 .info-wrapper { padding:0 4px; }

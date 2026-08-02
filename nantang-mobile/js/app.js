@@ -1543,9 +1543,56 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 function _openMgmtSheet(type) {
   if (type === 'kitchen') { openKitchenPage(); return; }  // STYLE-D: 切到新版厨房页
   if (type === 'field')   { openFieldPage(); return; }
-  if (type === 'cleaning') { _showCardPopup('🧹 大扫除管理', renderCleaningPanel()||'', null, true); return; }
+  if (type === 'cleaning') { _showCleanSheet(); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
 }
+// ═══ UNIFY-A: 大扫除内部页 — 对齐住宿设计 ═══
+function _showCleanSheet() {
+  var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
+  var p = _cleaningPricing();
+  var blds = getBuildings();
+  var spaces = [];
+  blds.forEach(function(b) {
+    if (b.id === 'info' || b.id === 'gate_a' || b.id === 'parking') return;
+    var d = (cl && cl.spaces && cl.spaces[b.id]) ? cl.spaces[b.id].dirtiness : 0;
+    var st = d >= 60 ? 'red' : d >= 30 ? 'yellow' : 'green';
+    var stLabel = d >= 60 ? '🔴 需处理' : d >= 30 ? '🟡 注意' : '🟢 整洁';
+    var nt = st === 'red' ? p.dirty : st === 'yellow' ? p.warning : p.clean;
+    spaces.push({ id: b.id, name: b.name, icon: b.icon, dirtiness: d, status: st, statusLabel: stLabel, nt: nt });
+  });
+  spaces.sort(function(a,b){ return b.dirtiness - a.dirtiness; });
+  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap);margin-bottom:var(--g-pad)">';
+  spaces.forEach(function(s) {
+    var dotColor = s.status === 'red' ? 'var(--g-red)' : s.status === 'yellow' ? 'var(--g-warn)' : 'var(--g-green)';
+    h += '<div class="card" data-space="'+s.id+'" data-nt="'+s.nt+'" data-name="'+s.name+'" onclick="_toggleCleanSelect(this)" style="text-align:center;position:relative">'+
+      '<span style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:'+dotColor+'"></span>'+
+      '<div style="font-size:1.6rem;margin-bottom:4px">'+esc(s.icon)+'</div>'+
+      '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(s.name)+'</div>'+
+      '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-top:2px">'+s.statusLabel+'</div>'+
+      '<div style="font-weight:700;color:var(--g-gold);font-size:var(--g-font-size-xs);margin-top:2px">+'+s.nt+' NT</div>'+
+    '</div>';
+  });
+  h += '</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:var(--g-pad);text-align:center">💡 点击卡片选择打扫区域，脏污越高 NT 越多</div>';
+  h += '<button class="btn-sm pri" style="width:100%;min-height:44px" onclick="_submitCleanSelect()">✅ 确认打扫</button>';
+  _showCardPopup('🧹 大扫除', h, null, true);
+}
+function _toggleCleanSelect(el) {
+  var prev = el.parentElement.querySelector('.card--active');
+  if (prev && prev !== el) { prev.classList.remove('card--active'); }
+  el.classList.toggle('card--active');
+}
+function _submitCleanSelect() {
+  var sel = document.querySelector('.card--active[data-space]');
+  if (!sel) { showToast('请先选择一个空间', 'warn'); return; }
+  var spaceId = sel.getAttribute('data-space');
+  var spaceName = sel.getAttribute('data-name');
+  var nt = parseInt(sel.getAttribute('data-nt'), 10) || 0;
+  if (window.AppData) AppData.addVerification('cleaning', _me(), '打扫了 '+spaceName, { space: spaceId }, nt, Math.ceil(nt/5));
+  var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
+  showToast('打扫完成，等待校核 (+'+nt+' NT)', 'ok');
+}
+
 // J 修复：厨房面板可能开在建筑页 mgmtOverlay 或全貌页弹层（.mgmt-sheet），重绘时按当前容器选择
 function _rerenderKitchen() {
   try {
