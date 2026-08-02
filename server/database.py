@@ -121,6 +121,12 @@ _INDEX_DDL = [
     "CREATE INDEX IF NOT EXISTS idx_tenancies_track ON tenancies(track)",
     # W7-NOTIF-1: 通知系统 — 按收件人+类型+已读状态过滤
     "CREATE INDEX IF NOT EXISTS idx_activity_log_user_type ON activity_log(user_id, type, read_at)",
+    # W7-ITEM-1: items 表高频查询列索引
+    "CREATE INDEX IF NOT EXISTS idx_items_location_id ON items(location_id)",
+    "CREATE INDEX IF NOT EXISTS idx_items_owner_id ON items(owner_id)",
+    "CREATE INDEX IF NOT EXISTS idx_items_category ON items(category)",
+    "CREATE INDEX IF NOT EXISTS idx_items_state ON items(state)",
+    "CREATE INDEX IF NOT EXISTS idx_items_expiration ON items(expiration)",
 ]
 
 

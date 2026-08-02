@@ -578,6 +578,32 @@ class FieldPlot(Base):
     created_at = Column(String, nullable=True)
 
 
+# ══ W7-ITEM-1: 物品一套表 ══
+ITEM_CATEGORIES = ("酒类", "蔬菜", "肉蛋", "乳品", "调料", "主食", "熟食", "饮料", "工具", "其他")
+ITEM_STATES = ("active", "consumed", "expired", "removed", "listed")
+FOOD_CATEGORIES = ("蔬菜", "肉蛋", "乳品", "熟食")  # 需提醒保质期的类别
+
+
+class Item(Base):
+    """物品——空间孪生物品栏真源。替代旧 StorageItem + SharedItem 两表。"""
+    __tablename__ = "items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)              # 物品名
+    category = Column(String, nullable=False)            # 十档之一 或 自定义
+    location_id = Column(String, ForeignKey("map_locations.key"), nullable=False)  # 在哪个房间
+    owner_id = Column(String, ForeignKey("users.id"))    # 物主（NULL=公用）
+    put_by = Column(String, ForeignKey("users.id"))      # 谁放的
+    quantity = Column(String, default="1")               # 数量/规格（"1L""3颗""半瓶"）
+    expiration = Column(String)                          # 保质期/过期日（ISO date，可空）
+    state = Column(String, default="active")             # active / consumed / expired / removed / listed
+    listed_to = Column(String)                           # 上架到哪（auction / bazaar，NULL=未上架）
+    listing_id = Column(String)                          # 上架关联ID
+    notes = Column(String)                               # 备注
+    last_confirmed = Column(String)                      # 最后确认时间
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
 # ══ W7-ID-1a: 事实驱动身份层 ══
 # 皇帝原则：权限不挂在身份上，挂在事实记录上。身份只是事实的显示名。
 # UserTag = 标签事实台账：每行记录"谁因什么事实获得了什么标签"。

@@ -17,6 +17,7 @@ from routes.community import (
     health_report_router, cleaning_pricing_router,
 )
 from routes.notifications import router as notifications_router  # W7-NOTIF-1: 通知系统重做
+from routes.items import router as items_router  # W7-ITEM-1: 物品一套表
 from routes.kitchen import kitchen_router  # P3-二营乙 共享厨房
 
 # BE-2②: 日志写文件——INFO 级以上落盘，cron 等模块的 logger 自动接入根配置
@@ -125,6 +126,7 @@ app.include_router(notifications_router)   # P1-#6 ⑬ 通报
 app.include_router(health_report_router)   # P1-#6 ⑫ 体检报告
 app.include_router(cleaning_pricing_router) # P1-#6 ⑭ 清洁定价
 app.include_router(kitchen_router)          # P3-二营乙 共享厨房
+app.include_router(items_router)            # W7-ITEM-1: 物品一套表
 
 
 @app.middleware("http")
