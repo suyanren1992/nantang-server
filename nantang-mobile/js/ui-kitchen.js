@@ -23,7 +23,8 @@ function openKitchenPage() {
 }
 
 function _renderKitchenPage() {
-  var el = document.getElementById('kitchenContent');
+  // A-6: index.html 的静态 overlay 用 id=kitchenBody，动态创建路径用 id=kitchenContent，兼容两者
+  var el = document.getElementById('kitchenContent') || document.getElementById('kitchenBody');
   if (!el) return;
   var tabs = [
     {key:'potluck', label:'🥘 共享厨房·接龙'},
