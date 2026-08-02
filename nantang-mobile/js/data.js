@@ -679,6 +679,19 @@ function showToast(msg,type,anchor){
   setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .15s';setTimeout(function(){t.remove()},150)},1500);
 }
 // A4: saveAppData/loadAppData 已由 AppData 替代。保留空函数防止调用报错。
+// ── NOTIFY-REFINE: 行内权限提示（按钮下方红色小字） ──
+function showInlineHint(el, msg) {
+  if (typeof el === 'string') el = document.querySelector(el);
+  if (!el || !el.parentNode) return;
+  var old = el.parentNode.querySelector('.inline-hint');
+  if (old) old.remove();
+  var hint = document.createElement('div');
+  hint.className = 'inline-hint';
+  hint.style.cssText = 'color:#b84c38;font-size:10px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:4px;animation:fadeIn .1s ease-out';
+  hint.textContent = '🔒 ' + msg;
+  el.parentNode.insertBefore(hint, el.nextSibling);
+  setTimeout(function() { if (hint.parentNode) hint.remove(); }, 3000);
+}
 function saveAppData(){}
 function loadAppData(){}
 function upgradeRole(name,newRole,code){

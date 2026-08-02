@@ -127,7 +127,7 @@ function openAdminPanel() {
   // F13: 角色从服务端权威来源读取，离线时 fallback localStorage
   var role = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role
            : ((typeof getUsers === 'function' ? getUsers() : {})[CURRENT_USER] || {}).role;
-  if (role !== 'admin') { showToast('仅管理员可访问', 'error'); return; }
+  if (role !== 'admin') { showInlineHint(document.activeElement, '仅管理员可访问'); return; }
   var h = '<div style="background:#fff;border-radius:16px;width:360px;max-width:95vw;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.25)">';
   h += '<div style="padding:16px;border-bottom:1px solid #f0f0f0"><span style="font-weight:700;font-size:.82rem">⚙️ 社区管理</span></div>';
   h += '<div style="padding:12px 16px">';
@@ -182,7 +182,7 @@ function _adminPublishTask() {
   } else {
     // offline fallback — 检查角色权限
     var role = (getUsers()[CURRENT_USER] || {}).role;
-    if (role !== 'admin') { showToast('仅管理员可发布社区任务', 'warn'); return; }
+    if (role !== 'admin') { showInlineHint(document.activeElement, '仅管理员可发布社区任务'); return; }
     var t = { name: 'T_'+Date.now().toString(36), title:title, type:'other', nt:reward, scope:'社区', status:'进行中', publisher:'社区', slots:slots, note:'', claimants:[], action:'' };
     AppData._data.tasks[t.name] = t;
     showToast('社区任务已发布（离线）', 'ok');
@@ -207,7 +207,7 @@ function openAdminConfig(){
 function saveAdminConfig(){
   if(!window.AppData)return;
   var cu=(typeof getUsers==='function'?getUsers():{})[CURRENT_USER];
-  if(!cu||cu.role!=='admin'){showToast('权限不足，仅管理员可操作','error');return;}
+  if(!cu||cu.role!=='admin'){showInlineHint(document.activeElement,'仅管理员可操作');return;}
   // 读克隆层内的输入值（模板里的同名 id 是隐藏原件，直接 getElementById 会读错）
   var _ov=document.querySelector('.ci-overlay');
   var _cfgEl=function(id){ var e=_ov?_ov.querySelector('#'+id):null; return e||document.getElementById(id); };
