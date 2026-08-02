@@ -526,6 +526,14 @@ async def init_db():
                 _admin_pwd = os.getenv("ADMIN_BOOTSTRAP_PASSWORD")
                 if not _admin_pwd:
                     logger.info("[REDTEAM-B-B6] ADMIN_BOOTSTRAP_PASSWORD not set — skip auto-bootstrap, first registrant becomes admin")
+                    # 清理旧版遗留的 admin_bootstrap（修复前部署创建的）
+                    _old = (await session.execute(
+                        select(_User).where(_User.id == "admin_bootstrap")
+                    )).scalar_one_or_none()
+                    if _old:
+                        await session.delete(_old)
+                        await session.commit()
+                        logger.info("[REDTEAM-B-B6] deleted legacy admin_bootstrap — first real registrant will be admin")
                 else:
                     _seed_dir = os.path.join(os.path.dirname(__file__), "seed")
                     _admin_path = os.path.join(_seed_dir, "admin_user.json")
