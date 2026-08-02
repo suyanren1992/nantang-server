@@ -378,16 +378,19 @@ function _renderMgmtCards() {
     '<div class="ic-body"><div class="ic-big">'+(cleanDays!=null ? (cleanDays>0 ? cleanDays+' 天后' : nextClean.slice(5)) : '未设定')+'</div>'+
     '<div>🟢'+stats.cleanCount+' 🟡'+stats.warnCount+' 🔴'+stats.dirtyCount+'</div></div></div>';
 
-  // 🏨 住宿 — 已用/总床 + 前2位住客
+  // 🏨 住宿 — 最近入住动态（寸土寸金：展示最新消息）
   var accs = _ml().accommodations || {};
   var accList = Object.values(accs);
   var totalBeds = 0, usedBeds = 0;
   var guests = [];
-  accList.forEach(function(a){ totalBeds += (a.beds||0); if (a.tenants) { usedBeds += a.tenants.length; a.tenants.forEach(function(t){ guests.push(t.name); }); } });
-  var guestStr = guests.length ? guests.slice(0,2).join('、') : '暂无';
+  accList.forEach(function(a){ totalBeds += (a.beds||0); if (a.tenants) { usedBeds += a.tenants.length; a.tenants.forEach(function(t){ guests.push({name:t.name, checkIn:t.checkIn||''}); }); } });
+  // 按入住日期倒序（最近入住排前面）
+  guests.sort(function(a,b){ return b.checkIn.localeCompare(a.checkIn); });
+  var recentGuest = guests[0];
+  var recentStr = recentGuest ? '🆕 '+recentGuest.name+(recentGuest.checkIn?' '+recentGuest.checkIn+'入住':'') : '';
   h += '<div class="ic-card" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🏨 住宿</div>'+
     '<div class="ic-body"><div class="ic-big">'+usedBeds+'/'+totalBeds+' <span style="font-size:.7rem">床</span></div>'+
-    '<div class="ic-muted">'+(guests.length>2 ? guestStr+'…等'+guests.length+'人' : guestStr)+'</div></div></div>';
+    '<div class="ic-muted">'+(recentStr||'暂无入住')+(guests.length>1?' · …等'+guests.length+'人':'')+'</div></div></div>';
 
   // 🌾 田地 — 种植中数 + 最近可收
   var plots = getPlots();
