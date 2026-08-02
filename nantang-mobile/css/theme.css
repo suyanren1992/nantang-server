@@ -577,27 +577,16 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 }
 
 /* === 全貌页 + 卡片室（Ch3-5） === */
-.announce-bar{background:linear-gradient(135deg,#fef9e8,#fef0d0);border:1px solid #e8d890;border-radius:8px;padding:6px 10px;margin:8px 10px;overflow:hidden;white-space:nowrap;font-size:var(--g-font-size-xs);color:#6a5a30}
-.announce-track{display:inline-block;animation:annScroll 30s linear infinite}
-@keyframes annScroll{0%{transform:translateX(60%)}100%{transform:translateX(-100%)}}
 /* 底部轮播 — scroll-snap 居中，规则见上方 .bc-track/.bc-card/.bc-dots */
 .bc-card.active{border-color:var(--green-primary);background:rgba(61,107,82,.08)}
 .bc-dots{display:flex;justify-content:center;gap:6px;padding:4px 0}
 .bc-dot{width:6px;height:6px;border-radius:50%;background:#ccc;cursor:pointer;transition:.15s}
 .bc-dot.active{background:var(--green-primary);width:16px;border-radius:3px}
 .bc-status{display:inline-block;width:8px;height:8px;border-radius:50%;flex-shrink:0}
-/* 在线翻牌 */
-.presence-grid{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0}
-.presence-card{flex:0 0 auto;background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:8px 10px;text-align:center;cursor:pointer;min-width:72px;transition:.12s}
-.presence-card:active{transform:scale(.96);background:#f8f8f5}
-.presence-card.is-me{border-color:var(--green-primary);background:linear-gradient(135deg,#f5faf5,#eef8ee)}
 /* 卡片室折叠 */
 .cr-section{border-top:1px solid #f0f0f0;padding:6px 0}
 .cr-header{cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:30px}
 .cr-body{display:none}
-/* 快捷录入 */
-.quick-card{flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer;transition:.12s}
-.quick-card:active{transform:scale(.97);background:#fafaf5}
 .ic-muted{color:var(--g-text-dim)}
 .ic-warn{color:#c8892e}
 

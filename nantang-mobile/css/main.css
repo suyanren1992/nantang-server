@@ -263,12 +263,6 @@ html,body{font-family:system-ui,-apple-system,'Noto Sans SC',sans-serif;height:1
 /* 营地照片 */
 .camp-photos{display:flex;gap:8px;margin:8px 0}
 .camp-photo{flex:1;height:80px;border-radius:10px;background:#e8ede6;display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#d0d9ce}
-/* 营地主页 */
-.camp-overview{background:linear-gradient(135deg,#e8f0e4,#dce8d8);border:1px solid var(--green-primary);border-radius:14px;padding:16px;text-align:center;margin-bottom:12px}
-.camp-overview .co-title{font-size:.85rem;font-weight:700;color:#2a4a30;margin-bottom:6px}
-.camp-overview .co-stats{display:flex;justify-content:center;gap:20px;font-size:.72rem;color:#5a6e5c;margin-bottom:8px}
-.camp-overview .co-progress{height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;margin:8px 0}
-.camp-overview .co-progress-fill{height:100%;background:var(--g-green);border-radius:3px}
 .quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .quick-card{background:#fff;border:1px solid #d0d9ce;border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:.12s}
 .quick-card:active{transform:scale(.97);background:#fafaf5}
@@ -347,14 +341,14 @@ body.ov-locked{overflow:hidden;position:fixed;width:100%}
 .cb-label{font-size:.55rem;color:#5a6e5c}
 .camp-nav-card{display:flex;align-items:center;gap:8px;padding:12px;background:#fff;border-radius:10px;margin-bottom:8px;cursor:pointer;transition:.12s;font-size:.72rem}
 .camp-nav-card:active{transform:scale(.98);background:#fafaf8}
-/* W7-CAMP-UI-2: 营地卡片堆叠布局 */
-.camp-card{background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:14px;margin-bottom:0}
-.camp-card-head{font-weight:700;font-size:.78rem;color:var(--g-text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--g-card-border)}
-.camp-card-row{display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;transition:.12s;font-size:.72rem;border-bottom:1px solid #f5f5f0}
-.camp-card-row:last-child{border-bottom:none}
-.camp-card-row:active{opacity:.7}
-.camp-icon-grid-item{text-align:center;padding:12px 6px;border-radius:10px;cursor:pointer;transition:.12s;background:#fafaf5}
-.camp-icon-grid-item:active{background:#f0ece0;transform:scale(.96)}
+/* W7-CAMP-UI-2: 营地卡片堆叠布局 — 营地子页专用 */
+.camp-section-card{background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:14px;margin-bottom:10px}
+.camp-section-card-head{font-weight:700;font-size:.78rem;color:var(--g-text);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--g-card-border)}
+.camp-section-card-row{display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;transition:.12s;font-size:.72rem;border-bottom:1px solid #f5f5f0}
+.camp-section-card-row:last-child{border-bottom:none}
+.camp-section-card-row:active{opacity:.7}
+.camp-section-icon-grid-item{text-align:center;padding:12px 6px;border-radius:10px;cursor:pointer;transition:.12s;background:#fafaf5}
+.camp-section-icon-grid-item:active{background:#f0ece0;transform:scale(.96)}
 .inbox-panel{background:#fff;border:1px solid var(--green-border);border-radius:12px;margin:8px 0;max-height:60vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 /* ARCHIVE OVERLAY */
 .archive-tabbar{display:flex;gap:4px;padding:8px 14px;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;border-bottom:1px solid #d0d9ce;background:#f5f3ef}
