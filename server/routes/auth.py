@@ -136,9 +136,12 @@ async def register(req: RegisterRequest, response: Response, db: AsyncSession = 
     ex = await db.execute(select(User).where(User.id == name))
     if ex.scalar_one_or_none(): return JSONResponse({"ok": False, "error": "这个名字已经被占用了，换一个试试"})
     c = await db.execute(select(func.count(User.id)))
-    is_first = c.scalar() == 0
+    is_first_user = c.scalar() == 0
+    # 如果系统里没有 admin（如重置残留/首次部署），第一个注册的人就是 admin
+    admin_count = await db.execute(select(func.count(User.id)).where(User.role == "admin"))
+    is_first_admin = admin_count.scalar() == 0
     u = User(id=name, password_hash=hash_password(req.password),
-             role="admin" if is_first else "visitor",
+             role="admin" if (is_first_user or is_first_admin) else "visitor",
              nt_balance=0,
              avatar_seed=req.avatar_seed or name,
              created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
