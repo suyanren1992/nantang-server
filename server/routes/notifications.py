@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import ActivityLog, User
 from routes.auth import get_current_user
+from permissions import is_admin
 
 logger = logging.getLogger("notifications")
 
@@ -89,6 +90,49 @@ async def unread_count(
     result = await db.execute(q)
     n = result.scalar() or 0
     return {"ok": True, "unread": n}
+
+
+class CreateNotificationReq(BaseModel):
+    """POST /api/notifications 请求体。"""
+    type: str = Field(min_length=1)
+    text: str = Field(min_length=1, max_length=2000)
+    user_id: str | None = None   # NULL=公开公告
+    target: str | None = None    # 关联对象
+
+
+@router.post("")
+async def create_notification(
+    req: CreateNotificationReq,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/notifications — admin 创建通知（含公告）。
+
+    仅管理员可调用。type='announcement' 的公告 user_id 留空即为公开。
+    """
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="仅管理员可发布通知")
+
+    a = ActivityLog(
+        time=datetime.utcnow().isoformat(),
+        type=req.type,
+        text=req.text,
+        user_id=req.user_id,
+        actor_id=user.id,
+        target=req.target,
+    )
+    db.add(a)
+    await db.commit()
+    await db.refresh(a)
+    return {
+        "ok": True,
+        "id": a.id,
+        "type": a.type,
+        "text": a.text,
+        "time": a.time,
+        "user_id": a.user_id,
+        "actor_id": a.actor_id,
+    }
 
 
 @router.post("/{log_id}/read")

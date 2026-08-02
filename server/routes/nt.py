@@ -9,7 +9,7 @@ from datetime import datetime
 import secrets
 import json
 from database import get_db
-from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification, TASK_STATUSES, compute_cv, compute_xp
+from models import User, NTLedger, NTTask, CommunityPool, DepositIntent, Verification, TASK_STATUSES, compute_cv, compute_xp, MapLocation
 from routes.auth import get_current_user, require_admin
 from nt_helpers import _ledger_id, _add_ledger, _get_pool, _safe_assignees
 
@@ -146,10 +146,26 @@ async def sync(user: User = Depends(get_current_user), db: AsyncSession = Depend
 
     # R6: 所有活跃入住记录
     from models import Tenancy as _Tenancy
+    _tenancy_rows = (await db.execute(select(_Tenancy).where(_Tenancy.status == "active"))).scalars().all()
+
+    # D-12 返修: presence 翻牌状态——合并所有分用户 key
+    _pr_rows = (await db.execute(select(MapLocation).where(MapLocation.key.like("presence:%")))).scalars()
+    _presence = {}
+    for _pr in _pr_rows:
+        _uid = _pr.key.replace("presence:", "")
+        if _pr.data:
+            try:
+                _pdata = json.loads(_pr.data)
+            except (json.JSONDecodeError, TypeError):
+                _pdata = {}
+            if _pdata:
+                _presence[_uid] = _pdata
+
     all_tenancies = [
         {"room_id": t.room_id, "bed_num": t.bed_num, "user_id": t.user_id,
-         "checkin_date": t.checkin_date, "debt": t.debt}
-        for t in (await db.execute(select(_Tenancy).where(_Tenancy.status == "active"))).scalars()
+         "checkin_date": t.checkin_date, "debt": t.debt,
+         "presence": _presence.get(t.user_id, {"status": "cloud"})}
+        for t in _tenancy_rows
     ]
     # 任务
     tasks = [{"id": t.id, "title": t.title, "reward": t.reward, "category": t.category,
