@@ -598,3 +598,87 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 #inboxPanel { top: calc(50px + env(safe-area-inset-top, 0px)); }
 .avatar-picker { position: fixed; }
 [onclick] { touch-action: manipulation; }
+
+/* ═══ W7-UI-ALIGN: 统一 UI 组件（对齐设计稿 vFinal） ═══ */
+
+/* 4 列方格 */
+.g4 { display:grid; grid-template-columns:repeat(4,1fr); gap:3px }
+.g4-cell {
+  background:var(--g-card); border:1.5px solid var(--g-card-border);
+  border-radius:7px; padding:5px 3px; text-align:center; cursor:pointer;
+  position:relative; min-height:44px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+}
+.g4-cell:active { transform:scale(.97) }
+.g4-cell.on { border-color:var(--g-accent); background:var(--g-accent-bg) }
+.g4-cell.off { opacity:.4; pointer-events:none; background:#f5f5f5 }
+.g4-ci { font-size:1rem; line-height:1 }
+.g4-cn { font-size:9px; font-weight:700; color:var(--g-text); margin:1px 0 }
+.g4-cm { font-size:7px; color:var(--g-text-dim); line-height:1.2 }
+.g4-cnt { font-size:8px; color:var(--g-warn); font-weight:700 }
+
+/* 角标头像 */
+.g4-cell .cav {
+  position:absolute; top:1px; right:1px; width:15px; height:15px;
+  border-radius:50%; background:var(--g-accent); color:#fff;
+  font-size:7px; display:flex; align-items:center; justify-content:center; font-weight:700;
+}
+
+/* 状态色标 */
+.sb { display:inline-block; padding:1px 4px; border-radius:3px; font-size:7px; font-weight:600 }
+.sr { background:#fde8e8; color:var(--g-red) }
+.sy { background:#fef8e8; color:var(--g-warn) }
+.sg { background:#e8f5e8; color:var(--g-green) }
+
+/* 浮动操作按钮 */
+.fab {
+  position:absolute; bottom:10px; right:10px; width:40px; height:40px;
+  border-radius:50%; background:var(--g-accent); color:#fff;
+  font-size:1.1rem; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,.2); border:none; z-index:10;
+}
+
+/* 横向标签栏 */
+.hscroll { display:flex; gap:4px; overflow-x:auto; padding:4px 0; scrollbar-width:none; -webkit-overflow-scrolling:touch }
+.hscroll::-webkit-scrollbar { display:none }
+.hs-chip {
+  flex-shrink:0; padding:5px 10px; border-radius:14px;
+  border:1.5px solid var(--g-card-border); background:var(--g-card);
+  font-size:10px; font-weight:600; color:var(--g-text-sub); cursor:pointer; white-space:nowrap;
+}
+.hs-chip.on { border-color:var(--g-accent); background:var(--g-accent-bg); color:var(--g-accent) }
+
+/* 头像条 */
+.avs { display:flex; gap:2px; overflow-x:auto; padding:3px 0; scrollbar-width:none; -webkit-overflow-scrolling:touch }
+.avs::-webkit-scrollbar { display:none }
+.avb { flex-shrink:0; width:30px; text-align:center }
+.avi {
+  width:24px; height:24px; border-radius:50%; background:var(--g-card-border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; font-weight:700; color:var(--g-accent); margin:0 auto;
+}
+.avt { font-size:6.5px; color:var(--g-text-sub); margin-top:1px; max-width:30px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+
+/* 通用折叠 */
+.fold-h { cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:6px 0; font-weight:600; font-size:10px; color:var(--g-text) }
+.fold-b { display:none; padding:2px 0 5px }
+.fold-h.open+.fold-b { display:block }
+
+/* 进度条（设计稿 .pb/.pf） */
+.pb { height:4px; background:#f0f0f0; border-radius:2px; overflow:hidden; margin:2px 0 }
+.pf { height:100%; background:var(--g-accent); border-radius:2px }
+
+/* 事件条目 */
+.ev { display:flex; align-items:center; gap:5px; padding:4px 0; font-size:9.5px; border-bottom:1px solid #f5f5f0 }
+.ev:last-child { border-bottom:none }
+.ei { font-size:.85rem; flex-shrink:0 }
+.et { flex:1; color:var(--g-text); line-height:1.3 }
+.ew { font-size:8px; color:var(--g-text-dim); flex-shrink:0 }
+
+/* 节标题 */
+.sl { font-size:10px; font-weight:700; color:var(--g-text-sub); padding:7px 0 3px; display:flex; justify-content:space-between; align-items:center }
+.sla { font-size:9px; color:var(--g-accent); cursor:pointer; font-weight:600 }
+
+/* 通用按钮 */
+.btn-bp { display:block; width:100%; padding:9px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; text-align:center; min-height:38px; background:var(--g-accent); color:#fff }
+.btn-bs { display:block; width:100%; padding:9px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; text-align:center; min-height:38px; background:#f0f0f0; color:var(--g-text-sub) }

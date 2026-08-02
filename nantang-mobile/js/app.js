@@ -1574,6 +1574,7 @@ function _openMgmtSheet(type) {
   if (type === 'stay')     { _showStaySheet(); return; }
 }
 // ═══ UNIFY-A: 大扫除内部页 — 对齐住宿设计 ═══
+// W7-UI-ALIGN PAGE-1: 大扫除·管理员 — 4列方格 + 脏污%色标 + 多选
 function _showCleanSheet() {
   var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
   var p = _cleaningPricing();
@@ -1583,41 +1584,147 @@ function _showCleanSheet() {
     if (b.id === 'info' || b.id === 'gate_a' || b.id === 'parking') return;
     var d = (cl && cl.spaces && cl.spaces[b.id]) ? cl.spaces[b.id].dirtiness : 0;
     var st = d >= 60 ? 'red' : d >= 30 ? 'yellow' : 'green';
-    var stLabel = d >= 60 ? '🔴 需处理' : d >= 30 ? '🟡 注意' : '🟢 整洁';
+    var stBadge = d >= 60 ? 'sr' : d >= 30 ? 'sy' : 'sg';
     var nt = st === 'red' ? p.dirty : st === 'yellow' ? p.warning : p.clean;
-    spaces.push({ id: b.id, name: b.name, icon: b.icon, dirtiness: d, status: st, statusLabel: stLabel, nt: nt });
+    spaces.push({ id: b.id, name: b.name, icon: b.icon, dirtiness: d, status: st, stBadge: stBadge, nt: nt });
   });
   spaces.sort(function(a,b){ return b.dirtiness - a.dirtiness; });
-  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap);margin-bottom:var(--g-pad)">';
+  var h = '<div class="g4" style="margin-bottom:var(--g-pad)">';
   spaces.forEach(function(s) {
-    var dotColor = s.status === 'red' ? 'var(--g-red)' : s.status === 'yellow' ? 'var(--g-warn)' : 'var(--g-green)';
-    h += '<div class="card" data-space="'+s.id+'" data-nt="'+s.nt+'" data-name="'+s.name+'" onclick="_toggleCleanSelect(this)" style="text-align:center;position:relative">'+
-      '<span style="position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:'+dotColor+'"></span>'+
-      '<div style="font-size:1.6rem;margin-bottom:4px">'+esc(s.icon)+'</div>'+
-      '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(s.name)+'</div>'+
-      '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-top:2px">'+s.statusLabel+'</div>'+
-      '<div style="font-weight:700;color:var(--g-gold);font-size:var(--g-font-size-xs);margin-top:2px">+'+s.nt+' NT</div>'+
+    h += '<div class="g4-cell" data-space="'+s.id+'" data-nt="'+s.nt+'" data-name="'+esc(s.name)+'" onclick="_toggleCleanSelect(this)">'+
+      '<div class="g4-ci">'+esc(s.icon)+'</div>'+
+      '<div class="g4-cn">'+esc(s.name)+'</div>'+
+      '<span class="sb '+s.stBadge+'">'+s.dirtiness+'%</span>'+
+      '<div class="g4-cnt">+'+s.nt+'</div>'+
     '</div>';
   });
   h += '</div>';
-  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:var(--g-pad);text-align:center">💡 点击卡片选择打扫区域，脏污越高 NT 越多</div>';
-  h += '<button class="btn-sm pri" style="width:100%;min-height:44px" onclick="_submitCleanSelect()">✅ 确认打扫</button>';
+  h += '<div style="margin:5px 0;font-size:8px;color:var(--g-text-sub);display:flex;justify-content:space-between">'+
+    '<span>⚙ 最少2个 最多3个</span><span id="cleanSelectCount">👤 0/3</span></div>';
+  h += '<button class="btn-bp" style="font-size:10px" onclick="_submitCleanSelect()">📢 发布大扫除</button>';
   _showCardPopup('🧹 大扫除', h, null, true);
 }
 function _toggleCleanSelect(el) {
-  var prev = el.parentElement.querySelector('.card--active');
-  if (prev && prev !== el) { prev.classList.remove('card--active'); }
-  el.classList.toggle('card--active');
+  var sel = el.parentElement.querySelectorAll('.g4-cell.on');
+  if (!el.classList.contains('on') && sel.length >= 3) { showToast('最多选3个区域', 'warn'); return; }
+  el.classList.toggle('on');
+  var cnt = el.parentElement.querySelectorAll('.g4-cell.on').length;
+  var ctEl = document.getElementById('cleanSelectCount');
+  if (ctEl) ctEl.textContent = '👤 '+cnt+'/3';
 }
 function _submitCleanSelect() {
-  var sel = document.querySelector('.card--active[data-space]');
-  if (!sel) { showToast('请先选择一个空间', 'warn'); return; }
-  var spaceId = sel.getAttribute('data-space');
-  var spaceName = sel.getAttribute('data-name');
-  var nt = parseInt(sel.getAttribute('data-nt'), 10) || 0;
-  if (window.AppData) AppData.addVerification('cleaning', _me(), '打扫了 '+spaceName, { space: spaceId }, nt, Math.ceil(nt/5));
+  var sels = document.querySelectorAll('.g4-cell.on[data-space]');
+  if (sels.length < 2) { showToast('至少选2个区域', 'warn'); return; }
+  var totalNt = 0;
+  var names = [];
+  sels.forEach(function(el) {
+    totalNt += parseInt(el.getAttribute('data-nt'), 10) || 0;
+    names.push(el.getAttribute('data-name'));
+  });
+  if (window.AppData) {
+    names.forEach(function(name) {
+      AppData.addVerification('cleaning', _me(), '发布了打扫 '+name, { space: name }, Math.floor(totalNt/sels.length), Math.ceil(totalNt/sels.length/5));
+    });
+    AppData.addJournal(_me(), 'cleaning', '发布大扫除：'+names.join('、')+'（共 +'+totalNt+' NT）');
+  }
   var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
-  showToast('打扫完成，等待校核 (+'+nt+' NT)', 'ok');
+  showToast('大扫除已发布（共 +'+totalNt+' NT）', 'ok');
+}
+
+// W7-UI-ALIGN PAGE-2: 大扫除·用户选位置 — 头像条 + 4列格 + 已占灰显
+function _showCleanUserSheet() {
+  var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
+  var p = _cleaningPricing();
+  var selMap = (MGMT_DATA.cleaning && MGMT_DATA.cleaning.selections) || {};
+  var mySel = (MGMT_DATA.cleaning && MGMT_DATA.cleaning.mySelections) || [];
+  var blds = getBuildings();
+  var spaces = [];
+  blds.forEach(function(b) {
+    if (b.id === 'info' || b.id === 'gate_a' || b.id === 'parking') return;
+    var d = (cl && cl.spaces && cl.spaces[b.id]) ? cl.spaces[b.id].dirtiness : 0;
+    var st = d >= 60 ? 'red' : d >= 30 ? 'yellow' : 'green';
+    var stBadge = d >= 60 ? 'sr' : d >= 30 ? 'sy' : 'sg';
+    var nt = st === 'red' ? p.dirty : st === 'yellow' ? p.warning : p.clean;
+    spaces.push({ id: b.id, name: b.name, icon: b.icon, dirtiness: d, status: st, stBadge: stBadge, nt: nt });
+  });
+
+  // 收集已选用户头像数据
+  var userMap = {};
+  Object.keys(selMap).forEach(function(sid) {
+    var u = selMap[sid].lockedBy;
+    if (!userMap[u]) userMap[u] = [];
+    var sp = spaces.find(function(s){ return s.id === sid; });
+    userMap[u].push(sp ? sp.icon : '🧹');
+  });
+
+  var mySelNt = 0;
+  mySel.forEach(function(sid) {
+    var sp = spaces.find(function(s){ return s.id === sid; });
+    if (sp) mySelNt += sp.nt;
+  });
+
+  var h = '<div class="sl">👥 大家选了哪里</div>';
+  h += '<div class="avs">';
+  Object.keys(userMap).forEach(function(u) {
+    var icons = userMap[u].join('');
+    h += '<div class="avb"><div class="avi">'+esc(u.charAt(0))+'</div><div class="avt">'+esc(icons)+'</div></div>';
+  });
+  // 未选占位（总入住人数=8，减去已选人数）
+  var totalGuests = 8;
+  var unselected = totalGuests - Object.keys(userMap).length;
+  for (var i = 0; i < unselected && i < 6; i++) {
+    h += '<div class="avb"><div class="avi" style="border:2px dashed var(--g-sep);background:#fff;color:var(--g-text-dim)">?</div><div class="avt" style="color:var(--g-text-dim)">待选</div></div>';
+  }
+  h += '</div>';
+
+  h += '<div class="sl">🗂️ 选你的位置（最少2最多3·已选'+mySel.length+'）</div>';
+  h += '<div class="g4">';
+  spaces.forEach(function(s) {
+    var isOccupied = !!selMap[s.id] && selMap[s.id].lockedBy !== _me();
+    var isMine = mySel.indexOf(s.id) >= 0;
+    var cls = 'g4-cell' + (isOccupied ? ' off' : '') + (isMine ? ' on' : '');
+    h += '<div class="'+cls+'" data-space="'+s.id+'" data-nt="'+s.nt+'" '+(isOccupied?'':'onclick="_toggleCleanUserSelect(this)"')+'>'+
+      '<div class="g4-ci">'+esc(s.icon)+'</div>'+
+      '<div class="g4-cn">'+esc(s.name)+'</div>'+
+      (isOccupied ? '<div class="cav">'+esc(selMap[s.id].lockedBy.charAt(0))+'</div>' : '')+
+      '<span class="sb '+s.stBadge+'">'+s.nt+'</span>'+
+    '</div>';
+  });
+  h += '</div>';
+
+  h += '<div style="background:#f8faf6;border-radius:6px;padding:5px 8px;margin:5px 0;font-size:9.5px;color:var(--g-text-sub)" id="cleanUserSummary">';
+  if (mySelNt > 0) {
+    var selNames = mySel.map(function(sid){ var sp=spaces.find(function(s){return s.id===sid;}); return sp?(sp.icon+sp.name+'('+sp.nt+'NT)') : sid; });
+    h += '🧹 '+selNames.join(' + ')+' = <b>'+mySelNt+' NT</b>';
+  } else {
+    h += '👆 点击上方格子选择你的打扫位置';
+  }
+  h += '</div>';
+  h += '<button class="btn-bp" onclick="_submitCleanUserSelect()">✅ 提交选择</button>';
+  _showCardPopup('🧹 大扫除 · 选位置', h, null, true);
+}
+function _toggleCleanUserSelect(el) {
+  var mySel = MGMT_DATA.cleaning.mySelections || [];
+  MGMT_DATA.cleaning.mySelections = mySel;
+  var sid = el.getAttribute('data-space');
+  var idx = mySel.indexOf(sid);
+  if (idx >= 0) { mySel.splice(idx, 1); el.classList.remove('on'); }
+  else {
+    if (mySel.length >= 3) { showToast('最多选3个位置', 'warn'); return; }
+    mySel.push(sid); el.classList.add('on');
+  }
+  MGMT_DATA._save();
+  _showCleanUserSheet();
+}
+function _submitCleanUserSelect() {
+  var mySel = MGMT_DATA.cleaning.mySelections || [];
+  if (mySel.length < 2) { showToast('至少选2个位置', 'warn'); return; }
+  // 锁定选择
+  var selMap = MGMT_DATA.cleaning.selections = MGMT_DATA.cleaning.selections || {};
+  mySel.forEach(function(sid) { selMap[sid] = { lockedBy: _me(), lockedAt: new Date().toISOString() }; });
+  MGMT_DATA._save();
+  showToast('选择已提交 ✅ · '+mySel.length+'个位置', 'ok');
+  var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
 }
 
 // J 修复：厨房面板可能开在建筑页 mgmtOverlay 或全貌页弹层（.mgmt-sheet），重绘时按当前容器选择
@@ -1810,11 +1917,12 @@ function renderFieldPage() {
     }).catch(function(){ _renderFieldCardsLocal(el); });
   } else { _renderFieldCardsLocal(el); }
 }
-// ═══ UNIFY-C: 田地内部页 — 2×2 .card 网格 + 选择→动作→提交 ═══
+// ═══ W7-UI-ALIGN PAGE-5: 田地内部页 — 卡片列表 + 最近事件 + FAB 🧤 ═══
 var _selectedFieldPlot = null;
 function _renderFieldCards(plots, el) {
   var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
-  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap);margin-bottom:var(--g-pad)">';
+  var h = '<div class="sl">🌱 田块状态<span class="sla" onclick="_showFieldSheet()">＋劳动</span></div>';
+  h += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">';
   plots.forEach(function(p) {
     var icon = cropIcons[p.crop_name] || '🌿';
     var isFallow = p.stage === '休耕';
@@ -1823,61 +1931,235 @@ function _renderFieldCards(plots, el) {
     var totalDays = p.planted_at && p.harvest_at && !isFallow ? Math.max(1, Math.ceil((new Date(p.harvest_at) - new Date(p.planted_at)) / 86400000)) : 30;
     var pct = isFallow ? 0 : isMature ? 100 : Math.min(100, Math.max(0, Math.round((Date.now() - new Date(p.planted_at||Date.now())) / (totalDays * 86400000) * 100)));
     var barColor = isMature ? 'var(--g-warn)' : 'var(--g-green)';
-    var stLabel = isFallow ? '休耕' : isMature ? '✅ 可收割' : p.health === '缺水' ? '💧 缺水' : p.health === '缺肥' ? '🟡 缺肥' : '剩'+daysLeft+'天';
-    var cardClass = 'card' + (isMature ? ' card--warn' : '');
-    h += '<div class="'+cardClass+'" data-plot="'+p.id+'" data-name="'+esc(p.plot_name)+'" data-crop="'+(isFallow?'':esc(p.crop_name||''))+'" data-icon="'+icon+'" onclick="_toggleFieldSelect(this)" style="text-align:center;position:relative">'+
-      '<div style="font-size:1.6rem;margin-bottom:4px">'+icon+'</div>'+
-      '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(p.plot_name)+'</div>'+
-      (isFallow ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-top:2px">空闲</div>' : '<div style="font-size:var(--g-font-size-xs);font-weight:600;margin-top:2px">'+esc(p.crop_name||'')+'</div>')+
-      (!isFallow ? '<div style="width:80%;height:6px;background:var(--g-card-border);border-radius:3px;margin:6px auto 0;overflow:hidden"><div style="width:'+pct+'%;height:100%;border-radius:3px;background:'+barColor+'"></div></div>' : '')+
-      '<div style="font-size:var(--g-font-size-xs);color:'+(isMature?'var(--g-warn)':'var(--g-text-dim)')+';margin-top:3px;font-weight:'+(isMature?'600':'400')+'">'+stLabel+'</div>'+
+    var stLabel = isFallow ? '休耕' : isMature ? '🧺 可收' : (p.health==='缺水'?'💧 缺水':p.health==='缺肥'?'🟡 缺肥':'生长中');
+    var stClass = isMature ? 'sg' : (p.health==='缺水'?'sy':'sg');
+    var treeCount = p.trees || p.count || '';
+    h += '<div class="card" style="display:flex;gap:6px;align-items:center;cursor:pointer" onclick="_toggleFieldSelect(this)" data-plot="'+p.id+'" data-name="'+esc(p.plot_name)+'">'+
+      '<span style="font-size:1.3rem">'+icon+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:9.5px;font-weight:700;color:var(--g-text)">'+esc(p.plot_name)+(treeCount?' · '+treeCount+'棵':'')+'</div>'+
+        '<div class="pb"><div class="pf" style="width:'+pct+'%;background:'+barColor+'"></div></div>'+
+        '<div style="font-size:7px;color:var(--g-text-sub)">🌱'+esc((p.planted_at||'').slice(5,10))+' 🧺'+esc((p.harvest_at||'').slice(5,10))+' 📅剩'+daysLeft+'天</div>'+
+      '</div>'+
+      '<span class="sb '+stClass+'" style="font-size:9px;padding:2px 6px">'+stLabel+'</span>'+
     '</div>';
   });
   h += '</div>';
-  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:var(--g-gap);text-align:center">💡 点击田块选择，再选操作</div>';
-  h += '<div id="fieldActionBar" style="display:none;margin-bottom:var(--g-pad)">'+
-    '<div style="font-size:var(--g-font-size-xs);font-weight:600;color:var(--g-text-dim);margin-bottom:6px">选择操作：</div>'+
-    '<div style="display:flex;gap:var(--g-gap);flex-wrap:wrap;margin-bottom:var(--g-gap)">'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridAction(\'water\')">💧 浇水</button>'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridAction(\'fertilize\')">🪴 施肥</button>'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridAction(\'harvest\')">🧺 收割</button>'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_openFarmQuick()">🌱 种植</button>'+
-    '</div></div>';
+
+  // 最近做了什么
+  h += '<div class="sl">📋 最近做了什么</div>';
+  h += '<div class="card">';
+  var evCount = 0;
+  if (typeof AppData !== 'undefined' && AppData._data && AppData._data.journal) {
+    var journal = AppData._data.journal || [];
+    var fieldLogs = journal.filter(function(j){ return j.type === 'field_action' || j.type === 'farming'; }).slice(-4).reverse();
+    fieldLogs.forEach(function(j){
+      var actionIcons = { water:'💧', fertilize:'🪴', weed:'🌿', pest:'🐛', harvest:'🧺', prune:'✂️', plant:'🌱', loosen:'📏' };
+      h += '<div class="ev"><span class="ei">'+(actionIcons[j.action]||'🌿')+'</span><div class="et"><b>'+esc(j.user||'')+'</b> '+esc(j.detail||'')+' <span style="color:var(--g-accent)">+'+(j.nt||0)+'NT</span></div><span class="ew">'+(j.at||'').slice(11,16)+'</span></div>';
+      evCount++;
+    });
+  }
+  if (!evCount) {
+    h += '<div style="text-align:center;padding:8px;color:var(--g-text-muted);font-size:9px">暂无田间活动记录</div>';
+  }
+  h += '</div>';
+
+  // FAB
+  h += '<button class="fab" onclick="_showFieldSheet()">🧤</button>';
+  el.style.position = 'relative';
   el.innerHTML = h;
 }
 function _renderFieldCardsLocal(el) {
   var plots=[]; try { var obj = (window.AppData&&AppData._data.map_locations)||{}; plots=obj.plots||[]; } catch(e){}
   if (!plots.length) { var b = (getBuildings()||[]).find(function(x){return x.id==='field';}); if (b&&b.plots) plots=b.plots; }
-  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap);margin-bottom:var(--g-pad)">';
+  var h = '<div class="sl">🌱 田块状态<span class="sla" onclick="_showFieldSheet()">＋劳动</span></div>';
+  h += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">';
   plots.forEach(function(p) {
     var isEmpty = !p.crop || p.crop === '—';
     var isDone = p.remain <= 0 && !isEmpty;
     var pct = isEmpty ? 0 : Math.min(100, Math.max(0, Math.round((p.days - (p.remain||0)) / (p.days||30) * 100)));
     var barColor = isDone ? 'var(--g-warn)' : 'var(--g-green)';
-    var stLabel = isEmpty ? '空闲' : isDone ? '✅ 可收割' : '剩'+(p.remain||0)+'天';
-    var cardClass = 'card' + (isDone ? ' card--warn' : '');
-    h += '<div class="'+cardClass+'" data-plot="'+p.id+'" data-name="'+esc(p.name||'')+'" data-icon="'+(p.icon||'🌿')+'" onclick="_toggleFieldSelect(this)" style="text-align:center;position:relative">'+
-      '<div style="font-size:1.6rem;margin-bottom:4px">'+(p.icon||'🌿')+'</div>'+
-      '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(p.name||'')+'</div>'+
-      (isEmpty ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-top:2px">'+(p.note||'空闲')+'</div>' : '<div style="font-size:var(--g-font-size-xs);font-weight:600;margin-top:2px">'+esc(p.crop||'')+'</div>')+
-      (!isEmpty ? '<div style="width:80%;height:6px;background:var(--g-card-border);border-radius:3px;margin:6px auto 0;overflow:hidden"><div style="width:'+pct+'%;height:100%;border-radius:3px;background:'+barColor+'"></div></div>' : '')+
-      '<div style="font-size:var(--g-font-size-xs);color:'+(isDone?'var(--g-warn)':'var(--g-text-dim)')+';margin-top:3px">'+stLabel+'</div>'+
+    var stLabel = isEmpty ? '休耕' : isDone ? '🧺 可收' : '剩'+(p.remain||0)+'天';
+    var stClass = isDone ? 'sg' : (isEmpty ? 'sg' : 'sg');
+    h += '<div class="card" style="display:flex;gap:6px;align-items:center;cursor:pointer" onclick="_toggleFieldSelect(this)" data-plot="'+p.id+'" data-name="'+esc(p.name||'')+'">'+
+      '<span style="font-size:1.3rem">'+(p.icon||'🌿')+'</span>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:9.5px;font-weight:700;color:var(--g-text)">'+esc(p.name||'')+'</div>'+
+        (isEmpty ? '' : '<div class="pb"><div class="pf" style="width:'+pct+'%;background:'+barColor+'"></div></div>')+
+        '<div style="font-size:7px;color:var(--g-text-sub)">'+(isEmpty?esc(p.note||'空闲'):esc(p.crop||'')+' · 📅剩'+(p.remain||0)+'天')+'</div>'+
+      '</div>'+
+      '<span class="sb sg" style="font-size:9px;padding:2px 6px">'+stLabel+'</span>'+
     '</div>';
   });
   h += '</div>';
-  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:var(--g-gap);text-align:center">💡 离线模式 · 点击田块选择操作</div>';
-  h += '<div id="fieldActionBar" style="display:none;margin-bottom:var(--g-pad)">'+
-    '<div style="font-size:var(--g-font-size-xs);font-weight:600;color:var(--g-text-dim);margin-bottom:6px">选择操作：</div>'+
-    '<div style="display:flex;gap:var(--g-gap);flex-wrap:wrap;margin-bottom:var(--g-gap)">'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridActionLocal(\'water\')">💧 浇水</button>'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridActionLocal(\'fertilize\')">🪴 施肥</button>'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridActionLocal(\'harvest\')">🧺 收割</button>'+
-    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_openFarmQuick()">🌱 种植</button>'+
-    '</div></div>';
+
+  // 最近做了什么
+  h += '<div class="sl">📋 最近做了什么</div>';
+  h += '<div class="card">';
+  h += '<div class="ev"><span class="ei">🧤</span><div class="et">离线模式 · 劳动记录未同步</div><span class="ew">--:--</span></div>';
+  h += '</div>';
+
+  // FAB
+  h += '<button class="fab" onclick="_showFieldSheet()">🧤</button>';
+  el.style.position = 'relative';
   el.innerHTML = h;
 }
-// UNIFY-C: 田地刷新入口——统一走 renderFieldPage()
-function _showFieldSheet() { renderFieldPage(); }
+// W7-UI-ALIGN PAGE-4: 田间管理·劳动输入 — hscroll chip 选田块 + 4列劳动网格
+function _showFieldSheet() {
+  // 优先 API
+  if (typeof API !== 'undefined' && API.token) {
+    _showCardPopup('🌿 田间管理 · 劳动输入', '<div style="text-align:center;padding:20px;color:var(--g-text-sub)">⏳ 加载中…</div>', '', true);
+    API.getFields().then(function(r) {
+      if (r && r.ok && r.plots && r.plots.length) {
+        _renderFieldSheetFromAPI(r.plots);
+      } else { _renderFieldSheetLocal(); }
+    }).catch(function(){ _renderFieldSheetLocal(); });
+  } else { _renderFieldSheetLocal(); }
+}
+
+var _fieldSelectedPlot = null;
+var _fieldSelectedAction = null;
+
+function _renderFieldSheetFromAPI(plots) {
+  var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
+  var h = '<div class="sl">📍 选田块</div>';
+  // 横向 chip 选田块
+  h += '<div class="hscroll">';
+  plots.forEach(function(p, i) {
+    var icon = cropIcons[p.crop_name] || '🌿';
+    var isSel = _fieldSelectedPlot && _fieldSelectedPlot.id === p.id;
+    h += '<span class="hs-chip'+(isSel?' on':'')+'" onclick="_fieldSelectedPlot='+JSON.stringify(p).replace(/"/g,'&quot;')+';_showFieldSheet()">'+icon+' '+esc(p.plot_name||'')+'</span>';
+  });
+  h += '</div>';
+
+  // 选中田块信息卡
+  if (_fieldSelectedPlot) {
+    var fp = _fieldSelectedPlot;
+    var icon = cropIcons[fp.crop_name] || '🌿';
+    var isFallow = fp.stage === '休耕';
+    var isMature = fp.stage === '成熟';
+    var totalDays = fp.planted_at && fp.harvest_at && !isFallow ? Math.max(1, Math.ceil((new Date(fp.harvest_at) - new Date(fp.planted_at)) / 86400000)) : 30;
+    var pct = isFallow ? 0 : isMature ? 100 : Math.min(100, Math.max(0, Math.round((Date.now() - new Date(fp.planted_at||Date.now())) / (totalDays * 86400000) * 100)));
+    var daysLeft = fp.harvest_at && !isFallow ? Math.max(0, Math.ceil((new Date(fp.harvest_at) - new Date()) / 86400000)) : 0;
+    h += '<div style="background:#f8faf6;border-radius:6px;padding:6px 9px;margin:5px 0;font-size:9.5px;color:var(--g-text-sub);line-height:1.5">'+
+      icon+' <b>'+esc(fp.plot_name||'')+'</b> · '+(fp.trees||fp.count||'?')+' 棵 · 生长度 '+pct+'%<br>'+
+      '🌱 '+esc(fp.planted_at||'?').slice(0,10)+'种植 · 🧺 '+esc(fp.harvest_at||'?').slice(0,10)+'收割 · 📅 剩'+daysLeft+'天'+
+      '<div class="pb"><div class="pf" style="width:'+pct+'%"></div></div></div>';
+  }
+
+  // 劳动形式 4 列网格
+  var labors = [
+    { id:'water', icon:'💧', name:'浇水', nt:2 },
+    { id:'fertilize', icon:'🪴', name:'施肥', nt:3 },
+    { id:'weed', icon:'🌿', name:'除草', nt:2 },
+    { id:'pest', icon:'🐛', name:'除虫', nt:3 },
+    { id:'harvest', icon:'🧺', name:'收割', nt:5 },
+    { id:'prune', icon:'✂️', name:'修剪', nt:3 },
+    { id:'plant', icon:'🌱', name:'新种', nt:2 },
+    { id:'loosen', icon:'📏', name:'松土', nt:2 }
+  ];
+  h += '<div class="sl">🔧 选劳动形式</div>';
+  h += '<div class="g4">';
+  labors.forEach(function(l) {
+    var isOn = _fieldSelectedAction === l.id;
+    h += '<div class="g4-cell'+(isOn?' on':'')+'" onclick="_fieldSelectedAction=\''+l.id+'\';_showFieldSheet()" style="min-height:44px">'+
+      '<div class="g4-ci">'+l.icon+'</div>'+
+      '<div class="g4-cn">'+l.name+'</div>'+
+      '<div class="g4-cnt">+'+l.nt+'NT</div>'+
+    '</div>';
+  });
+  h += '</div>';
+
+  // 汇总 + 提交
+  if (_fieldSelectedPlot && _fieldSelectedAction) {
+    var lab = labors.find(function(l){ return l.id === _fieldSelectedAction; });
+    var labName = lab ? lab.name : _fieldSelectedAction;
+    var labNt = lab ? lab.nt : 0;
+    var fpIcon = cropIcons[_fieldSelectedPlot.crop_name] || '🌿';
+    h += '<div style="background:#f8faf6;border-radius:6px;padding:6px 9px;margin:5px 0;font-size:9.5px;color:var(--g-text-sub)">'+
+      fpIcon+' '+esc(_fieldSelectedPlot.plot_name||'')+' → '+labName+' → <b>+'+labNt+' NT</b><br>'+
+      '<span style="font-size:8px;color:var(--g-text-dim)">提交后进入校核室等待验证</span>'+
+    '</div>';
+    h += '<button class="btn-bp" onclick="_submitFieldSheet()">✅ 确认提交</button>';
+  }
+
+  _showCardPopup('🌿 田间管理 · 劳动输入', h, '', true);
+}
+
+function _renderFieldSheetLocal() {
+  var plots = []; try { var obj = (window.AppData&&AppData._data.map_locations)||{}; plots=obj.plots||[]; } catch(e){}
+  if (!plots.length) { var b = (getBuildings()||[]).find(function(x){return x.id==='field';}); if (b&&b.plots) plots=b.plots; }
+  var h = '<div class="sl">📍 选田块</div>';
+  h += '<div class="hscroll">';
+  plots.forEach(function(p) {
+    var isSel = _fieldSelectedPlot && _fieldSelectedPlot.id === p.id;
+    h += '<span class="hs-chip'+(isSel?' on':'')+'" onclick="_fieldSelectedPlot='+JSON.stringify(p).replace(/"/g,'&quot;')+';_showFieldSheet()">'+(p.icon||'🌿')+' '+esc(p.name||'')+'</span>';
+  });
+  h += '</div>';
+
+  if (_fieldSelectedPlot) {
+    var fp = _fieldSelectedPlot;
+    var pct = fp.remain !== undefined ? Math.min(100, Math.max(0, Math.round((fp.days - (fp.remain||0)) / (fp.days||30) * 100))) : 0;
+    h += '<div style="background:#f8faf6;border-radius:6px;padding:6px 9px;margin:5px 0;font-size:9.5px;color:var(--g-text-sub);line-height:1.5">'+
+      (fp.icon||'🌿')+' <b>'+esc(fp.name||'')+'</b>'+'<br>'+
+      '🌱 生长中 · 📅 '+(fp.remain?'剩'+fp.remain+'天':'')+
+      '<div class="pb"><div class="pf" style="width:'+pct+'%"></div></div></div>';
+  }
+
+  var labors = [
+    { id:'water', icon:'💧', name:'浇水', nt:2 },
+    { id:'fertilize', icon:'🪴', name:'施肥', nt:3 },
+    { id:'weed', icon:'🌿', name:'除草', nt:2 },
+    { id:'pest', icon:'🐛', name:'除虫', nt:3 },
+    { id:'harvest', icon:'🧺', name:'收割', nt:5 },
+    { id:'prune', icon:'✂️', name:'修剪', nt:3 },
+    { id:'plant', icon:'🌱', name:'新种', nt:2 },
+    { id:'loosen', icon:'📏', name:'松土', nt:2 }
+  ];
+  h += '<div class="sl">🔧 选劳动形式</div>';
+  h += '<div class="g4">';
+  labors.forEach(function(l) {
+    var isOn = _fieldSelectedAction === l.id;
+    h += '<div class="g4-cell'+(isOn?' on':'')+'" onclick="_fieldSelectedAction=\''+l.id+'\';_showFieldSheet()" style="min-height:44px">'+
+      '<div class="g4-ci">'+l.icon+'</div>'+
+      '<div class="g4-cn">'+l.name+'</div>'+
+      '<div class="g4-cnt">+'+l.nt+'NT</div>'+
+    '</div>';
+  });
+  h += '</div>';
+
+  if (_fieldSelectedPlot && _fieldSelectedAction) {
+    var lab = labors.find(function(l){ return l.id === _fieldSelectedAction; });
+    var labNt = lab ? lab.nt : 0;
+    var labName = lab ? lab.name : _fieldSelectedAction;
+    h += '<div style="background:#f8faf6;border-radius:6px;padding:6px 9px;margin:5px 0;font-size:9.5px;color:var(--g-text-sub)">'+
+      (fp.icon||'🌿')+' '+esc(_fieldSelectedPlot.name||'')+' → '+labName+' → <b>+'+labNt+' NT</b><br>'+
+      '<span style="font-size:8px;color:var(--g-text-dim)">提交后进入校核室等待验证</span>'+
+    '</div>';
+    h += '<button class="btn-bp" onclick="_submitFieldSheetLocal()">✅ 确认提交</button>';
+  }
+
+  _showCardPopup('🌿 田间管理 · 劳动输入', h, '', true);
+}
+
+function _submitFieldSheet() {
+  if (!_fieldSelectedPlot || !_fieldSelectedAction) { showToast('请选择田块和劳动形式', 'warn'); return; }
+  var ntMap = { water:2, fertilize:3, weed:2, pest:3, harvest:5, prune:3, plant:2, loosen:2 };
+  var nt = ntMap[_fieldSelectedAction] || 2;
+  if (window.AppData) AppData.addVerification('field_action', _me(), _fieldSelectedAction+' '+_fieldSelectedPlot.plot_name, { plotId:_fieldSelectedPlot.id, action:_fieldSelectedAction }, nt, Math.ceil(nt/5));
+  showToast('已提交校核：'+_fieldSelectedAction+' '+_fieldSelectedPlot.plot_name+' (+'+nt+' NT)', 'ok');
+  _fieldSelectedPlot = null; _fieldSelectedAction = null;
+  var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
+}
+function _submitFieldSheetLocal() {
+  if (!_fieldSelectedPlot || !_fieldSelectedAction) { showToast('请选择田块和劳动形式', 'warn'); return; }
+  var ntMap = { water:2, fertilize:3, weed:2, pest:3, harvest:5, prune:3, plant:2, loosen:2 };
+  var nt = ntMap[_fieldSelectedAction] || 2;
+  if (window.AppData) AppData.addVerification('field_action', _me(), _fieldSelectedAction+' '+_fieldSelectedPlot.name, { plotId:_fieldSelectedPlot.id, action:_fieldSelectedAction }, nt, Math.ceil(nt/5));
+  showToast('已记录：'+_fieldSelectedAction+' '+_fieldSelectedPlot.name+' (+'+nt+' NT，待校核)', 'ok');
+  _fieldSelectedPlot = null; _fieldSelectedAction = null;
+  var s = document.querySelector('.mgmt-sheet'); if (s) s.remove();
+}
 function _toggleFieldSelect(el) {
   var prev = el.parentElement.querySelector('.card--active');
   if (prev && prev !== el) { prev.classList.remove('card--active'); }

@@ -147,41 +147,132 @@ function _doBookSlot(){
 
 function _loadSlotsData(cb){if(typeof API==='undefined'||!API.token){cb([]);return}API.getKitchenSlots().then(function(r){cb((r&&r.items)||[])}).catch(function(){cb([])})}
 
-// ═══ 冰箱（UNIFY-B: 2列卡片网格 + 点击展开详情） ═══
+// ═══ 冰箱（W7-UI-ALIGN PAGE-3: hscroll标签栏 + 4列方格 + 排序 + 动态 + FAB） ═══
+var _ktItemSort = 'person'; // person | category | time
+var _ktItemLoc = '';        // '' = all
+
 function _renderItemsTab(){
   var el=document.getElementById('ktTabContent');if(!el)return;
   _loadItemsData(function(items){
-    var h='<button onclick="_showItemAdd()" style="width:100%;padding:10px;border-radius:var(--g-radius);border:2px dashed var(--g-warn);background:var(--g-warn-bg);color:var(--g-warn);font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;margin-bottom:var(--g-gap)">＋ 放入物品</button>';
-    if(!items||!items.length){h+='<div style="text-align:center;padding:24px;color:var(--g-text-muted)">冰箱空空如也</div>'}else{
-      var ll={fridge:'🧊 冰箱',cabinet:'🗄 橱柜',counter:'🍳 台面'},cl={food:'🍎 食物',condiment:'🧂 调料',tool:'🔧 工具',other:'📦 其他'};
-      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap)">';
-      items.forEach(function(it){
-        var catEmoji = (cl[it.category]||'📦 ').split(' ')[0];
-        var cardClass = 'card'+(it.is_expired?' card--danger':it.expired_soon?' card--warn':'');
-        h+='<div class="'+cardClass+'" onclick="_toggleItemDetail('+it.id+')" style="text-align:center;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center" id="itemCard_'+it.id+'">'+
-          '<div style="font-size:1.5rem;margin-bottom:2px">'+catEmoji+'</div>'+
-          '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(it.name)+'</div>'+
-          '<div style="font-size:.6rem;color:var(--g-text-dim);margin-top:1px">'+(ll[it.location]||it.location)+'</div>'+
-          (it.is_expired?'<div style="font-size:var(--g-font-size-xs);color:var(--g-red);font-weight:600;margin-top:2px">⚠ 已过期</div>':
-           it.expired_soon?'<div style="font-size:var(--g-font-size-xs);color:var(--g-warn);font-weight:600;margin-top:2px">⏰ 即将过期</div>':'')+
-        '</div>'+
-        '<div id="itemDetail_'+it.id+'" style="display:none;grid-column:1/-1;background:var(--g-content);border-radius:var(--g-radius);padding:var(--g-pad);margin-bottom:var(--g-gap);animation:fadeIn .1s ease-out">'+
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:1.3rem">'+catEmoji+'</span><span style="font-weight:700;font-size:var(--g-font-size)">'+esc(it.name)+'</span></div>'+
-          '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:4px">'+(cl[it.category]||it.category)+' · '+(ll[it.location]||it.location)+'</div>'+
-          (it.quantity?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📏 '+esc(it.quantity)+'</div>':'')+
-          (it.expired_at?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📅 保质期：'+esc(it.expired_at)+'</div>':'')+
-          (it.note?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">💬 '+esc(it.note)+'</div>':'')+
-          '<div style="display:flex;gap:var(--g-gap);margin-top:8px">'+
-          '<button onclick="event.stopPropagation();_doTakeItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-accent);background:var(--g-card);color:var(--g-accent);font-size:.65rem;cursor:pointer;font-weight:600">📤 取出</button>'+
-          '<button onclick="event.stopPropagation();_doRemoveItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-red);background:var(--g-card);color:var(--g-red);font-size:.65rem;cursor:pointer;font-weight:600">🗑 移除</button>'+
-          '</div>'+
-          '<div style="text-align:center;margin-top:6px"><span onclick="_toggleItemDetail('+it.id+')" style="font-size:.62rem;color:var(--g-accent);cursor:pointer">收起 ▴</span></div>'+
-        '</div>';
-      });
-      h+='</div>';
+    // 容器需要 position:relative 承载 FAB
+    var container = el.parentElement;
+    if (container && container.style) container.style.position = 'relative';
+
+    // 收集所有 location → 生成横向标签栏
+    var locs = [];
+    var seen = {};
+    (items||[]).forEach(function(it){
+      if (!seen[it.location]) { seen[it.location] = true; locs.push(it.location); }
+    });
+    var locLabels = { fridge:'🧊冰箱', cabinet:'🗄️橱柜', counter:'🍳台面', basket:'🥬菜篮', condiment:'🧂调料', noodles:'🍜粉面', table1:'🍽️餐桌1', table2:'🍽️餐桌2', stove:'🔥灶台', disinfector:'🧼消毒柜', rice:'🍚煮饭', sink:'🚿水槽', undercounter:'🗄️中台下', oncounter:'📋中台上' };
+
+    var h = '<div class="hscroll" style="margin-bottom:6px">';
+    h += '<span class="hs-chip' + (_ktItemLoc===''?' on':'') + '" onclick="_ktItemLoc=\'\';_renderItemsTab()">全部</span>';
+    locs.forEach(function(loc){
+      h += '<span class="hs-chip' + (_ktItemLoc===loc?' on':'') + '" onclick="_ktItemLoc=\''+esc(loc)+'\';_renderItemsTab()">'+(locLabels[loc]||loc)+'</span>';
+    });
+    h += '</div>';
+
+    // 排序切换
+    h += '<div style="display:flex;gap:4px;margin:4px 0;font-size:9px;color:var(--g-text-sub);margin-bottom:8px">';
+    ['person','category','time'].forEach(function(k){
+      var labels = { person:'按人', category:'按类', time:'按时间' };
+      var isOn = _ktItemSort === k;
+      h += '<span style="'+(isOn?'font-weight:700;color:var(--g-accent);border-bottom:2px solid var(--g-accent);padding-bottom:2px':'cursor:pointer')+'" onclick="_ktItemSort=\''+k+'\';_renderItemsTab()">'+labels[k]+'</span>';
+    });
+    h += '</div>';
+
+    // 过滤
+    var filtered = items || [];
+    if (_ktItemLoc) filtered = filtered.filter(function(it){ return it.location === _ktItemLoc; });
+
+    // 排序
+    if (_ktItemSort === 'person') filtered.sort(function(a,b){ return (a.owner_id||'').localeCompare(b.owner_id||''); });
+    else if (_ktItemSort === 'category') filtered.sort(function(a,b){ return (a.category||'').localeCompare(b.category||''); });
+    else filtered.sort(function(a,b){ return new Date(b.created_at||0) - new Date(a.created_at||0); });
+
+    var cl={food:'🥬',condiment:'🧂',tool:'🔧',other:'📦'};
+
+    if (!filtered.length) {
+      h += '<div style="text-align:center;padding:24px;color:var(--g-text-muted)">冰箱空空如也</div>';
+    } else {
+      // 按排序分组标题
+      var groupLabel = '';
+      if (_ktItemSort === 'person') {
+        var groups = {}; filtered.forEach(function(it){ var k = it.owner_id || '公用'; if (!groups[k]) groups[k] = []; groups[k].push(it); });
+        Object.keys(groups).sort().forEach(function(g) {
+          h += '<div style="font-weight:600;font-size:9px;color:var(--g-text-sub);margin:4px 0 2px">👤 '+esc(g)+' · '+groups[g].length+'件</div>';
+          h += '<div class="g4" style="margin-bottom:6px">';
+          groups[g].forEach(function(it){ h += _renderItemCell(it, cl); });
+          h += '</div>';
+        });
+      } else if (_ktItemSort === 'category') {
+        var groups2 = {}; filtered.forEach(function(it){ var k = it.category || '其他'; if (!groups2[k]) groups2[k] = []; groups2[k].push(it); });
+        Object.keys(groups2).sort().forEach(function(g) {
+          h += '<div style="font-weight:600;font-size:9px;color:var(--g-text-sub);margin:4px 0 2px">📂 '+esc(g)+' · '+groups2[g].length+'件</div>';
+          h += '<div class="g4" style="margin-bottom:6px">';
+          groups2[g].forEach(function(it){ h += _renderItemCell(it, cl); });
+          h += '</div>';
+        });
+      } else {
+        h += '<div class="g4" style="margin-bottom:6px">';
+        filtered.forEach(function(it){ h += _renderItemCell(it, cl); });
+        h += '</div>';
+      }
     }
-    el.innerHTML=h;
+
+    // 最近动态
+    h += '<div class="sl">📋 最近动态</div>';
+    h += '<div class="card">';
+    if (typeof AppData !== 'undefined' && AppData._data && AppData._data.journal) {
+      var journal = AppData._data.journal || [];
+      var kitchenLogs = journal.filter(function(j){ return j.type === 'kitchen'; }).slice(-4).reverse();
+      if (kitchenLogs.length) {
+        kitchenLogs.forEach(function(j){
+          h += '<div class="ev"><span class="ei">'+(j.action==='put'?'📥':j.action==='take'?'📤':'📋')+'</span><div class="et"><b>'+esc(j.user||'')+'</b> '+esc(j.detail||'')+'</div><span class="ew">'+(j.at||'').slice(11,16)+'</span></div>';
+        });
+      } else {
+        h += '<div style="text-align:center;padding:8px;color:var(--g-text-muted);font-size:9px">暂无动态</div>';
+      }
+    } else {
+      h += '<div class="ev"><span class="ei">📥</span><div class="et">冰箱管理 · 物品列表</div><span class="ew">现在</span></div>';
+    }
+    h += '</div>';
+
+    h += '<div style="font-size:8px;color:var(--g-text-dim);text-align:center;padding:4px">💡 查看消耗1NT · 录入/取出不消耗 · 促进物品流转</div>';
+
+    // 浮动按钮
+    h += '<button class="fab" onclick="_showItemAdd()">＋</button>';
+
+    // 添加按钮
+    h += '<button onclick="_showItemAdd()" style="width:100%;padding:10px;border-radius:var(--g-radius);border:2px dashed var(--g-warn);background:var(--g-warn-bg);color:var(--g-warn);font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;margin-top:8px">＋ 放入物品</button>';
+
+    el.innerHTML = h;
   });
+}
+
+function _renderItemCell(it, cl) {
+  var catEmoji = (cl[it.category]||'📦');
+  var expLabel = '', expClass = '';
+  if (it.is_expired) { expLabel = '过期'; expClass = 'sr'; }
+  else if (it.expired_soon) { expLabel = '剩'+(it.days_left||'?')+'天'; expClass = 'sy'; }
+  return '<div class="g4-cell" onclick="_toggleItemDetail('+it.id+')" style="min-height:36px" id="itemCard_'+it.id+'">'+
+    '<div class="g4-ci">'+catEmoji+'</div>'+
+    '<div class="g4-cn">'+esc(it.name)+'</div>'+
+    '<div class="g4-cm">'+(it.owner_id||'公用')+'</div>'+
+    (expLabel ? '<span class="sb '+expClass+'">'+expLabel+'</span>' : '')+
+  '</div>'+
+  '<div id="itemDetail_'+it.id+'" style="display:none;grid-column:1/-1;background:var(--g-content);border-radius:var(--g-radius);padding:var(--g-pad);margin-bottom:var(--g-gap);animation:fadeIn .1s ease-out">'+
+    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:1.3rem">'+catEmoji+'</span><span style="font-weight:700;font-size:var(--g-font-size)">'+esc(it.name)+'</span></div>'+
+    '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:4px">'+(it.category||'其他')+' · '+(it.location||'')+'</div>'+
+    (it.quantity?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📏 '+esc(it.quantity)+'</div>':'')+
+    (it.expired_at?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📅 保质期：'+esc(it.expired_at)+'</div>':'')+
+    (it.note?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">💬 '+esc(it.note)+'</div>':'')+
+    '<div style="display:flex;gap:var(--g-gap);margin-top:8px">'+
+    '<button onclick="event.stopPropagation();_doTakeItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-accent);background:var(--g-card);color:var(--g-accent);font-size:.65rem;cursor:pointer;font-weight:600">📤 取出</button>'+
+    '<button onclick="event.stopPropagation();_doRemoveItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-red);background:var(--g-card);color:var(--g-red);font-size:.65rem;cursor:pointer;font-weight:600">🗑 移除</button>'+
+    '</div>'+
+    '<div style="text-align:center;margin-top:6px"><span onclick="_toggleItemDetail('+it.id+')" style="font-size:.62rem;color:var(--g-accent);cursor:pointer">收起 ▴</span></div></div>';
 }
 function _toggleItemDetail(id) {
   var detail = document.getElementById('itemDetail_'+id);
