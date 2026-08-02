@@ -354,6 +354,18 @@ function _renderNewbieCard() {
   return h;
 }
 
+// 访客点击操作卡片 → 行内提示（孪生系统理念：能看到但不能操作）
+function _visitorHint(el, msg) {
+  var old = document.querySelector('.visitor-inline-hint');
+  if (old) old.remove();
+  var hint = document.createElement('div');
+  hint.className = 'visitor-inline-hint';
+  hint.style.cssText = 'color:#5a6e5c;font-size:.62rem;font-weight:600;margin-top:4px;text-align:center;animation:fadeIn .3s';
+  hint.textContent = '🔒 ' + msg;
+  el.parentNode.insertBefore(hint, el.nextSibling);
+  setTimeout(function(){ if (hint.parentNode) hint.remove(); }, 3000);
+}
+
 function _renderMgmtCards() {
   var me = _me();
   var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
@@ -361,30 +373,27 @@ function _renderMgmtCards() {
   var isMember = isMemberByRole(myRole);
   var h = '<div class="info-cards">';
 
-  // visitor: 入住卡片
+  // 非成员：入住引导卡片（所有人可见全貌信息，孪生系统理念：线下能看的线上就能看）
   if (!isMember) {
     h += '<div class="ic-card" style="border:2px solid var(--g-accent)" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🛏️ 入住南塘</div>'+
-      '<div class="ic-body"><div class="ic-big">🏠</div><div class="ic-muted">入住后才能使用厨房/打扫/田地功能</div></div></div>';
-    h += '</div>';
-    return h;
+      '<div class="ic-body"><div class="ic-big">🏠</div><div class="ic-muted">入住房客可操作，云村民可浏览</div></div></div>';
   }
 
-  // 🧹 大扫除 — 下次日期 + 状态色标数
+  // 🧹 大扫除 — 所有人可见
   h += '<div style="position:relative">';
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
   var stats = _mlStats();
-  h += '<div class="ic-card" onclick="openCleanWeekly()"><div class="ic-head">🧹 大扫除</div>'+
+  h += '<div class="ic-card" onclick="'+(isMember?'openCleanWeekly()':'_visitorHint(this,\'入住后才能报名大扫除\')')+'"><div class="ic-head">🧹 大扫除</div>'+
     '<div class="ic-body"><div class="ic-big">'+(cleanDays!=null ? (cleanDays>0 ? cleanDays+' 天后' : nextClean.slice(5)) : '未设定')+'</div>'+
     '<div>🟢'+stats.cleanCount+' 🟡'+stats.warnCount+' 🔴'+stats.dirtyCount+'</div></div></div>';
 
-  // 🏨 住宿 — 最近入住动态（寸土寸金：展示最新消息）
+  // 🏨 住宿
   var accs = _ml().accommodations || {};
   var accList = Object.values(accs);
   var totalBeds = 0, usedBeds = 0;
   var guests = [];
   accList.forEach(function(a){ totalBeds += (a.beds||0); if (a.tenants) { usedBeds += a.tenants.length; a.tenants.forEach(function(t){ guests.push({name:t.name, checkIn:t.checkIn||''}); }); } });
-  // 按入住日期倒序（最近入住排前面）
   guests.sort(function(a,b){ return b.checkIn.localeCompare(a.checkIn); });
   var recentGuest = guests[0];
   var recentStr = recentGuest ? '🆕 '+recentGuest.name+(recentGuest.checkIn?' '+recentGuest.checkIn+'入住':'') : '';
@@ -392,7 +401,7 @@ function _renderMgmtCards() {
     '<div class="ic-body"><div class="ic-big">'+usedBeds+'/'+totalBeds+' <span style="font-size:.7rem">床</span></div>'+
     '<div class="ic-muted">'+(recentStr||'暂无入住')+(guests.length>1?' · …等'+guests.length+'人':'')+'</div></div></div>';
 
-  // 🌾 田地 — 种植中数 + 最近可收
+  // 🌾 田地
   var plots = getPlots();
   var activePlots = plots.filter(function(p){ return (p.crops&&p.crops.length>0) || (p.crop&&p.crop!=='—'); });
   var nearestHarvest = null;
@@ -406,11 +415,12 @@ function _renderMgmtCards() {
       }
     });
   });
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'field\')"><div class="ic-head">🌾 田地</div>'+
+  h += '<div class="ic-card" onclick="'+(isMember?'_openMgmtSheet(\'field\')':'_visitorHint(this,\'入住后才能操作田地\')')+'"><div class="ic-head">🌾 田地</div>'+
     '<div class="ic-body"><div class="ic-big">'+activePlots.length+' <span style="font-size:.7rem">块种植中</span></div>'+
     '<div class="ic-muted">'+(nearestHarvest!==null ? '📅 '+harvestName+' '+(nearestHarvest<=0?'可收':nearestHarvest+'天后') : '暂无种植')+'</div></div></div>';
 
-  // 🍳 厨房 — 物品总数 + 最近过期
+  // 🍳 厨房
+  h += '<div class="ic-card" onclick="'+(isMember?'openKitchenPage()':'_visitorHint(this,\'入住后才能使用厨房\')')+'"><div class="ic-head">🍳 厨房</div>'+
   var invOffice = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
   var invStudy = (window.AppData && AppData._data.inventory && AppData._data.inventory.study) ? AppData._data.inventory.study : [];
   var inv = invOffice.concat(invStudy);
@@ -420,7 +430,7 @@ function _renderMgmtCards() {
     var d = it.expiryDays && it.putDate ? it.expiryDays - Math.floor((Date.now()-new Date(it.putDate+'T00:00:00'))/86400000) : null;
     if (d !== null && (nearestExpiry === null || d < nearestExpiry)) { nearestExpiry = d; nearestExpName = it.name; }
   });
-  h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房</div>'+
+  h += '<div class="ic-card" onclick="'+(isMember?'openKitchenPage()':'_visitorHint(this,\'入住后才能使用厨房\')')+'"><div class="ic-head">🍳 厨房</div>'+
     '<div class="ic-body"><div class="ic-big">'+inv.length+' <span style="font-size:.7rem">件物品</span></div>'+
     '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
 
