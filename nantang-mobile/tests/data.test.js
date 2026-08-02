@@ -128,3 +128,55 @@ describe("_findTask 统一任务查找 (A-1)", () => {
     expect(_findTask("")).toBeNull();
   });
 });
+
+// W7-UI-STACK · overlay 栈逐层返回回归测试
+describe("_pushOverlay + closeOverlay 栈行为 (W7-UI-STACK)", () => {
+  beforeEach(() => {
+    _overlayStack.length = 0;
+    document.body.innerHTML = '<div id="overlayA" class="overlay open"></div><div id="overlayB" class="overlay open"></div>';
+    window.__svCalled = false;
+    window.showVillage = function() { window.__svCalled = true; };
+  });
+
+  it("栈有上层 overlay → 关闭当前恢复上层，不回村口", () => {
+    _pushOverlay("overlayA");
+    _pushOverlay("overlayB");
+    closeOverlay("overlayB");
+    expect(window.__svCalled).toBe(false);
+    expect(document.getElementById("overlayA").classList.contains("open")).toBe(true);
+    expect(document.getElementById("overlayB").classList.contains("open")).toBe(false);
+  });
+
+  it("栈空 → 关闭回村口（现有行为不变）", () => {
+    _pushOverlay("overlayA");
+    closeOverlay("overlayA");
+    expect(window.__svCalled).toBe(true);
+  });
+
+  it("_pushOverlay 幂等——重复推同一 ID 不重复", () => {
+    _pushOverlay("overlayA");
+    _pushOverlay("overlayA");
+    _pushOverlay("overlayA");
+    expect(_overlayStack.length).toBe(1);
+    expect(_overlayStack[0]).toBe("overlayA");
+  });
+
+  it("三级 overlay → 逐层关闭正确回退", () => {
+    document.body.innerHTML += '<div id="overlayC" class="overlay open"></div>';
+    _pushOverlay("overlayA");
+    _pushOverlay("overlayB");
+    _pushOverlay("overlayC");
+    // 关 C → 回到 B
+    closeOverlay("overlayC");
+    expect(window.__svCalled).toBe(false);
+    expect(document.getElementById("overlayB").classList.contains("open")).toBe(true);
+    // 关 B → 回到 A
+    window.__svCalled = false;
+    closeOverlay("overlayB");
+    expect(window.__svCalled).toBe(false);
+    expect(document.getElementById("overlayA").classList.contains("open")).toBe(true);
+    // 关 A → 回村口
+    closeOverlay("overlayA");
+    expect(window.__svCalled).toBe(true);
+  });
+});
