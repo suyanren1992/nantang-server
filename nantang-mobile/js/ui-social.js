@@ -153,7 +153,7 @@ function _timeAgo(isoStr) {
 
 function renderCampTab(tab) {
   var body = document.getElementById('campHomeBody');
-  if (tab==='overview') renderCampOverview(body);
+  if (tab==='overview') renderCampActive(body);
   else if (tab==='schedule') renderCampSchedule(body);
   else switchCampTab(tab);
 }

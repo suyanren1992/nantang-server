@@ -1,4 +1,4 @@
-// ── 阶段3: 营地骨架 ──
+// ── 阶段3: 营地骨架（v2: 卡片堆叠布局 + 4态切换 · W7-CAMP-UI-2）──
 var _campCurrentId = null;
 var _campActiveTab = 'overview';
 
@@ -7,169 +7,443 @@ function getCampData() {
   return camps.find(function(x){ return x.id===_campCurrentId; });
 }
 
+// 营地显示态判定（设计稿 §一 1.0）
+function _campDisplayStatus(c) {
+  if (!c) return 'active';
+  if (c.status === 'upcoming') return 'pending';
+  if (c.status === 'archived') return 'archived';
+  if (c.status === 'active' && c.closed_at) return 'closed';
+  return 'active';
+}
+
 function openCampHome(campId) {
   _campCurrentId = campId;
   var c = getCampData(); if (!c) return;
-  var users = typeof getUsers==='function'?getUsers():{};
-  var role = (users[CURRENT_USER]||{}).role||'visitor';
-  var isBuilder = role==='builder'||role==='admin';
-  var isAdventurer = role==='adventurer';
+  var dispStatus = _campDisplayStatus(c);
 
+  // 顶栏标题
   document.getElementById('campHomeTitle').textContent = c.name;
+  var subtitle = document.getElementById('campHomeSubtitle');
+  if (subtitle) subtitle.textContent = c.date || '';
 
-  // Tab visibility
-  document.getElementById('campTabManage').style.display = isBuilder ? '' : 'none';
-
-  // Bottom bar role switch
-  var inboxBtn = document.getElementById('cbBtnInbox');
-  var plusBtn = document.getElementById('cbBtnPlus');
-  if (isAdventurer || isBuilder) {
-    inboxBtn.innerHTML = '<span style="font-size:1.2rem">🥬</span><span class="cb-label">素社订餐</span>';
-    inboxBtn.onclick = function(){ openCanteen(); };
-    plusBtn.innerHTML = '<span style="font-size:1.2rem">🃏</span><span class="cb-label">卡片</span>';
-    plusBtn.onclick = function(){ openCardRoom(); };
-  } else {
-    inboxBtn.innerHTML = '<span style="font-size:1.2rem">📬</span><span class="cb-label">消息</span>';
-    inboxBtn.onclick = function(){ openCampInbox(); };
-    plusBtn.innerHTML = '<span style="font-size:1.2rem">＋</span><span class="cb-label">更多</span>';
-    plusBtn.onclick = function(){ _openQuickMenu(); };
-  }
-
-  // DiceBear avatar
+  // 头像 (DiceBear)
+  var users = typeof getUsers==='function'?getUsers():{};
   var seed = (users[CURRENT_USER]||{}).avatar_seed || 0;
   var avImg = document.getElementById('cbAvatar');
-  avImg.src = 'https://api.dicebear.com/7.x/avataaars/svg?seed='+seed+'&size=56';
-  avImg.style.display = 'block';
-  avImg.onerror = function(){ this.style.display='none'; };
+  if (avImg) {
+    avImg.src = 'https://api.dicebear.com/7.x/avataaars/svg?seed='+seed+'&size=56';
+    avImg.style.display = 'block';
+    avImg.onerror = function(){ this.style.display='none'; };
+  }
+
+  // 底栏四键（设计稿 §二 2.2.3）
+  _setupCampBottomBar(c);
 
   _pushOverlay('overlayCampHome');
   document.getElementById('overlayCampHome').classList.add('open');
-  switchCampTab('overview');
+
+  // 按态路由
+  if (dispStatus === 'pending') renderCampPending(document.getElementById('campHomeBody'));
+  else if (dispStatus === 'closed') renderCampClosed(document.getElementById('campHomeBody'));
+  else if (dispStatus === 'archived') renderCampArchived(document.getElementById('campHomeBody'));
+  else renderCampActive(document.getElementById('campHomeBody'));
 }
 
+function _setupCampBottomBar(c) {
+  var users = typeof getUsers==='function'?getUsers():{};
+  var role = (users[CURRENT_USER]||{}).role||'visitor';
+  var isMember = role==='adventurer'||role==='builder'||role==='admin';
+
+  var profileBtn = document.getElementById('cbBtnProfile');
+  var todayBtn = document.getElementById('cbBtnToday');
+  var mealBtn = document.getElementById('cbBtnMeal');
+  var activityBtn = document.getElementById('cbBtnActivity');
+
+  if (profileBtn) profileBtn.onclick = function(){ closeOverlay('overlayCampHome');showMy(); };
+
+  if (isMember) {
+    if (todayBtn) { todayBtn.onclick = function(){ switchCampTab('schedule'); }; todayBtn.style.display = ''; }
+    if (mealBtn) { mealBtn.onclick = function(){ if(typeof openCanteen==='function') openCanteen(); else showToast('订餐即将上线','warn'); }; mealBtn.style.display = ''; }
+    if (activityBtn) { activityBtn.onclick = function(){ if(typeof openCardRoom==='function') openCardRoom(); else showToast('活动即将上线','warn'); }; activityBtn.style.display = ''; }
+  } else {
+    if (todayBtn) { todayBtn.onclick = function(){ switchCampTab('schedule'); }; todayBtn.style.display = ''; }
+    if (mealBtn) { mealBtn.style.display = 'none'; }
+    if (activityBtn) { activityBtn.style.display = 'none'; }
+  }
+}
+
+// ── tab 导航（保留用于钻取视图 + 返回按钮）──
 function switchCampTab(tab) {
   _campActiveTab = tab;
-  var tabs = document.querySelectorAll('#campTabBar .camp-tab');
-  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('on');
-  var target = document.querySelector('#campTabBar .camp-tab[onclick*="'+tab+'"]');
-  if (target) target.classList.add('on');
   var body = document.getElementById('campHomeBody');
-  if (tab === 'overview') renderCampOverview(body);
-  else if (tab === 'schedule') renderCampSchedule(body);
-  else if (tab === 'funds') renderCampFunds(body);
-  else if (tab === 'members') renderCampMembers(body);
-  else if (tab === 'ranking') renderCampRanking(body);
-  else if (tab === 'settle') renderCampSettle(body);
-  else if (tab === 'manage') renderCampManage(body);
-  else if (tab === 'discuss') renderCampDiscuss(body);
+
+  if (tab === 'overview') { renderCampActive(body); return; }
+
+  // 钻取视图：加返回按钮
+  body.innerHTML = '';
+  var wrapper = document.createElement('div');
+  wrapper.style.cssText = 'padding:0';
+
+  var back = document.createElement('div');
+  back.style.cssText = 'padding:8px 14px';
+  back.innerHTML = '<span class="camp-nav-card" onclick="switchCampTab(\'overview\')" style="width:auto;display:inline-flex;gap:4px">← 返回营地首页</span>';
+  wrapper.appendChild(back);
+
+  var content = document.createElement('div');
+  wrapper.appendChild(content);
+  body.appendChild(wrapper);
+
+  if (tab === 'schedule') renderCampSchedule(content);
+  else if (tab === 'funds') renderCampFunds(content);
+  else if (tab === 'members') renderCampMembers(content);
+  else if (tab === 'ranking') renderCampRanking(content);
+  else if (tab === 'settle') renderCampSettle(content);
+  else if (tab === 'manage') renderCampManage(content);
+  else if (tab === 'discuss') renderCampDiscuss(content);
+
   body.scrollTop = 0;
 }
 
-// ── 概览 Tab ──
-function renderCampOverview(el) {
+// ══════════════════════════════════════════
+// active 态：5 卡片堆叠布局（设计稿 §二）
+// ══════════════════════════════════════════
+function renderCampActive(el) {
   var c = getCampData(); if (!c) return;
-  var tasks = c.tasks || [];
-  var doneTasks = tasks.filter(function(t){return t.status==='已结算';}).length;
-  var pct = tasks.length ? Math.round(doneTasks/tasks.length*100) : 0;
-  var myTasks = (c.builders||[]).find(function(b){return b.name===CURRENT_USER;});
-  var myCount = myTasks ? myTasks.taskNames.length : 0;
-  var myNT = myTasks ? myTasks.totalNT : 0;
-  var myTaskNames = myTasks ? myTasks.taskNames.slice(0,2) : [];
 
-  // 今日安排摘要（多时段）
-  var schedule = c.schedule || [];
-  var todaySlots = '';
-  if (schedule.length) {
-    var slotPreviews = schedule.slice(0, 3).map(function(s) {
-      return '<span style="display:inline-block;background:#f0f4ee;border-radius:4px;padding:1px 5px;margin:1px 2px;font-size:.58rem;white-space:nowrap">'+s.time+'</span>';
-    });
-    todaySlots = slotPreviews.join('');
+  var h = '<div style="padding:14px">';
+
+  // 状态栏（徽章 + 倒计时 + 头像堆）
+  h += _renderCampStatusBar(c);
+
+  // Card 1: 营队总览
+  h += _renderOverviewCard(c);
+
+  // Card 2: 营地生活
+  h += _renderLifeCard(c);
+
+  // Card 3: 营地活动
+  h += _renderActivityCard(c);
+
+  // Card 4: 社区服务
+  h += _renderCommunityCard(c);
+
+  // Card 5: 营地公告
+  h += _renderAnnouncementCard(c);
+
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+// ── 状态栏（徽章 + 倒计时 + 头像堆 + 人数）──
+function _renderCampStatusBar(c) {
+  var dispStatus = _campDisplayStatus(c);
+  var statusLabels = { pending: '即将开营', active: '进行中', closed: '已结项', archived: '已归档' };
+  var statusColors = { pending: '#c88740', active: '#3d6b52', closed: '#4a7a82', archived: '#8a8a8a' };
+  var label = statusLabels[dispStatus] || '进行中';
+  var color = statusColors[dispStatus] || '#3d6b52';
+
+  // 倒计时
+  var countdown = '';
+  var now = new Date();
+  if (dispStatus === 'pending') {
+    var startDate = c.date ? new Date(c.date+'T00:00:00') : null;
+    if (startDate && startDate > now) {
+      var daysLeft = Math.ceil((startDate - now) / (1000*60*60*24));
+      countdown = '<span style="font-size:.68rem;color:#c88740;margin-left:8px">⏱ '+daysLeft+'天后开营</span>';
+    }
+  } else if (dispStatus === 'active') {
+    var endDate = null;
+    if ((c.schedule||[])[0] && (c.schedule[0].cells||[]).length) {
+      var sStart = (c.milestones||[]).length>1 ? c.milestones[1].date : c.date;
+      var days = c.schedule[0].cells.length;
+      if (sStart) {
+        endDate = new Date(sStart+'T00:00:00');
+        endDate.setDate(endDate.getDate() + days);
+        if (endDate > now) {
+          var daysLeft = Math.ceil((endDate - now) / (1000*60*60*24));
+          countdown = '<span style="font-size:.68rem;color:#3d6b52;margin-left:8px">⏱ 还剩'+daysLeft+'天</span>';
+        }
+      }
+    }
   }
 
-  // 资金摘要（审计 P1：从 c.budget 读取）
-  var budget = c.budget || {};
-  var people = (budget.adventurers||0)+(budget.builders||0);
-  var days = (c.schedule||[])[0] ? ((c.schedule[0].cells||[]).length||8) : 8;
-  var rmbTotal = (budget.lodgingRmb||0)*people*days + (budget.mealRmb||0)*people*days;
-  var ntTotal = (budget.lodgingNT||0)*people*days + (budget.mealNT||0)*people*days;
-  var rmbPerDay = rmbTotal ? Math.round(rmbTotal/days) : 0;
-  var ntPerDay = ntTotal ? Math.round(ntTotal/days) : 0;
-
-  // 成员摘要：构建者头像行
+  // 头像堆 + 人数
   var users = typeof getUsers==='function'?getUsers():{};
   var allMemberNames = [CURRENT_USER];
   (c.builders||[]).forEach(function(b){ if(allMemberNames.indexOf(b.name)===-1) allMemberNames.push(b.name); });
   Object.keys(users).forEach(function(name){ if(allMemberNames.indexOf(name)===-1 && users[name].role==='adventurer') allMemberNames.push(name); });
   var memberAvatars = '';
   allMemberNames.slice(0, 5).forEach(function(name) {
-    var seed = (users[name]||{}).avatar_seed || 0;
-    memberAvatars += '<img src="https://api.dicebear.com/7.x/avataaars/svg?seed='+seed+'&size=40" width="20" height="20" style="border-radius:50%;object-fit:cover;margin-left:-4px;border:1.5px solid #fff" alt="'+name+'" title="'+name+'" onerror="this.outerHTML=\'<span style=display:inline-block;width:20px;height:20px;border-radius:50%;background:#e0e0e0;text-align:center;line-height:20px;font-size:.5rem;margin-left:-4px;border:1.5px solid #fff>\'+(\''+name+'\').charAt(0)+\'</span>\'">';
+    var s = (users[name]||{}).avatar_seed || 0;
+    memberAvatars += '<img src="https://api.dicebear.com/7.x/avataaars/svg?seed='+s+'&size=40" width="20" height="20" style="border-radius:50%;object-fit:cover;margin-left:-4px;border:1.5px solid #fff" alt="'+name+'" title="'+name+'" onerror="this.outerHTML=\'<span style=display:inline-block;width:20px;height:20px;border-radius:50%;background:#e0e0e0;text-align:center;line-height:20px;font-size:.5rem;margin-left:-4px;border:1.5px solid #fff>\'+(\''+name+'\').charAt(0)+\'</span>\'">';
   });
   if (allMemberNames.length > 5) memberAvatars += '<span style="font-size:.55rem;color:#5a6e5c;margin-left:2px">+'+(allMemberNames.length-5)+'</span>';
 
-  // 素社订餐摘要
-  var mealRmb = budget.mealRmb || 0;
-  var mealNT = budget.mealNT || 0;
+  var people = c.people || allMemberNames.length;
 
-  // 住宿摘要
-  var lodgingRmb = budget.lodgingRmb || 0;
+  return '<div style="display:flex;align-items:center;gap:6px;padding:0 0 12px 0;flex-wrap:wrap">'+
+    '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:.62rem;font-weight:600;color:#fff;background:'+color+'">'+label+'</span>'+
+    countdown +
+    '<span style="display:flex;align-items:center;gap:0;margin-left:auto;cursor:pointer" onclick="switchCampTab(\'members\')" title="查看成员">'+memberAvatars+'</span>'+
+    '<span style="font-size:.62rem;color:var(--g-text-dim)">'+people+'/'+(c.max||people)+'人</span>'+
+    '</div>';
+}
+
+// ── Card 1: 营队总览（进度条 + 我的任务 + 今日安排 + 资金概览）──
+function _renderOverviewCard(c) {
+  var tasks = c.tasks || [];
+  var doneTasks = tasks.filter(function(t){return t.status==='已结算';}).length;
+  var pct = tasks.length ? Math.round(doneTasks/tasks.length*100) : 0;
+
+  var myTasks = (c.builders||[]).find(function(b){return b.name===CURRENT_USER;});
+  var myCount = myTasks ? myTasks.taskNames.length : 0;
+  var myNT = myTasks ? myTasks.totalNT : 0;
+  var myTaskNames = myTasks ? myTasks.taskNames.slice(0,2) : [];
+
+  var schedule = c.schedule || [];
+  var todaySlots = '';
+  if (schedule.length) {
+    todaySlots = schedule.slice(0, 3).map(function(s) {
+      return '<span style="display:inline-block;background:#f0f4ee;border-radius:4px;padding:1px 5px;margin:1px 2px;font-size:.58rem;white-space:nowrap">'+s.time+'</span>';
+    }).join('');
+  }
+
+  var budget = c.budget || {};
+  var people = (budget.adventurers||0)+(budget.builders||0) || c.people || 0;
+  var days = (c.schedule||[])[0] ? ((c.schedule[0].cells||[]).length||8) : 8;
+  var rmbTotal = (budget.lodgingRmb||0)*people*days + (budget.mealRmb||0)*people*days;
+  var ntTotal = (budget.lodgingNT||0)*people*days + (budget.mealNT||0)*people*days;
+
+  var h = '<div class="camp-card" style="margin-bottom:10px">';
+  h += '<div class="camp-card-head">📊 营队总览</div>';
+
+  // 进度条
+  h += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--g-text-dim);margin-bottom:4px"><span>营地进度</span><span>'+pct+'%</span></div>';
+  h += '<div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--g-accent);border-radius:3px"></div></div></div>';
+
+  // 日期 + 人数
+  h += '<div style="font-size:.62rem;color:var(--g-text-dim);margin-bottom:10px">'+esc(c.date||'')+' · '+people+'人 · '+tasks.length+'个任务 · '+days+'天</div>';
+
+  // 我的任务包
+  h += '<div class="camp-card-row" onclick="closeOverlay(\'overlayCampHome\');showMy({presetChip:\'营队\'})">'+
+    '<span>📋</span>'+
+    '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">我的任务包</div>'+
+    (myCount ? '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">'+(myTaskNames.length?myTaskNames.join(' · '):'')+'</div>' : '<div style="font-size:.58rem;color:#aaa;margin-top:2px">暂无分配</div>')+
+    '</div>'+
+    '<div style="text-align:right"><div style="font-size:.72rem;font-weight:700;color:var(--g-accent)">'+(myNT||0)+' NT</div><div style="font-size:.55rem;color:#5a6e5c">'+(myCount||0)+'项</div></div>'+
+    '<span style="color:#d0d9ce">→</span></div>';
+
+  // 今日安排
+  h += '<div class="camp-card-row" onclick="switchCampTab(\'schedule\')">'+
+    '<span>🕐</span>'+
+    '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">今日安排</div>'+
+    '<div style="margin-top:2px">'+(todaySlots||'<span style="font-size:.58rem;color:#aaa">暂无日程</span>')+'</div></div>'+
+    '<span style="color:#d0d9ce">→</span></div>';
+
+  // 资金概览
+  h += '<div class="camp-card-row" onclick="switchCampTab(\'funds\')">'+
+    '<span>💰</span>'+
+    '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">资金概览</div>'+
+    '<div style="display:flex;gap:8px;margin-top:2px"><span style="font-size:.58rem;color:#5a6e5c">¥'+(rmbTotal||0).toLocaleString()+' <span style="color:#8a6a30">RMB</span></span><span style="font-size:.58rem;color:#5a6e5c">'+(ntTotal||0).toLocaleString()+' <span style="color:#3d6b52">NT</span></span></div></div>'+
+    '<span style="color:#d0d9ce">→</span></div>';
+
+  h += '</div>';
+
+  // 里程碑 + 个性化区块（复用现有函数）
+  h += renderCampMilestones(c);
+  h += getMyBlocks(c);
+
+  return h;
+}
+
+// ── Card 2: 营地生活（订餐 / 住宿 / 共享厨房 图标网格）──
+function _renderLifeCard(c) {
+  var budget = c.budget || {};
+  var mealNT = budget.mealNT || 0;
   var lodgingNT = budget.lodgingNT || 0;
 
-  el.innerHTML =
-    '<div style="padding:14px">'+
-    // 营队概览 header
-    '<div style="background:linear-gradient(135deg,#e8f0e4,#dce8d8);border-radius:14px;padding:16px;text-align:center;margin-bottom:12px">'+
-      '<div style="font-weight:700;font-size:var(--g-font-size);color:#2a4a30;margin-bottom:6px">📊 '+esc(c.name||'营队')+'</div>'+
-      '<div style="font-size:.7rem;color:#5a6e5c">'+c.date+' · '+(c.people||0)+'人 · '+tasks.length+'个任务 · '+days+'天</div>'+
-      '<div style="height:6px;background:rgba(0,0,0,.06);border-radius:3px;overflow:hidden;margin:8px 0"><div style="height:100%;width:'+pct+'%;background:#3d6b52;border-radius:3px"></div></div>'+
-      '<div style="font-size:var(--g-font-size-xs);color:#5a6e5c">已完成 '+doneTasks+' / 进行中 '+(tasks.length-doneTasks)+'</div>'+
-    '</div>'+
+  var h = '<div class="camp-card" style="margin-bottom:10px">';
+  h += '<div class="camp-card-head">🛋️ 营地生活</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
 
-    // 📋 我的任务
-    '<div class="camp-nav-card" onclick="closeOverlay(\'overlayCampHome\');showMy({presetChip:\'营队\'})"><span>📋</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">我的任务包</div>'+
-      (myCount ? '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">'+(myTaskNames.length?myTaskNames.join(' · '):'')+'</div>' : '<div style="font-size:.58rem;color:#aaa;margin-top:2px">暂无分配</div>')+
-      '</div>'+
-      '<div style="text-align:right"><div style="font-size:.72rem;font-weight:700;color:var(--green-primary)">'+(myNT||0)+' NT</div><div style="font-size:.55rem;color:#5a6e5c">'+(myCount||0)+'项</div></div>'+
-      '<span style="color:#d0d9ce">→</span></div>'+
+  h += '<div class="camp-icon-grid-item" onclick="'+(typeof openCanteen==='function'?'openCanteen()':'showToast(\'订餐即将上线\',\'warn\')')+'">'+
+    '<div style="font-size:1.5rem">🥬</div>'+
+    '<div style="font-size:.65rem;font-weight:600">订餐</div>'+
+    '<div style="font-size:.55rem;color:var(--g-text-dim)">'+(mealNT?mealNT+' NT/餐':'即将上线')+'</div></div>';
 
-    // 🕐 今日安排
-    '<div class="camp-nav-card" onclick="switchCampTab(\'schedule\')"><span>🕐</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">今日安排</div>'+
-      '<div style="margin-top:2px">'+(todaySlots||'<span style="font-size:.58rem;color:#aaa">暂无日程</span>')+'</div></div>'+
-      '<span style="color:#d0d9ce">→</span></div>'+
+  h += '<div class="camp-icon-grid-item" onclick="'+(typeof openAccomPage==='function'?'openAccomPage()':'showToast(\'住宿即将上线\',\'warn\')')+'">'+
+    '<div style="font-size:1.5rem">🏨</div>'+
+    '<div style="font-size:.65rem;font-weight:600">住宿</div>'+
+    '<div style="font-size:.55rem;color:var(--g-text-dim)">'+(lodgingNT?lodgingNT+' NT/天':'即将上线')+'</div></div>';
 
-    // 💰 资金概览
-    '<div class="camp-nav-card" onclick="switchCampTab(\'funds\')"><span>💰</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">资金概览</div>'+
-      '<div style="display:flex;gap:12px;margin-top:3px"><div style="font-size:.58rem;color:#5a6e5c">¥'+(rmbTotal||0).toLocaleString()+' <span style="color:#8a6a30">RMB</span></div><div style="font-size:.58rem;color:#5a6e5c">'+(ntTotal||0).toLocaleString()+' <span style="color:#3d6b52">NT</span></div><div style="font-size:.58rem;color:#aaa">¥'+(rmbPerDay||0)+'/天</div></div></div>'+
-      '<span style="color:#d0d9ce">→</span></div>'+
+  h += '<div class="camp-icon-grid-item" onclick="'+(typeof openKitchenQuick==='function'?'openKitchenQuick()':'showToast(\'共享厨房即将上线\',\'warn\')')+'">'+
+    '<div style="font-size:1.5rem">🍳</div>'+
+    '<div style="font-size:.65rem;font-weight:600">共享厨房</div>'+
+    '<div style="font-size:.55rem;color:var(--g-text-dim)">灶台</div></div>';
 
-    // 🥬 素社订餐
-    '<div class="camp-nav-card" onclick="showToast(\'素社订餐功能将在阶段4上线\',\'warn\')"><span>🥬</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">素社订餐</div>'+
-      '<div style="font-size:.58rem;color:'+(mealNT?'#5a6e5c':'#aaa')+';margin-top:2px">'+(mealNT?mealNT+' NT/餐 · ¥'+(mealRmb||0)+'/餐':'暂无菜单')+'</div></div>'+
-      (mealNT ? '<span style="font-size:.6rem;background:#e8f0e4;color:#3d6b52;padding:3px 8px;border-radius:10px">预定</span>' : '')+
-      '<span style="color:#d0d9ce">→</span></div>'+
+  h += '</div></div>';
+  return h;
+}
 
-    // 🏨 住宿
-    '<div class="camp-nav-card" onclick="openAccomPage()"><span>🏨</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">住宿</div>'+
-      '<div style="font-size:.58rem;color:'+(lodgingRmb?'#5a6e5c':'#aaa')+';margin-top:2px">'+(lodgingRmb?lodgingNT+' NT/天 · ¥'+lodgingRmb+'/天':'暂无客栈数据')+'</div></div>'+
-      (lodgingRmb ? '<span style="font-size:.6rem;background:#e8f0e4;color:#3d6b52;padding:3px 8px;border-radius:10px">查看</span>' : '')+
-      '<span style="color:#d0d9ce">→</span></div>'+
+// ── Card 3: 营地活动（桌游 / 茶馆）──
+function _renderActivityCard(c) {
+  var h = '<div class="camp-card" style="margin-bottom:10px">';
+  h += '<div class="camp-card-head">🎯 营地活动</div>';
 
-    // 👥 成员
-    '<div class="camp-nav-card" onclick="switchCampTab(\'members\')"><span>👥</span>'+
-      '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">成员</div>'+
-      '<div style="margin-top:2px">'+memberAvatars+'</div></div>'+
-      '<div style="text-align:right"><div style="font-size:.72rem;font-weight:700;color:#3d6b52">'+(c.people||0)+'</div><div style="font-size:.55rem;color:#5a6e5c">人在营</div></div>'+
-      '<span style="color:#d0d9ce">→</span></div>'+
+  h += '<div class="camp-card-row" onclick="'+(typeof openCardRoom==='function'?'openCardRoom()':'showToast(\'活动即将上线\',\'warn\')')+'">'+
+    '<span>🎲</span>'+
+    '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">桌游室</div>'+
+    '<div style="font-size:.58rem;color:var(--g-text-dim);margin-top:2px">发起或加入桌游局</div></div>'+
+    '<span style="color:#d0d9ce">→</span></div>';
 
-    renderCampMilestones(c)+
-    getMyBlocks(c)+
-    _renderActivityFeed(c)+
-    '</div>';
+  h += '<div class="camp-card-row" onclick="showToast(\'茶馆即将上线\',\'warn\')">'+
+    '<span>🍵</span>'+
+    '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">茶馆</div>'+
+    '<div style="font-size:.58rem;color:var(--g-text-dim);margin-top:2px">营地八卦与闲聊</div></div>'+
+    '<span style="color:#d0d9ce">→</span></div>';
+
+  h += '</div>';
+  return h;
+}
+
+// ── Card 4: 社区服务（拍卖行 / 议事厅 / 集市 3图标）──
+function _renderCommunityCard(c) {
+  var h = '<div class="camp-card" style="margin-bottom:10px">';
+  h += '<div class="camp-card-head">🏘️ 社区服务</div>';
+  h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+
+  h += '<div class="camp-icon-grid-item" onclick="showToast(\'拍卖行即将上线\',\'warn\')">'+
+    '<div style="font-size:1.5rem">🔨</div>'+
+    '<div style="font-size:.65rem;font-weight:600">拍卖行</div>'+
+    '<div style="font-size:.55rem;color:var(--g-text-dim)">即将开放</div></div>';
+
+  h += '<div class="camp-icon-grid-item" onclick="switchCampTab(\'discuss\')">'+
+    '<div style="font-size:1.5rem">🥕</div>'+
+    '<div style="font-size:.65rem;font-weight:600">议事厅</div>'+
+    '<div style="font-size:.55rem;color:var(--g-text-dim)">提案 & 会议</div></div>';
+
+  h += '<div class="camp-icon-grid-item" onclick="showToast(\'集市即将上线\',\'warn\')">'+
+    '<div style="font-size:1.5rem">🏪</div>'+
+    '<div style="font-size:.65rem;font-weight:600">集市</div>'+
+    '<div style="font-size:.55rem;color:var(--g-text-dim)">二手物品</div></div>';
+
+  h += '</div></div>';
+  return h;
+}
+
+// ── Card 5: 营地公告 + 活动动态 ──
+function _renderAnnouncementCard(c) {
+  var h = '<div class="camp-card" style="margin-bottom:10px">';
+  h += '<div class="camp-card-head">📢 营地公告</div>';
+  h += '<div style="font-size:.62rem;color:var(--g-text-dim);text-align:center;padding:16px 0">'+
+    '📭 暂无公告<br><span style="font-size:.55rem">公告功能即将上线</span></div>';
+  h += '</div>';
+
+  // 附加活动动态（既有）
+  if (typeof _renderActivityFeed === 'function') h += _renderActivityFeed(c);
+
+  return h;
+}
+
+// ── pending 态：开营倒计时预览 ──
+function renderCampPending(el) {
+  var c = getCampData(); if (!c) return;
+  var users = typeof getUsers==='function'?getUsers():{};
+  var role = (users[CURRENT_USER]||{}).role||'visitor';
+
+  var startDate = c.date ? new Date(c.date+'T00:00:00') : null;
+  var now = new Date();
+  var daysLeft = startDate ? Math.ceil((startDate - now) / (1000*60*60*24)) : '?';
+
+  var h = '<div style="padding:14px;text-align:center">';
+  h += _renderCampStatusBar(c);
+
+  h += '<div style="background:var(--g-card);border-radius:var(--g-radius);padding:24px;margin-bottom:10px">';
+  h += '<div style="font-size:3rem;margin-bottom:8px">⏳</div>';
+  h += '<div style="font-size:1.2rem;font-weight:700;color:var(--g-accent);margin-bottom:4px">'+daysLeft+' 天后开营</div>';
+  h += '<div style="font-size:.68rem;color:var(--g-text-dim)">'+esc(c.date||'日期待定')+' · '+esc(c.desc||'')+'</div>';
+
+  var people = c.people || 0;
+  h += '<div style="margin-top:12px;font-size:.72rem;color:#5a6e5c">已报名 '+people+' 人'+(c.max?' / '+c.max:'')+'</div>';
+
+  // 日程预览
+  if ((c.schedule||[]).length) {
+    h += '<div style="margin-top:12px;text-align:left;background:#f8fcf6;border-radius:8px;padding:12px">';
+    h += '<div style="font-weight:700;font-size:.7rem;margin-bottom:6px">📅 日程预览</div>';
+    c.schedule.slice(0, 4).forEach(function(s) {
+      h += '<div style="display:flex;padding:3px 0;font-size:.62rem"><span style="color:#5a6e5c;width:50px">'+s.time+'</span><span>'+(s.cells&&s.cells[0]||'—')+'</span></div>';
+    });
+    h += '</div>';
+  }
+
+  h += '</div>';
+
+  // 报名/取消
+  if (role==='visitor') {
+    h += '<button class="btn-pri" style="width:100%;min-height:44px;font-size:.78rem;border-radius:12px;margin-top:8px" onclick="'+
+      'if(typeof enterCamp===\'function\') enterCamp(\''+c.id+'\'); else showToast(\'报名功能即将上线\',\'warn\')'+
+      '">📝 报名参加</button>';
+  } else {
+    h += '<div style="font-size:.68rem;color:var(--g-accent);margin-top:8px">✅ 已报名 · 等待开营</div>';
+  }
+
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+// ── closed 态：营地结项摘要 ──
+function renderCampClosed(el) {
+  var c = getCampData(); if (!c) return;
+  var tasks = c.tasks || [];
+  var doneTasks = tasks.filter(function(t){return t.status==='已结算';}).length;
+
+  var h = '<div style="padding:14px">';
+  h += _renderCampStatusBar(c);
+
+  h += '<div style="background:var(--g-card);border-radius:var(--g-radius);padding:16px;margin-bottom:10px">';
+  h += '<div style="font-size:1.5rem;text-align:center;margin-bottom:8px">📋</div>';
+  h += '<div style="font-weight:700;font-size:.82rem;text-align:center;color:var(--g-accent);margin-bottom:8px">营地已结项</div>';
+  h += '<div style="font-size:.62rem;color:var(--g-text-dim);text-align:center">'+esc(c.date||'')+' · '+(c.people||0)+'人 · '+doneTasks+'/'+tasks.length+'项完成</div>';
+  h += '</div>';
+
+  // 任务简表
+  h += '<div class="camp-card" style="margin-bottom:10px">';
+  h += '<div class="camp-card-head">📊 结项摘要</div>';
+  var totalNT = 0; tasks.forEach(function(t){ totalNT += t.nt||0; });
+  h += '<div style="font-size:.62rem;color:var(--g-text-dim);line-height:1.8">'+
+    '任务总数：'+tasks.length+' 项<br>'+
+    '已完成：'+doneTasks+' 项<br>'+
+    'NT 总额：'+totalNT.toLocaleString()+' NT<br>'+
+    '结算日期：'+(c.closed_at||'—')+'</div>';
+  h += '</div>';
+
+  h += '<div class="camp-card-row" onclick="openCampReport(\''+c.id+'\')">'+
+    '<span>📋</span><div style="flex:1;font-size:.72rem">查看结营报告</div><span style="color:#d0d9ce">→</span></div>';
+
+  h += '</div>';
+  el.innerHTML = h;
+}
+
+// ── archived 态：档案页 ──
+function renderCampArchived(el) {
+  var c = getCampData(); if (!c) return;
+  var tasks = c.tasks || [];
+  var doneTasks = tasks.filter(function(t){return t.status==='已结算';}).length;
+
+  var h = '<div style="padding:14px">';
+  h += _renderCampStatusBar(c);
+
+  h += '<div style="background:var(--g-card);border-radius:var(--g-radius);padding:16px;margin-bottom:10px">';
+  h += '<div style="font-size:1.5rem;text-align:center;margin-bottom:8px">📦</div>';
+  h += '<div style="font-weight:700;font-size:.82rem;text-align:center;color:var(--g-text-dim);margin-bottom:8px">营地已归档</div>';
+  h += '<div style="font-size:.62rem;color:var(--g-text-dim);text-align:center">'+esc(c.date||'')+' · '+(c.people||0)+'人 · '+doneTasks+'/'+tasks.length+'项完成</div>';
+  h += '</div>';
+
+  h += '<div class="camp-card-row" onclick="openCampReport(\''+c.id+'\')">'+
+    '<span>📋</span><div style="flex:1;font-size:.72rem">查看结营报告</div><span style="color:#d0d9ce">→</span></div>';
+
+  h += '</div>';
+  el.innerHTML = h;
 }
 
 function renderCampMilestones(c) {
