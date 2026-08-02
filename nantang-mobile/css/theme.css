@@ -682,3 +682,30 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 /* 通用按钮 */
 .btn-bp { display:block; width:100%; padding:9px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; text-align:center; min-height:38px; background:var(--g-accent); color:#fff }
 .btn-bs { display:block; width:100%; padding:9px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; text-align:center; min-height:38px; background:#f0f0f0; color:var(--g-text-sub) }
+
+/* ═══ W7-UI-ALIGN-V2: 设计稿 vFinal 精确对齐 ═══ */
+
+/* 页面头部（设计稿 .ph / .sub） */
+.ph { background:var(--g-accent); color:#fff; padding:8px 12px; font-size:12px; font-weight:700; text-align:center }
+.sub { font-size:9.5px; color:var(--g-text-sub); padding:5px 0; line-height:1.4 }
+
+/* cell 别名（设计稿用 .cell，保留 .g4-cell 向后兼容） */
+.cell { background:var(--g-card); border:1.5px solid var(--g-card-border); border-radius:7px; padding:5px 3px; text-align:center; cursor:pointer; position:relative; min-height:44px; display:flex; flex-direction:column; align-items:center; justify-content:center }
+.cell:active { transform:scale(.97) }
+.cell.on { border-color:var(--g-accent); background:var(--g-accent-bg) }
+.cell.off { opacity:.4; pointer-events:none; background:#f5f5f5 }
+.cell .ci { font-size:1rem; line-height:1 }
+.cell .cn { font-size:9px; font-weight:700; color:var(--g-text); margin:1px 0 }
+.cell .cm { font-size:7px; color:var(--g-text-dim); line-height:1.2 }
+.cell .cnt { font-size:8px; color:var(--g-warn); font-weight:700 }
+
+/* 厨房分区卡片（设计稿 .fr / .fh / .fi / .fl / .fs） */
+.fr { display:flex; gap:4px; margin:5px 0 }
+.fh { flex:1; background:linear-gradient(180deg,#eaf2f5,#dce8ec); border:1.5px solid #bcccd0; border-radius:8px; padding:8px 5px; text-align:center; cursor:pointer }
+.fh .fi { font-size:1.4rem; display:block }
+.fh .fl { font-size:9px; font-weight:700; color:var(--g-blue); margin:1px 0 }
+.fh .fs { font-size:7px; color:var(--g-text-dim) }
+
+/* 按钮别名（设计稿 .btn.bp / .btn.bs） */
+.btn.bp { display:block; width:100%; padding:9px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; text-align:center; min-height:38px; background:var(--g-accent); color:#fff }
+.btn.bs { display:block; width:100%; padding:9px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; border:none; text-align:center; min-height:38px; background:#f0f0f0; color:var(--g-text-sub) }

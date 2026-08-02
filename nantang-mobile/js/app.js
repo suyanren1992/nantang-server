@@ -1572,8 +1572,7 @@ function _openMgmtSheet(type) {
   if (type === 'cleaning') { _showCleanSheet(); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
 }
-// ═══ UNIFY-A: 大扫除内部页 — 对齐住宿设计 ═══
-// W7-UI-ALIGN PAGE-1: 大扫除·管理员 — 4列方格 + 脏污%色标 + 多选
+// ═══ W7-UI-ALIGN-V2 PAGE-1: 大扫除·管理员 — 逐行对照设计稿 66-94 行 ═══
 function _showCleanSheet() {
   var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
   var p = _cleaningPricing();
@@ -1588,31 +1587,43 @@ function _showCleanSheet() {
     spaces.push({ id: b.id, name: b.name, icon: b.icon, dirtiness: d, status: st, stBadge: stBadge, nt: nt });
   });
   spaces.sort(function(a,b){ return b.dirtiness - a.dirtiness; });
-  var h = '<div class="g4" style="margin-bottom:var(--g-pad)">';
+
+  // 入住人数 + 资金池
+  var accs = _ml().accommodations || {};
+  var totalGuests = 0;
+  Object.values(accs).forEach(function(a){ totalGuests += (a.tenants||[]).length; });
+  var poolNt = (cl && cl.pool) ? cl.pool : 200;
+
+  var h = '<div class="sub">📅 '+_todayStr()+' · 🏠 入住 '+totalGuests+'人 · 💰 池 '+poolNt+'NT</div>';
+  h += '<div class="sl">📍 勾选打扫区域<span class="sla" onclick="var els=document.querySelectorAll(\'.cell[data-space]\');var allOn=Array.from(els).every(function(e){return e.classList.contains(\'on\')});els.forEach(function(e){if(allOn)e.classList.remove(\'on\');else e.classList.add(\'on\')});_updateCleanCount()">全选</span></div>';
+  h += '<div class="g4">';
   spaces.forEach(function(s) {
-    h += '<div class="g4-cell" data-space="'+s.id+'" data-nt="'+s.nt+'" data-name="'+esc(s.name)+'" onclick="_toggleCleanSelect(this)">'+
-      '<div class="g4-ci">'+esc(s.icon)+'</div>'+
-      '<div class="g4-cn">'+esc(s.name)+'</div>'+
+    h += '<div class="cell" data-space="'+s.id+'" data-nt="'+s.nt+'" data-name="'+esc(s.name)+'" onclick="_toggleCleanSelect(this)">'+
+      '<div class="ci">'+esc(s.icon)+'</div>'+
+      '<div class="cn">'+esc(s.name)+'</div>'+
       '<span class="sb '+s.stBadge+'">'+s.dirtiness+'%</span>'+
-      '<div class="g4-cnt">+'+s.nt+'</div>'+
+      '<div class="cnt">+'+s.nt+'</div>'+
     '</div>';
   });
   h += '</div>';
   h += '<div style="margin:5px 0;font-size:8px;color:var(--g-text-sub);display:flex;justify-content:space-between">'+
     '<span>⚙ 最少2个 最多3个</span><span id="cleanSelectCount">👤 0/3</span></div>';
-  h += '<button class="btn-bp" style="font-size:10px" onclick="_submitCleanSelect()">📢 发布大扫除</button>';
-  _showCardPopup('🧹 大扫除', h, null, true);
+  h += '<button class="btn bp" style="font-size:10px" onclick="_submitCleanSelect()">📢 发布大扫除</button>';
+  _showCardPopup('🧹 大扫除 · 管理员发布', h, null, true);
 }
 function _toggleCleanSelect(el) {
-  var sel = el.parentElement.querySelectorAll('.g4-cell.on');
+  var sel = el.parentElement.querySelectorAll('.cell.on');
   if (!el.classList.contains('on') && sel.length >= 3) { showToast('最多选3个区域', 'warn'); return; }
   el.classList.toggle('on');
-  var cnt = el.parentElement.querySelectorAll('.g4-cell.on').length;
+  _updateCleanCount();
+}
+function _updateCleanCount() {
+  var cnt = document.querySelectorAll('.cell.on[data-space]').length;
   var ctEl = document.getElementById('cleanSelectCount');
   if (ctEl) ctEl.textContent = '👤 '+cnt+'/3';
 }
 function _submitCleanSelect() {
-  var sels = document.querySelectorAll('.g4-cell.on[data-space]');
+  var sels = document.querySelectorAll('.cell.on[data-space]');
   if (sels.length < 2) { showToast('至少选2个区域', 'warn'); return; }
   var totalNt = 0;
   var names = [];
