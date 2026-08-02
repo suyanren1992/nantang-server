@@ -1641,7 +1641,7 @@ function _submitCleanSelect() {
   showToast('大扫除已发布（共 +'+totalNt+' NT）', 'ok');
 }
 
-// W7-UI-ALIGN PAGE-2: 大扫除·用户选位置 — 头像条 + 4列格 + 已占灰显
+// W7-UI-ALIGN-V2 PAGE-2: 大扫除·用户选位置 — 逐行对照设计稿 96-130 行
 function _showCleanUserSheet() {
   var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
   var p = _cleaningPricing();
@@ -1673,17 +1673,22 @@ function _showCleanUserSheet() {
     if (sp) mySelNt += sp.nt;
   });
 
-  var h = '<div class="sl">👥 大家选了哪里</div>';
+  // 入住人数
+  var accs = _ml().accommodations || {};
+  var totalGuests = 0;
+  Object.values(accs).forEach(function(a){ totalGuests += (a.tenants||[]).length; });
+  var selectedCount = Object.keys(userMap).length;
+
+  var h = '<div class="sub">📅 '+_todayStr()+' · 👥'+selectedCount+'/'+totalGuests+'已选 · ⚡明天15:00截止</div>';
+  h += '<div class="sl">👥 大家选了哪里</div>';
   h += '<div class="avs">';
   Object.keys(userMap).forEach(function(u) {
     var icons = userMap[u].join('');
     h += '<div class="avb"><div class="avi">'+esc(u.charAt(0))+'</div><div class="avt">'+esc(icons)+'</div></div>';
   });
-  // 未选占位（总入住人数=8，减去已选人数）
-  var totalGuests = 8;
-  var unselected = totalGuests - Object.keys(userMap).length;
+  var unselected = totalGuests - selectedCount;
   for (var i = 0; i < unselected && i < 6; i++) {
-    h += '<div class="avb"><div class="avi" style="border:2px dashed var(--g-sep);background:#fff;color:var(--g-text-dim)">?</div><div class="avt" style="color:var(--g-text-dim)">待选</div></div>';
+    h += '<div class="avb"><div class="avi" style="border:2px dashed #d0d9ce;background:#fff;color:var(--g-text-dim)">?</div><div class="avt" style="color:var(--g-text-dim)">待选</div></div>';
   }
   h += '</div>';
 
@@ -1692,10 +1697,10 @@ function _showCleanUserSheet() {
   spaces.forEach(function(s) {
     var isOccupied = !!selMap[s.id] && selMap[s.id].lockedBy !== _me();
     var isMine = mySel.indexOf(s.id) >= 0;
-    var cls = 'g4-cell' + (isOccupied ? ' off' : '') + (isMine ? ' on' : '');
+    var cls = 'cell' + (isOccupied ? ' off' : '') + (isMine ? ' on' : '');
     h += '<div class="'+cls+'" data-space="'+s.id+'" data-nt="'+s.nt+'" '+(isOccupied?'':'onclick="_toggleCleanUserSelect(this)"')+'>'+
-      '<div class="g4-ci">'+esc(s.icon)+'</div>'+
-      '<div class="g4-cn">'+esc(s.name)+'</div>'+
+      '<div class="ci">'+esc(s.icon)+'</div>'+
+      '<div class="cn">'+esc(s.name)+'</div>'+
       (isOccupied ? '<div class="cav">'+esc(selMap[s.id].lockedBy.charAt(0))+'</div>' : '')+
       '<span class="sb '+s.stBadge+'">'+s.nt+'</span>'+
     '</div>';
@@ -1710,7 +1715,7 @@ function _showCleanUserSheet() {
     h += '👆 点击上方格子选择你的打扫位置';
   }
   h += '</div>';
-  h += '<button class="btn-bp" onclick="_submitCleanUserSelect()">✅ 提交选择</button>';
+  h += '<button class="btn bp" onclick="_submitCleanUserSelect()">✅ 提交选择</button>';
   _showCardPopup('🧹 大扫除 · 选位置', h, null, true);
 }
 function _toggleCleanUserSelect(el) {
