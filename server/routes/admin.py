@@ -195,8 +195,14 @@ async def dev_reset(mode: str = "soft", admin: User = Depends(get_current_user),
     from models import CampBuilder, DepositIntent, Tenancy, CovenantSignature, CampMembership, InnRoom
     # P3-二营乙: 共享厨房 4 表（FK->users，须先于 delete(User)）
     from models import PotluckParticipant, PotluckEvent, KitchenSlot, SharedItem
+    # W7: 孪生系统新表（FK→users/items/map_locations，须先于 delete(User)/delete(MapLocation)）
+    from models import SpaceEvent, Item, FieldPlot
 
     if mode == "hard":
+        # 新表优先删（FK 指向 users/items/map_locations）
+        await db.execute(delete(SpaceEvent))
+        await db.execute(delete(Item))
+        await db.execute(delete(FieldPlot))
         await db.execute(delete(NTTask))
         await db.execute(delete(Verification))
         await db.execute(delete(NTLedger))
