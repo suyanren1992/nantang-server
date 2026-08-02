@@ -281,7 +281,7 @@ function renderArchiveMembers(el) {
     try { var ntu = (name===CURRENT_USER&&window.AppData&&AppData._data._serverBalance!=null) ? {ntBalance:AppData._data._serverBalance} : (window.NT && NT.getUser(name)); if (ntu) nt = ntu.ntBalance || 0; } catch(e) {}
     group.members.push({
       name: name,
-      role: u.role,
+      role: u.role || 'visitor',  // A-7: 空值兜底防 undefined 渲染
       seed: u.avatar_seed || 0,
       nt: nt,
       online: u._online
@@ -337,11 +337,14 @@ function openMemberArchive(nameEnc, role, nt, seed) {
   function _render(d) {
     var body = document.getElementById("memberArchiveBody");
     if (!body) return;
-    var stayLine = d.accommodation_stays + ' 次';
-    if (d.accommodation_days > 0) stayLine = d.accommodation_stays + ' 次 · 当前在住 ' + d.accommodation_days + ' 天';
+    // A-7: API 返回字段可能缺失，空值兜底防 "undefined" 文字渲染
+    var stays = d.accommodation_stays || 0;
+    var days  = d.accommodation_days || 0;
+    var stayLine = stays + ' 次';
+    if (days > 0) stayLine = stays + ' 次 · 当前在住 ' + days + ' 天';
     body.innerHTML =
-      _stat('🛠️', '完成任务', d.tasks_completed, '个') +
-      _stat('✅', '完成校核', d.verifications_done, '次') +
+      _stat('🛠️', '完成任务', d.tasks_completed || 0, '个') +
+      _stat('✅', '完成校核', d.verifications_done || 0, '次') +
       _stat('🛏️', '住宿记录', stayLine, '') +
       '<div style="font-size:.55rem;color:#aaa;text-align:center;margin-top:6px">仅展示公开计数 · 不含 NT 金额明细</div>';
   }
