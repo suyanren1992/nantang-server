@@ -155,7 +155,7 @@ var ITEM_ICONS={画材:'🎨',画作:'🖼️',杯具:'☕',纸张:'📜',文具
 var _itemFold={};
 function renderItemsInTab(filter){
   var f=filter||'all';
-  var h='<div style="padding:8px 14px 4px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:.82rem">📦 背包</span><button class="btn-sm pri" onclick="addItem()">+ 添加</button></div>';
+  var h='<div style="padding:8px 14px 4px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:.82rem">📦 背包</span><button class="btn-sm pri" onclick="_showMyItemsSheet()">查看</button></div>';
   var secs=[
     {k:'storage',label:'📥 在库',color:'#5a6e5c'},
     {k:'selling',label:'🏪 上架中',color:'var(--green-primary)'},

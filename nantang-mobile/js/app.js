@@ -434,11 +434,7 @@ function _renderMgmtCards() {
     '<div class="ic-body"><div class="ic-big">'+inv.length+' <span style="font-size:.7rem">件物品</span></div>'+
     '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
 
-  // 🎒 我的物品（W7-ITEM-2）
-  h += '<div class="ic-card" onclick="'+(isMember?'_showMyItemsSheet()':'_visitorHint(this,\'入住后才能查看物品\')')+'"><div class="ic-head">🎒 我的物品</div>'+
-    '<div class="ic-body"><div class="ic-big">📦</div><div class="ic-muted">查看我在各空间的物品</div></div></div>';
-
-  h += '</div>'; // close position:relative
+  h += '</div>'; // close info-cards grid
   h += '</div>';
   return h;
 }
