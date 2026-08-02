@@ -147,7 +147,7 @@ function _doBookSlot(){
 
 function _loadSlotsData(cb){if(typeof API==='undefined'||!API.token){cb([]);return}API.getKitchenSlots().then(function(r){cb((r&&r.items)||[])}).catch(function(){cb([])})}
 
-// ═══ 冰箱（W7-UI-ALIGN PAGE-3: hscroll标签栏 + 4列方格 + 排序 + 动态 + FAB） ═══
+// ═══ W7-UI-ALIGN-V2 PAGE-3: 厨房 — 逐行对照设计稿 132-188 行 ═══
 var _ktItemSort = 'person'; // person | category | time
 var _ktItemLoc = '';        // '' = all
 
@@ -166,6 +166,7 @@ function _renderItemsTab(){
     });
     var locLabels = { fridge:'🧊冰箱', cabinet:'🗄️橱柜', counter:'🍳台面', basket:'🥬菜篮', condiment:'🧂调料', noodles:'🍜粉面', table1:'🍽️餐桌1', table2:'🍽️餐桌2', stove:'🔥灶台', disinfector:'🧼消毒柜', rice:'🍚煮饭', sink:'🚿水槽', undercounter:'🗄️中台下', oncounter:'📋中台上' };
 
+    // 横向 chip 标签栏（设计稿 135-149 行）
     var h = '<div class="hscroll" style="margin-bottom:6px">';
     h += '<span class="hs-chip' + (_ktItemLoc===''?' on':'') + '" onclick="_ktItemLoc=\'\';_renderItemsTab()">全部</span>';
     locs.forEach(function(loc){
@@ -173,7 +174,25 @@ function _renderItemsTab(){
     });
     h += '</div>';
 
-    // 排序切换
+    // 过滤
+    var filtered = items || [];
+    if (_ktItemLoc) filtered = filtered.filter(function(it){ return it.location === _ktItemLoc; });
+
+    // 当前选中位置的标题 + 放入（设计稿 151 行）
+    var locName = _ktItemLoc ? (locLabels[_ktItemLoc]||_ktItemLoc) : '全部';
+    h += '<div class="sl">'+locName+' · '+filtered.length+'件<span class="sla" onclick="_showItemAdd()">＋放入</span></div>';
+
+    // 冰箱专属：冷冻区/保鲜区 分区卡片（设计稿 152-155 行）
+    if (_ktItemLoc === 'fridge') {
+      var freezer = filtered.filter(function(it){ return (it.zone||'')==='freezer'||(it.note||'').indexOf('冷冻')>=0; });
+      var fresh = filtered.filter(function(it){ return (it.zone||'')!=='freezer'&&(it.note||'').indexOf('冷冻')<0; });
+      h += '<div class="fr">'+
+        '<div class="fh" onclick="_ktItemLoc=\'fridge\';" style="'+(freezer.length?'border-color:var(--g-accent);background:var(--g-accent-bg)':'')+'"><span class="fi">🧊</span><span class="fl">冷冻区</span><span class="fs">'+freezer.length+'件'+(freezer.some(function(x){return x.expired_soon;})?'·有快过期':'')+'</span></div>'+
+        '<div class="fh" onclick="_ktItemLoc=\'fridge\';" style="border-color:var(--g-accent);background:var(--g-accent-bg)"><span class="fi">❄️</span><span class="fl">保鲜区</span><span class="fs">'+fresh.length+'件'+(fresh.some(function(x){return x.is_expired;})?'·有已过期':'')+'</span></div>'+
+      '</div>';
+    }
+
+    // 排序切换（设计稿 157-161 行）
     h += '<div style="display:flex;gap:4px;margin:4px 0;font-size:9px;color:var(--g-text-sub);margin-bottom:8px">';
     ['person','category','time'].forEach(function(k){
       var labels = { person:'按人', category:'按类', time:'按时间' };
@@ -181,10 +200,6 @@ function _renderItemsTab(){
       h += '<span style="'+(isOn?'font-weight:700;color:var(--g-accent);border-bottom:2px solid var(--g-accent);padding-bottom:2px':'cursor:pointer')+'" onclick="_ktItemSort=\''+k+'\';_renderItemsTab()">'+labels[k]+'</span>';
     });
     h += '</div>';
-
-    // 过滤
-    var filtered = items || [];
-    if (_ktItemLoc) filtered = filtered.filter(function(it){ return it.location === _ktItemLoc; });
 
     // 排序
     if (_ktItemSort === 'person') filtered.sort(function(a,b){ return (a.owner_id||'').localeCompare(b.owner_id||''); });
@@ -194,10 +209,8 @@ function _renderItemsTab(){
     var cl={food:'🥬',condiment:'🧂',tool:'🔧',other:'📦'};
 
     if (!filtered.length) {
-      h += '<div style="text-align:center;padding:24px;color:var(--g-text-muted)">冰箱空空如也</div>';
+      h += '<div style="text-align:center;padding:24px;color:var(--g-text-muted)">空空如也</div>';
     } else {
-      // 按排序分组标题
-      var groupLabel = '';
       if (_ktItemSort === 'person') {
         var groups = {}; filtered.forEach(function(it){ var k = it.owner_id || '公用'; if (!groups[k]) groups[k] = []; groups[k].push(it); });
         Object.keys(groups).sort().forEach(function(g) {
@@ -221,7 +234,7 @@ function _renderItemsTab(){
       }
     }
 
-    // 最近动态
+    // 最近动态（设计稿 178-184 行）
     h += '<div class="sl">📋 最近动态</div>';
     h += '<div class="card">';
     if (typeof AppData !== 'undefined' && AppData._data && AppData._data.journal) {
@@ -239,12 +252,13 @@ function _renderItemsTab(){
     }
     h += '</div>';
 
+    // 提示（设计稿 185 行）
     h += '<div style="font-size:8px;color:var(--g-text-dim);text-align:center;padding:4px">💡 查看消耗1NT · 录入/取出不消耗 · 促进物品流转</div>';
 
-    // 浮动按钮
+    // FAB（设计稿 187 行）
     h += '<button class="fab" onclick="_showItemAdd()">＋</button>';
 
-    // 添加按钮
+    // 放入按钮
     h += '<button onclick="_showItemAdd()" style="width:100%;padding:10px;border-radius:var(--g-radius);border:2px dashed var(--g-warn);background:var(--g-warn-bg);color:var(--g-warn);font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;margin-top:8px">＋ 放入物品</button>';
 
     el.innerHTML = h;
@@ -256,10 +270,10 @@ function _renderItemCell(it, cl) {
   var expLabel = '', expClass = '';
   if (it.is_expired) { expLabel = '过期'; expClass = 'sr'; }
   else if (it.expired_soon) { expLabel = '剩'+(it.days_left||'?')+'天'; expClass = 'sy'; }
-  return '<div class="g4-cell" onclick="_toggleItemDetail('+it.id+')" style="min-height:36px" id="itemCard_'+it.id+'">'+
-    '<div class="g4-ci">'+catEmoji+'</div>'+
-    '<div class="g4-cn">'+esc(it.name)+'</div>'+
-    '<div class="g4-cm">'+(it.owner_id||'公用')+'</div>'+
+  return '<div class="cell" onclick="_toggleItemDetail('+it.id+')" style="min-height:36px" id="itemCard_'+it.id+'">'+
+    '<div class="ci">'+catEmoji+'</div>'+
+    '<div class="cn">'+esc(it.name)+'</div>'+
+    '<div class="cm">'+(it.owner_id||'公用')+'</div>'+
     (expLabel ? '<span class="sb '+expClass+'">'+expLabel+'</span>' : '')+
   '</div>'+
   '<div id="itemDetail_'+it.id+'" style="display:none;grid-column:1/-1;background:var(--g-content);border-radius:var(--g-radius);padding:var(--g-pad);margin-bottom:var(--g-gap);animation:fadeIn .1s ease-out">'+
