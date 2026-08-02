@@ -420,7 +420,6 @@ function _renderMgmtCards() {
     '<div class="ic-muted">'+(nearestHarvest!==null ? '📅 '+harvestName+' '+(nearestHarvest<=0?'可收':nearestHarvest+'天后') : '暂无种植')+'</div></div></div>';
 
   // 🍳 厨房
-  h += '<div class="ic-card" onclick="'+(isMember?'openKitchenPage()':'_visitorHint(this,\'入住后才能使用厨房\')')+'"><div class="ic-head">🍳 厨房</div>'+
   var invOffice = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
   var invStudy = (window.AppData && AppData._data.inventory && AppData._data.inventory.study) ? AppData._data.inventory.study : [];
   var inv = invOffice.concat(invStudy);
