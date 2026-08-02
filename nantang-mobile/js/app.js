@@ -434,6 +434,10 @@ function _renderMgmtCards() {
     '<div class="ic-body"><div class="ic-big">'+inv.length+' <span style="font-size:.7rem">件物品</span></div>'+
     '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
 
+  // 🎒 我的物品（W7-ITEM-2）
+  h += '<div class="ic-card" onclick="'+(isMember?'_showMyItemsSheet()':'_visitorHint(this,\'入住后才能查看物品\')')+'"><div class="ic-head">🎒 我的物品</div>'+
+    '<div class="ic-body"><div class="ic-big">📦</div><div class="ic-muted">查看我在各空间的物品</div></div></div>';
+
   h += '</div>'; // close position:relative
   h += '</div>';
   return h;
@@ -1678,6 +1682,101 @@ function _renderFridgeLocal() {
     });
   });
   _showCardPopup('🍳 冰箱', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openKitchenQuick()">＋ 放入物品</button>', true);
+}
+
+// ═══ W7-ITEM-2: 我的物品面板（按空间分组 · .card 网格 · 寸土寸金 3行） ═══
+function _showMyItemsSheet() {
+  _showCardPopup('🎒 我的物品', '<div style="text-align:center;padding:20px;color:var(--g-text-dim)">⏳ 加载中…</div>', '', true);
+  var me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '') || (API.user && API.user.name) || '';
+  if (typeof API !== 'undefined' && API.token) {
+    API.getMyItems().then(function(r) {
+      if (r && r.ok && r.items) { _renderMyItems(r.items); }
+      else { _renderMyItemsFallback(me); }
+    }).catch(function() { _renderMyItemsFallback(me); });
+  } else { _renderMyItemsFallback(me); }
+}
+function _renderMyItems(items) {
+  var catIcons = { '食物':'🥬','调料':'🧂','工具':'🔧','文具':'✒️','书籍':'📚','杯具':'☕','画材':'🎨','画作':'🖼️','纸张':'📜','食材':'🥬','手工':'🧶','清洁':'🧹','电子':'📱','衣物':'👕','药品':'💊','其他':'📦' };
+  // 按 location_id 分组
+  var groups = {};
+  items.forEach(function(it) {
+    var loc = it.location_id || '其他';
+    if (!groups[loc]) groups[loc] = [];
+    groups[loc].push(it);
+  });
+  var groupKeys = Object.keys(groups).sort();
+  var h = '';
+  groupKeys.forEach(function(loc) {
+    var list = groups[loc];
+    h += '<div style="font-weight:700;font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin:12px 0 6px;padding-top:8px;border-top:1px solid var(--g-card-border)">📍 ' + esc(loc) + ' (' + list.length + '件)</div>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap)">';
+    list.forEach(function(it) {
+      var daysLeft = it.expiration ? Math.ceil((new Date(it.expiration) - new Date()) / 86400000) : null;
+      var cardClass = 'card' + (daysLeft !== null && daysLeft <= 0 ? ' card--danger' : daysLeft !== null && daysLeft <= 2 ? ' card--warn' : '');
+      var expLabel = daysLeft !== null ? (daysLeft <= 0 ? '⚠ 已过期' : daysLeft <= 2 ? '⏰ '+daysLeft+'天后过期' : daysLeft+'天后过期') : '无过期';
+      var expColor = daysLeft !== null ? (daysLeft <= 0 ? 'var(--g-red)' : daysLeft <= 2 ? 'var(--g-warn)' : 'var(--g-text-dim)') : 'var(--g-text-dim)';
+      var icon = catIcons[it.category] || '📦';
+      h += '<div class="'+cardClass+'" onclick="_toggleMyItemDetail('+it.id+')" style="text-align:center;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center" id="myItemCard_'+it.id+'">'+
+        '<div style="font-size:1.5rem;margin-bottom:2px">'+icon+'</div>'+
+        '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(it.name)+'</div>'+
+        '<div style="font-size:.55rem;color:var(--g-text-dim);margin-top:1px">'+(it.quantity||'1')+' · '+esc(loc)+'</div>'+
+        '<div style="font-size:var(--g-font-size-xs);color:'+expColor+';margin-top:2px;font-weight:'+(daysLeft!==null&&daysLeft<=2?'600':'400')+'">'+expLabel+'</div>'+
+      '</div>'+
+      '<div id="myItemDetail_'+it.id+'" style="display:none;grid-column:1/-1;background:var(--g-content);border-radius:var(--g-radius);padding:var(--g-pad);margin-bottom:var(--g-gap);animation:fadeIn .1s ease-out">'+
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:1.3rem">'+icon+'</span><span style="font-weight:700;font-size:var(--g-font-size)">'+esc(it.name)+'</span></div>'+
+        '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📂 '+esc(it.category||'其他')+' · 📍 '+esc(loc)+' · 📏 '+(it.quantity||'1')+'</div>'+
+        (it.put_by ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">👤 放入者：'+esc(it.put_by)+'</div>' : '')+
+        (it.expiration ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📅 保质期：'+esc(it.expiration)+(daysLeft!==null?' ('+(daysLeft<=0?'已过期':daysLeft+'天')+')':'')+'</div>' : '')+
+        (it.last_confirmed ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">✅ 上次确认：'+esc(it.last_confirmed).slice(0,10)+'</div>' : '')+
+        (it.notes ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">💬 '+esc(it.notes)+'</div>' : '')+
+        '<div style="display:flex;gap:var(--g-gap);margin-top:8px">'+
+        '<button onclick="event.stopPropagation();_doConfirmItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-accent);background:var(--g-card);color:var(--g-accent);font-size:.65rem;cursor:pointer;font-weight:600">✅ 还在</button>'+
+        '<button onclick="event.stopPropagation();_doDeleteItem('+it.id+',\''+esc(it.name)+'\')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-red);background:var(--g-card);color:var(--g-red);font-size:.65rem;cursor:pointer;font-weight:600">🗑 已取走</button>'+
+        '</div><div style="text-align:center;margin-top:6px"><span onclick="_toggleMyItemDetail('+it.id+')" style="font-size:.62rem;color:var(--g-accent);cursor:pointer">收起 ▴</span></div></div>';
+    });
+    h += '</div>';
+  });
+  if (!groupKeys.length) h = '<div style="text-align:center;padding:24px;color:var(--g-text-dim)">你还没有物品</div>';
+  _showCardPopup('🎒 我的物品', h, '<button class="btn-sm pri" style="width:100%;margin:8px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_showMyItemsSheet()">🔄 刷新</button>', true);
+}
+function _renderMyItemsFallback(me) {
+  var inv = [];
+  if (window.AppData && AppData._data.inventory) {
+    Object.keys(AppData._data.inventory).forEach(function(bld) {
+      var items = AppData._data.inventory[bld] || [];
+      items.forEach(function(it) {
+        if (it.putBy === me || it.owner === me) inv.push({
+          id: it.name+'_'+bld, name: it.name, category: it.category||'其他', location_id: bld,
+          quantity: it.quantity||'1', owner_id: me, put_by: it.putBy, expiration: it.expiryDate||null,
+          notes: it.note||'', last_confirmed: it.putDate||'', created_at: it.putDate||''
+        });
+      });
+    });
+  }
+  _renderMyItems(inv);
+}
+function _toggleMyItemDetail(id) {
+  var detail = document.getElementById('myItemDetail_'+id);
+  if (!detail) return;
+  var isOpen = detail.style.display !== 'none';
+  var all = document.querySelectorAll('[id^="myItemDetail_"]');
+  for (var i = 0; i < all.length; i++) { all[i].style.display = 'none'; }
+  if (!isOpen) detail.style.display = 'block';
+}
+function _doConfirmItem(id) {
+  if (typeof API === 'undefined' || !API.token) { if (typeof showToast === 'function') showToast('离线模式', 'warn'); return; }
+  API.confirmItem(id).then(function(r) {
+    if (r && r.ok) { if (typeof showToast === 'function') showToast('已确认还在 ✅', 'ok'); _showMyItemsSheet(); }
+    else { if (typeof showToast === 'function') showToast((r && r.detail) || '确认失败', 'error'); }
+  }).catch(function() { if (typeof showToast === 'function') showToast('网络错误', 'error'); });
+}
+function _doDeleteItem(id, name) {
+  if (!confirm('确定要标记「' + name + '」已取走吗？\n此操作不可撤销。')) return;
+  if (typeof API === 'undefined' || !API.token) { if (typeof showToast === 'function') showToast('离线模式', 'warn'); return; }
+  API.deleteItem(id).then(function(r) {
+    if (r && r.ok) { if (typeof showToast === 'function') showToast('已标记取走', 'ok'); _showMyItemsSheet(); }
+    else { if (typeof showToast === 'function') showToast((r && r.detail) || '删除失败', 'error'); }
+  }).catch(function() { if (typeof showToast === 'function') showToast('网络错误', 'error'); });
 }
 
 // A-FIELD-PAGE: 田间页卡片化——4 块田 UI.Card 网格，onAction 委托

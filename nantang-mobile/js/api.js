@@ -168,6 +168,13 @@ var API = {
   addItemStorage: function(data) { return this.request('POST', '/api/storage/items', data); },
   getStorage: function() { return this.request('GET', '/api/storage/items'); },
   removeItemStorage: function(id) { return this.request('DELETE', '/api/storage/items/' + encodeURIComponent(id)); },
+  // ── W7-ITEM-1: 物品一套表（替代旧 StorageItem）──
+  getMyItems: function() {
+    var me = (typeof CURRENT_USER !== 'undefined' ? CURRENT_USER : '') || (this.user && this.user.name) || '';
+    return this.request('GET', '/api/items?owner=' + encodeURIComponent(me));
+  },
+  confirmItem: function(id) { return this.request('POST', '/api/items/' + encodeURIComponent(id) + '/confirm'); },
+  deleteItem: function(id) { return this.request('DELETE', '/api/items/' + encodeURIComponent(id)); },
   // ── C-B-3: 营地报到（幂等）──
   campCheckin: function(campId) { return this.request('POST', '/api/camps/' + encodeURIComponent(campId) + '/checkin'); },
   getPools: function() { return this.request('GET', '/api/nt/pools'); },
