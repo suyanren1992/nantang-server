@@ -14,8 +14,9 @@ from database import init_db, async_session
 from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant, governance, labor, clean_weekly, storage, archive, fields, user_settings, new_user_tasks
 from routes.community import (
     potluck_router, proposals_router, camp_proposals_router,
-    notifications_router, health_report_router, cleaning_pricing_router,
+    health_report_router, cleaning_pricing_router,
 )
+from routes.notifications import router as notifications_router  # W7-NOTIF-1: 通知系统重做
 from routes.kitchen import kitchen_router  # P3-二营乙 共享厨房
 
 # BE-2②: 日志写文件——INFO 级以上落盘，cron 等模块的 logger 自动接入根配置

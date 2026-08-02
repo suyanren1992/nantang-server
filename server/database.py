@@ -119,6 +119,8 @@ _INDEX_DDL = [
     "CREATE INDEX IF NOT EXISTS idx_clean_weekly_tasks_claimed_by ON clean_weekly_tasks(claimed_by)",
     "CREATE INDEX IF NOT EXISTS idx_clean_weekly_dist_week_start ON clean_weekly_distributions(week_start_date)",
     "CREATE INDEX IF NOT EXISTS idx_tenancies_track ON tenancies(track)",
+    # W7-NOTIF-1: 通知系统 — 按收件人+类型+已读状态过滤
+    "CREATE INDEX IF NOT EXISTS idx_activity_log_user_type ON activity_log(user_id, type, read_at)",
 ]
 
 
@@ -530,6 +532,21 @@ async def init_db():
             except Exception as e:
                 logger.warning(f"[P3-二营乙] kitchen seed skipped: {e}")
                 await session.rollback()
+        # ══ W7-NOTIF-1: activity_log 扩字段（通知系统重做）══
+        # 幂等迁移：为存量 activity_log 表补 user_id / read_at / actor_id / target 列
+        for _ddl in (
+            "ALTER TABLE activity_log ADD COLUMN user_id VARCHAR",
+            "ALTER TABLE activity_log ADD COLUMN read_at VARCHAR",
+            "ALTER TABLE activity_log ADD COLUMN actor_id VARCHAR",
+            "ALTER TABLE activity_log ADD COLUMN target VARCHAR",
+        ):
+            try:
+                await session.execute(text(_ddl))
+                await session.commit()
+            except Exception as _e:
+                _log_migration_skip(_e)
+                await session.rollback()
+
         # ══ W7-ID-1a I-6: 事实驱动身份层迁移 ══
         # 1. User.native 列补齐（存量表 ALTER TABLE）
         try:

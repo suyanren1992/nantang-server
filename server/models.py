@@ -218,6 +218,11 @@ class ActivityLog(Base):
     time = Column(String, nullable=False)
     type = Column(String, nullable=False)
     text = Column(Text, nullable=True)
+    # ══ W7-NOTIF-1: 通知系统重做 — 收件人/触发者/已读/关联对象 ══
+    user_id = Column(String, nullable=True)    # 收件人（NULL=公开事件）
+    read_at = Column(String, nullable=True)    # 已读时间（NULL=未读）
+    actor_id = Column(String, nullable=True)   # 触发者（用于头像/链接）
+    target = Column(String, nullable=True)     # 关联对象（task_id / item_id / camp_id / proposal_id）
 
 
 class CardDiscovery(Base):

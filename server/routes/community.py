@@ -221,62 +221,6 @@ async def list_camp_proposals(camp_id: str = None,
 
 
 # ══════════════════════════════════════════════════════
-# notifications 路由 (/api/notifications)
-# ══════════════════════════════════════════════════════
-notifications_router = APIRouter(prefix="/api/notifications", tags=["notifications"])
-
-
-@notifications_router.get("/list")
-async def list_notifications(user: User = Depends(get_current_user),
-                              db: AsyncSession = Depends(get_db),
-                              limit: int = 30):
-    """GET /api/notifications/list — 通报列表（聚合公告 + 活动日志 + 校核动态）。"""
-    lim = min(limit, 100)
-    items = []
-
-    # 1. 公告（Announcement 表）
-    ann_r = await db.execute(
-        select(Announcement).order_by(Announcement.created_at.desc()).limit(lim)
-    )
-    for a in ann_r.scalars():
-        items.append({
-            "type": "announcement", "id": f"ann_{a.id}",
-            "doer": a.doer, "verifier": a.verifier,
-            "action": a.action, "nt_amount": a.nt_amount,
-            "time": a.created_at,
-        })
-
-    # 2. 活动日志（ActivityLog 表）
-    act_r = await db.execute(
-        select(ActivityLog).order_by(ActivityLog.time.desc()).limit(lim)
-    )
-    for a in act_r.scalars():
-        items.append({
-            "type": "activity", "id": f"act_{a.id}",
-            "action": a.type, "text": a.text,
-            "time": a.time,
-        })
-
-    # 3. 最近校核动态（Verification 表）
-    vfy_r = await db.execute(
-        select(Verification).where(Verification.status != "pending")
-        .order_by(Verification.verified_at.desc()).limit(lim)
-    )
-    for v in vfy_r.scalars():
-        items.append({
-            "type": "verification", "id": f"vfy_{v.id}",
-            "doer": v.doer, "verifier": v.verifier,
-            "action": v.action, "nt_amount": v.nt_amount,
-            "status": v.status,
-            "time": v.verified_at or v.created_at,
-        })
-
-    # 按时间倒序
-    items.sort(key=lambda x: x.get("time") or "", reverse=True)
-    return {"ok": True, "items": items[:lim]}
-
-
-# ══════════════════════════════════════════════════════
 # health 路由 (/api/health)
 # ══════════════════════════════════════════════════════
 health_report_router = APIRouter(prefix="/api/health", tags=["health"])
