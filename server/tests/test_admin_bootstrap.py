@@ -165,8 +165,7 @@ class TestAdminDefaultPasswordWarning:
 
     @pytest.mark.asyncio
     async def test_default_password_triggers_warning(self, db, caplog):
-        """默认密码 admin123 → logger.warning 触发。"""
-        # 确保无任何 admin（init_db 检查 role==admin 任意用户）
+        """未设置 ADMIN_BOOTSTRAP_PASSWORD → 跳过 auto-bootstrap，第一个注册者变 admin。"""
         async with async_session() as s:
             all_admins = (await s.execute(
                 select(User).where(User.role == "admin")
@@ -174,22 +173,13 @@ class TestAdminDefaultPasswordWarning:
             for a in all_admins:
                 await s.delete(a)
             await s.commit()
-        # 确保未设环境变量（使用默认值）
         os.environ.pop("ADMIN_BOOTSTRAP_PASSWORD", None)
-        with caplog.at_level(logging.WARNING, logger="database"):
+        with caplog.at_level(logging.INFO, logger="database"):
             await init_db()
         assert any(
-            "ADMIN_BOOTSTRAP_PASSWORD 使用默认值 admin123" in record.message
+            "ADMIN_BOOTSTRAP_PASSWORD not set" in record.message
             for record in caplog.records
-        ), "默认密码应触发 logger.warning"
-        # 清理
-        async with async_session() as s:
-            u = (await s.execute(
-                select(User).where(User.id == "admin_bootstrap")
-            )).scalar_one_or_none()
-            if u:
-                await s.delete(u)
-                await s.commit()
+        ), "未设 ADMIN_BOOTSTRAP_PASSWORD 应跳过 auto-bootstrap 并记录 info 日志"
 
     @pytest.mark.asyncio
     async def test_custom_password_no_warning(self, db, caplog):
