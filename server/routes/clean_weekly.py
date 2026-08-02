@@ -11,6 +11,7 @@ from models import (User, CleanWeeklyTask, CleanWeeklyDistribution,
                     Verification, CommunityPool)
 from routes.auth import get_current_user, require_admin
 from nt_helpers import _add_ledger, _ledger_id
+from permissions import require_coop_resource
 
 router = APIRouter(prefix="/api/clean_weekly", tags=["clean_weekly"])
 
@@ -117,6 +118,9 @@ async def claim_task(task_id: str,
                      user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
     """CAS 更新：status=open → claimed, claimed_by=current_user。"""
+    # W7-ID-1b: 合作社物资权限闸门
+    await require_coop_resource(user, db)
+
     # 行锁（PG 有效，SQLite 静默降级但单写者保护）
     r = await db.execute(
         select(CleanWeeklyTask).where(CleanWeeklyTask.id == task_id)

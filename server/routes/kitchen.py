@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import PotluckEvent, PotluckParticipant, KitchenSlot, SharedItem
 from routes.auth import get_current_user, require_admin, User
+from permissions import can_access_coop_resource, require_coop_resource, is_admin
 
 logger = logging.getLogger("kitchen")
 
@@ -217,8 +218,10 @@ async def slot_release(req: SlotReleaseReq,
     )).scalar_one_or_none()
     if not slot:
         raise HTTPException(status_code=404, detail="时段不存在")
-    if slot.booker_id != user.id and user.role != "admin":
-        raise HTTPException(status_code=403, detail="只有预约人或管理员可释放时段")
+    # W7-ID-1b: 合作社物资权限闸门 + 预约人判断
+    await require_coop_resource(user, db)
+    if slot.booker_id != user.id and not is_admin(user):
+        raise HTTPException(status_code=403, detail="只有预约人可释放时段")
     if slot.status in ("done", "open"):
         raise HTTPException(status_code=400, detail=f"时段状态为 {slot.status}，无需释放")
     slot.status = "open"
@@ -344,8 +347,10 @@ async def item_delete(item_id: int,
     )).scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="物品不存在")
-    if item.owner_id != user.id and user.role != "admin":
-        raise HTTPException(status_code=403, detail="只有物主或管理员可移除物品")
+    # W7-ID-1b: 合作社物资权限闸门 + 物主判断
+    await require_coop_resource(user, db)
+    if item.owner_id != user.id and not is_admin(user):
+        raise HTTPException(status_code=403, detail="只有物主可移除物品")
     await db.delete(item)
     await db.commit()
     return {"ok": True, "deleted_id": item_id}

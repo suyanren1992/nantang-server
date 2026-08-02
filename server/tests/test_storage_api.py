@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from auth_utils import hash_password
 from database import async_session
-from models import User, CommunityPool, StorageItem
+from models import User, CommunityPool, StorageItem, Tenancy
 from sqlalchemy import select
 
 
@@ -18,7 +18,7 @@ def _h(tok):
     return {"Authorization": f"Bearer {tok}"}
 
 
-async def _make_user(name, role="villager"):
+async def _make_user(name, role="villager", coop=False):
     async with async_session() as s:
         exists = (await s.execute(select(User).where(User.id == name))).scalar_one_or_none()
         if exists is None:
@@ -28,6 +28,17 @@ async def _make_user(name, role="villager"):
             if pool is None:
                 s.add(CommunityPool(balance=10000, total_issued=20000, reserve=10000, frozen=0))
         await s.commit()
+    if coop:
+        async with async_session() as s:
+            exists_t = (await s.execute(
+                select(Tenancy).where(Tenancy.user_id == name, Tenancy.track == "coop", Tenancy.status == "active")
+            )).scalar_one_or_none()
+            if not exists_t:
+                from datetime import datetime
+                s.add(Tenancy(user_id=name, room_id="dorm101", bed_num=1,
+                              checkin_date=datetime.utcnow().isoformat(),
+                              track="coop", status="active"))
+                await s.commit()
 
 
 async def _login(client, name):
@@ -179,7 +190,7 @@ class TestDeleteItem:
     async def test_owner_delete_ok(self, client):
         """本人可删"""
         uid = "st_del_owner"
-        await _make_user(uid)
+        await _make_user(uid, coop=True)
         tok = await _login(client, uid)
         r = await client.post("/api/storage/items", headers=_h(tok), json={
             "item_name": "待删物品",
@@ -223,7 +234,7 @@ class TestDeleteItem:
         owner = "st_del_owner2"
         other = "st_del_other"
         await _make_user(owner, role="villager")
-        await _make_user(other, role="villager")
+        await _make_user(other, role="villager", coop=True)
 
         tok_owner = await _login(client, owner)
         r = await client.post("/api/storage/items", headers=_h(tok_owner), json={

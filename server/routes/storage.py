@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from database import get_db
 from models import User, StorageItem, STORAGE_CATEGORIES, STORAGE_LOCATIONS
 from routes.auth import get_current_user
+from permissions import require_coop_resource, is_admin
 
 router = APIRouter(prefix="/api/storage", tags=["storage"])
 
@@ -89,8 +90,9 @@ async def delete_item(item_id: str,
     if not item:
         raise HTTPException(status_code=404, detail="储物记录不存在")
 
-    # 权限：本人 or admin
-    if item.user_id != user.id and user.role != "admin":
+    # 权限：走合作社物资闸门 + 本人判断
+    await require_coop_resource(user, db)
+    if item.user_id != user.id and not is_admin(user):
         raise HTTPException(status_code=403, detail="只能删除自己的储物")
 
     await db.delete(item)

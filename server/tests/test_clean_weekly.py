@@ -17,14 +17,14 @@ from sqlalchemy import select
 
 from auth_utils import hash_password
 from database import async_session
-from models import User, CommunityPool, CleanWeeklyTask
+from models import User, CommunityPool, CleanWeeklyTask, Tenancy
 
 
 def _h(tok):
     return {"Authorization": f"Bearer {tok}"}
 
 
-async def _make_user(name, role="villager"):
+async def _make_user(name, role="villager", coop=False):
     async with async_session() as s:
         exists = (await s.execute(select(User).where(User.id == name))).scalar_one_or_none()
         if exists is None:
@@ -34,6 +34,17 @@ async def _make_user(name, role="villager"):
         if pool is None:
             s.add(CommunityPool(balance=10000, total_issued=20000, reserve=10000, frozen=0))
         await s.commit()
+    if coop:
+        async with async_session() as s:
+            exists_t = (await s.execute(
+                select(Tenancy).where(Tenancy.user_id == name, Tenancy.track == "coop", Tenancy.status == "active")
+            )).scalar_one_or_none()
+            if not exists_t:
+                from datetime import datetime
+                s.add(Tenancy(user_id=name, room_id="dorm101", bed_num=1,
+                              checkin_date=datetime.utcnow().isoformat(),
+                              track="coop", status="active"))
+                await s.commit()
 
 
 async def _login(client, name):
@@ -115,7 +126,7 @@ class TestClaimCAS:
     @pytest.mark.asyncio
     async def test_claim_success(self, client):
         await _make_user("cw_admin4", role="admin")
-        await _make_user("cw_alice")
+        await _make_user("cw_alice", coop=True)
         admin_tok = await _login(client, "cw_admin4")
         alice_tok = await _login(client, "cw_alice")
 
@@ -135,8 +146,8 @@ class TestClaimCAS:
     async def test_claim_already_claimed_400(self, client):
         """已被认领的 task → 第二人 claim 失败。"""
         await _make_user("cw_admin5", role="admin")
-        await _make_user("cw_bob")
-        await _make_user("cw_carol")
+        await _make_user("cw_bob", coop=True)
+        await _make_user("cw_carol", coop=True)
         admin_tok = await _login(client, "cw_admin5")
         bob_tok = await _login(client, "cw_bob")
         carol_tok = await _login(client, "cw_carol")
@@ -164,7 +175,7 @@ class TestUnclaimRestriction:
     @pytest.mark.asyncio
     async def test_unclaim_by_owner(self, client):
         await _make_user("cw_admin6", role="admin")
-        await _make_user("cw_dave")
+        await _make_user("cw_dave", coop=True)
         admin_tok = await _login(client, "cw_admin6")
         dave_tok = await _login(client, "cw_dave")
 
@@ -185,7 +196,7 @@ class TestUnclaimRestriction:
     async def test_unclaim_by_other_403(self, client):
         """非本人 unclaim → 403。"""
         await _make_user("cw_admin7", role="admin")
-        await _make_user("cw_eve")
+        await _make_user("cw_eve", coop=True)
         await _make_user("cw_frank")
         admin_tok = await _login(client, "cw_admin7")
         eve_tok = await _login(client, "cw_eve")
@@ -210,7 +221,7 @@ class TestApproveCompletesTask:
     async def test_full_flow(self, client):
         """distribute → claim → submit → approve → task completed + streak +1。"""
         await _make_user("cw_admin8", role="admin")
-        await _make_user("cw_grace")
+        await _make_user("cw_grace", coop=True)
         await _make_user("cw_verifier1", role="villager")
         admin_tok = await _login(client, "cw_admin8")
         grace_tok = await _login(client, "cw_grace")
@@ -262,7 +273,7 @@ class TestPollingStatusChange:
     async def test_poll_shows_status_change(self, client):
         """distribute → claim → GET /tasks 看到 status=claimed。"""
         await _make_user("cw_admin9", role="admin")
-        await _make_user("cw_heidi")
+        await _make_user("cw_heidi", coop=True)
         admin_tok = await _login(client, "cw_admin9")
         heidi_tok = await _login(client, "cw_heidi")
 

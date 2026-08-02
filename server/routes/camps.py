@@ -9,6 +9,7 @@ from database import get_db
 from models import Camp, CampBuilder, CampMembership, CampJob, NTTask, User
 from routes.auth import get_current_user, require_admin
 from routes.nt import _ledger_id, _add_ledger, _get_pool
+from permissions import visible_camp_filter, can_manage_camp
 
 router = APIRouter(prefix="/api/camps", tags=["camps"])
 
@@ -42,33 +43,8 @@ def _camp_id():
     return f"camp_{datetime.utcnow().strftime('%y%m%d%H%M%S')}"
 
 
-def _membership_subquery(user: User):
-    """当前用户 active membership 的 camp_id 子查询（缩权激活时使用）。"""
-    return select(CampMembership.camp_id).where(
-        CampMembership.user_id == user.id,
-        CampMembership.status == "active",
-    )
-
-
-# C-B-1: 过渡期缩权总开关。本期 False=只立机制不缩权（全库无 membership 数据，
-# 非 admin 全集放行，与现状一致）。C-B-2 回填报到数据后另卡改 True 激活缩权。
-CAMP_SCOPE_ENFORCED = False
-
-
-def visible_camp_filter(user: User, query):
-    """C-B-1 唯一收口：营地可见性过滤（照 C-B 设计稿 §2.3 admin 全通原则）。
-
-    admin：一律绕过，返回全集（砚仁明令：无视一切限制全可见）。
-    非 admin：机制已就位（按 CampMembership active 过滤），但受 CAMP_SCOPE_ENFORCED
-    总开关控制——本期 False，故'过渡放行'返回全集（防爆条款：全库无 membership
-    数据，缩权会误伤，与现状一致）。缩权待 C-B-2 回填数据后另卡置 True 开启。
-    camps.py 不得有第二处手写过滤——所有营地查询都走此收口。
-    """
-    if user.role == "admin":
-        return query
-    if not CAMP_SCOPE_ENFORCED:
-        return query  # 过渡放行：本期只立机制不缩权
-    return query.where(Camp.id.in_(_membership_subquery(user)))
+# 营地可见性过滤已统一迁移至 permissions.py（W7-ID-1b 权限闸门统一）
+# 所有营地查询均走 permissions.visible_camp_filter 收口
 
 
 async def _camp_people_count(db: AsyncSession, camp_id: str) -> int:
@@ -101,11 +77,10 @@ async def camps_budget(camp_id: str = None,
             "camp_id": camp.id, "name": camp.name,
             "budget": budget,
         }
-    # 全量汇总
-    result = await db.execute(
-        select(Camp).where(Camp.status != "archived")
-        .order_by(Camp.created_at.desc()).limit(100)
-    )
+    # 全量汇总——走权限闸门
+    base = select(Camp).order_by(Camp.created_at.desc()).limit(100)
+    q = await visible_camp_filter(user, base, db)
+    result = await db.execute(q)
     items = []
     for c in result.scalars():
         try:
@@ -131,10 +106,9 @@ async def camps_schedule(
     跨所有 active 营地的 schedule 字段合并，按日期升序排序，
     标 camp_id + camp_name。可选 start_date / end_date 过滤。
     """
-    result = await db.execute(
-        select(Camp).where(Camp.status != "archived")
-        .order_by(Camp.created_at.desc()).limit(100)
-    )
+    base = select(Camp).order_by(Camp.created_at.desc()).limit(100)
+    q = await visible_camp_filter(user, base, db)
+    result = await db.execute(q)
     items = []
     for c in result.scalars():
         try:
@@ -172,7 +146,7 @@ async def list_camps(user: User = Depends(get_current_user), db: AsyncSession = 
         .subquery()
     )
     base = select(Camp, cnt_subq.c.cnt).outerjoin(cnt_subq, Camp.id == cnt_subq.c.cid)
-    q = visible_camp_filter(user, base)
+    q = await visible_camp_filter(user, base, db)
     result = await db.execute(
         q.order_by(Camp.created_at.desc()).limit(min(limit, 200)).offset(offset)
     )
@@ -299,7 +273,7 @@ async def update_camp(camp_id: str, req: dict, user: User = Depends(get_current_
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    if camp.created_by != user.id and user.role != "admin":
+    if not await can_manage_camp(user, camp_id, db):
         raise HTTPException(status_code=403, detail="只能修改自己的营地")
     for key in ("name", "theme", "desc", "status", "date", "people", "max", "location"):
         if key in req:
@@ -356,8 +330,8 @@ async def settle_camp(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    # D-10 M-9: 仅营地创建者或管理员可结算（沿用同文件 update_camp 鉴权风格）
-    if camp.created_by != user.id and user.role != "admin":
+    # D-10 M-9: 走权限闸门（W7-ID-1b 统一收口）
+    if not await can_manage_camp(user, camp_id, db):
         raise HTTPException(status_code=403, detail="仅营地创建者或管理员可结算")
     # 找出待结算的营地任务（verify 后 status="待结算"，尚未营地级结算）
     tasks_result = await db.execute(
@@ -395,9 +369,8 @@ async def camp_members(camp_id: str, user: User = Depends(get_current_user),
     camp = (await db.execute(select(Camp).where(Camp.id == camp_id))).scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404, detail="营地不存在")
-    # 收口鉴权：admin 全通；非 admin 过渡放行时该营地对其可见即放行
-    visible = visible_camp_filter(user, select(Camp.id).where(Camp.id == camp_id))
-    if not (await db.execute(visible)).scalar_one_or_none():
+    # 收口鉴权：走权限闸门（W7-ID-1b 统一收口）
+    if not await can_manage_camp(user, camp_id, db):
         raise HTTPException(status_code=403, detail="无权查看该营地成员")
     rows = (await db.execute(
         select(CampMembership, User)
@@ -420,15 +393,9 @@ async def camp_report(camp_id: str, user: User = Depends(get_current_user),
     camp = result.scalar_one_or_none()
     if not camp:
         raise HTTPException(status_code=404)
-    # W5-B H-4: 营地报告归属校验。非 admin 须为本营 active 成员，否则 403。
-    if user.role != "admin":
-        m = await db.execute(select(CampMembership.id).where(
-            CampMembership.user_id == user.id,
-            CampMembership.camp_id == camp_id,
-            CampMembership.status == "active",
-        ))
-        if m.scalar_one_or_none() is None:
-            raise HTTPException(status_code=403)
+    # W5-B H-4: 走权限闸门（W7-ID-1b 统一收口）
+    if not await can_manage_camp(user, camp_id, db):
+        raise HTTPException(status_code=403, detail="无权查看营地报告")
     tasks_result = await db.execute(select(NTTask).where(NTTask.camp_ref_id == camp_id))
     camp_tasks = list(tasks_result.scalars())
     done = [t for t in camp_tasks if t.status == "已结算"]

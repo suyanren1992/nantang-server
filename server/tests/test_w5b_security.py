@@ -70,10 +70,19 @@ class TestH4CampReportScope:
 
     @pytest.mark.asyncio
     async def test_active_member_gets_200(self, client):
+        """营地 manager（camp_role='manager'）可查看报告。"""
         await _make_user("h4_owner2", role="villager")
         await _make_user("h4_member", role="villager")
         await _make_camp("camp-h4-2", "h4_owner2")
         await _add_membership("h4_member", "camp-h4-2", status="active")
+        # 升级为 manager 以通过 can_manage_camp
+        async with async_session() as s:
+            m = (await s.execute(select(CampMembership).where(
+                CampMembership.user_id == "h4_member",
+                CampMembership.camp_id == "camp-h4-2",
+            ))).scalar_one_or_none()
+            m.camp_role = "manager"
+            await s.commit()
         tok = await _login(client, "h4_member")
         r = await client.get("/api/camps/camp-h4-2/report", headers=_h(tok))
         assert r.status_code == 200, r.text
