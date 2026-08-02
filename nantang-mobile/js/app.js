@@ -273,7 +273,6 @@ function renderInfoPage() {
   var sections = [
     function(){ return _s('announceTicker', _renderAnnounceTicker()); },
     function(){ return _s('newbieCard', _renderNewbieCard()); },
-    function(){ return _s('quickEntryRow', _renderQuickEntryCards()); },
     function(){ return _s('cardVerifyRow', _renderCardVerifyRow()); },
     function(){ return _s('mgmtGrid', _renderMgmtCards()); },
     function(){ return _s('cardRoomSection', _renderCardRoomSection()); },
@@ -377,28 +376,40 @@ function _visitorHint(el, msg) {
   setTimeout(function(){ if (hint.parentNode) hint.remove(); }, 3000);
 }
 
+// ═══ W7-UI-ALIGN-V2 PAGE-6: 全貌页管理卡片 — 逐行对照设计稿 277-312 行 ═══
+// 上栏 3 快捷 + 下栏 2×2 田字格
 function _renderMgmtCards() {
   var me = _me();
   var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
                (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
   var isMember = isMemberByRole(myRole);
-  var h = '<div class="info-cards">';
+  var deny = typeof getDenyReason === 'function' ? getDenyReason('coop_resource') : '';
+  var hintMsg = deny || '入住后才能操作';
+  var cardClick = function(act) {
+    return isMember ? act : '_visitorHint(this,\''+hintMsg+'\')';
+  };
 
-  // 非成员：入住引导卡片（所有人可见全貌信息，孪生系统理念：线下能看的线上就能看）
-  if (!isMember) {
-    h += '<div class="ic-card" style="border:2px solid var(--g-accent)" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🛏️ 入住南塘</div>'+
-      '<div class="ic-body"><div class="ic-big">🏠</div><div class="ic-muted">入住房客可操作，云村民可浏览</div></div></div>';
-  }
+  var h = '';
 
-  // 🧹 大扫除 — 所有人可见
+  // 上栏 · 劳动输入（设计稿 283-288 行）
+  h += '<div class="sl">上栏 · 劳动输入</div>';
+  h += '<div style="display:flex;gap:4px;margin-bottom:6px">';
+  h += '<div class="cell" style="flex:1;min-height:50px" onclick="'+cardClick('_openKitchenQuick()')+'"><span style="font-size:1rem">📦</span><span style="font-size:8px;font-weight:600">放取物品</span></div>';
+  h += '<div class="cell" style="flex:1;min-height:50px" onclick="'+cardClick('if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})')+'"><span style="font-size:1rem">🧹</span><span style="font-size:8px;font-weight:600">打扫卫生</span></div>';
+  h += '<div class="cell" style="flex:1;min-height:50px" onclick="'+cardClick('openFieldPage()')+'"><span style="font-size:1rem">🌿</span><span style="font-size:8px;font-weight:600">田间管理</span></div>';
+  h += '</div>';
+
+  // 下栏 · 信息查看（设计稿 289-311 行）
+  h += '<div class="sl">下栏 · 信息查看</div>';
+
+  // ── 🧹 大扫除数据
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
   var stats = _mlStats();
-  h += '<div class="ic-card" onclick="openCleanWeekly()"><div class="ic-head">🧹 大扫除</div>'+
-    '<div class="ic-body"><div class="ic-big">'+(cleanDays!=null ? (cleanDays>0 ? cleanDays+' 天后' : nextClean.slice(5)) : '未设定')+'</div>'+
-    '<div>🟢'+stats.cleanCount+' 🟡'+stats.warnCount+' 🔴'+stats.dirtyCount+'</div></div></div>';
+  var cleanBig = cleanDays!=null ? (cleanDays>0 ? cleanDays+' 天后' : nextClean.slice(5)) : '未设定';
+  var cleanSub = '🟢'+stats.cleanCount+' 🟡'+stats.warnCount+' 🔴'+stats.dirtyCount+' · ';
 
-  // 🏨 住宿
+  // ── 🏨 住宿数据
   var accs = _ml().accommodations || {};
   var accList = Object.values(accs);
   var totalBeds = 0, usedBeds = 0;
@@ -406,16 +417,13 @@ function _renderMgmtCards() {
   accList.forEach(function(a){ totalBeds += (a.beds||0); if (a.tenants) { usedBeds += a.tenants.length; a.tenants.forEach(function(t){ guests.push({name:t.name, checkIn:t.checkIn||''}); }); } });
   guests.sort(function(a,b){ return b.checkIn.localeCompare(a.checkIn); });
   var recentGuest = guests[0];
-  var recentStr = recentGuest ? '🆕 '+recentGuest.name+(recentGuest.checkIn?' '+recentGuest.checkIn+'入住':'') : '';
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🏨 住宿</div>'+
-    '<div class="ic-body"><div class="ic-big">'+usedBeds+'/'+totalBeds+' <span style="font-size:.7rem">床</span></div>'+
-    '<div class="ic-muted">'+(recentStr||'暂无入住')+(guests.length>1?' · …等'+guests.length+'人':'')+'</div></div></div>';
+  var staySub = recentGuest ? '🆕'+recentGuest.name+(recentGuest.checkIn?' '+recentGuest.checkIn+'':'') : '暂无入住';
+  if (guests.length>1) staySub += ' · 等'+guests.length+'人';
 
-  // 🌾 田地
+  // ── 🌾 田地数据
   var plots = getPlots();
   var activePlots = plots.filter(function(p){ return (p.crops&&p.crops.length>0) || (p.crop&&p.crop!=='—'); });
-  var nearestHarvest = null;
-  var harvestName = '';
+  var nearestHarvest = null, harvestName = '';
   activePlots.forEach(function(p){
     var crops = p.crops || [];
     if (!crops.length && p.crop && p.crop!=='—') crops = [{name:p.crop, remain:p.remain}];
@@ -425,11 +433,9 @@ function _renderMgmtCards() {
       }
     });
   });
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'field\')"><div class="ic-head">🌾 田地</div>'+
-    '<div class="ic-body"><div class="ic-big">'+activePlots.length+' <span style="font-size:.7rem">块种植中</span></div>'+
-    '<div class="ic-muted">'+(nearestHarvest!==null ? '📅 '+harvestName+' '+(nearestHarvest<=0?'可收':nearestHarvest+'天后') : '暂无种植')+'</div></div></div>';
+  var fieldSub = nearestHarvest!==null ? (nearestHarvest<=0?'🍅'+harvestName+'可收':harvestName+' '+nearestHarvest+'天后') : '暂无种植';
 
-  // 🍳 厨房
+  // ── 🍳 厨房数据
   var invOffice = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
   var invStudy = (window.AppData && AppData._data.inventory && AppData._data.inventory.study) ? AppData._data.inventory.study : [];
   var inv = invOffice.concat(invStudy);
@@ -439,11 +445,28 @@ function _renderMgmtCards() {
     var d = it.expiryDays && it.putDate ? it.expiryDays - Math.floor((Date.now()-new Date(it.putDate+'T00:00:00'))/86400000) : null;
     if (d !== null && (nearestExpiry === null || d < nearestExpiry)) { nearestExpiry = d; nearestExpName = it.name; }
   });
-  h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房</div>'+
-    '<div class="ic-body"><div class="ic-big">'+inv.length+' <span style="font-size:.7rem">件物品</span></div>'+
-    '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
+  var kitchenSub = nearestExpiry!==null ? (nearestExpiry<=0?'⚠'+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品';
 
-  h += '</div>'; // close info-cards grid
+  // 2×2 田字格（设计稿 290-311 行）
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+  h += '<div class="cell" style="text-align:left;align-items:flex-start;padding:8px;cursor:pointer" onclick="openCleanWeekly()">'+
+    '<span style="font-weight:700;font-size:10px">🧹 大扫除</span>'+
+    '<span style="font-size:18px;font-weight:700;color:var(--g-accent);margin:2px 0">'+cleanBig+'</span>'+
+    '<span style="font-size:7px;color:var(--g-text-sub)">'+cleanSub+'</span></div>';
+  h += '<div class="cell" style="text-align:left;align-items:flex-start;padding:8px;cursor:pointer" onclick="_openMgmtSheet(\'stay\')">'+
+    '<span style="font-weight:700;font-size:10px">🏨 住宿</span>'+
+    '<span style="font-size:18px;font-weight:700;color:var(--g-accent);margin:2px 0">'+usedBeds+'/'+totalBeds+'</span>'+
+    '<span style="font-size:7px;color:var(--g-text-sub)">'+staySub+'</span></div>';
+  h += '<div class="cell" style="text-align:left;align-items:flex-start;padding:8px;cursor:pointer" onclick="_openMgmtSheet(\'field\')">'+
+    '<span style="font-weight:700;font-size:10px">🌾 田地</span>'+
+    '<span style="font-size:18px;font-weight:700;color:var(--g-accent);margin:2px 0">'+activePlots.length+'块</span>'+
+    '<span style="font-size:7px;color:var(--g-text-sub)">'+fieldSub+'</span></div>';
+  h += '<div class="cell" style="text-align:left;align-items:flex-start;padding:8px;cursor:pointer" onclick="openKitchenPage()">'+
+    '<span style="font-weight:700;font-size:10px">🍳 厨房</span>'+
+    '<span style="font-size:18px;font-weight:700;color:var(--g-accent);margin:2px 0">'+inv.length+'件</span>'+
+    '<span style="font-size:7px;color:var(--g-text-sub)">'+kitchenSub+'</span></div>';
+  h += '</div>';
+
   return h;
 }
 
