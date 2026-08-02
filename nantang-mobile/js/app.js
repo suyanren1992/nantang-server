@@ -36,6 +36,9 @@ function getBuildings() {
 }
 function getPlots() {
   var data = (window.Game && window.Game.getData) ? window.Game.getData() : null;
+  // W7-FIELD-SYNC: 优先读 sync_all API 直出的 plots 字段（FieldPlot 表真源）
+  if (data && data.plots && data.plots.length > 0) return data.plots;
+  // fallback: 旧 map_locations JSON blob
   if (data && data.map_locations && data.map_locations.plots && data.map_locations.plots.length > 0) {
     return data.map_locations.plots;
   }
@@ -352,61 +355,73 @@ function _renderNewbieCard() {
 }
 
 function _renderMgmtCards() {
-  var h = '<div class="info-cards">';
-  // ⑳ 角色仪表盘：visitor 只看住宿+世界终端，npc/admin 看全部
   var me = _me();
-  // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
   var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
                (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
   var isMember = isMemberByRole(myRole);
-  // visitor: 见成员布局但点击被拦（W7-UI-1 M-8:§八第4条）
+  var h = '<div class="info-cards">';
+
+  // visitor: 入住卡片
   if (!isMember) {
     h += '<div class="ic-card" style="border:2px solid var(--g-accent)" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🛏️ 入住南塘</div>'+
       '<div class="ic-body"><div class="ic-big">🏠</div><div class="ic-muted">入住后才能使用厨房/打扫/田地功能</div></div></div>';
     h += '</div>';
+    return h;
   }
-  // 打扫
+
+  // 🧹 大扫除 — 下次日期 + 状态色标数
   h += '<div style="position:relative">';
-  if (!isMember) h += '<div style="position:absolute;inset:0;z-index:1;cursor:default" onclick="showToast(\'请先入住\',\'warn\')"></div>';
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
-  var cfgPricing = _mlConfig().cleaning_pricing || {};
+  var stats = _mlStats();
   h += '<div class="ic-card" onclick="openCleanWeekly()"><div class="ic-head">🧹 大扫除</div>'+
-    '<div class="ic-body">'+(cleanDays!=null ? '<div class="ic-big">'+(cleanDays>0?cleanDays+' 天':nextClean.slice(5))+'</div><div>📅 '+nextClean.slice(5)+'</div>' : '<div class="ic-muted">未设定</div>')+
-    '<div class="ic-muted">🧹脏 '+cfgPricing.dirty+'NT · 🟡注意 '+cfgPricing.warning+'NT · 🟢维护 '+cfgPricing.clean+'NT</div></div></div>';
-  // 住宿
+    '<div class="ic-body"><div class="ic-big">'+(cleanDays!=null ? (cleanDays>0 ? cleanDays+' 天后' : nextClean.slice(5)) : '未设定')+'</div>'+
+    '<div>🟢'+stats.cleanCount+' 🟡'+stats.warnCount+' 🔴'+stats.dirtyCount+'</div></div></div>';
+
+  // 🏨 住宿 — 已用/总床 + 前2位住客
   var accs = _ml().accommodations || {};
   var accList = Object.values(accs);
   var totalBeds = 0, usedBeds = 0;
   var guests = [];
-  accList.forEach(function(a){ totalBeds += (a.beds||0); if (a.tenants) { usedBeds += a.tenants.length; a.tenants.forEach(function(t){ guests.push(t.name+' '+a.label); }); } });
-  var guestLines = guests.length ? guests.slice(0,3).map(function(g){ return '<div>🛏 '+g+'</div>'; }).join('') : '';
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🛏️ 住宿</div>'+
-    '<div class="ic-body">'+(guestLines||'<div class="ic-muted">暂无入住</div>')+'<div class="ic-muted">'+usedBeds+'/'+totalBeds+'床已用</div></div></div>';
-  // 田地
+  accList.forEach(function(a){ totalBeds += (a.beds||0); if (a.tenants) { usedBeds += a.tenants.length; a.tenants.forEach(function(t){ guests.push(t.name); }); } });
+  var guestStr = guests.length ? guests.slice(0,2).join('、') : '暂无';
+  h += '<div class="ic-card" onclick="_openMgmtSheet(\'stay\')"><div class="ic-head">🏨 住宿</div>'+
+    '<div class="ic-body"><div class="ic-big">'+usedBeds+'/'+totalBeds+' <span style="font-size:.7rem">床</span></div>'+
+    '<div class="ic-muted">'+(guests.length>2 ? guestStr+'…等'+guests.length+'人' : guestStr)+'</div></div></div>';
+
+  // 🌾 田地 — 种植中数 + 最近可收
   var plots = getPlots();
   var activePlots = plots.filter(function(p){ return (p.crops&&p.crops.length>0) || (p.crop&&p.crop!=='—'); });
-  var cropLines = activePlots.map(function(p){
+  var nearestHarvest = null;
+  var harvestName = '';
+  activePlots.forEach(function(p){
     var crops = p.crops || [];
-    if (!crops.length && p.crop && p.crop!=='—') crops = [{name:p.crop, remain:p.remain, status:p.status}];
-    var info = crops.map(function(c){ return (c.icon||p.icon)+' '+c.name+(c.remain<=0?' 可收':' '+c.remain+'天'); }).join(' · ');
-    return '<div'+(p.status==='warning'?' class="ic-warn"':'')+'>'+p.icon+' '+p.name+' '+info+'</div>';
-  }).join('');
-  h += '<div class="ic-card" onclick="_openMgmtSheet(\'field\')"><div class="ic-head">🌿 田地</div>'+
-    '<div class="ic-body">'+(cropLines||'<div class="ic-muted">暂无种植信息</div>')+'</div></div>';
-  // 厨房·冰箱——读两个厨房（社区大楼 office + 大地书房 study）
+    if (!crops.length && p.crop && p.crop!=='—') crops = [{name:p.crop, remain:p.remain}];
+    crops.forEach(function(c){
+      if (c.remain !== undefined && (nearestHarvest === null || c.remain < nearestHarvest)) {
+        nearestHarvest = c.remain; harvestName = c.name;
+      }
+    });
+  });
+  h += '<div class="ic-card" onclick="_openMgmtSheet(\'field\')"><div class="ic-head">🌾 田地</div>'+
+    '<div class="ic-body"><div class="ic-big">'+activePlots.length+' <span style="font-size:.7rem">块种植中</span></div>'+
+    '<div class="ic-muted">'+(nearestHarvest!==null ? '📅 '+harvestName+' '+(nearestHarvest<=0?'可收':nearestHarvest+'天后') : '暂无种植')+'</div></div></div>';
+
+  // 🍳 厨房 — 物品总数 + 最近过期
   var invOffice = (window.AppData && AppData._data.inventory && AppData._data.inventory.office) ? AppData._data.inventory.office : [];
   var invStudy = (window.AppData && AppData._data.inventory && AppData._data.inventory.study) ? AppData._data.inventory.study : [];
   var inv = invOffice.concat(invStudy);
   var freshItems = inv.filter(function(it){ return it.status === 'fresh'; });
-  var kitchenLines = freshItems.length ? freshItems.slice(0,3).map(function(it){
+  var nearestExpiry = null, nearestExpName = '';
+  freshItems.forEach(function(it){
     var d = it.expiryDays && it.putDate ? it.expiryDays - Math.floor((Date.now()-new Date(it.putDate+'T00:00:00'))/86400000) : null;
-    var warn = d !== null && d <= 0 ? ' <span class="ic-warn">过期</span>' : d !== null && d <= 2 ? ' <span class="ic-warn">'+d+'天</span>' : '';
-    return '<div>📦 '+esc(it.name)+' · '+esc(it.putBy)+warn+'</div>';
-  }).join('') : '';
-  h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房·冰箱</div>'+
-    '<div class="ic-body">'+(kitchenLines||'<div class="ic-muted">暂无物品，点此录入</div>')+'</div></div>';
-  h += '</div>'; // close position:relative visitor gate wrapper
+    if (d !== null && (nearestExpiry === null || d < nearestExpiry)) { nearestExpiry = d; nearestExpName = it.name; }
+  });
+  h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房</div>'+
+    '<div class="ic-body"><div class="ic-big">'+inv.length+' <span style="font-size:.7rem">件物品</span></div>'+
+    '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
+
+  h += '</div>'; // close position:relative
   h += '</div>';
   return h;
 }
@@ -464,7 +479,7 @@ function _renderCovenantOverlay() {
         body += '<div style="border:1px solid #e8ede6;border-radius:8px;margin-bottom:4px;overflow:hidden">';
         body += '<div style="padding:8px 10px;background:#f9faf6;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:var(--g-font-size-xs);font-weight:600;color:#1d2e24" onclick="var el=document.getElementById(\''+cid+'\');el.style.display=el.style.display===\'none\'?\'block\':\'none\'">';
         body += '<span>'+ch.num+'. '+ch.title+'</span><span style="font-size:.55rem;color:#999">▾</span></div>';
-        body += '<div id="'+cid+'" style="display:none;padding:8px 10px;font-size:.6rem;color:#5a6e5c;line-height:1.6;border-top:1px solid #e8ede6">'+esc(ch.body)+'</div>';
+        body += '<div id="'+cid+'" style="display:'+(idx===0?'block':'none')+';padding:8px 10px;font-size:.6rem;color:#5a6e5c;line-height:1.6;border-top:1px solid #e8ede6">'+esc(ch.body)+'</div>';
         body += '</div>';
       });
     }
