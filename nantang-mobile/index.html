@@ -252,16 +252,16 @@ if (window.location.protocol !== 'file:') {
   </div>
   <div class="overlay-body" id="verifyRoomBody"></div>
 </div>
-<!-- ══ 新手引导浮层 ══ -->
+<!-- ══ 新手任务浮层 ══ -->
 <!-- W6-UI BUG-3: 底部弹出卡片改为滑入动画，加遮罩，z-index 提至 300 -->
-<div id="newbieGuideOverlay" style="display:none;position:fixed;inset:0;z-index:300">
-  <div id="newbieGuideBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.35);animation:fadeIn .2s ease-out" onclick="document.getElementById('newbieGuideOverlay').style.display='none';updateNewbieChip()"></div>
+<div id="newbieQuestOverlay" style="display:none;position:fixed;inset:0;z-index:300">
+  <div id="newbieGuideBackdrop" style="position:absolute;inset:0;background:rgba(0,0,0,.35);animation:fadeIn .2s ease-out" onclick="document.getElementById('newbieQuestOverlay').style.display='none';updateNewbieChip()"></div>
   <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;border-radius:16px 16px 0 0;max-height:70vh;overflow-y:auto;padding:16px 20px 20px;box-shadow:0 -4px 20px rgba(0,0,0,.15);animation:slideUp .3s ease-out">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-      <span style="font-weight:700;font-size:.78rem">🌱 新手引导</span>
-      <button style="background:none;border:none;font-size:1rem;cursor:pointer;color:#5a5a5a" onclick="document.getElementById('newbieGuideOverlay').style.display='none';updateNewbieChip()">✕</button>
+      <span style="font-weight:700;font-size:.78rem">🌱 新手任务</span>
+      <button style="background:none;border:none;font-size:1rem;cursor:pointer;color:#5a5a5a" onclick="document.getElementById('newbieQuestOverlay').style.display='none';updateNewbieChip()">✕</button>
     </div>
-    <div id="newbieGuideBody"></div>
+    <div id="newbieQuestBody"></div>
   </div>
 </div>
 <div id="overlayCreateCamp" class="overlay">
@@ -503,7 +503,7 @@ if (window.location.protocol !== 'file:') {
         <div class="ub-stat" id="ubStatStay">🛏️ —</div>
         <div class="ub-stat" id="ubFarmStat">🌿 —</div>
         <div class="ub-stat" id="ubStatTasks">📋 —</div>
-        <span class="offline-badge" style="display:none;color:#b84c38;font-size:.6rem;margin-left:8px">离线</span><div class="ub-stat" id="ubNewbieChip" style="display:none;cursor:pointer;background:#e8f5e9;color:#3d6b52;border-radius:10px;padding:2px 8px;font-weight:600" onclick="toggleNewbieGuide()">🌱 新手</div>
+        <span class="offline-badge" style="display:none;color:#b84c38;font-size:.6rem;margin-left:8px">离线</span><div class="ub-stat" id="ubNewbieChip" style="display:none;cursor:pointer;background:#e8f5e9;color:#3d6b52;border-radius:10px;padding:2px 8px;font-weight:600" onclick="toggleNewbieQuests()">🌱 新手</div>
       </div>
       </div>
     <div id="announceTicker" style="overflow:hidden;height:22px;line-height:22px;background:var(--g-accent-bg);border-bottom:1px solid var(--g-card-border);padding:0 12px"></div>
@@ -560,11 +560,11 @@ if (window.location.protocol !== 'file:') {
 <script src="js/nt.js?v=17"></script>
 <script src="js/auth.js?v=9"></script>
 <script src="js/seed-test-data.js?v=17"></script>
-<script src="js/nt-core.js?v=11"></script>
+<script src="js/nt-core.js?v=12"></script>
 <script src="js/app-data.js?v=28"></script>
 <script src="js/api.js?v=33"></script>
 <script src="js/data.js?v=28"></script>
-<script src="js/core.js?v=54"></script>
+<script src="js/core.js?v=55"></script>
 <script src="js/ui-village.js?v=20"></script>
 <script src="js/ui-camp.js?v=15"></script>
 <script src="js/ui-wizard.js?v=10"></script>
@@ -573,9 +573,9 @@ if (window.location.protocol !== 'file:') {
 <script src="js/ui-archive.js?v=26"></script>
 <script src="js/ui-cardroom.js?v=22"></script>
 <script src="js/ui-activity.js?v=2"></script>
-<script src="js/ui-accom.js?v=1"></script>
+<script src="js/ui-accom.js?v=2"></script>
 <script src="js/ui-kitchen.js?v=2"></script>
-<script src="js/app.js?v=57"></script>
+<script src="js/app.js?v=58"></script>
 <script>
 // D1: 常量定义已统一到 data.js 为单一真相源。index.html 仅保留运行时状态变量。
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
@@ -713,7 +713,7 @@ function _computeInboxMessages() {
     });
   });
 
-  // 7. 系统 — 活动日志（新手引导等系统通知）
+  // 7. 系统 — 活动日志（新手任务等系统通知）
   var actLog = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
   actLog.forEach(function(a) {
     if (a.type === 'system') {

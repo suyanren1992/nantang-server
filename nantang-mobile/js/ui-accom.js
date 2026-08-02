@@ -46,12 +46,14 @@ function openAccomPage() {
 function renderAccomPage() {
   var el = document.getElementById('accomPageBody');
   if (!el) return;
-  el.innerHTML = '';
-  _renderAccomToolbar(el);
+  // FIX: 增量DOM——先构建新内容再替换，消 innerHTML='' 闪烁
+  var tmp = document.createElement('div');
+  _renderAccomToolbar(tmp);
 
-  if (_accomState.mode === 'grid')      _renderAccomGrid(el);
-  else if (_accomState.mode === 'detail') _renderAccomDetail(el);
-  else if (_accomState.mode === 'checkout') _renderAccomCheckout(el);
+  if (_accomState.mode === 'grid')      _renderAccomGrid(tmp);
+  else if (_accomState.mode === 'detail') _renderAccomDetail(tmp);
+  else if (_accomState.mode === 'checkout') _renderAccomCheckout(tmp);
+  el.innerHTML = tmp.innerHTML;
 }
 
 // ── Toolbar ──
@@ -180,9 +182,12 @@ function _renderAccomDetail(parent) {
     var cls = taken ? (isMine ? ' abed-mine' : ' abed-taken') : ' abed-free';
     var sel = _accomState._bedNum === b ? ' abed-sel' : '';
     var label = taken ? (isMine ? '我的' : esc(taken.name)) : '空';
-    bedGrid += '<div class="abed'+cls+sel+'" onclick="event.stopPropagation();_accomState._bedNum='+b+';renderAccomPage()"'+
-      ' style="flex:1;text-align:center;padding:10px 4px;border-radius:8px;cursor:pointer;min-width:44px;'+
-      (taken&&!isMine?'opacity:.4;cursor:default;pointer-events:none;':'')+
+    var bedClick = taken && !isMine
+      ? 'showToast(\'该床位已被 '+esc(taken.name)+' 占用\',\'warn\')'
+      : '_accomState._bedNum='+b+';renderAccomPage()';
+    bedGrid += '<div class="abed'+cls+sel+'" onclick="event.stopPropagation();'+bedClick+'"'+
+      ' style="flex:1;text-align:center;padding:10px 4px;border-radius:8px;cursor:'+(taken&&!isMine?'default':'pointer')+';min-width:44px;'+
+      (taken&&!isMine?'opacity:.4;':'')+
       '">'+
       '<div style="font-size:1.2rem">'+(isMine?'🛏️':taken?'🛏️':'🛏️')+'</div>'+
       '<div style="font-size:.55rem;font-weight:600">床'+b+'</div>'+
@@ -404,8 +409,8 @@ function _accomConfirmCheckout() {
 
     r.tenants.splice(idx, 1);
 
-    if (typeof NT !== 'undefined' && NT.transfer) {
-      NT.transfer(me, '__community_pool__', totalNT, '退房结算：'+r.label+' '+days+'天').catch(function(){});
+    if (typeof NT !== 'undefined' && NT.spend) {
+      NT.spend(me, totalNT, '退房结算：'+r.label+' '+days+'天');
     }
 
     if (window.AppData) AppData._saveShared(true);

@@ -501,6 +501,7 @@ function spendToPool(userId, amount, reason, pool, scope) {
 }
 
 function getCommunityPool() { return COMMUNITY_POOL; }
+function setCommunityPool(val) { if (typeof val === 'number' && val >= 0) { COMMUNITY_POOL = val; _saveState(true); } }
 function getCampPool(campId) { return CAMP_POOLS[campId] || 0; }
 
 function depositToCommunityPool(amount, reason) {
@@ -712,6 +713,7 @@ window.NT = {
   earnFromPool: earnFromPool,
   spendToPool: spendToPool,
   getCommunityPool: getCommunityPool,
+  setCommunityPool: setCommunityPool,
   getCampPool: getCampPool,
   depositToCommunityPool: depositToCommunityPool,
 

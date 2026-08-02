@@ -391,7 +391,6 @@ function _renderMgmtCards() {
   }
 
   // 🧹 大扫除 — 所有人可见
-  h += '<div style="position:relative">';
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
   var stats = _mlStats();
@@ -445,7 +444,6 @@ function _renderMgmtCards() {
     '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
 
   h += '</div>'; // close info-cards grid
-  h += '</div>';
   return h;
 }
 
@@ -694,12 +692,13 @@ function _doSignCovenant() {
   if (!isOffline) {
     API.covenantSign().then(function(r) {
       if (r && r.ok) {
-        showToast('签署成功', 'ok');
-        // D2: sign 响应无 nt_earned，改读 reward + reward_granted
-        if (r.reward_granted && r.reward) showToast('+'+r.reward+' NT 已到账', 'warn');
+        // FIX: 签约成功后关签署sheet → 开公约overlay确认已签状态
         _signStatus = { signed: true, version: _covenantVersion(), signedAt: _todayStr() };
         closeQuickSheet();
+        setTimeout(function(){ _renderCovenantOverlay(); }, 200);
         if (typeof refreshUserUI === 'function') refreshUserUI();
+        if (r.reward_granted && r.reward) showToast('✅ 签署成功 · +'+r.reward+' NT 已到账', 'ok');
+        else showToast('✅ 签署成功', 'ok');
       } else {
         showToast((r&&r.error)||'签署失败，请重试', 'error');
       }
@@ -710,10 +709,10 @@ function _doSignCovenant() {
     if (!window.AppData._data._covenantSignatures) AppData._data._covenantSignatures = {};
     AppData._data._covenantSignatures[CURRENT_USER] = { version: _covenantVersion(), signedAt: _todayStr() };
     AppData._saveShared(true);
-    showToast('签署成功（离线模式）', 'ok');
-    showToast('+10 NT 已到账', 'warn');
     closeQuickSheet();
+    setTimeout(function(){ _renderCovenantOverlay(); }, 200);
     if (typeof refreshUserUI === 'function') refreshUserUI();
+    showToast('✅ 签署成功 · +10 NT 已到账', 'ok');
   }
 }
 // 查签署状态（G-1 GET /api/covenant/status，服务端权威，不落本地缓存）
@@ -2411,8 +2410,7 @@ function _loadAccDueBanner() {
   }).catch(function(){});
 }
 function _showStaySheet() {
-  // ⑨ 弹窗栈：关闭已有弹窗避免多层叠加
-  var existing = document.querySelector('.mgmt-sheet'); if (existing) existing.remove();
+  // FIX: 增量DOM——不删已有 .mgmt-sheet，让 _showCardPopup 走增量更新路径消闪烁
   var existingCI = document.querySelector('.stay-ci-overlay'); if (existingCI) existingCI.remove();
   var mapData = (window.AppData && AppData._data && AppData._data.map_locations) ? AppData._data.map_locations : {};
   var accs = (mapData.accommodations && Object.keys(mapData.accommodations).length) ? mapData.accommodations : (_ml().accommodations || {});

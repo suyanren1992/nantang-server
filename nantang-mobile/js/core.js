@@ -476,7 +476,7 @@ function toggleQuestCard(el,name){
   // NEW-USER-TASK ③: 新手任务倒计时 + 标签
   if(t.is_newbie_task) {
     h+='<div style=background:#e8f5e9;padding:8px 10px;border-radius:8px;border:1px solid #a0c8a0;margin-bottom:8px;display:flex;align-items:center;gap:8px>';
-    h+='<span style=font-size:var(--g-font-size-xs);color:#3d6b52;font-weight:700>🆕 新手引导</span>';
+    h+='<span style=font-size:var(--g-font-size-xs);color:#3d6b52;font-weight:700>🆕 新手任务</span>';
     if(t.deadline) {
       var remainMs = new Date(t.deadline).getTime() - Date.now();
       if(remainMs > 0) {
@@ -920,6 +920,10 @@ function _mergeNTSyncData(data) {
     ntUser.experienceValue = data.xp || 0;
     ntUser.frozenBalance = data.frozen_balance || 0;
   }
+  // FIX: 社区池同步——服务端权威覆盖 nt-core 内部 COMMUNITY_POOL
+  if (data.pool_balance != null && typeof NT.setCommunityPool === 'function') {
+    NT.setCommunityPool(data.pool_balance);
+  }
   // 角色：服务端权威
   if (data.role && window.AppData) {
     var users = (typeof getUsers === 'function') ? getUsers() : {};
@@ -1098,7 +1102,9 @@ function enterVillage(){
     document.querySelectorAll('.mgmt-sheet,.ci-overlay,.confirm-card,.profile-card').forEach(function(e){e.remove()});
     _fromQuestHall=false;
     document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
-    // 新手引导不再弹窗，静默初始化，签约后在信箱通知
+    // B-4: 拉取动态能力清单
+    if (typeof fetchCapabilities === 'function') fetchCapabilities();
+    // 新手任务不再弹窗，静默初始化，签约后在信箱通知
     setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600);
     if(typeof API!=='undefined'&&API.token){
       API.syncAll(function(data) {
@@ -1189,7 +1195,7 @@ function enterVillage(){
   var pc=document.getElementById('profileCard');if(pc)pc.remove();
   _fromQuestHall=false;
   document.getElementById('loginPage').classList.add('hidden');document.getElementById('villagePage').classList.remove('hidden');initCarousel();setTimeout(initSpcCard,200);refreshUserUI();
-// E3.4: sign_covenant 已移至 _applyStay()，新手引导静默初始化
+// E3.4: sign_covenant 已移至 _applyStay()，新手任务静默初始化
 setTimeout(function(){ if(typeof _initNewbieQuests==='function')_initNewbieQuests(CURRENT_USER); },600)
 // 从 API 拉取其他用户的数据
 if(typeof API!=='undefined'&&API.token){
