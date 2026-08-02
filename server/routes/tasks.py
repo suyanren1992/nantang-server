@@ -296,8 +296,14 @@ async def retract_task(task_id: str, user: User = Depends(get_current_user),
     task.status = "草稿"
     task.assignee = None
     task.assignees = None
-    await _log_activity(db, "task_retract",
-                        f"发布者「{user.id}」撤回未领任务「{task.title}」，解冻退款 {refunded} NT")
+    db.add(ActivityLog(
+        time=datetime.utcnow().isoformat(),
+        type="task_retract",
+        text=f"发布者「{user.id}」撤回未领任务「{task.title}」，解冻退款 {refunded} NT",
+        user_id=task.poster,
+        actor_id=user.id,
+        target=task.id,
+    ))
     await db.commit()
     return {"ok": True, "status": task.status, "refunded": refunded}
 
@@ -324,8 +330,14 @@ async def retract_request(task_id: str, user: User = Depends(get_current_user),
     if not assignees:
         raise HTTPException(status_code=400, detail="任务无人领取，请直接使用 /retract 撤回")
     task.status = "撤回申请中"
-    await _log_activity(db, "task_retract_request",
-                        f"发布者「{user.id}」申请撤回已领任务「{task.title}」（领取者: {', '.join(assignees)}），待管理员审批")
+    db.add(ActivityLog(
+        time=datetime.utcnow().isoformat(),
+        type="task_retract_request",
+        text=f"发布者「{user.id}」申请撤回已领任务「{task.title}」（领取者: {', '.join(assignees)}），待管理员审批",
+        user_id=task.poster,
+        actor_id=user.id,
+        target=task.id,
+    ))
     await db.commit()
     return {"ok": True, "status": task.status}
 
@@ -350,15 +362,27 @@ async def retract_review(task_id: str, approved: bool = Body(..., embed=True),
         task.status = "草稿"
         task.assignee = None
         task.assignees = None
-        await _log_activity(db, "task_retract_approved",
-                            f"管理员「{admin.id}」批准撤回任务「{task.title}」，解冻退款 {refunded} NT，"
-                            f"领取者收到通知: {', '.join(assignees) or '无'}")
+        db.add(ActivityLog(
+            time=datetime.utcnow().isoformat(),
+            type="task_retract_approved",
+            text=f"管理员「{admin.id}」批准撤回任务「{task.title}」，解冻退款 {refunded} NT，"
+                 f"领取者收到通知: {', '.join(assignees) or '无'}",
+            user_id=task.poster,
+            actor_id=admin.id,
+            target=task.id,
+        ))
         await db.commit()
         return {"ok": True, "status": task.status, "refunded": refunded, "notified": assignees}
     # 拒绝 → 任务继续（回进行中，托管金原样冻结）
     task.status = "进行中"
-    await _log_activity(db, "task_retract_rejected",
-                        f"管理员「{admin.id}」拒绝撤回任务「{task.title}」，任务继续")
+    db.add(ActivityLog(
+        time=datetime.utcnow().isoformat(),
+        type="task_retract_rejected",
+        text=f"管理员「{admin.id}」拒绝撤回任务「{task.title}」，任务继续",
+        user_id=task.poster,
+        actor_id=admin.id,
+        target=task.id,
+    ))
     await db.commit()
     return {"ok": True, "status": task.status}
 
@@ -386,7 +410,13 @@ async def unclaim_task(task_id: str, user: User = Depends(get_current_user),
     task.assignee = assignees[0] if assignees else None
     if task.status != "撤回申请中":
         task.status = "进行中"  # 回大厅
-    await _log_activity(db, "task_unclaim",
-                        f"「{user.id}」退领任务「{task.title}」，名额已释放回大厅")
+    db.add(ActivityLog(
+        time=datetime.utcnow().isoformat(),
+        type="task_unclaim",
+        text=f"「{user.id}」退领任务「{task.title}」，名额已释放回大厅",
+        user_id=task.poster,
+        actor_id=user.id,
+        target=task.id,
+    ))
     await db.commit()
     return {"ok": True, "status": task.status, "remaining_assignees": assignees}
