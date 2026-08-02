@@ -921,3 +921,264 @@ async def test_capital_scan_and_manual_reserve_concurrent_no_overwrite(pg_engine
     async with factory() as s:
         await s.execute(text("DELETE FROM community_pool"))
         await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-1 L-1B: _get_pool(lock=True) 并发扣池 —— 双路各扣 50 同池
+# ══════════════════════════════════════════════════════════════════════
+async def test_get_pool_concurrent_deduction_both_succeed(pg_engine):
+    """W7-LOCK-1 L-1B: 两并发操作经 _get_pool(lock=True) 各扣池 50，pool=100。
+
+    复现 20+ 涉钱路径共用 _get_pool(lock=True) 的并发语义：
+      select(CommunityPool).with_for_update().execution_options(populate_existing=True)
+    第一路持锁读 balance=100 → 扣 50 → 提交（100→50）。
+    第二路持锁重查 → populate_existing 读到已提交值 50（非缓存旧值 100）→ 扣 50 → 0。
+
+    修复前（缺 populate_existing）：第二路读缓存旧值 100 → 扣 50 → 写 50，
+    第一路的扣款被脏写覆盖，最终 balance=50（应 0）→ 凭空多 50 NT。
+    """
+    from nt_helpers import _get_pool
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(CommunityPool(balance=100, total_issued=200,
+                            reserve=80, frozen=0))
+        await s.commit()
+
+    async def _deduct_via_get_pool(sf, amount):
+        async with sf() as s:
+            pool = await _get_pool(s, lock=True)
+            if (pool.balance or 0) < amount:
+                await s.rollback()
+                return False
+            pool.balance -= amount
+            await s.commit()
+            return True
+
+    ok = await asyncio.gather(
+        _deduct_via_get_pool(factory, 50),
+        _deduct_via_get_pool(factory, 50),
+    )
+
+    assert sum(ok) == 2, (
+        f"W7-LOCK-1 L-1B: 两并发扣池应都成功（100-50-50=0），"
+        f"实际 {ok}。若有一路失败 → populate_existing 未读到最新余额。"
+    )
+    async with factory() as s:
+        pool = (await s.execute(
+            select(CommunityPool).limit(1)
+        )).scalar_one()
+        assert pool.balance == 0, (
+            f"W7-LOCK-1 L-1B: balance 应为 0（=100-50-50），实得 {pool.balance}。"
+            f"若为 50 → 脏写覆盖了第一笔扣款。"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-1 L-1C: 链扫充值 + 并存扣池 —— reserve 总额守恒
+# ══════════════════════════════════════════════════════════════════════
+async def test_chain_scan_add_and_pool_deduct_concurrent_reserve_conserved(pg_engine):
+    """W7-LOCK-1 L-1C: 链扫充值（balance+=50, reserve+=50, total_issued+=50）
+    与扣池发奖（balance-=30）并发。两路均经 _get_pool(lock=True) 或等效力锁。
+
+    断言 reserve 严格守恒 = 初始 + 链扫增量，balance = 初始 + 50 - 30 = 120。
+    修复前（缺 populate_existing）：链扫的 reserve+=50 可能被扣池路的
+    缓存旧值回写覆盖 → reserve 总额不正确。
+    """
+    from nt_helpers import _get_pool
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(CommunityPool(balance=100, total_issued=100,
+                            reserve=80, frozen=0))
+        await s.commit()
+
+    async def _chain_scan_add(sf, amount):
+        """模拟链扫资本金：经 _get_pool(lock=True) 加池。"""
+        async with sf() as s:
+            pool = await _get_pool(s, lock=True)
+            pool.balance = (pool.balance or 0) + amount
+            pool.reserve = (pool.reserve or 0) + amount
+            pool.total_issued += amount
+            await s.commit()
+
+    async def _pool_deduct(sf, amount):
+        """模拟发奖扣池：经 _get_pool(lock=True) 扣运营池。"""
+        async with sf() as s:
+            pool = await _get_pool(s, lock=True)
+            pool.balance = (pool.balance or 0) - amount
+            await s.commit()
+
+    await asyncio.gather(
+        _chain_scan_add(factory, 50),
+        _pool_deduct(factory, 30),
+    )
+
+    async with factory() as s:
+        pool = (await s.execute(
+            select(CommunityPool).limit(1)
+        )).scalar_one()
+        assert pool.balance == 120, (
+            f"W7-LOCK-1 L-1C: balance 应为 120（100+50-30），实得 {pool.balance}。"
+        )
+        assert pool.reserve == 130, (
+            f"W7-LOCK-1 L-1C: reserve 应为 130（80+50），实得 {pool.reserve}。"
+            f"若为 80 → 链扫的 reserve+=50 被并发覆写。"
+        )
+        assert pool.total_issued == 150, (
+            f"W7-LOCK-1 L-1C: total_issued 应为 150（100+50），实得 {pool.total_issued}。"
+        )
+        # 等式守恒
+        total_system = (pool.balance or 0) + (pool.task_escrow or 0) + \
+                       (pool.camp_balance or 0) + (pool.frozen or 0)
+        assert abs(total_system - (pool.total_issued or 0)) <= 1, (
+            f"W7-LOCK-1 L-1C 等式破: total_system={total_system} "
+            f"vs total_issued={pool.total_issued}"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM community_pool"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-1 L-2: chain_scanner.py:342 User 行锁 —— 并发改余额后读到最新值
+# ══════════════════════════════════════════════════════════════════════
+async def test_chain_scanner_user_lock_reads_fresh_after_concurrent_withdraw(pg_engine):
+    """W7-LOCK-1 L-2: chain_scanner.py:342 select(User).with_for_update()
+    .populate_existing() 必须读到并发提交的最新 nt_balance。
+
+    复现链扫个人充值的锁模式：select(User).with_for_update().populate_existing()
+    进而 user.nt_balance += amount（充值累加）。
+    Session A 先无锁读余额 100（缓存 identity map）。
+    Session B 并发提现扣至 30 并提交。
+    Session A 以链扫锁加锁重查 → populate_existing 应读到 30（非缓存旧值 100）。
+    若仍为 100 → 充值 += 基于脏值 100 → 覆盖并发提现的 30。
+    """
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(User(id="lock1_l2", password_hash="x", nt_balance=100))
+        await s.commit()
+
+    async with factory() as sA:
+        # A 首次无锁读——缓存旧值 100 到 session identity map
+        uA = (await sA.execute(
+            select(User).where(User.id == "lock1_l2")
+        )).scalar_one()
+        assert uA.nt_balance == 100
+
+        # B 并发提现到 30 并提交
+        async with factory() as sB:
+            uB = (await sB.execute(
+                select(User).where(User.id == "lock1_l2")
+                .with_for_update().execution_options(populate_existing=True)
+            )).scalar_one()
+            uB.nt_balance = 30
+            await sB.commit()
+
+        # A 以 chain_scanner 的锁模式加锁重查——应读到 30（非缓存 100）
+        uA2 = (await sA.execute(
+            select(User).where(User.id == "lock1_l2")
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalar_one()
+        assert uA2.nt_balance == 30, (
+            f"W7-LOCK-1 L-2: 链扫 User 锁应读到并发提交值 30，实得 {uA2.nt_balance}。"
+            f"若为 100 → populate_existing 未生效，充值将基于脏值累加覆盖提现。"
+        )
+        await sA.rollback()
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM users WHERE id = 'lock1_l2'"))
+        await s.commit()
+
+
+# ══════════════════════════════════════════════════════════════════════
+# W7-LOCK-1 L-3: inn 民宿区间锁 —— 并发同房重叠日期不双订
+# ══════════════════════════════════════════════════════════════════════
+async def test_inn_concurrent_booking_same_room_no_double_book(pg_engine):
+    """W7-LOCK-1 L-3: accommodation.py:107 select(Tenancy).with_for_update()
+    .populate_existing() 防 inn 民宿超卖。
+
+    单人房（beds=1），并发两路申请同一日期区间。
+    复现 inn checkin 的锁模式：
+      select(Tenancy).where(room_id, track='inn', status='active')
+        .with_for_update().populate_existing()
+      → Python 区间重叠判定
+    第一路持锁插入 → 提交。第二路持锁重查 → populate_existing 读到
+    第一路的新 Tenancy → 区间重叠判定命中 → 拒绝。
+
+    修复前（缺 populate_existing）：第二路读到缓存旧区间列表（不含第一路），
+    判定无重叠 → 也插入 → 双份租约（超卖）。
+    """
+    from models import InnRoom
+    factory = _factory(pg_engine)
+
+    async with factory() as s:
+        s.add(User(id="lock1_l3_u", password_hash="x", nt_balance=100))
+        s.add(InnRoom(id="lock1_inn", label="测试单人间", room_type="single",
+                      beds=1, rate=40, dietary="vegetarian", status="active"))
+        await s.commit()
+
+    async def _inn_book(sf):
+        """复现 _inn_checkin 的区间重叠判定（缩略版）。"""
+        async with sf() as s:
+            existing_r = await s.execute(
+                select(Tenancy).where(
+                    Tenancy.room_id == "lock1_inn",
+                    Tenancy.track == "inn",
+                    Tenancy.status == "active",
+                ).with_for_update().execution_options(populate_existing=True)
+            )
+            # 区间重叠判定：同日期 [08-01, 08-03)
+            check_in = "2026-08-01"
+            check_out = "2026-08-03"
+            overlaps = [t for t in existing_r.scalars()
+                        if t.checkin_date < check_out and
+                        (t.check_out_date or t.checkin_date) > check_in]
+            if len(overlaps) >= 1:  # beds=1
+                await s.rollback()
+                return False
+            s.add(Tenancy(
+                user_id="lock1_l3_u", room_id="lock1_inn", bed_num=1,
+                checkin_date=check_in, check_out_date=check_out,
+                track="inn", room_type="single", status="active",
+            ))
+            await s.commit()
+            return True
+
+    ok = await asyncio.gather(
+        _inn_book(factory),
+        _inn_book(factory),
+    )
+
+    assert sum(ok) == 1, (
+        f"W7-LOCK-1 L-3: inn 并发同房应只有 1 路成功，实际 {ok}。"
+        f"若两路皆 True → populate_existing 未读到第一路的插入 → 超卖。"
+    )
+    async with factory() as s:
+        count_r = await s.execute(
+            select(func.count(Tenancy.id)).where(
+                Tenancy.room_id == "lock1_inn",
+                Tenancy.track == "inn",
+                Tenancy.status == "active",
+            )
+        )
+        assert count_r.scalar() == 1, (
+            f"W7-LOCK-1 L-3: 应只有 1 条活跃 inn 租约，"
+            f"实得 {count_r.scalar()}。"
+        )
+
+    # cleanup
+    async with factory() as s:
+        await s.execute(text("DELETE FROM tenancies WHERE room_id = 'lock1_inn'"))
+        await s.execute(text("DELETE FROM inn_rooms WHERE id = 'lock1_inn'"))
+        await s.execute(text("DELETE FROM users WHERE id = 'lock1_l3_u'"))
+        await s.commit()
