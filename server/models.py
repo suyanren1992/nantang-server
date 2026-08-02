@@ -602,12 +602,14 @@ class Item(Base):
     last_confirmed = Column(String)                      # 最后确认时间
     created_at = Column(String)
     updated_at = Column(String)
+    access = Column(String, default="private")         # private 🔒 / shared 🌾 / ask 🙋
+    fixture = Column(Boolean, default=False)           # TRUE=固定资产，不参与过期提醒
 
 
 # ══ W7-EVENT-1: 空间事情栏 ══
 EVENT_TYPES = (
     "cooking", "cleaning", "farming",
-    "item_put", "item_take",
+    "item_put", "item_take", "item_move",
     "checkin", "checkout",
     "tip", "note", "system",
 )
