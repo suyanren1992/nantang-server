@@ -164,10 +164,8 @@ async def init_db():
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
-        logger.warning("✓ RESET_DB_ON_START 完成：全部表已重建为空。请移除该环境变量后重新部署。")
-        # 清完后直接返回——不执行后续种子/迁移/索引。
-        # 用户下一次部署（移除 RESET_DB_ON_START）会正常初始化。
-        return
+        logger.warning("✓ RESET_DB_ON_START 完成：全部表已重建为空。继续执行种子/迁移/索引…")
+        # 继续执行——种子数据（建筑/配置）是基础设施，删了表要补回来
 
     async with engine.begin() as conn:
         # SQLite 专属 PRAGMA（PG 上跳过，否则报错）
