@@ -153,6 +153,22 @@ def _log_migration_skip(exc: Exception) -> None:
 
 
 async def init_db():
+    # ══ RESET_DB_ON_START：测试阶段一键清空数据库（生产环境不设此变量）══
+    if os.getenv("RESET_DB_ON_START", "").lower() in ("true", "1", "yes"):
+        if os.getenv("ADMIN_BOOTSTRAP_PASSWORD"):
+            raise RuntimeError(
+                "RESET_DB_ON_START 与 ADMIN_BOOTSTRAP_PASSWORD 不可同时设置。"
+                "RESET_DB_ON_START 仅用于测试阶段清空数据库。"
+            )
+        logger.warning("⚠ RESET_DB_ON_START=true —— 正在清空全部数据并重建空库")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(Base.metadata.create_all)
+        logger.warning("✓ RESET_DB_ON_START 完成：全部表已重建为空。请移除该环境变量后重新部署。")
+        # 清完后直接返回——不执行后续种子/迁移/索引。
+        # 用户下一次部署（移除 RESET_DB_ON_START）会正常初始化。
+        return
+
     async with engine.begin() as conn:
         # SQLite 专属 PRAGMA（PG 上跳过，否则报错）
         if engine.dialect.name == 'sqlite':
