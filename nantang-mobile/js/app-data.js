@@ -34,7 +34,8 @@ window.AppData = {
     if (!this._data.map_locations) this._data.map_locations = { buildings: [], plots: [], accommodations: {}, people_on_site: [] };
     if (!this._data.member_locations) this._data.member_locations = {};
     this._migrateInviteCodes();
-    this._seedIfEmpty();
+    // 种子数据仅在 file:// 开发态自动填充；线上由 admin 通过 devSeed() 按钮手动触发
+    if (window.location.protocol === 'file:') this._seedIfEmpty();
     this._archiveOldDiscoveries(); // 章0.4: 启动时归档超过24h的发现
     this._deductAccommodation();   // 章2: 住宿费每日自动扣
     if (typeof _growDirtiness === 'function') _growDirtiness();
