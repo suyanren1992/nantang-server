@@ -6,6 +6,15 @@ var API = {
   _serverOnline: true,  // access token，仅存 JS 内存，不落 localStorage
   _refreshInProgress: null,  // Promise|null — 防并发重入
   user: null,   // 当前用户信息
+  // ── NOTIFY-REFINE: 静默路径 — 后台自动轮询不弹 toast ──
+  _SILENT_PATHS: ['/api/data/sync_shared', '/api/data/sync_all'],
+  _isSilentPath: function(url) {
+    for (var i = 0; i < this._SILENT_PATHS.length; i++) {
+      if (url.indexOf(this._SILENT_PATHS[i]) !== -1) return true;
+    }
+    return false;
+  },
+  _lastOfflineToast: 0,
   init: function(baseUrl) {
     // 同源模式：API 请求发给当前页面所在的服务器（部署自包含）。
     // 只有前后端分离部署时（如纯静态前端 + 独立后端）才需要传入 baseUrl。
@@ -41,7 +50,7 @@ var API = {
           var retryOpts = { method: method, headers: retryHeaders, credentials: 'include' };
           if (body) retryOpts.body = JSON.stringify(body);
           var retryResp = await fetch(url, retryOpts);
-          if (retryResp.status !== 401) { self._consecutiveFailures = 0; var _rr=await retryResp.json(); if (retryResp.status>=400&&_rr.detail){if(typeof showToast==='function')showToast(_rr.detail,'error');_rr.ok=false;_rr.error=_rr.detail;} return _rr; }
+          if (retryResp.status !== 401) { self._consecutiveFailures = 0; var _rr=await retryResp.json(); if (retryResp.status>=400&&_rr.detail){if(!self._isSilentPath(url)){if(typeof showToast==='function')showToast(_rr.detail,'error');}else{console.warn('[api] 后台同步失败:',url,retryResp.status,_rr.detail);}_rr.ok=false;_rr.error=_rr.detail;} return _rr; }
         }
         self.token = null;
         return { ok: false, error: '登录过期', _offline: false };
@@ -49,7 +58,11 @@ var API = {
       var result = await resp.json();
       // B-8: 400+ 服务端错误透传——detail 映射到 error 字段，toast 提示
       if (resp.status >= 400 && result.detail) {
-        if (typeof showToast === 'function') showToast(result.detail, 'error');
+        if (!self._isSilentPath(url)) {
+          if (typeof showToast === 'function') showToast(result.detail, 'error');
+        } else {
+          console.warn('[api] 后台同步失败:', url, resp.status, result.detail);
+        }
         result.ok = false; result.error = result.detail;
       }
       return result;
@@ -57,7 +70,11 @@ var API = {
       this._consecutiveFailures++;
       if (this._consecutiveFailures >= 3 && this._serverOnline) {
         this._serverOnline = false;
-        if (typeof showToast === 'function') showToast('服务器连接断开，离线模式', 'warn');
+        var now2 = Date.now();
+        if (now2 - this._lastOfflineToast > 30000) {
+          this._lastOfflineToast = now2;
+          if (typeof showToast === 'function') showToast('服务器连接断开，离线模式', 'warn');
+        }
       }
       if (e.name === 'TypeError') return {ok:false, error:'网络不通', _offline:true};
       if (e.name === 'AbortError') return {ok:false, error:'请求超时', _offline:true};
