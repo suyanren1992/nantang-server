@@ -1,12 +1,11 @@
-"""C-B-1: 营地级 membership 地基验收。
+"""C-B-1 / W7-ID-1b: 营地级 membership 地基验收。
 
 覆盖三判据：
-  A. visible_camp_filter helper 单测：admin 全集 / 非 admin 过渡放行 / 唯一入口机制就位
+  A. visible_camp_filter helper 单测：admin 全集 / 非 admin 过滤行为
   B. CampMembership uq_camp_member 唯一约束生效
   C. dev-reset hard 播 membership 行 → 200 且表空（U-2 教训：漏入=硬重置 500）
 
-本期只立机制不缩权（CAMP_SCOPE_ENFORCED=False，过渡放行），故非 admin 也返回全集，
-与现状一致；缩权待 C-B-2 回填数据后另卡开启。
+W7-ID-1b 已将 visible_camp_filter 迁至 permissions.py，移除过渡开关。
 """
 import uuid
 import pytest
@@ -16,7 +15,7 @@ from sqlalchemy import select, func
 from auth_utils import hash_password, create_access_token
 from database import async_session
 from models import User, Camp, CampMembership
-from routes.camps import visible_camp_filter, CAMP_SCOPE_ENFORCED, _membership_subquery
+from permissions import visible_camp_filter
 
 
 def _h(token):
@@ -44,25 +43,33 @@ class _FakeUser:
 
 
 class TestVisibleCampFilterHelper:
-    def test_admin_returns_full_query_unchanged(self):
+    @pytest.mark.asyncio
+    async def test_admin_returns_full_query_unchanged(self):
         """admin：一律绕过，返回原 query 全集（对象同一，无 where 追加）。"""
         base = select(Camp)
         admin = _FakeUser("admin_x", "admin")
-        assert visible_camp_filter(admin, base) is base
+        result = await visible_camp_filter(admin, base, None)
+        assert result is base
 
-    def test_non_admin_transition_passthrough(self):
-        """非 admin：过渡期 CAMP_SCOPE_ENFORCED=False → 全集放行（返回原 query）。"""
-        assert CAMP_SCOPE_ENFORCED is False, "本期应为过渡放行"
+    @pytest.mark.asyncio
+    async def test_non_admin_adds_filter(self):
+        """非 admin：visible_camp_filter 追加 WHERE 条件（不再过渡放行）。"""
         base = select(Camp)
         adv = _FakeUser("adv_x", "adventurer")
-        assert visible_camp_filter(adv, base) is base
+        result = await visible_camp_filter(adv, base, None)
+        # 非 admin 应追加条件，返回的不是原 query
+        assert result is not base
+        # 编译 SQL 应包含 membership / job 过滤
+        sql = str(result).lower()
+        assert "camp_memberships" in sql or "camp_jobs" in sql
 
-    def test_single_entry_mechanism_ready(self):
-        """唯一入口机制就位：membership 子查询可构造（缩权激活时使用）。"""
-        adv = _FakeUser("adv_y", "adventurer")
-        subq = _membership_subquery(adv)
-        # 子查询能编译成 SQL 即证机制在位（不依赖开关）
-        assert "camp_memberships" in str(subq).lower()
+    @pytest.mark.asyncio
+    async def test_permissions_module_importable(self):
+        """permissions.py 统一闸门模块可正常导入。"""
+        from permissions import can_manage_camp, can_access_coop_resource, capabilities
+        assert callable(can_manage_camp)
+        assert callable(can_access_coop_resource)
+        assert callable(capabilities)
 
     @pytest.mark.asyncio
     async def test_list_camps_admin_and_nonadmin_both_see_all(self, client):
