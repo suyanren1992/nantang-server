@@ -6,7 +6,7 @@ from sqlalchemy import select, text
 from datetime import datetime
 import os
 
-from auth_utils import hash_password
+from auth_utils import hash_password, verify_password
 
 logger = logging.getLogger("nantang.db")
 
@@ -526,14 +526,17 @@ async def init_db():
                 _admin_pwd = os.getenv("ADMIN_BOOTSTRAP_PASSWORD")
                 if not _admin_pwd:
                     logger.info("[REDTEAM-B-B6] ADMIN_BOOTSTRAP_PASSWORD not set — skip auto-bootstrap, first registrant becomes admin")
-                    # 清理旧版遗留的 admin_bootstrap（修复前部署创建的）
+                    # 清理旧版默认密码的 admin_bootstrap（修复前部署创建的死数据）
+                    # 只删密码是默认值 admin123 的——如果真有人改了密码，那是真人配的，不碰
                     _old = (await session.execute(
                         select(_User).where(_User.id == "admin_bootstrap")
                     )).scalar_one_or_none()
-                    if _old:
+                    if _old and verify_password("admin123", _old.password_hash):
                         await session.delete(_old)
                         await session.commit()
-                        logger.info("[REDTEAM-B-B6] deleted legacy admin_bootstrap — first real registrant will be admin")
+                        logger.info("[REDTEAM-B-B6] deleted legacy admin_bootstrap (default password) — first real registrant will be admin")
+                    elif _old:
+                        logger.info("[REDTEAM-B-B6] admin_bootstrap exists with custom password — keeping (not legacy)")
                 else:
                     _seed_dir = os.path.join(os.path.dirname(__file__), "seed")
                     _admin_path = os.path.join(_seed_dir, "admin_user.json")
