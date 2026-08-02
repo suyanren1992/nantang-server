@@ -657,7 +657,12 @@ function _promptDialog(msg, defVal, onOk) {
   document.getElementById('promptInp').addEventListener('keydown', function(e){ if(e.key==='Enter')ok(); });
 }
 // B5: 统一浮动 toast——双签名合一，type 控制颜色，anchor 保留内联卡片（表单验证场景）
+var _lastToast = { msg: '', time: 0 };
 function showToast(msg,type,anchor){
+  // ── NOTIFY-REFINE: 2秒内相同消息去重 ──
+  var now2 = Date.now();
+  if (msg === _lastToast.msg && now2 - _lastToast.time < 2000) return;
+  _lastToast = { msg: msg, time: now2 };
   // 三参数 + anchor：内联彩色卡片（表单字段旁提示）——保留旧行为
   if(anchor){
     document.querySelectorAll('.toast-card').forEach(function(t){t.remove()});
@@ -691,6 +696,29 @@ function showInlineHint(el, msg) {
   hint.textContent = '🔒 ' + msg;
   el.parentNode.insertBefore(hint, el.nextSibling);
   setTimeout(function() { if (hint.parentNode) hint.remove(); }, 3000);
+}
+// ── NOTIFY-REFINE: 系统状态条（顶部固定横幅） ──
+function showStatusBar(msg, type) {
+  var bar = document.getElementById('statusBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'statusBar';
+    bar.style.cssText = 'position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:999;max-width:400px;width:100%;padding:6px 12px;text-align:center;font-size:11px;font-weight:600;display:none;cursor:pointer';
+    document.body.prepend(bar);
+  }
+  if (type === 'error') {
+    bar.style.background = '#fde8e8'; bar.style.color = '#b84c38'; bar.style.borderBottom = '2px solid #b84c38';
+    bar.textContent = '🔴 ' + msg;
+  } else {
+    bar.style.background = '#fef8e8'; bar.style.color = '#c88740'; bar.style.borderBottom = '2px solid #c88740';
+    bar.textContent = '⚠ ' + msg;
+  }
+  bar.style.display = 'block';
+  bar.onclick = function() { bar.style.display = 'none'; };
+}
+function hideStatusBar() {
+  var bar = document.getElementById('statusBar');
+  if (bar) bar.style.display = 'none';
 }
 function saveAppData(){}
 function loadAppData(){}
