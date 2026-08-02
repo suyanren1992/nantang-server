@@ -87,8 +87,8 @@ def test_dev_seed_no_longer_mints_to_500():
     assert "pool_seed" not in code
 
 
-def test_reset_pool_to_chain_uses_zero_when_chain_unreadable(monkeypatch):
-    """链上读不到时宁可置 0, 不得猜一个数字(宁可偏少不可多记)。"""
+def test_reset_pool_to_chain_keeps_original_when_chain_unreadable(monkeypatch):
+    """链上读不到时保持原值, 不写 0——防 RPC 故障清零全池。"""
     import asyncio
 
     class FakePool:
@@ -103,7 +103,8 @@ def test_reset_pool_to_chain_uses_zero_when_chain_unreadable(monkeypatch):
     monkeypatch.setattr(A, "_chain_balance_or_none", none_chain)
     p = FakePool()
     amt = asyncio.run(A._reset_pool_to_chain(FakeDB(), p, "now", "soft"))
-    assert amt == 0 and p.balance == 0 and p.total_issued == 0
+    assert amt is None, f"链读失败应返回 None, 实际 {amt}"
+    assert p.balance == 999, f"链读失败应保持原值, 实际 balance={p.balance}"
 
 
 def test_reset_pool_aligns_to_chain_balance(monkeypatch):
