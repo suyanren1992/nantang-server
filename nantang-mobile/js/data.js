@@ -736,7 +736,7 @@ function renderCommunityHub() {
     return 'none';
   }
   function card(c) {
-    var cls = c.status==='active'?' camp-card active-camp':' camp-card';
+    var cls = c.status==='active'?' card camp-card active-camp':' card camp-card';
     var btns = '';
     // U-4: 往期营地——整卡点击查看结项信息
     if (c.status==='archived') {
@@ -768,9 +768,9 @@ function renderCommunityHub() {
   if (active.length) { h += '<div class=event-section-label style=margin-top:0>🟢 进行中</div>'; active.forEach(function(c){ h += card(c); }); }
   if (upcoming.length) { h += '<div class=event-section-label>📅 即将开始</div>'; upcoming.forEach(function(c){ h += card(c); }); }
   if (archived.length) { h += '<div class=event-section-label>📁 往期回顾</div>'; archived.forEach(function(c){ h += card(c); }); }
-  // ── ② 社区窗口（最近动态，持续更新）──
-  h += '<div style="border-top:1px solid #e8ede6;margin-top:8px;padding-top:8px">';
-  h += '<div style="font-size:var(--g-font-size-xs);font-weight:700;color:#5a6e5c;margin-bottom:6px">👁 社区窗口</div>';
+  // ── ② 社区窗口（最近动态，卡片包裹）──
+  h += '<div class="card" style="margin-top:8px">';
+  h += '<div style="font-size:var(--g-font-size-sm);font-weight:700;color:var(--g-text);margin-bottom:6px">👁 社区窗口</div>';
   var actLog = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
   if (actLog.length) {
     actLog.slice(0,5).forEach(function(a){
@@ -781,13 +781,14 @@ function renderCommunityHub() {
     h += '<div style="font-size:.6rem;color:#aaa;padding:6px 0;text-align:center">暂无动态，敬请期待</div>';
   }
   h += '</div>';
-  // ── ③ 📚 历史档案库（最下方）──
-  h += '<div style="text-align:center;padding:14px 0 4px;border-top:1px solid #e8ede6;margin-top:8px">'+
-    '<span style="font-size:.72rem;color:var(--green-primary);cursor:pointer;font-weight:600" onclick="closeOverlay(\'overlayCommunity\');openArchive(\'members\')">📚 历史档案库 →</span>'+
-    '<div style="font-size:.58rem;color:#8a8a8a;margin-top:2px">所有社区活动的历史记录</div>'+
+  // ── ③ 📚 历史档案库（卡片包裹）──
+  var archivedCount = getCamps().filter(function(c){ return c.status==='archived'; }).length;
+  h += '<div class="card" style="margin-top:8px;text-align:center;cursor:pointer" onclick="closeOverlay(\'overlayCommunity\');openArchive(\'members\')">'+
+    '<span style="font-size:.72rem;color:var(--g-accent);font-weight:600">📚 历史档案库 →</span>'+
+    '<div style="font-size:.58rem;color:var(--g-text-dim);margin-top:2px">'+archivedCount+' 期已完结</div>'+
   '</div>';
-  // ── ④ 🌍 世界终端（admin 可见，档案库下方）──
-  if (isAdmin) h += '<div class=world-terminal onclick="openCreateCamp()">🌍 世界终端 · 创建新的共创营队</div>';
+  // ── ④ 🌍 世界终端（card--dashed，admin 可见）──
+  if (isAdmin) h += '<div class="card card--dashed" style="margin-top:8px;text-align:center;cursor:pointer" onclick="openCreateCamp()">🌍 世界终端 · 创建新的共创营队</div>';
   // FIX-24: 空状态
   if (!h) {
     h = '<div style="text-align:center;padding:40px 20px;color:#5a6e5c">'+

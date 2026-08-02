@@ -214,8 +214,8 @@ function _renderOverviewCard(c) {
   var rmbTotal = (budget.lodgingRmb||0)*people*days + (budget.mealRmb||0)*people*days;
   var ntTotal = (budget.lodgingNT||0)*people*days + (budget.mealNT||0)*people*days;
 
-  var h = '<div class="camp-card" style="margin-bottom:10px">';
-  h += '<div class="camp-card-head">📊 营队总览</div>';
+  var h = '<div class="camp-section-card" style="margin-bottom:10px">';
+  h += '<div class="camp-section-card-head">📊 营队总览</div>';
 
   // 进度条
   h += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--g-text-dim);margin-bottom:4px"><span>营地进度</span><span>'+pct+'%</span></div>';
@@ -225,7 +225,7 @@ function _renderOverviewCard(c) {
   h += '<div style="font-size:.62rem;color:var(--g-text-dim);margin-bottom:10px">'+esc(c.date||'')+' · '+people+'人 · '+tasks.length+'个任务 · '+days+'天</div>';
 
   // 我的任务包
-  h += '<div class="camp-card-row" onclick="closeOverlay(\'overlayCampHome\');showMy({presetChip:\'营队\'})">'+
+  h += '<div class="camp-section-card-row" onclick="closeOverlay(\'overlayCampHome\');showMy({presetChip:\'营队\'})">'+
     '<span>📋</span>'+
     '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">我的任务包</div>'+
     (myCount ? '<div style="font-size:.58rem;color:#5a6e5c;margin-top:2px">'+(myTaskNames.length?myTaskNames.join(' · '):'')+'</div>' : '<div style="font-size:.58rem;color:#aaa;margin-top:2px">暂无分配</div>')+
@@ -234,14 +234,14 @@ function _renderOverviewCard(c) {
     '<span style="color:#d0d9ce">→</span></div>';
 
   // 今日安排
-  h += '<div class="camp-card-row" onclick="switchCampTab(\'schedule\')">'+
+  h += '<div class="camp-section-card-row" onclick="switchCampTab(\'schedule\')">'+
     '<span>🕐</span>'+
     '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">今日安排</div>'+
     '<div style="margin-top:2px">'+(todaySlots||'<span style="font-size:.58rem;color:#aaa">暂无日程</span>')+'</div></div>'+
     '<span style="color:#d0d9ce">→</span></div>';
 
   // 资金概览
-  h += '<div class="camp-card-row" onclick="switchCampTab(\'funds\')">'+
+  h += '<div class="camp-section-card-row" onclick="switchCampTab(\'funds\')">'+
     '<span>💰</span>'+
     '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">资金概览</div>'+
     '<div style="display:flex;gap:8px;margin-top:2px"><span style="font-size:.58rem;color:#5a6e5c">¥'+(rmbTotal||0).toLocaleString()+' <span style="color:#8a6a30">RMB</span></span><span style="font-size:.58rem;color:#5a6e5c">'+(ntTotal||0).toLocaleString()+' <span style="color:#3d6b52">NT</span></span></div></div>'+
@@ -262,21 +262,21 @@ function _renderLifeCard(c) {
   var mealNT = budget.mealNT || 0;
   var lodgingNT = budget.lodgingNT || 0;
 
-  var h = '<div class="camp-card" style="margin-bottom:10px">';
-  h += '<div class="camp-card-head">🛋️ 营地生活</div>';
+  var h = '<div class="camp-section-card" style="margin-bottom:10px">';
+  h += '<div class="camp-section-card-head">🛋️ 营地生活</div>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
 
-  h += '<div class="camp-icon-grid-item" onclick="'+(typeof openCanteen==='function'?'openCanteen()':'showToast(\'订餐即将上线\',\'warn\')')+'">'+
+  h += '<div class="camp-section-icon-grid-item" onclick="'+(typeof openCanteen==='function'?'openCanteen()':'showToast(\'订餐即将上线\',\'warn\')')+'">'+
     '<div style="font-size:1.5rem">🥬</div>'+
     '<div style="font-size:.65rem;font-weight:600">订餐</div>'+
     '<div style="font-size:.55rem;color:var(--g-text-dim)">'+(mealNT?mealNT+' NT/餐':'即将上线')+'</div></div>';
 
-  h += '<div class="camp-icon-grid-item" onclick="'+(typeof openAccomPage==='function'?'openAccomPage()':'showToast(\'住宿即将上线\',\'warn\')')+'">'+
+  h += '<div class="camp-section-icon-grid-item" onclick="'+(typeof openAccomPage==='function'?'openAccomPage()':'showToast(\'住宿即将上线\',\'warn\')')+'">'+
     '<div style="font-size:1.5rem">🏨</div>'+
     '<div style="font-size:.65rem;font-weight:600">住宿</div>'+
     '<div style="font-size:.55rem;color:var(--g-text-dim)">'+(lodgingNT?lodgingNT+' NT/天':'即将上线')+'</div></div>';
 
-  h += '<div class="camp-icon-grid-item" onclick="'+(typeof openKitchenQuick==='function'?'openKitchenQuick()':'showToast(\'共享厨房即将上线\',\'warn\')')+'">'+
+  h += '<div class="camp-section-icon-grid-item" onclick="'+(typeof openKitchenQuick==='function'?'openKitchenQuick()':'showToast(\'共享厨房即将上线\',\'warn\')')+'">'+
     '<div style="font-size:1.5rem">🍳</div>'+
     '<div style="font-size:.65rem;font-weight:600">共享厨房</div>'+
     '<div style="font-size:.55rem;color:var(--g-text-dim)">灶台</div></div>';
@@ -287,16 +287,16 @@ function _renderLifeCard(c) {
 
 // ── Card 3: 营地活动（桌游 / 茶馆）──
 function _renderActivityCard(c) {
-  var h = '<div class="camp-card" style="margin-bottom:10px">';
-  h += '<div class="camp-card-head">🎯 营地活动</div>';
+  var h = '<div class="camp-section-card" style="margin-bottom:10px">';
+  h += '<div class="camp-section-card-head">🎯 营地活动</div>';
 
-  h += '<div class="camp-card-row" onclick="'+(typeof openCardRoom==='function'?'openCardRoom()':'showToast(\'活动即将上线\',\'warn\')')+'">'+
+  h += '<div class="camp-section-card-row" onclick="'+(typeof openCardRoom==='function'?'openCardRoom()':'showToast(\'活动即将上线\',\'warn\')')+'">'+
     '<span>🎲</span>'+
     '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">桌游室</div>'+
     '<div style="font-size:.58rem;color:var(--g-text-dim);margin-top:2px">发起或加入桌游局</div></div>'+
     '<span style="color:#d0d9ce">→</span></div>';
 
-  h += '<div class="camp-card-row" onclick="showToast(\'茶馆即将上线\',\'warn\')">'+
+  h += '<div class="camp-section-card-row" onclick="showToast(\'茶馆即将上线\',\'warn\')">'+
     '<span>🍵</span>'+
     '<div style="flex:1"><div style="font-size:.72rem;font-weight:600">茶馆</div>'+
     '<div style="font-size:.58rem;color:var(--g-text-dim);margin-top:2px">营地八卦与闲聊</div></div>'+
@@ -308,21 +308,21 @@ function _renderActivityCard(c) {
 
 // ── Card 4: 社区服务（拍卖行 / 议事厅 / 集市 3图标）──
 function _renderCommunityCard(c) {
-  var h = '<div class="camp-card" style="margin-bottom:10px">';
-  h += '<div class="camp-card-head">🏘️ 社区服务</div>';
+  var h = '<div class="camp-section-card" style="margin-bottom:10px">';
+  h += '<div class="camp-section-card-head">🏘️ 社区服务</div>';
   h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
 
-  h += '<div class="camp-icon-grid-item" onclick="showToast(\'拍卖行即将上线\',\'warn\')">'+
+  h += '<div class="camp-section-icon-grid-item" onclick="showToast(\'拍卖行即将上线\',\'warn\')">'+
     '<div style="font-size:1.5rem">🔨</div>'+
     '<div style="font-size:.65rem;font-weight:600">拍卖行</div>'+
     '<div style="font-size:.55rem;color:var(--g-text-dim)">即将开放</div></div>';
 
-  h += '<div class="camp-icon-grid-item" onclick="switchCampTab(\'discuss\')">'+
+  h += '<div class="camp-section-icon-grid-item" onclick="switchCampTab(\'discuss\')">'+
     '<div style="font-size:1.5rem">🥕</div>'+
     '<div style="font-size:.65rem;font-weight:600">议事厅</div>'+
     '<div style="font-size:.55rem;color:var(--g-text-dim)">提案 & 会议</div></div>';
 
-  h += '<div class="camp-icon-grid-item" onclick="showToast(\'集市即将上线\',\'warn\')">'+
+  h += '<div class="camp-section-icon-grid-item" onclick="showToast(\'集市即将上线\',\'warn\')">'+
     '<div style="font-size:1.5rem">🏪</div>'+
     '<div style="font-size:.65rem;font-weight:600">集市</div>'+
     '<div style="font-size:.55rem;color:var(--g-text-dim)">二手物品</div></div>';
@@ -333,8 +333,8 @@ function _renderCommunityCard(c) {
 
 // ── Card 5: 营地公告 + 活动动态 ──
 function _renderAnnouncementCard(c) {
-  var h = '<div class="camp-card" style="margin-bottom:10px">';
-  h += '<div class="camp-card-head">📢 营地公告</div>';
+  var h = '<div class="camp-section-card" style="margin-bottom:10px">';
+  h += '<div class="camp-section-card-head">📢 营地公告</div>';
   h += '<div style="font-size:.62rem;color:var(--g-text-dim);text-align:center;padding:16px 0">'+
     '📭 暂无公告<br><span style="font-size:.55rem">公告功能即将上线</span></div>';
   h += '</div>';
@@ -407,8 +407,8 @@ function renderCampClosed(el) {
   h += '</div>';
 
   // 任务简表
-  h += '<div class="camp-card" style="margin-bottom:10px">';
-  h += '<div class="camp-card-head">📊 结项摘要</div>';
+  h += '<div class="camp-section-card" style="margin-bottom:10px">';
+  h += '<div class="camp-section-card-head">📊 结项摘要</div>';
   var totalNT = 0; tasks.forEach(function(t){ totalNT += t.nt||0; });
   h += '<div style="font-size:.62rem;color:var(--g-text-dim);line-height:1.8">'+
     '任务总数：'+tasks.length+' 项<br>'+
@@ -417,7 +417,7 @@ function renderCampClosed(el) {
     '结算日期：'+(c.closed_at||'—')+'</div>';
   h += '</div>';
 
-  h += '<div class="camp-card-row" onclick="openCampReport(\''+c.id+'\')">'+
+  h += '<div class="camp-section-card-row" onclick="openCampReport(\''+c.id+'\')">'+
     '<span>📋</span><div style="flex:1;font-size:.72rem">查看结营报告</div><span style="color:#d0d9ce">→</span></div>';
 
   h += '</div>';
@@ -439,7 +439,7 @@ function renderCampArchived(el) {
   h += '<div style="font-size:.62rem;color:var(--g-text-dim);text-align:center">'+esc(c.date||'')+' · '+(c.people||0)+'人 · '+doneTasks+'/'+tasks.length+'项完成</div>';
   h += '</div>';
 
-  h += '<div class="camp-card-row" onclick="openCampReport(\''+c.id+'\')">'+
+  h += '<div class="camp-section-card-row" onclick="openCampReport(\''+c.id+'\')">'+
     '<span>📋</span><div style="flex:1;font-size:.72rem">查看结营报告</div><span style="color:#d0d9ce">→</span></div>';
 
   h += '</div>';
