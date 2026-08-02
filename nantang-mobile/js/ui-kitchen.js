@@ -74,19 +74,30 @@ function _doCreatePotluck(){
   var eventAt=document.getElementById('pcTime').value,cap=parseInt(document.getElementById('pcCap').value)||8,desc=document.getElementById('pcDesc').value.trim();
   if(!title||!dish||!eventAt){showToast('请填写标题、菜品和时间','error');return}
   API.createPotluck({title:title,dish:dish,event_at:eventAt,capacity:cap,description:desc}).then(function(r){
-    if(r&&r.ok){showToast('共享已发起','ok');closeAllExpands();_renderKitchenPage()}else showToast((r&&r.error)||'发起失败','error');
+    if(r&&r.ok){showToast('共享已发起','ok');_logKitchenEvent('create_potluck','发起了「'+title+'」',{potluckId:r.id});closeAllExpands();_renderKitchenPage()}else showToast((r&&r.error)||'发起失败','error');
   });
 }
 
 function _doJoinPotluck(eventId){
   UI.Alert.show({type:'info',title:'报名共享',message:'是否确认报名参加此共享？',actions:[{label:'取消',value:false,style:'ghost'},{label:'确认报名',value:true,style:'pri'}]}).then(function(ok){if(ok){
     API.joinPotluck(eventId).then(function(r){
-      if(r&&r.ok){if(r.already_joined)showToast('已报过名啦','ok');else showToast('报名成功！','ok');_renderKitchenPage()}else showToast((r&&r.error)||'报名失败','error');
+      if(r&&r.ok){if(r.already_joined)showToast('已报过名啦','ok');else {showToast('报名成功！','ok');_logKitchenEvent('join_potluck','报名了共享',{potluckId:eventId});}_renderKitchenPage()}else showToast((r&&r.error)||'报名失败','error');
     });
   }});
 }
 
 function _loadPotluckData(cb){if(typeof API==='undefined'||!API.token){cb([]);return}API.getPotluckList().then(function(r){cb((r&&r.items)||[])}).catch(function(){cb([])})}
+
+// ═══ W7-KITCHEN-CARD: 事件日志钩子 — 为空间事情栏 + 社区窗口 + 冰箱动态提供数据源 ═══
+// 用法：_logKitchenEvent('create_potluck', '发起了「周六火锅局」', { potluckId: 1 })
+// 写入 journal type='kitchen'，冰箱「最近动态」区块即时消费
+// ponytail: space 字段目前硬编码 'kitchen'，W7-ITEM-ROOM 接入地图房间后改为真实 roomId
+function _logKitchenEvent(action, detail, extra) {
+  if (typeof addJournal !== 'function') return;
+  var opts = { space: 'kitchen' };
+  if (extra) { for (var k in extra) opts[k] = extra[k]; }
+  addJournal(_me ? _me() : '有人', 'kitchen', detail, opts);
+}
 
 // ═══ 时段 ═══
 function _renderSlotsTab(){
@@ -132,6 +143,7 @@ function _doBookSlot(){
     if(r&&r.ok){closeAllExpands();
       if(r.status==='pending'){UI.Alert.show({type:'info',title:'已提交审核',message:'您的时段申请（'+partySize+'人）已提交，\n等待管理员审核。\n\n审核通过后将自动确认。',actions:[{label:'知道了',value:true,style:'pri'}]})}
       else showToast('时段已批准！','ok');
+      _logKitchenEvent('book_slot','申请了厨房时段'+(dish?'：'+dish:''),{slotId:r.id,partySize:partySize});
       _renderKitchenPage();
     }else showToast((r&&r.error)||(r&&r.detail)||'申请失败','error');
   });
@@ -308,10 +320,10 @@ function _doAddItem(){
   var exp=document.getElementById('iaExp').value,note=document.getElementById('iaNote').value.trim();
   if(!name){showToast('请填写物品名称','error');return}
   API.addKitchenItem({name:name,category:cat,location:loc,quantity:qty,expired_at:exp,note:note}).then(function(r){
-    if(r&&r.ok){showToast('已放入','ok');closeAllExpands();_renderKitchenPage()}else showToast((r&&r.error)||(r&&r.detail)||'放入失败','error');
+    if(r&&r.ok){showToast('已放入','ok');_logKitchenEvent('item_add','放入了「'+name+'」',{itemId:r.id,location:loc});closeAllExpands();_renderKitchenPage()}else showToast((r&&r.error)||(r&&r.detail)||'放入失败','error');
   });
 }
 
-function _doTakeItem(id){API.takeKitchenItem({item_id:id}).then(function(r){if(r&&r.ok){showToast('已取出','ok');_renderKitchenPage()}else showToast((r&&r.error)||(r&&r.detail)||'取件失败','error')})}
-function _doRemoveItem(id){UI.Alert.show({type:'warning',title:'移除物品',message:'确定要移除此物品吗？\n此操作不可撤销。',actions:[{label:'取消',value:false,style:'ghost'},{label:'确认移除',value:true,style:'danger'}]}).then(function(ok){if(ok){API.removeKitchenItem(id).then(function(r){if(r&&r.ok){showToast('已移除','ok');_renderKitchenPage()}else showToast((r&&r.error)||(r&&r.detail)||'移除失败','error')})}})}
+function _doTakeItem(id){API.takeKitchenItem({item_id:id}).then(function(r){if(r&&r.ok){showToast('已取出','ok');_logKitchenEvent('item_take','取出了物品',{itemId:id});_renderKitchenPage()}else showToast((r&&r.error)||(r&&r.detail)||'取件失败','error')})}
+function _doRemoveItem(id){UI.Alert.show({type:'warning',title:'移除物品',message:'确定要移除此物品吗？\n此操作不可撤销。',actions:[{label:'取消',value:false,style:'ghost'},{label:'确认移除',value:true,style:'danger'}]}).then(function(ok){if(ok){API.removeKitchenItem(id).then(function(r){if(r&&r.ok){showToast('已移除','ok');_logKitchenEvent('item_remove','移除了物品',{itemId:id});_renderKitchenPage()}else showToast((r&&r.error)||(r&&r.detail)||'移除失败','error')})}})}
 function _loadItemsData(cb){if(typeof API==='undefined'||!API.token){cb([]);return}API.getKitchenItems().then(function(r){cb((r&&r.items)||[])}).catch(function(){cb([])})}
