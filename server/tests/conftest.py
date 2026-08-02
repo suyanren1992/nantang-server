@@ -14,6 +14,7 @@ if str(_SERVER_DIR) not in sys.path:
 import pytest
 import pytest_asyncio
 from sqlalchemy import text, event
+from sqlalchemy.exc import OperationalError
 from httpx import AsyncClient, ASGITransport
 
 _TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
@@ -185,13 +186,24 @@ async def _isolate_db(_setup_db):
     autouse 覆盖 client（走 app get_db）与 db 两条路径；teardown 在两者之后执行。
     """
     yield
-    async with engine.begin() as conn:
-        for tbl in reversed(Base.metadata.sorted_tables):
-            await conn.execute(tbl.delete())
+    # W7-TEST-1: dispose 关闭连接池 + 重试（SQLite 串行写者下 dispose 可能未即时释放后台线程锁）
+    _max_retries = 3
+    for _attempt in range(_max_retries):
+        await engine.dispose()
+        await asyncio.sleep(0.1 * (_attempt + 1))  # 递增退避：0.1s / 0.2s / 0.3s
         try:
-            await conn.execute(text("DELETE FROM sqlite_sequence"))
-        except Exception:
-            pass  # sqlite_sequence 不存在时跳过
+            async with engine.begin() as conn:
+                for tbl in reversed(Base.metadata.sorted_tables):
+                    await conn.execute(tbl.delete())
+                try:
+                    await conn.execute(text("DELETE FROM sqlite_sequence"))
+                except Exception:
+                    pass
+            break  # DELETE 成功，跳出重试循环
+        except OperationalError as _e:
+            if "database is locked" in str(_e) and _attempt < _max_retries - 1:
+                continue
+            raise
     # 重种 CommunityPool 基线：注册端点无池时建 balance=0 空池，
     # 而社区任务需要非零余额——与 init_db() 种子一致 balance=500。
     from models import CommunityPool as _CP

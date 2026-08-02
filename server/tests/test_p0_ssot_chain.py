@@ -398,17 +398,17 @@ async def test_accounting_check_and_verify_same_diff(_setup_db):
         db.add(pool)
         await db.commit()
 
-    # /verify diff
-    from routes.nt import verify
-    v = await verify(user=admin, db=db)
-    v_diff = v["checks"]["diff"]
+        # W7-TEST-1: verify / _accounting_check 必须在 session 内调用，
+        # 闭包外使用已关闭 session 会导致连接泄漏 → SQLite 写锁不释放 → teardown 锁死。
+        from routes.nt import verify
+        v = await verify(user=admin, db=db)
+        v_diff = v["checks"]["diff"]
 
-    # _accounting_check diff
-    check = await H._accounting_check(db)
-    c_diff = check["diff"]
+        check = await H._accounting_check(db)
+        c_diff = check["diff"]
 
-    assert v_diff == c_diff, \
-        f"/verify diff={v_diff} ≠ _accounting_check diff={c_diff} — 口径不一致"
+        assert v_diff == c_diff, \
+            f"/verify diff={v_diff} ≠ _accounting_check diff={c_diff} — 口径不一致"
 
 
 # ── 历史补录幂等 ───────────────────────
