@@ -1,7 +1,8 @@
 /* ══════════════════════════════════════════════════════════════════
    ui-kitchen.js — 共享厨房 FE（P3-一营丁·卡D · 2026-07-31）
-   接入 P3 后端 10 端点 · 3 Tab（共享厨房·接龙/时段/冰箱）· UI.Card 包裹
+   接入 P3 后端 10 端点 · 3 Tab（共享厨房·接龙/时段/冰箱）· _showCardPopup 卡片式弹出
    法源：P3-一营丁_4UI根本性修_v1.md + DESIGN-共享厨房_v0
+   W7-KITCHEN-CARD: 2026-08-03 改为卡片式弹出，跟住宿/大扫除/田间统一
    ══════════════════════════════════════════════════════════════════ */
 
 var _ktTab = 'potluck'; // potluck | slots | items
@@ -9,22 +10,14 @@ var _ktTab = 'potluck'; // potluck | slots | items
 function openKitchenPage() {
   closeAllExpands();
   _ktTab = 'potluck';
-  _pushOverlay('overlayKitchen');
-  var el = document.getElementById('overlayKitchen');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'overlayKitchen';
-    el.className = 'sub-page';
-    el.innerHTML = '<div id="kitchenContent" style="padding:var(--g-pad)"></div>';
-    document.body.appendChild(el);
-  }
-  el.classList.add('open');
+  // W7-KITCHEN-CARD: 改为卡片式弹出，跟住宿/大扫除/田间统一
+  _showCardPopup('🍳 厨房', '<div id="ktTabContent"><div style="text-align:center;padding:24px;color:var(--g-text-dim)">⏳ 加载中…</div></div>', null, true);
   _renderKitchenPage();
 }
 
 function _renderKitchenPage() {
-  // A-6: index.html 的静态 overlay 用 id=kitchenBody，动态创建路径用 id=kitchenContent，兼容两者
-  var el = document.getElementById('kitchenContent') || document.getElementById('kitchenBody');
+  // W7-KITCHEN-CARD: 改为卡片式弹出，目标 .mgmt-sheet-body
+  var el = document.querySelector('.mgmt-sheet-body');
   if (!el) return;
   var tabs = [
     {key:'potluck', label:'🥘 共享厨房·接龙'},
@@ -35,7 +28,6 @@ function _renderKitchenPage() {
   tabs.forEach(function(t){
     h += '<button onclick="_ktTab=\''+t.key+'\';_renderKitchenPage()" style="flex:1;min-width:70px;padding:8px 4px;border-radius:8px;border:'+(t.key===_ktTab?'2px solid var(--g-accent)':'1px solid var(--g-card-border)')+';background:'+(t.key===_ktTab?'var(--g-accent-bg)':'var(--g-card)')+';color:'+(t.key===_ktTab?'var(--g-accent)':'var(--g-text-dim)')+';font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer">'+t.label+'</button>';
   });
-  h += '<button onclick="closeOverlay(\'overlayKitchen\')" style="padding:8px 12px;border-radius:8px;border:1px solid var(--g-card-border);background:var(--g-card);color:var(--g-text-dim);font-size:var(--g-font-size-xs);cursor:pointer">✕</button>';
   h += '</div><div id="ktTabContent"><div style="text-align:center;padding:24px;color:var(--g-text-dim)">⏳ 加载中…</div></div>';
   el.innerHTML = h;
   if (_ktTab==='potluck') _renderPotluckTab();
