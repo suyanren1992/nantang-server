@@ -391,16 +391,11 @@ function _renderMgmtCards() {
 
   var h = '';
 
-  // 上栏 · 劳动输入（设计稿 283-288 行）
-  h += '<div class="sl">上栏 · 劳动输入</div>';
   h += '<div style="display:flex;gap:4px;margin-bottom:6px">';
   h += '<div class="cell" style="flex:1;min-height:50px" onclick="'+cardClick('_openKitchenQuick()')+'"><span style="font-size:1rem">📦</span><span style="font-size:8px;font-weight:600">放取物品</span></div>';
   h += '<div class="cell" style="flex:1;min-height:50px" onclick="'+cardClick('if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})')+'"><span style="font-size:1rem">🧹</span><span style="font-size:8px;font-weight:600">打扫卫生</span></div>';
   h += '<div class="cell" style="flex:1;min-height:50px" onclick="'+cardClick('openFieldPage()')+'"><span style="font-size:1rem">🌿</span><span style="font-size:8px;font-weight:600">田间管理</span></div>';
   h += '</div>';
-
-  // 下栏 · 信息查看（设计稿 289-311 行）
-  h += '<div class="sl">下栏 · 信息查看</div>';
 
   // ── 🧹 大扫除数据
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
@@ -2059,15 +2054,13 @@ function _renderFieldCardsLocal(el) {
 }
 // W7-UI-ALIGN-V2 PAGE-4: 田间管理·劳动输入 — 逐行对照设计稿 190-228 行
 function _showFieldSheet() {
-  // 优先 API
+  // 先渲染本地数据，后台异步拉取更新
+  _renderFieldSheetLocal();
   if (typeof API !== 'undefined' && API.token) {
-    _showCardPopup('🌿 田间管理 · 劳动输入', '<div style="text-align:center;padding:20px;color:var(--g-text-sub)">⏳ 加载中…</div>', '', false);
     API.getFields().then(function(r) {
-      if (r && r.ok && r.plots && r.plots.length) {
-        _renderFieldSheetFromAPI(r.plots);
-      } else { _renderFieldSheetLocal(); }
-    }).catch(function(){ _renderFieldSheetLocal(); });
-  } else { _renderFieldSheetLocal(); }
+      if (r && r.ok && r.plots && r.plots.length) { _renderFieldSheetFromAPI(r.plots); }
+    }).catch(function(){});
+  }
 }
 
 var _fieldSelectedPlot = null;
