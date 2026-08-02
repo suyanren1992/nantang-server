@@ -1932,11 +1932,25 @@ function renderFieldPage() {
     }).catch(function(){ _renderFieldCardsLocal(el); });
   } else { _renderFieldCardsLocal(el); }
 }
-// ═══ W7-UI-ALIGN PAGE-5: 田地内部页 — 卡片列表 + 最近事件 + FAB 🧤 ═══
+// ═══ W7-UI-ALIGN-V2 PAGE-5: 田地内部页 — 逐行对照设计稿 230-275 行 ═══
 var _selectedFieldPlot = null;
 function _renderFieldCards(plots, el) {
   var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
-  var h = '<div class="sl">🌱 田块状态<span class="sla" onclick="_showFieldSheet()">＋劳动</span></div>';
+
+  // 统计摘要（设计稿 233 行）
+  var matureCount = 0, waterCount = 0, eventCount = 0;
+  plots.forEach(function(p) {
+    if (p.stage === '成熟') matureCount++;
+    if (p.health === '缺水') waterCount++;
+  });
+  if (typeof AppData !== 'undefined' && AppData._data && AppData._data.journal) {
+    var journal = AppData._data.journal || [];
+    eventCount = journal.filter(function(j){ return j.type === 'field_action' || j.type === 'farming'; }).length;
+  }
+
+  var h = '<div class="sub">📊 '+plots.length+'块田地'+(matureCount?' · 🍅'+matureCount+'可收':'')+(waterCount?' · ⚠'+waterCount+'缺水':'')+(eventCount?' · 📋'+eventCount+'个事件':'')+'</div>';
+
+  h += '<div class="sl">🌱 田块状态<span class="sla" onclick="_showFieldSheet()">＋劳动</span></div>';
   h += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">';
   plots.forEach(function(p) {
     var icon = cropIcons[p.crop_name] || '🌿';
@@ -1987,7 +2001,8 @@ function _renderFieldCards(plots, el) {
 function _renderFieldCardsLocal(el) {
   var plots=[]; try { var obj = (window.AppData&&AppData._data.map_locations)||{}; plots=obj.plots||[]; } catch(e){}
   if (!plots.length) { var b = (getBuildings()||[]).find(function(x){return x.id==='field';}); if (b&&b.plots) plots=b.plots; }
-  var h = '<div class="sl">🌱 田块状态<span class="sla" onclick="_showFieldSheet()">＋劳动</span></div>';
+  var h = '<div class="sub">📊 '+plots.length+'块田地</div>';
+  h += '<div class="sl">🌱 田块状态<span class="sla" onclick="_showFieldSheet()">＋劳动</span></div>';
   h += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">';
   plots.forEach(function(p) {
     var isEmpty = !p.crop || p.crop === '—';
