@@ -6,7 +6,7 @@ from datetime import datetime
 import json
 from database import get_db
 from models import (Journal, ActivityLog, CardDiscovery, Verification, NewbieQuest,
-                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, CommunityPool, Tenancy, TASK_STATUSES)
+                    CanteenMenu, MealOrder, MapLocation, Announcement, InventoryItem, User, NTTask, Camp, CommunityPool, Tenancy, FieldPlot, TASK_STATUSES)
 from routes.auth import get_current_user, require_admin
 from pydantic import BaseModel, Field, AliasChoices
 from nt_helpers import _safe_assignees
@@ -573,6 +573,16 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
     # 地图数据
     ml_r = (await db.execute(select(MapLocation).where(MapLocation.key == "shared"))).scalar_one_or_none()
     map_locations = _safe_json(ml_r.data) if ml_r else {}
+    # W7-FIELD-SYNC: 田间地块数据从 FieldPlot 表直出（替代旧 map_locations.plots JSON blob）
+    plots_r = await db.execute(select(FieldPlot).order_by(FieldPlot.id))
+    plots = [{
+        "id": p.id, "plot_name": p.plot_name, "crop_name": p.crop_name,
+        "planted_at": p.planted_at, "harvest_at": p.harvest_at,
+        "stage": p.stage, "health": p.health,
+        "watered_at": p.watered_at, "fertilized_at": p.fertilized_at,
+        "harvested_by": p.harvested_by, "planted_by": p.planted_by,
+        "created_at": p.created_at,
+    } for p in plots_r.scalars()]
     # 营地列表
     camps_r = await db.execute(select(Camp).order_by(Camp.created_at.desc()).limit(20))
     camps = [{"id": c.id, "name": c.name, "emoji": c.emoji, "theme": c.theme,
@@ -597,6 +607,7 @@ async def sync_all(user: User = Depends(get_current_user), db: AsyncSession = De
             "task_statuses": TASK_STATUSES,
             "pool_balance": pool_balance,
             "map_locations": map_locations,
+            "plots": plots,
             "camps": camps,
             "presence": presence,
             "pendingConfigChanges": pendingConfigChanges,
