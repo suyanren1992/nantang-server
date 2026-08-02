@@ -145,13 +145,14 @@ class TestCVXPFormula:
 class TestAccountingCheck:
     @pytest.mark.asyncio
     async def test_4pool_view(self, db):
-        await _set_pool(balance=100, escrow=50, reserve=200, frozen=30)
+        # reserve=50 ≤ balance=100，避免触发 N-1b clamp（reserve≤balance 硬不变量）
+        await _set_pool(balance=100, escrow=50, reserve=50, frozen=30)
         from nt_helpers import _get_4pool
         async with async_session() as s:
             p4 = await _get_4pool(s)
             assert p4["operating"] == 100
             assert p4["escrow"] == 50
-            assert p4["reserve"] == 200
+            assert p4["reserve"] == 50
             assert p4["frozen"] == 30
 
     @pytest.mark.asyncio

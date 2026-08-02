@@ -2,7 +2,7 @@ services:
   - type: web
     name: nantang-cloud-village
     runtime: python
-    buildCommand: pip install -r requirements.txt && pip install -r requirements-dev.txt && python server/scripts/deploy_check.py --skip-smoke && JWT_SECRET=build-gate-dummy python -m pytest server/tests/ -x -q
+    buildCommand: pip install -r requirements.txt && pip install -r requirements-dev.txt && python server/scripts/deploy_check.py --skip-smoke && JWT_SECRET=build-gate-dummy python -m pytest server/tests/ -q
     startCommand: cd server && uvicorn main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       - key: PYTHON_VERSION

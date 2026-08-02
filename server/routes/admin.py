@@ -162,27 +162,27 @@ async def _reset_pool_to_chain(db, pool, now, mode):
 
     原实现 balance=500/total_issued=500 写死了数字。链上实际是 1000 时,
     跑一次重置就把池子打回 500 — 凭空蒸发 500 NT, 账立刻不平。
-    读不到链上余额时置 0(宁可偏少不可凭空多记)。
+    读不到链上余额时保持原值不写 0（防 RPC 故障清零全池）。
     """
     chain = await _chain_balance_or_none()
-    amount = chain if chain is not None else 0
-    pool.balance = amount
-    pool.total_issued = amount
+    if chain is None:
+        logger.error("[dev-reset %s] 链上余额读取失败——池子原值不变，请检查 RPC/环境变量", mode)
+        return None  # 不写 0，保持原值
+    pool.balance = chain
+    pool.total_issued = chain
     pool.task_escrow = 0
     pool.contribution_pool = 0
     pool.camp_balance = 0
     pool.reserve = 0
     pool.frozen = 0
     pool.updated_at = now
-    if amount:
-        db.add(NTLedger(entry_id=_ledger_id(), type="pool_init",
-                        from_user="system", to_user="community_pool",
-                        amount=amount,
-                        reason=f"社区池对齐链上余额（dev-reset {mode}）",
-                        status="settled", created_at=now, settled_at=now))
-    logger.info("[dev-reset %s] 池子对齐链上余额=%s (chain_read=%s)",
-                mode, amount, "ok" if chain is not None else "failed->0")
-    return amount
+    db.add(NTLedger(entry_id=_ledger_id(), type="pool_init",
+                    from_user="system", to_user="community_pool",
+                    amount=chain,
+                    reason=f"社区池对齐链上余额（dev-reset {mode}）",
+                    status="settled", created_at=now, settled_at=now))
+    logger.info("[dev-reset %s] 池子对齐链上余额=%s", mode, chain)
+    return chain
 
 
 @router.post("/dev-reset")
