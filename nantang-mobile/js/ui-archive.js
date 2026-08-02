@@ -41,7 +41,11 @@ function sendEncouragement(target, type) {
 function logActivity(type, text) {
   if (!window.AppData) return;
   var log = AppData._data.activity_log || (AppData._data.activity_log = []);
-  log.unshift({ time: (typeof Clock !== 'undefined' ? Clock.iso() : new Date().toISOString()), type: type, text: text });
+  // 去重：同一分钟内相同 text 不重复记（防注册/刷新时重复写入）
+  var now = (typeof Clock !== 'undefined' ? Clock.iso() : new Date().toISOString());
+  var dup = log.find(function(e){ return e.text === text && e.time.slice(0,16) === now.slice(0,16); });
+  if (dup) return;
+  log.unshift({ time: now, type: type, text: text });
   updateInboxBadge();
   if (typeof API !== 'undefined' && API.token) API.syncActivity(type, text);
 }

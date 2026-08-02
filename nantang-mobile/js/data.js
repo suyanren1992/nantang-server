@@ -813,8 +813,10 @@ function renderCommunityHub() {
   h += '<div class="card" style="margin-top:8px">';
   h += '<div style="font-size:var(--g-font-size-sm);font-weight:700;color:var(--g-text);margin-bottom:6px">👁 社区窗口</div>';
   var actLog = (window.AppData && AppData._data.activity_log) ? AppData._data.activity_log : [];
-  if (actLog.length) {
-    actLog.slice(0,5).forEach(function(a){
+  // 过滤系统消息（pool_refill/system），社区窗口只展示人的活动
+  var communityLog = actLog.filter(function(a){ return a.type !== 'system' && a.type !== 'pool_refill'; });
+  if (communityLog.length) {
+    communityLog.slice(0,5).forEach(function(a){
       var time = (a.time||'').slice(0,16).replace('T',' ');
       h += '<div style="font-size:.6rem;color:#5a6e5c;padding:3px 0;border-bottom:1px solid #f5f5f5">'+time+' · '+esc(a.text)+'</div>';
     });

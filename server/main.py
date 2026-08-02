@@ -101,6 +101,28 @@ app.add_middleware(
     expose_headers=["X-Total-Count"],  # B-3: 分页总数头需显式暴露给分离部署前端
 )
 
+# ══ Cache-Control 中间件：部署更新后浏览器自动拉新文件，不需手动清缓存 ══
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+
+class _CacheControlMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        # API 路由不缓存
+        if path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        # HTML 页面：每次验证是否有新版本
+        if path == "/" or path.endswith(".html"):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        # 静态资源：短期缓存即可（稳定后再延长）
+        else:
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+app.add_middleware(_CacheControlMiddleware)
+
 # API 路由
 app.include_router(auth.router)
 app.include_router(nt.router)

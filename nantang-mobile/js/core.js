@@ -1142,7 +1142,6 @@ function enterVillage(){
         if (result && result.name) {
           if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
           _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
-          if (typeof logActivity === 'function') logActivity('system', '🌱 新手引导已开启');
           _finishEnter(n);
         } else if (!result) {
           showToast('无法连接服务器，请检查网络','error');
@@ -1160,7 +1159,6 @@ function enterVillage(){
     if(window.NT)NT.registerUser(n);setCurrentUser(n);if(window.AppData)AppData.switchUser(n);
     _saveLocalUser(n, _profileSeed);
     _initNewbieQuests(n); addJournal(n, 'register', '加入了南塘云村');
-    if (typeof logActivity === 'function') logActivity('system', '🌱 新手引导已开启');
   }else if(isLogin){
     var ln=document.getElementById('loginName').value.trim();var lp=document.getElementById('loginPwd').value;
     if(!lp){showToast('请输入密码','error',document.getElementById('loginPwd'));return}
