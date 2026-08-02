@@ -198,24 +198,17 @@ if (window.location.protocol !== 'file:') {
 <div id="overlayCampHome" class="overlay">
   <div class="overlay-top" id="campHomeHeader">
     <button class="overlay-close" onclick="closeOverlay('overlayCampHome')">✕</button>
-    <span class="overlay-title" id="campHomeTitle">营地</span>
-  </div>
-  <div class="camp-tabbar" id="campTabBar">
-    <span class="camp-tab on" onclick="switchCampTab('overview')">概览</span>
-    <span class="camp-tab" onclick="switchCampTab('schedule')">日程</span>
-    <span class="camp-tab" onclick="switchCampTab('funds')">资金</span>
-    <span class="camp-tab" onclick="switchCampTab('members')">成员</span>
-    <span class="camp-tab" onclick="switchCampTab('ranking')">排行</span>
-    <span class="camp-tab" id="campTabSettle" onclick="switchCampTab('settle')">结算</span>
-    <span class="camp-tab" onclick="switchCampTab('discuss')">🏛️ 萝卜议事厅</span>
-    <span class="camp-tab" id="campTabManage" style="display:none" onclick="switchCampTab('manage')">⚙️</span>
+    <div style="flex:1;min-width:0">
+      <span class="overlay-title" id="campHomeTitle">营地</span>
+      <div id="campHomeSubtitle" style="font-size:.58rem;color:var(--g-text-dim)"></div>
+    </div>
   </div>
   <div class="overlay-body" id="campHomeBody"></div>
   <div class="camp-bottombar" id="campBottomBar">
-    <div class="cb-btn" onclick="closeOverlay('overlayCampHome');showMy()"><img id="cbAvatar" src="" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.display='none'"></div>
-    <div class="cb-btn" onclick="switchCampTab('schedule');scrollCampToToday()">📅<span class="cb-label">今日</span></div>
-    <div class="cb-btn" id="cbBtnInbox" onclick="openCampInbox()">📬<span class="cb-label">消息</span></div>
-    <div class="cb-btn" id="cbBtnPlus" onclick="showToast('即将上线','warn')" style="display:none">＋<span class="cb-label">更多</span></div>
+    <div class="cb-btn" id="cbBtnProfile" onclick="closeOverlay('overlayCampHome');showMy()"><img id="cbAvatar" src="" width="28" height="28" style="border-radius:50%;object-fit:cover" alt="" onerror="this.style.display='none'"><span class="cb-label">工作台</span></div>
+    <div class="cb-btn" id="cbBtnToday" onclick=""><span style="font-size:1.2rem">📅</span><span class="cb-label">今日</span></div>
+    <div class="cb-btn" id="cbBtnMeal" onclick=""><span style="font-size:1.2rem">🥬</span><span class="cb-label">订餐</span></div>
+    <div class="cb-btn" id="cbBtnActivity" onclick=""><span style="font-size:1.2rem">🃏</span><span class="cb-label">活动</span></div>
   </div>
 </div>
 <!-- ══ 阶段4: 食堂 overlay ══ -->
@@ -569,8 +562,8 @@ if (window.location.protocol !== 'file:') {
 <script src="js/nt-core.js?v=11"></script>
 <script src="js/app-data.js?v=28"></script>
 <script src="js/api.js?v=33"></script>
-<script src="js/data.js?v=27"></script>
-<script src="js/core.js?v=53"></script>
+<script src="js/data.js?v=28"></script>
+<script src="js/core.js?v=54"></script>
 <script src="js/ui-village.js?v=20"></script>
 <script src="js/ui-camp.js?v=15"></script>
 <script src="js/ui-wizard.js?v=10"></script>

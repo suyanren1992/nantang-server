@@ -9,6 +9,12 @@ function setCurrentUser(name){
 }
 // showToast 统一入口 — 见下方定义
 var TASKS = (window.AppData) ? AppData._data.tasks : {};
+// A-1: 统一任务查找——本地任务键=name，API任务键=id，这里按 id/name/title 任一键都能找到
+function _findTask(key){
+  if(!key)return null;
+  if(TASKS[key])return TASKS[key];
+  return Object.values(TASKS).find(function(t){return t.name===key||t.title===key;})||null;
+}
 // Step 5: 物品持久化到 AppData
 var MOCK_ITEMS = [];
 function _loadItems(){
@@ -319,7 +325,7 @@ function expandCard(name,cls,css,html,el){
 function openSubmit(el,name){
   name = decodeURIComponent(name);
   if (typeof _guardOnline === 'function' && _guardOnline('提交任务')) return;
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   if(t.deadline&&t.deadline<(today())){showToast('任务已逾期，无法提交','error');return}
   var h='<div style=font-weight:700;margin-bottom:8px>📤 提交 · '+esc(t.name)+' · <img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
   h+='<div style=margin-bottom:8px><textarea id="submitNote" rows="3" placeholder="描述你完成的内容…" style=width:100%;padding:8px;border:1px solid var(--green-border);border-radius:8px;font-size:.72rem;font-family:inherit;resize:vertical></textarea></div>';
@@ -330,7 +336,7 @@ function openSubmit(el,name){
 }
 function doSubmit(name){
   if (typeof _guardOnline === 'function' && _guardOnline('提交任务')) return;
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   var noteEl=document.getElementById('submitNote');if(!noteEl)return;var note=noteEl.value.trim();if(!note)return;
   var sub=note;
   if(t.reqPhoto){for(var i=1;i<=t.reqPhoto;i++){var p=document.getElementById('submitPhoto'+i);if(p&&p.value.trim())sub+='\n📷照片'+i+': '+p.value.trim()}}
@@ -380,7 +386,7 @@ function doSubmit(name){
 function claimTask(name){
   name = decodeURIComponent(name);
   if (typeof _guardOnline === 'function' && _guardOnline('领取任务')) return;
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   if(t.publisher===CURRENT_USER){showToast('不能领取自己发布的任务','error');return}
   t.claimants=t.claimants||[];
   if ((t.claimants || []).length >= (t.slots || 1)) { showToast('名额已满', 'error'); return; }
@@ -402,13 +408,13 @@ function claimTask(name){
 }
 function unclaimTask(name){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>📩 申请取消认领 · '+encodeURIComponent(name)+'</div><div style=font-size:.72rem;color:#5a6e5c;margin-bottom:8px>⚠️ 取消认领需要发布者审核批准。<br>确定要申请吗？</div><div style=display:flex;gap:8px><button class="btn-sm sec" style=flex:1" onclick="this.closest(\'.unclaim-expand\').remove()">再想想</button><button class="btn-sm warn" style=flex:1" onclick="confirmUnclaim(\''+encodeURIComponent(name)+'\')">📩 确认申请</button></div>';
   expandCard(name,'unclaim-expand','margin-bottom:16px;background:#fff5f5;border:1px solid #f0c8c8;border-radius:10px;padding:12px 14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
 }
 function confirmUnclaim(name){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/unclaim —— 移除 claimant、任务回大厅
   var ctx={name:name,t:t};
   var _done=function(){
@@ -431,7 +437,7 @@ function confirmUnclaim(name){
 }
 function reviewTask(name,action){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   if(action==='approve'){
     var _t=t;var _name=name;
     showConfirm('确认审核通过「'+_name+'」？通过后将释放 NT 奖励给完成者。',function(){
@@ -450,7 +456,7 @@ function reviewTask(name,action){
 function confirmReject(name){
   name = decodeURIComponent(name);
   var reason=document.getElementById('reviewReason').value.trim();if(!reason){showToast('请填写退回理由','error');return}
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   t.rejectCount = (t.rejectCount || 0) + 1;
   if (t.rejectCount >= 3) {
     t.status = '已取消'; t.reviewNote = reason + '（已打回3次，自动关闭）'; t.reviewedAt = today();
@@ -468,7 +474,7 @@ function confirmReject(name){
 }
 function editTask(name){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   document.getElementById('pubName').value=t.name||'';
   document.getElementById('pubType').value=t.type||'在地任务';
   document.getElementById('pubNT').value=t.nt||5;
@@ -485,7 +491,7 @@ function editTask(name){
 }
 function withdrawTask(name){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/retract —— 无人领直接退回草稿箱
   var submitters=(t.claimants||[]).filter(function(c){return c.status==='submitted'||c.status==='completed'});
   if(submitters.length>0){
@@ -537,7 +543,7 @@ function requestWithdraw(name){
 function confirmWithdraw(name){
   // P1-2 T4: 对接 P1-1 POST /api/tasks/{id}/retract-request —— 已领未提交时申请撤回
   var reason=document.getElementById('withdrawReason').value.trim();if(!reason){showToast('请填写撤回理由','error');return}
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   var _done=function(){
     t.withdrawRequest=reason;t.withdrawRequestedBy=CURRENT_USER;t.withdrawRequestedAt=today();
     AppData.updateTask(name,{withdrawRequest:reason,withdrawRequestedBy:CURRENT_USER,withdrawRequestedAt:t.withdrawRequestedAt});
@@ -558,7 +564,7 @@ function confirmWithdraw(name){
 function adminRetractReview(name,action){
   // P1-2 T4: 管理员批准/拒绝撤回申请 —— 对接 P1-1 POST /api/tasks/{id}/retract-review
   name=decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   if(action==='approve'){
     showConfirm('批准「'+name+'」的撤回申请？任务将退回草稿箱，托管金解冻退回发布者。',function(){
       var _done=function(){
@@ -599,7 +605,7 @@ function adminRetractReview(name,action){
 }
 function settleTask(name){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   var stlr=t.settler||t.publisher||'';
   var h='<div style=font-weight:700;margin-bottom:6px;color:#c8892e>🧾 结算确认 · '+esc(t.name)+'</div>';
   h+='<div style=font-size:var(--g-font-size-xs);color:#5a6e5c;margin-bottom:4px>💳 支付人：'+esc(stlr)+' · 金额：<img src=豆子.png alt=NT onerror="this.outerHTML=\x27🌱\x27" style=width:14px;height:14px;vertical-align:middle;margin-right:2px>'+t.nt+'</div>';
@@ -609,7 +615,7 @@ function settleTask(name){
   expandCard(name,'settle-expand','margin-bottom:16px;background:#fffbf5;border:1px solid #e8d5a0;border-bottom:3px solid #e8d5a0;border-radius:10px;padding:12px 14px;font-size:var(--g-font-size);animation:fadeIn .2s ease-out;border-left:3px solid #c8892e',h)
 }
 function confirmSettle(name){
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   if(t.status==='已结算')return;
   // FIX-10: 只允许从"待结算"或"已完成"状态结算，防止非法流转
   if(t.status!=='待结算'){showToast('任务状态('+t.status+')不可结算','error');return}

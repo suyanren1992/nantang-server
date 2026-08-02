@@ -462,7 +462,7 @@ function toggleQuestCard(el,name){
   if(!el)return;
   if(!el.classList.contains('task-card')) el=el.closest('.task-card');
   if(!el)return;
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   // Collapse: find any expand right after this card and remove it
   var nxt=el.nextElementSibling;
   if(nxt&&(nxt.classList.contains('card-expand')||nxt.classList.contains('submit-expand')||nxt.classList.contains('settle-expand')||nxt.classList.contains('withdraw-expand')||nxt.classList.contains('review-expand')||nxt.classList.contains('unclaim-expand'))){nxt.style.maxHeight=nxt.scrollHeight+'px';nxt.style.transition='max-height .2s ease-out,opacity .2s ease-out';nxt.style.overflow='hidden';requestAnimationFrame(function(){nxt.style.maxHeight='0';nxt.style.opacity='0'});setTimeout(function(){nxt.remove()},200);el.scrollIntoView({behavior:'smooth',block:'nearest'});return}
@@ -573,7 +573,7 @@ function toggleClaimantSub(el,name,cname){
     if(sub.getAttribute('data-claimant')===cname){sub.remove();return}
     sub.remove();
   }
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   var c=(t.claimants||[]).find(function(x){return x.name===cname});if(!c||!c.submission)return;
   var sd=document.createElement('div');sd.className='submission-sub';
   sd.setAttribute('data-claimant',cname);
@@ -798,7 +798,7 @@ function renderDrafts(){
 }
 function editDraft(name){
   name = decodeURIComponent(name);
-  var t=TASKS[name];if(!t)return;
+  var t=_findTask(name);if(!t)return;
   document.getElementById('pubName').value=t.name||'';
   document.getElementById('pubType').value=t.type||'在地任务';
   document.getElementById('pubNT').value=t.nt||5;

@@ -105,3 +105,26 @@ describe("closeOverlay 参数遮蔽修复 (A-12)", () => {
     expect(window.__svCalled).toBe(false);
   });
 });
+
+// A-1 · _findTask 统一任务查找——本地任务键=name、API任务键=id，任一键都能找到
+// 旧 bug：claimTask(t.name) 而 TASKS 键是 t.id → TASKS[name]=undefined → 静默 return → 认领无响应
+describe("_findTask 统一任务查找 (A-1)", () => {
+  beforeEach(() => {
+    Object.keys(TASKS).forEach(function(k){ delete TASKS[k]; });
+  });
+  it("本地任务键=name，按 name 直接命中", () => {
+    TASKS["打扫卫生"] = { name: "打扫卫生", title: "打扫卫生" };
+    expect(_findTask("打扫卫生")).toBe(TASKS["打扫卫生"]);
+  });
+  it("API任务键=id，按 title/name 也能找到（认领不再无响应）", () => {
+    TASKS["5"] = { name: "帮厨", title: "帮厨", _srvId: "5" };
+    // 认领按钮传 t.name(=title)，旧代码 TASKS["帮厨"] 找不到
+    expect(_findTask("帮厨")).toBe(TASKS["5"]);
+    // 用 id 查也行
+    expect(_findTask("5")).toBe(TASKS["5"]);
+  });
+  it("找不到时返回 null", () => {
+    expect(_findTask("不存在")).toBeNull();
+    expect(_findTask("")).toBeNull();
+  });
+});
