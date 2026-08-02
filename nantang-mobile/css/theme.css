@@ -47,6 +47,8 @@
   --g-font-size:     0.85rem;
   --g-font-size-lg:  1.1rem;
   --g-font-size-xl:  1.5rem;
+  --g-sep:           #e8ede6;       /* 统一分隔线 */
+  --g-text-sub:      #5a6e5c;       /* 副文本色 · 收编 30+ 处硬编码 */
   --g-trans:         0.15s ease;
   /* 入住/住宿 sheet 内联样式使用的旧短名变量（未定义会导致白字白底按钮等样式失效） */
   --gp: var(--green-primary, #3d6b52);
@@ -213,6 +215,13 @@ body { background:#2a2520; font-family:var(--g-font-family); display:flex; justi
 .room-card .rc-dot {
   position:absolute; top:7px; right:7px; width:7px; height:7px; border-radius:50%;
 }
+/* ═══ 卡片基类 ═══ */
+.card {
+  background: var(--g-card); border: 1px solid var(--g-card-border);
+  border-radius: var(--g-radius); box-shadow: var(--g-shadow); padding: var(--g-pad);
+}
+.card--dashed { border-style: dashed; border-color: var(--g-sep); }
+
 /* ═══ 全貌页 ═══ */
 .info-wrapper { padding:0 4px; }
 .info-stats { display:flex; gap:6px; margin:4px 0 12px; }
