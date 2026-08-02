@@ -148,7 +148,7 @@ UI-3 已画了**社区副本页 · 第二段「社区窗口」**（详见 `data.
 
 ## 施工回执 · W7-COMWIN-1 · 二营
 
-**commit hash**：`0c6fcdd`
+**commit hash**：`c4ff84b`（amend 后以 git log 为准）
 **阵地**：全仓只读（server/ + nantang-mobile/）
 **交付物**：`方案/社区窗口动态流_勘察v0.md`（320 行，P-1～P-6 六问全答）
 
