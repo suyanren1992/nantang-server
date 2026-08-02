@@ -2019,7 +2019,7 @@ function _renderFieldCardsLocal(el) {
   el.style.position = 'relative';
   el.innerHTML = h;
 }
-// W7-UI-ALIGN PAGE-4: 田间管理·劳动输入 — hscroll chip 选田块 + 4列劳动网格
+// W7-UI-ALIGN-V2 PAGE-4: 田间管理·劳动输入 — 逐行对照设计稿 190-228 行
 function _showFieldSheet() {
   // 优先 API
   if (typeof API !== 'undefined' && API.token) {
@@ -2077,15 +2077,15 @@ function _renderFieldSheetFromAPI(plots) {
   h += '<div class="g4">';
   labors.forEach(function(l) {
     var isOn = _fieldSelectedAction === l.id;
-    h += '<div class="g4-cell'+(isOn?' on':'')+'" onclick="_fieldSelectedAction=\''+l.id+'\';_showFieldSheet()" style="min-height:44px">'+
-      '<div class="g4-ci">'+l.icon+'</div>'+
-      '<div class="g4-cn">'+l.name+'</div>'+
-      '<div class="g4-cnt">+'+l.nt+'NT</div>'+
+    h += '<div class="cell'+(isOn?' on':'')+'" onclick="_fieldSelectedAction=\''+l.id+'\';_showFieldSheet()" style="min-height:44px">'+
+      '<div class="ci">'+l.icon+'</div>'+
+      '<div class="cn">'+l.name+'</div>'+
+      '<div class="cnt">+'+l.nt+'NT</div>'+
     '</div>';
   });
   h += '</div>';
 
-  // 汇总 + 提交
+  // 汇总 + 提交（设计稿 223-227 行）
   if (_fieldSelectedPlot && _fieldSelectedAction) {
     var lab = labors.find(function(l){ return l.id === _fieldSelectedAction; });
     var labName = lab ? lab.name : _fieldSelectedAction;
@@ -2095,7 +2095,7 @@ function _renderFieldSheetFromAPI(plots) {
       fpIcon+' '+esc(_fieldSelectedPlot.plot_name||'')+' → '+labName+' → <b>+'+labNt+' NT</b><br>'+
       '<span style="font-size:8px;color:var(--g-text-dim)">提交后进入校核室等待验证</span>'+
     '</div>';
-    h += '<button class="btn-bp" onclick="_submitFieldSheet()">✅ 确认提交</button>';
+    h += '<button class="btn bp" onclick="_submitFieldSheet()">✅ 确认提交</button>';
   }
 
   _showCardPopup('🌿 田间管理 · 劳动输入', h, '', true);
@@ -2135,10 +2135,10 @@ function _renderFieldSheetLocal() {
   h += '<div class="g4">';
   labors.forEach(function(l) {
     var isOn = _fieldSelectedAction === l.id;
-    h += '<div class="g4-cell'+(isOn?' on':'')+'" onclick="_fieldSelectedAction=\''+l.id+'\';_showFieldSheet()" style="min-height:44px">'+
-      '<div class="g4-ci">'+l.icon+'</div>'+
-      '<div class="g4-cn">'+l.name+'</div>'+
-      '<div class="g4-cnt">+'+l.nt+'NT</div>'+
+    h += '<div class="cell'+(isOn?' on':'')+'" onclick="_fieldSelectedAction=\''+l.id+'\';_showFieldSheet()" style="min-height:44px">'+
+      '<div class="ci">'+l.icon+'</div>'+
+      '<div class="cn">'+l.name+'</div>'+
+      '<div class="cnt">+'+l.nt+'NT</div>'+
     '</div>';
   });
   h += '</div>';
@@ -2151,7 +2151,7 @@ function _renderFieldSheetLocal() {
       (fp.icon||'🌿')+' '+esc(_fieldSelectedPlot.name||'')+' → '+labName+' → <b>+'+labNt+' NT</b><br>'+
       '<span style="font-size:8px;color:var(--g-text-dim)">提交后进入校核室等待验证</span>'+
     '</div>';
-    h += '<button class="btn-bp" onclick="_submitFieldSheetLocal()">✅ 确认提交</button>';
+    h += '<button class="btn bp" onclick="_submitFieldSheetLocal()">✅ 确认提交</button>';
   }
 
   _showCardPopup('🌿 田间管理 · 劳动输入', h, '', true);
