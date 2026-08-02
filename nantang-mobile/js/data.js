@@ -95,18 +95,12 @@ function _completeNewbieQuest(userName, questId) {
   AppData._save();
   updateNewbieChip();
 }
-// ── 新手引导 UI ──
-function showNewbieOnEntry() {
-  var quests = (window.AppData && AppData._data.newbieQuests) ? AppData._data.newbieQuests[CURRENT_USER] : null;
-  if (!quests || quests.every(function(q){ return q.done; })) return;
-  document.getElementById('newbieGuideOverlay').style.display = 'flex';
-  renderNewbieGuide();
-}
-function toggleNewbieGuide() {
-  var el = document.getElementById('newbieGuideOverlay');
+// ── 新手任务 UI ──
+function toggleNewbieQuests() {
+  var el = document.getElementById('newbieQuestOverlay');
   if (el.style.display === 'flex') { el.style.display = 'none'; return; }
   el.style.display = 'flex';
-  renderNewbieGuide();
+  renderNewbieQuests();
 }
 function updateNewbieChip() {
   var chip = document.getElementById('ubNewbieChip');
@@ -119,8 +113,8 @@ function updateNewbieChip() {
   chip.textContent = '🌱 新手 ' + done + '/' + total;
   chip.style.display = 'inline';
 }
-function renderNewbieGuide() {
-  var el = document.getElementById('newbieGuideBody');
+function renderNewbieQuests() {
+  var el = document.getElementById('newbieQuestBody');
   if (!el) return;
   var quests = (window.AppData && AppData._data.newbieQuests) ? AppData._data.newbieQuests[CURRENT_USER] : [];
   if (!quests.length) { el.innerHTML = ''; return; }
@@ -736,7 +730,11 @@ function _pushOverlay(id) {
     _overlayStack = _overlayStack.filter(function(x){return x!==id});
     _overlayStack.push(id);
   }
-  // M-7: overlay 打开时锁定 body 滚动
+  // z-index 栈管理：栈越深 z-index 越高，确保最新打开的 overlay 在最上方
+  _overlayStack.forEach(function(oid, i) {
+    var el = document.getElementById(oid);
+    if (el) el.style.zIndex = 100 + i;
+  });
   document.body.classList.add('ov-locked');
 }
 function _unlockBodyIfAllClosed() {
@@ -746,6 +744,11 @@ function _unlockBodyIfAllClosed() {
 function closeOverlay(id,returnToVillage){
   var el=document.getElementById(id);if(el)el.classList.remove('open');
   _overlayStack = _overlayStack.filter(function(x){return x!==id});
+  // 恢复剩余 overlay 的 z-index
+  _overlayStack.forEach(function(oid, i) {
+    var e2 = document.getElementById(oid);
+    if (e2) e2.style.zIndex = 100 + i;
+  });
   if(returnToVillage===false) { _unlockBodyIfAllClosed(); return; }
   // 有上级 overlay → 恢复；否则回村口
   // ⚠ 参数名不可叫 showVillage——会遮蔽 core.js 全局函数 showVillage()，

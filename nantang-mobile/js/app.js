@@ -1591,7 +1591,7 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 // 管理卡片点击 → 弹窗
 function _openMgmtSheet(type) {
   if (type === 'kitchen') { openKitchenPage(); return; }  // STYLE-D: 切到新版厨房页
-  if (type === 'field')   { openFieldPage(); return; }
+  if (type === 'field')   { _showFieldSheet(); return; }
   if (type === 'cleaning') { _showCleanSheet(); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
 }
@@ -2061,7 +2061,7 @@ function _renderFieldCardsLocal(el) {
 function _showFieldSheet() {
   // 优先 API
   if (typeof API !== 'undefined' && API.token) {
-    _showCardPopup('🌿 田间管理 · 劳动输入', '<div style="text-align:center;padding:20px;color:var(--g-text-sub)">⏳ 加载中…</div>', '', true);
+    _showCardPopup('🌿 田间管理 · 劳动输入', '<div style="text-align:center;padding:20px;color:var(--g-text-sub)">⏳ 加载中…</div>', '', false);
     API.getFields().then(function(r) {
       if (r && r.ok && r.plots && r.plots.length) {
         _renderFieldSheetFromAPI(r.plots);
@@ -2136,7 +2136,7 @@ function _renderFieldSheetFromAPI(plots) {
     h += '<button class="btn bp" onclick="_submitFieldSheet()">✅ 确认提交</button>';
   }
 
-  _showCardPopup('🌿 田间管理 · 劳动输入', h, '', true);
+  _showCardPopup('🌿 田间管理 · 劳动输入', h, '', false);
 }
 
 function _renderFieldSheetLocal() {
@@ -2192,7 +2192,7 @@ function _renderFieldSheetLocal() {
     h += '<button class="btn bp" onclick="_submitFieldSheetLocal()">✅ 确认提交</button>';
   }
 
-  _showCardPopup('🌿 田间管理 · 劳动输入', h, '', true);
+  _showCardPopup('🌿 田间管理 · 劳动输入', h, '', false);
 }
 
 function _submitFieldSheet() {
