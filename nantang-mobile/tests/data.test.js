@@ -80,3 +80,28 @@ describe("computeTitle 综合（tier 落档 + 分支阈值触发）", () => {
     expect(r.branches.map((b) => b.name)).toContain("发现者");
   });
 });
+
+// A-12 · closeOverlay 参数名遮蔽全局函数 showVillage() 的回归测试
+describe("closeOverlay 参数遮蔽修复 (A-12)", () => {
+  beforeEach(() => {
+    // 重置 overlay 栈 + 造一个打开态 overlay
+    _overlayStack.length = 0;
+    document.body.innerHTML = '<div id="overlayX" class="overlay open"></div>';
+    // mock 全局 showVillage（真源在 core.js，单测里用桩替代）
+    window.__svCalled = false;
+    window.showVillage = () => { window.__svCalled = true; };
+  });
+
+  it("不传第二参数时调用全局 showVillage，不报 TypeError", () => {
+    // 旧 bug：参数名 showVillage 遮蔽全局函数 → undefined() → TypeError
+    expect(() => closeOverlay("overlayX")).not.toThrow();
+    expect(window.__svCalled).toBe(true);
+    // overlay 的 open 类应被移除
+    expect(document.getElementById("overlayX").classList.contains("open")).toBe(false);
+  });
+
+  it("传 false 时仅解锁 body，不回村口", () => {
+    closeOverlay("overlayX", false);
+    expect(window.__svCalled).toBe(false);
+  });
+});

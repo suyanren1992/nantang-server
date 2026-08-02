@@ -696,11 +696,13 @@ function _unlockBodyIfAllClosed() {
   var anyOpen = document.querySelector('.overlay.open, .sub-page.open');
   if (!anyOpen) document.body.classList.remove('ov-locked');
 }
-function closeOverlay(id,showVillage){
+function closeOverlay(id,returnToVillage){
   var el=document.getElementById(id);if(el)el.classList.remove('open');
   _overlayStack = _overlayStack.filter(function(x){return x!==id});
-  if(showVillage===false) { _unlockBodyIfAllClosed(); return; }
+  if(returnToVillage===false) { _unlockBodyIfAllClosed(); return; }
   // 有上级 overlay → 恢复；否则回村口
+  // ⚠ 参数名不可叫 showVillage——会遮蔽 core.js 全局函数 showVillage()，
+  //    导致多数调用方（不传第二参数）走到这里时 TypeError（A-12）
   var prev = _overlayStack[_overlayStack.length-1];
   if(prev){ document.getElementById(prev).classList.add('open'); }
   else{ showVillage(); }
