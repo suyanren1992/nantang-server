@@ -147,30 +147,49 @@ function _doBookSlot(){
 
 function _loadSlotsData(cb){if(typeof API==='undefined'||!API.token){cb([]);return}API.getKitchenSlots().then(function(r){cb((r&&r.items)||[])}).catch(function(){cb([])})}
 
-// ═══ 冰箱 ═══
+// ═══ 冰箱（UNIFY-B: 2列卡片网格 + 点击展开详情） ═══
 function _renderItemsTab(){
   var el=document.getElementById('ktTabContent');if(!el)return;
   _loadItemsData(function(items){
     var h='<button onclick="_showItemAdd()" style="width:100%;padding:10px;border-radius:var(--g-radius);border:2px dashed var(--g-warn);background:var(--g-warn-bg);color:var(--g-warn);font-size:var(--g-font-size-xs);font-weight:600;cursor:pointer;margin-bottom:var(--g-gap)">＋ 放入物品</button>';
     if(!items||!items.length){h+='<div style="text-align:center;padding:24px;color:var(--g-text-muted)">冰箱空空如也</div>'}else{
       var ll={fridge:'🧊 冰箱',cabinet:'🗄 橱柜',counter:'🍳 台面'},cl={food:'🍎 食物',condiment:'🧂 调料',tool:'🔧 工具',other:'📦 其他'};
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap)">';
       items.forEach(function(it){
-        h+='<div style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);margin-bottom:var(--g-gap)'+(it.is_expired?'border:2px solid var(--g-red)':'')+'">';
-        h+='<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700;font-size:var(--g-font-size)">'+esc(it.name)+'</div>';
-        if(it.is_expired)h+='<span style="font-size:var(--g-font-size-xs);color:var(--g-red);font-weight:600">已过期</span>';
-        else if(it.expired_soon)h+='<span style="font-size:var(--g-font-size-xs);color:var(--g-warn);font-weight:600">即将过期</span>';
-        h+='</div><div style="font-size:.62rem;color:var(--g-text-dim)">'+(cl[it.category]||it.category)+' · '+(ll[it.location]||it.location)+'</div>';
-        if(it.quantity)h+='<div style="font-size:.6rem;color:var(--g-text-muted)">📏 '+esc(it.quantity)+'</div>';
-        if(it.expired_at)h+='<div style="font-size:.58rem;color:var(--g-text-muted)">📅 保质期：'+esc(it.expired_at)+'</div>';
-        if(it.note)h+='<div style="font-size:.58rem;color:var(--g-text-muted)">💬 '+esc(it.note)+'</div>';
-        h+='<div style="display:flex;gap:var(--g-gap);margin-top:6px">';
-        h+='<button onclick="_doTakeItem('+it.id+')" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--g-accent);background:var(--g-card);color:var(--g-accent);font-size:.6rem;cursor:pointer">📤 取出</button>';
-        h+='<button onclick="_doRemoveItem('+it.id+')" style="flex:1;padding:6px;border-radius:8px;border:1px solid var(--g-red);background:var(--g-card);color:var(--g-red);font-size:.6rem;cursor:pointer">🗑 移除</button>';
-        h+='</div></div>';
+        var catEmoji = (cl[it.category]||'📦 ').split(' ')[0];
+        var cardClass = 'card'+(it.is_expired?' card--danger':it.expired_soon?' card--warn':'');
+        h+='<div class="'+cardClass+'" onclick="_toggleItemDetail('+it.id+')" style="text-align:center;min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center" id="itemCard_'+it.id+'">'+
+          '<div style="font-size:1.5rem;margin-bottom:2px">'+catEmoji+'</div>'+
+          '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(it.name)+'</div>'+
+          '<div style="font-size:.6rem;color:var(--g-text-dim);margin-top:1px">'+(ll[it.location]||it.location)+'</div>'+
+          (it.is_expired?'<div style="font-size:var(--g-font-size-xs);color:var(--g-red);font-weight:600;margin-top:2px">⚠ 已过期</div>':
+           it.expired_soon?'<div style="font-size:var(--g-font-size-xs);color:var(--g-warn);font-weight:600;margin-top:2px">⏰ 即将过期</div>':'')+
+        '</div>'+
+        '<div id="itemDetail_'+it.id+'" style="display:none;grid-column:1/-1;background:var(--g-content);border-radius:var(--g-radius);padding:var(--g-pad);margin-bottom:var(--g-gap);animation:fadeIn .1s ease-out">'+
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:1.3rem">'+catEmoji+'</span><span style="font-weight:700;font-size:var(--g-font-size)">'+esc(it.name)+'</span></div>'+
+          '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:4px">'+(cl[it.category]||it.category)+' · '+(ll[it.location]||it.location)+'</div>'+
+          (it.quantity?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📏 '+esc(it.quantity)+'</div>':'')+
+          (it.expired_at?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">📅 保质期：'+esc(it.expired_at)+'</div>':'')+
+          (it.note?'<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">💬 '+esc(it.note)+'</div>':'')+
+          '<div style="display:flex;gap:var(--g-gap);margin-top:8px">'+
+          '<button onclick="event.stopPropagation();_doTakeItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-accent);background:var(--g-card);color:var(--g-accent);font-size:.65rem;cursor:pointer;font-weight:600">📤 取出</button>'+
+          '<button onclick="event.stopPropagation();_doRemoveItem('+it.id+')" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--g-red);background:var(--g-card);color:var(--g-red);font-size:.65rem;cursor:pointer;font-weight:600">🗑 移除</button>'+
+          '</div>'+
+          '<div style="text-align:center;margin-top:6px"><span onclick="_toggleItemDetail('+it.id+')" style="font-size:.62rem;color:var(--g-accent);cursor:pointer">收起 ▴</span></div>'+
+        '</div>';
       });
+      h+='</div>';
     }
     el.innerHTML=h;
   });
+}
+function _toggleItemDetail(id) {
+  var detail = document.getElementById('itemDetail_'+id);
+  if (!detail) return;
+  var isOpen = detail.style.display !== 'none';
+  var all = document.querySelectorAll('[id^="itemDetail_"]');
+  for (var i = 0; i < all.length; i++) { all[i].style.display = 'none'; }
+  if (!isOpen) detail.style.display = 'block';
 }
 
 function _showItemAdd(){
