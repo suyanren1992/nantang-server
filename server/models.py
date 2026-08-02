@@ -604,6 +604,32 @@ class Item(Base):
     updated_at = Column(String)
 
 
+# ══ W7-EVENT-1: 空间事情栏 ══
+EVENT_TYPES = (
+    "cooking", "cleaning", "farming",
+    "item_put", "item_take",
+    "checkin", "checkout",
+    "tip", "note", "system",
+)
+EVENT_VISIBILITIES = ("public", "anonymous", "private")
+# 同步 activity_log 的事件类型（公共劳动 + 物品存取 + 住宿）
+EVENT_SYNC_TYPES = ("cooking", "cleaning", "farming", "item_put", "item_take", "checkin", "checkout")
+
+
+class SpaceEvent(Base):
+    """空间事情——每个建筑容器里发生的事。公开度三档，服务端强制。"""
+    __tablename__ = "space_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    location_id = Column(String, ForeignKey("map_locations.key"), nullable=False)  # 发生在哪个空间
+    user_id = Column(String, ForeignKey("users.id"))       # 谁做的（NULL=匿名但数据库留存可追溯）
+    type = Column(String, nullable=False)                   # 事件类型（开放枚举）
+    text = Column(String, nullable=False)                   # 描述
+    visibility = Column(String, default="public")           # public / anonymous / private
+    linked_item_id = Column(Integer, ForeignKey("items.id"))# 关联物品（可选）
+    linked_task_id = Column(String, ForeignKey("nt_tasks.id"))# 关联任务（可选）
+    created_at = Column(String)
+
+
 # ══ W7-ID-1a: 事实驱动身份层 ══
 # 皇帝原则：权限不挂在身份上，挂在事实记录上。身份只是事实的显示名。
 # UserTag = 标签事实台账：每行记录"谁因什么事实获得了什么标签"。

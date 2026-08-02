@@ -127,6 +127,11 @@ _INDEX_DDL = [
     "CREATE INDEX IF NOT EXISTS idx_items_category ON items(category)",
     "CREATE INDEX IF NOT EXISTS idx_items_state ON items(state)",
     "CREATE INDEX IF NOT EXISTS idx_items_expiration ON items(expiration)",
+    # W7-EVENT-1: space_events 表索引
+    "CREATE INDEX IF NOT EXISTS idx_space_events_location_id ON space_events(location_id)",
+    "CREATE INDEX IF NOT EXISTS idx_space_events_type ON space_events(type)",
+    "CREATE INDEX IF NOT EXISTS idx_space_events_created_at ON space_events(created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_space_events_visibility ON space_events(visibility)",
 ]
 
 
