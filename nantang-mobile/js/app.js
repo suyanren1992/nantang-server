@@ -1688,170 +1688,103 @@ function renderFieldPage() {
     }).catch(function(){ _renderFieldCardsLocal(el); });
   } else { _renderFieldCardsLocal(el); }
 }
+// ═══ UNIFY-C: 田地内部页 — 2×2 .card 网格 + 选择→动作→提交 ═══
+var _selectedFieldPlot = null;
 function _renderFieldCards(plots, el) {
-  el.innerHTML = '';
   var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
+  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap);margin-bottom:var(--g-pad)">';
   plots.forEach(function(p) {
     var icon = cropIcons[p.crop_name] || '🌿';
-    var status = p.stage === '成熟' ? 'green' : p.stage === '休耕' ? 'offline' : p.health === '缺水' ? 'yellow' : p.health === '缺肥' ? 'yellow' : 'green';
-    var statusText = p.stage === '休耕' ? '休耕' : p.stage === '成熟' ? '可收割' : p.health === '缺水' ? '缺水' : p.health === '缺肥' ? '缺肥' : '生长中';
-    var planted = p.planted_at ? p.planted_at.slice(0,10) : '—';
-    var harvest = p.harvest_at ? p.harvest_at.slice(0,10) : '—';
-    var daysLeft = p.harvest_at && p.stage !== '休耕' ? Math.max(0, Math.ceil((new Date(p.harvest_at) - new Date()) / 86400000)) : 0;
-    var totalDays = p.planted_at && p.harvest_at && p.stage !== '休耕' ? Math.max(1, Math.ceil((new Date(p.harvest_at) - new Date(p.planted_at)) / 86400000)) : 30;
-    var progress = p.stage === '休耕' ? 0 : p.stage === '成熟' ? 100 : Math.min(100, Math.max(0, Math.round((Date.now() - new Date(p.planted_at||Date.now())) / (totalDays * 86400000) * 100)));
     var isFallow = p.stage === '休耕';
-
-    var card = UI.Card({
-      object: 'field_'+p.id,
-      head: UI.Icon({ name:icon, size:'md', status:status }).outerHTML +
-            ' <span style="flex:1">'+esc(p.plot_name)+'</span>' +
-            UI.StatusBadge({ status:status, text:statusText }).outerHTML,
-      body: '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">'+
-              '<span style="font-size:2rem">'+icon+'</span>'+
-              '<div style="flex:1;font-size:var(--g-font-size-xs);color:var(--g-text-dim);line-height:1.6">'+
-                '<div>🌱 种植: '+planted+'</div>'+
-                '<div>🧺 收割: '+harvest+'</div>'+
-                '<div>📅 剩余: '+(isFallow?'—':daysLeft+'天')+' / 周期 '+totalDays+'天</div>'+
-              '</div>'+
-            '</div>'+
-            UI.Progress({ value:progress, max:100, label:'生长度 '+progress+'%' }).outerHTML,
-      actions: isFallow ? '<button data-action="plant" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🌱 新种</button>' :
-               '<button data-action="water" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">💧 浇水</button>'+
-               '<button data-action="fertilize" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🪴 施肥</button>'+
-               (p.stage === '成熟' ? '<button data-action="harvest" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);background:#c88740;color:#fff">🧺 收割</button>' : ''),
-      onAction: function(action, props) {
-        var plotId = (props.object||'').replace('field_','');
-        if (action === 'plant') { _openFarmQuick(); return; }
-        if (typeof _doFieldAction === 'function') _doFieldAction(plotId, action);
-      }
-    });
-    el.appendChild(card);
+    var isMature = p.stage === '成熟';
+    var daysLeft = p.harvest_at && !isFallow ? Math.max(0, Math.ceil((new Date(p.harvest_at) - new Date()) / 86400000)) : 0;
+    var totalDays = p.planted_at && p.harvest_at && !isFallow ? Math.max(1, Math.ceil((new Date(p.harvest_at) - new Date(p.planted_at)) / 86400000)) : 30;
+    var pct = isFallow ? 0 : isMature ? 100 : Math.min(100, Math.max(0, Math.round((Date.now() - new Date(p.planted_at||Date.now())) / (totalDays * 86400000) * 100)));
+    var barColor = isMature ? 'var(--g-warn)' : 'var(--g-green)';
+    var stLabel = isFallow ? '休耕' : isMature ? '✅ 可收割' : p.health === '缺水' ? '💧 缺水' : p.health === '缺肥' ? '🟡 缺肥' : '剩'+daysLeft+'天';
+    var cardClass = 'card' + (isMature ? ' card--warn' : '');
+    h += '<div class="'+cardClass+'" data-plot="'+p.id+'" data-name="'+esc(p.plot_name)+'" data-crop="'+(isFallow?'':esc(p.crop_name||''))+'" data-icon="'+icon+'" onclick="_toggleFieldSelect(this)" style="text-align:center;position:relative">'+
+      '<div style="font-size:1.6rem;margin-bottom:4px">'+icon+'</div>'+
+      '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(p.plot_name)+'</div>'+
+      (isFallow ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-top:2px">空闲</div>' : '<div style="font-size:var(--g-font-size-xs);font-weight:600;margin-top:2px">'+esc(p.crop_name||'')+'</div>')+
+      (!isFallow ? '<div style="width:80%;height:6px;background:var(--g-card-border);border-radius:3px;margin:6px auto 0;overflow:hidden"><div style="width:'+pct+'%;height:100%;border-radius:3px;background:'+barColor+'"></div></div>' : '')+
+      '<div style="font-size:var(--g-font-size-xs);color:'+(isMature?'var(--g-warn)':'var(--g-text-dim)')+';margin-top:3px;font-weight:'+(isMature?'600':'400')+'">'+stLabel+'</div>'+
+    '</div>';
   });
+  h += '</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:var(--g-gap);text-align:center">💡 点击田块选择，再选操作</div>';
+  h += '<div id="fieldActionBar" style="display:none;margin-bottom:var(--g-pad)">'+
+    '<div style="font-size:var(--g-font-size-xs);font-weight:600;color:var(--g-text-dim);margin-bottom:6px">选择操作：</div>'+
+    '<div style="display:flex;gap:var(--g-gap);flex-wrap:wrap;margin-bottom:var(--g-gap)">'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridAction(\'water\')">💧 浇水</button>'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridAction(\'fertilize\')">🪴 施肥</button>'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridAction(\'harvest\')">🧺 收割</button>'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_openFarmQuick()">🌱 种植</button>'+
+    '</div></div>';
+  el.innerHTML = h;
 }
 function _renderFieldCardsLocal(el) {
-  el.innerHTML = '';
   var plots=[]; try { var obj = (window.AppData&&AppData._data.map_locations)||{}; plots=obj.plots||[]; } catch(e){}
   if (!plots.length) { var b = (getBuildings()||[]).find(function(x){return x.id==='field';}); if (b&&b.plots) plots=b.plots; }
-  plots.forEach(function(p){
-    var isGrowing = (p.status === 'growing');
-    var isWarning = (p.status === 'warning');
-    var isDone = (p.remain <= 0);
+  var h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--g-gap);margin-bottom:var(--g-pad)">';
+  plots.forEach(function(p) {
     var isEmpty = !p.crop || p.crop === '—';
-    var status = isEmpty ? 'offline' : isDone ? 'green' : isWarning ? 'yellow' : 'green';
-    var statusText = isEmpty ? '空闲' : isDone ? '可收割' : isWarning ? '即将收割' : '生长中';
-    var progress = isEmpty ? 0 : Math.min(100, Math.max(0, Math.round((p.days - (p.remain||0)) / (p.days||30) * 100)));
-
-    var card = UI.Card({
-      object: 'field_'+p.id,
-      head: UI.Icon({ name:p.icon||'🌿', size:'md', status:status }).outerHTML +
-            ' <span style="flex:1">'+esc(p.name)+'</span>' +
-            UI.StatusBadge({ status:status, text:statusText }).outerHTML,
-      body: '<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">'+
-              '<span style="font-size:2rem">'+(p.icon||'🌿')+'</span>'+
-              '<div style="flex:1;font-size:var(--g-font-size-xs);color:var(--g-text-dim);line-height:1.6">'+
-                '<div>🌱 种植: '+(p.planted||'—')+'</div>'+
-                '<div>🧺 收割: '+(p.harvest||'—')+'</div>'+
-                '<div>📅 剩余: '+(isEmpty?'—':p.remain+'天')+' / 周期 '+(p.days||0)+'天</div>'+
-              '</div>'+
-            '</div>'+
-            UI.Progress({ value:progress, max:100, label:'生长度 '+progress+'%' }).outerHTML,
-      actions: isEmpty ? '<button data-action="plant" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🌱 新种</button>' :
-               '<button data-action="water" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">💧 浇水</button>'+
-               '<button data-action="fertilize" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs)">🪴 施肥</button>'+
-               (isDone ? '<button data-action="harvest" class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);background:#c88740;color:#fff">🧺 收割</button>' : ''),
-      onAction: function(action, props) {
-        if (action === 'plant') { _openFarmQuick(); return; }
-        if (typeof _doFieldAction === 'function') _doFieldAction((props.object||'').replace('field_',''), action);
-      }
-    });
-    el.appendChild(card);
+    var isDone = p.remain <= 0 && !isEmpty;
+    var pct = isEmpty ? 0 : Math.min(100, Math.max(0, Math.round((p.days - (p.remain||0)) / (p.days||30) * 100)));
+    var barColor = isDone ? 'var(--g-warn)' : 'var(--g-green)';
+    var stLabel = isEmpty ? '空闲' : isDone ? '✅ 可收割' : '剩'+(p.remain||0)+'天';
+    var cardClass = 'card' + (isDone ? ' card--warn' : '');
+    h += '<div class="'+cardClass+'" data-plot="'+p.id+'" data-name="'+esc(p.name||'')+'" data-icon="'+(p.icon||'🌿')+'" onclick="_toggleFieldSelect(this)" style="text-align:center;position:relative">'+
+      '<div style="font-size:1.6rem;margin-bottom:4px">'+(p.icon||'🌿')+'</div>'+
+      '<div style="font-weight:700;font-size:var(--g-font-size-sm)">'+esc(p.name||'')+'</div>'+
+      (isEmpty ? '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-top:2px">'+(p.note||'空闲')+'</div>' : '<div style="font-size:var(--g-font-size-xs);font-weight:600;margin-top:2px">'+esc(p.crop||'')+'</div>')+
+      (!isEmpty ? '<div style="width:80%;height:6px;background:var(--g-card-border);border-radius:3px;margin:6px auto 0;overflow:hidden"><div style="width:'+pct+'%;height:100%;border-radius:3px;background:'+barColor+'"></div></div>' : '')+
+      '<div style="font-size:var(--g-font-size-xs);color:'+(isDone?'var(--g-warn)':'var(--g-text-dim)')+';margin-top:3px">'+stLabel+'</div>'+
+    '</div>';
   });
+  h += '</div>';
+  h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim);margin-bottom:var(--g-gap);text-align:center">💡 离线模式 · 点击田块选择操作</div>';
+  h += '<div id="fieldActionBar" style="display:none;margin-bottom:var(--g-pad)">'+
+    '<div style="font-size:var(--g-font-size-xs);font-weight:600;color:var(--g-text-dim);margin-bottom:6px">选择操作：</div>'+
+    '<div style="display:flex;gap:var(--g-gap);flex-wrap:wrap;margin-bottom:var(--g-gap)">'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridActionLocal(\'water\')">💧 浇水</button>'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridActionLocal(\'fertilize\')">🪴 施肥</button>'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_doFieldGridActionLocal(\'harvest\')">🧺 收割</button>'+
+    '<button class="btn-sm sec" style="flex:1;min-width:60px;font-size:.65rem" onclick="_openFarmQuick()">🌱 种植</button>'+
+    '</div></div>';
+  el.innerHTML = h;
 }
-// I1: 田间范式重写——接 API.getFields + UI.Card，4 块田每块 Card
-function _showFieldSheet() {
-  // 优先从 API 拉取真实田地数据（B6补）
-  if (typeof API !== 'undefined' && API.token) {
-    _showCardPopup('🌿 田地', '<div style="text-align:center;padding:20px;color:#5a6e5c">⏳ 加载中…</div>', '', true);
-    API.getFields().then(function(r) {
-      if (r && r.ok && r.plots && r.plots.length) {
-        _renderFieldCardsFromAPI(r.plots);
-      } else {
-        _renderFieldCardsLocal();
-      }
-    }).catch(function() {
-      _renderFieldCardsLocal();
-    });
-  } else {
-    _renderFieldCardsLocal();
-  }
+// UNIFY-C: 田地刷新入口——统一走 renderFieldPage()
+function _showFieldSheet() { renderFieldPage(); }
+function _toggleFieldSelect(el) {
+  var prev = el.parentElement.querySelector('.card--active');
+  if (prev && prev !== el) { prev.classList.remove('card--active'); }
+  el.classList.toggle('card--active');
+  _selectedFieldPlot = el.classList.contains('card--active') ? el : null;
+  var bar = document.getElementById('fieldActionBar');
+  if (bar) bar.style.display = _selectedFieldPlot ? 'block' : 'none';
 }
-function _renderFieldCardsFromAPI(plots) {
-  var cropIcons = { '番茄':'🍅', '玉米':'🌽', '红薯':'🍠', '枣树':'🌳' };
-  var stageLabels = { '休耕':'⚫ 休耕', '播种':'🌱 播种', '生长':'🌿 生长中', '成熟':'✅ 可收割', '收割':'🧺 已收割' };
-  var healthLabels = { '健康':'🟢 健康', '缺水':'💧 缺水', '缺肥':'🟡 缺肥', '病虫害':'🔴 病虫害' };
-  var h = '';
-  plots.forEach(function(p) {
-    var icon = cropIcons[p.crop_name] || '🌿';
-    var stageLabel = stageLabels[p.stage] || p.stage;
-    var healthLabel = healthLabels[p.health] || p.health;
-    var isMature = p.stage === '成熟';
-    var isFallow = p.stage === '休耕';
-    var cardBg = isMature ? '#fef8e8' : (isFallow ? '#f8f8f8' : '#fffdf9');
-    var cardBorder = isMature ? '#c88740' : '#c8c0b0';
-    h += '<div class="ui-card" style="background:'+cardBg+';border:1.5px solid '+cardBorder+';border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:var(--g-pad);margin-bottom:8px">';
-    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
-    h += '<span style="font-size:1.5rem">'+icon+'</span>';
-    h += '<div style="flex:1"><div style="font-weight:700;font-size:var(--g-font-size)">'+esc(p.plot_name)+'</div>';
-    h += '<div style="font-size:var(--g-font-size-xs);color:var(--g-text-dim)">'+(p.crop_name||'未种植')+' · '+stageLabel+' · '+healthLabel+'</div></div>';
-    h += '</div>';
-    // 时间线
-    if (p.planted_at) h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-bottom:4px">📅 种植: '+(p.planted_at||'').slice(0,10)+' | 预计收割: '+(p.harvest_at||'').slice(0,10)+'</div>';
-    if (p.harvested_by) h += '<div style="font-size:.55rem;color:var(--g-text-dim);margin-bottom:4px">👤 上次收割: '+esc(p.harvested_by)+'</div>';
-    // 进度条
-    if (p.stage === '生长' || p.stage === '成熟') {
-      var planted = p.planted_at ? new Date(p.planted_at).getTime() : 0;
-      var harvest = p.harvest_at ? new Date(p.harvest_at).getTime() : planted + 30*86400000;
-      var pct = planted && harvest ? Math.min(100, Math.round((Date.now() - planted) / (harvest - planted) * 100)) : 50;
-      h += '<div class="progress-bar" style="margin:6px 0"><div class="progress-fill" style="width:'+pct+'%"></div></div>';
-    }
-    // 操作按钮
-    if (!isFallow) {
-      h += '<div style="display:flex;gap:4px;margin-top:6px">';
-      h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:6px" onclick="event.stopPropagation();_doFieldAction(\''+p.id+'\',\'water\')">💧 浇水</button>';
-      h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:6px" onclick="event.stopPropagation();_doFieldAction(\''+p.id+'\',\'fertilize\')">🪴 施肥</button>';
-      if (isMature) h += '<button class="btn-sm pri" style="flex:1;font-size:var(--g-font-size-xs);padding:6px;background:#c88740;color:#fff" onclick="event.stopPropagation();_doFieldAction(\''+p.id+'\',\'harvest\')">🧺 收割</button>';
-      h += '</div>';
-    }
-    h += '</div>';
-  });
-  _updateFieldSheetContent(h);
+function _doFieldGridAction(action) {
+  if (!_selectedFieldPlot) { showToast('请先选择一个田块', 'warn'); return; }
+  var plotId = _selectedFieldPlot.getAttribute('data-plot');
+  var plotName = _selectedFieldPlot.getAttribute('data-name');
+  if (action === 'plant') { _openFarmQuick(); _selectedFieldPlot = null; return; }
+  if (typeof _doFieldAction === 'function') _doFieldAction(plotId, action);
+  _selectedFieldPlot = null;
+  var bar = document.getElementById('fieldActionBar');
+  if (bar) bar.style.display = 'none';
 }
-function _renderFieldCardsLocal() {
-  var plots = getPlots();
-  var h = '';
-  plots.forEach(function(p) {
-    if (!p.crops) p.crops = [];
-    if (p.crop && p.crop !== '—' && !p.crops.length) { p.crops.push({ name:p.crop, icon:p.icon, planted:p.planted, days:p.days, remain:p.remain, harvest:p.harvest }); }
-    var ci = p.crops.length ? p.crops.map(function(c){ return c.icon+' '+c.name+(c.remain<=0?' ✅':' 剩'+c.remain+'天'); }).join(' · ') : '空闲';
-    h += '<div class="ui-card" style="background:var(--g-card);border-radius:var(--g-radius);box-shadow:var(--g-shadow);padding:10px 12px;margin-bottom:6px;cursor:pointer;font-size:var(--g-font-size-xs)" onclick="var s=this.closest(\'.mgmt-sheet\');if(s)s.remove();var b=getBuildings().findIndex(function(x){return x.id===\'field\'});if(b>=0){currentIdx=b;render()}">'+
-      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-size:1.3rem">'+p.icon+'</span><b style="font-size:var(--g-font-size-sm)">'+p.name+'</b></div>'+
-      '<div style="color:var(--g-text-dim)">'+ci+'</div>'+
-      (p.crops.length ? '<div class="progress-bar" style="margin-top:6px"><div class="progress-fill" style="width:'+Math.min(100,Math.max(0,(p.crops[0].remain||0)/((p.crops[0].days||30)||1)*100))+'%"></div></div>' : '')+
-      '</div>';
-  });
-  _updateFieldSheetContent(h);
-}
-function _updateFieldSheetContent(h) {
-  var el = document.querySelector('.mgmt-sheet');
-  if (el) {
-    var body = el.querySelector('.mgmt-sheet-body');
-    if (body) body.innerHTML = h;
-    var title = el.querySelector('.mgmt-sheet-title');
-    if (title) title.textContent = '🌿 田地';
-  } else {
-    _showCardPopup('🌿 田地', h, '<button class="btn-sm pri" style="width:100%;margin:4px 0;min-height:44px;font-size:var(--g-font-size-xs)" onclick="_openFarmQuick()">＋ 记录农活</button>', true);
-  }
+function _doFieldGridActionLocal(action) {
+  if (!_selectedFieldPlot) { showToast('请先选择一个田块', 'warn'); return; }
+  var plotName = _selectedFieldPlot.getAttribute('data-name');
+  var ntMap = { 'water':5, 'fertilize':5, 'harvest':15 };
+  var nt = ntMap[action] || 5;
+  if (window.AppData) AppData.addVerification('field_action', _me(), action+' '+plotName, { action:action }, nt, Math.ceil(nt/5));
+  showToast(action+' '+plotName+' · 已记录 (+'+nt+' NT，待校核)', 'ok');
+  _selectedFieldPlot = null;
+  var bar = document.getElementById('fieldActionBar');
+  if (bar) bar.style.display = 'none';
+  setTimeout(function(){ renderFieldPage(); }, 500);
 }
 // A-CLEAN-WEEKLY: 大扫除周任务——选英雄式选卡+3s轮询+校核闭环
 var _cleanPollTimer = null;
