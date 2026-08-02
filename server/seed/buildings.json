@@ -46,23 +46,23 @@
     "summary": { "cleanliness": "🟢", "items": "", "onsite": "", "cleaning": "", "alert": "" },
     "floors": {
       "1F": [
-        { "id": "community_hall", "name": "社区大厅", "icon": "🏛️", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "community_market", "name": "社区超市", "icon": "🛒", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "storage", "name": "小仓库", "icon": "📦", "status": "green", "sub": "", "items": ["农具（锄头、镰刀、铁锹等）"], "people": [], "cleaning": [] },
-        { "id": "kitchen", "name": "厨房", "icon": "🍳", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "public_office", "name": "公共办公室", "icon": "💼", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "toilet_r", "name": "卫生间", "icon": "🚻", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "backyard_corridor", "name": "通往后院的走廊", "icon": "🚶", "status": "green", "sub": "", "items": ["部分农具和物品"], "people": [], "cleaning": [] }
+        { "id": "community_hall", "name": "社区大厅", "icon": "🏛️", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "community_market", "name": "社区超市", "icon": "🛒", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "storage", "name": "小仓库", "icon": "📦", "status": "green", "sub": "", "space_type": "storage", "items": ["农具（锄头、镰刀、铁锹等）"], "people": [], "cleaning": [] },
+        { "id": "kitchen", "name": "厨房", "icon": "🍳", "status": "green", "sub": "", "space_type": "kitchen", "items": [], "people": [], "cleaning": [] },
+        { "id": "public_office", "name": "公共办公室", "icon": "💼", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "toilet_r", "name": "卫生间", "icon": "🚻", "status": "green", "sub": "", "space_type": "washroom", "items": [], "people": [], "cleaning": [] },
+        { "id": "backyard_corridor", "name": "通往后院的走廊", "icon": "🚶", "status": "green", "sub": "", "space_type": "common", "items": ["部分农具和物品"], "people": [], "cleaning": [] }
       ],
       "2F": [
-        { "id": "studio", "name": "画室", "icon": "🎨", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "washroom", "name": "洗浴室", "icon": "🚿", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "farm_equipment", "name": "阅览室（原农机室）", "icon": "📖", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "biao_office", "name": "标哥办公室", "icon": "👔", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] }
+        { "id": "studio", "name": "画室", "icon": "🎨", "status": "green", "sub": "", "space_type": "studio", "items": [], "people": [], "cleaning": [] },
+        { "id": "washroom", "name": "洗浴室", "icon": "🚿", "status": "green", "sub": "", "space_type": "washroom", "items": [], "people": [], "cleaning": [] },
+        { "id": "farm_equipment", "name": "阅览室（原农机室）", "icon": "📖", "status": "green", "sub": "", "space_type": "reading", "items": [], "people": [], "cleaning": [] },
+        { "id": "biao_office", "name": "标哥办公室", "icon": "👔", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] }
       ],
       "3F": [
-        { "id": "rooftop", "name": "天台", "icon": "🌤️", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "laundry_room", "name": "晾衣间", "icon": "👕", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] }
+        { "id": "rooftop", "name": "天台", "icon": "🌤️", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "laundry_room", "name": "晾衣间", "icon": "👕", "status": "green", "sub": "", "space_type": "washroom", "items": [], "people": [], "cleaning": [] }
       ]
     },
     "plots": []
@@ -90,24 +90,24 @@
     "summary": { "cleanliness": "🟢4 🟡1", "items": "📚200册", "stay": "🛏️住宿" },
     "floors": {
       "1F": [
-        { "id": "bar", "name": "吧台", "icon": "🍸", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "main_hall", "name": "正厅", "icon": "🏛️", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "toilet_study", "name": "卫生间", "icon": "🚻", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "wash_study", "name": "洗漱台", "icon": "🪥", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "corridor_study", "name": "走廊楼梯", "icon": "🚶", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "mahjong", "name": "麻将室", "icon": "🀄", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] },
-        { "id": "kitchen_study", "name": "大地厨房", "icon": "🍳", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] }
+        { "id": "bar", "name": "吧台", "icon": "🍸", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "main_hall", "name": "正厅", "icon": "🏛️", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "toilet_study", "name": "卫生间", "icon": "🚻", "status": "green", "sub": "", "space_type": "washroom", "items": [], "people": [], "cleaning": [] },
+        { "id": "wash_study", "name": "洗漱台", "icon": "🪥", "status": "green", "sub": "", "space_type": "washroom", "items": [], "people": [], "cleaning": [] },
+        { "id": "corridor_study", "name": "走廊楼梯", "icon": "🚶", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "mahjong", "name": "麻将室", "icon": "🀄", "status": "green", "sub": "", "space_type": "common", "items": [], "people": [], "cleaning": [] },
+        { "id": "kitchen_study", "name": "大地厨房", "icon": "🍳", "status": "green", "sub": "", "space_type": "kitchen", "items": [], "people": [], "cleaning": [] }
       ],
       "2F": [
-        { "id": "dorm101", "name": "A室·三人大通铺", "icon": "🛏", "status": "green", "sub": "20NT/床·无空调", "items": [], "people": [], "cleaning": [] },
-        { "id": "dorm102", "name": "B室·四人大通铺", "icon": "🛏", "status": "green", "sub": "30NT/床·有空调", "items": [], "people": [], "cleaning": [] },
-        { "id": "dorm103", "name": "C室·上下床+大床", "icon": "🛏", "status": "green", "sub": "30NT/床·有空调", "items": [], "people": [], "cleaning": [] },
-        { "id": "dorm104", "name": "D室·单间大床房", "icon": "🛏", "status": "green", "sub": "60NT/床·有空调", "items": [], "people": [], "cleaning": [] },
-        { "id": "dorm105", "name": "E室·两个上下床", "icon": "🛏", "status": "green", "sub": "30NT/床·有空调", "items": [], "people": [], "cleaning": [] },
-        { "id": "dorm106", "name": "F室·四人间上下床", "icon": "🛏", "status": "green", "sub": "35NT/床·有空调", "items": [], "people": [], "cleaning": [] }
+        { "id": "dorm101", "name": "A室·三人大通铺", "icon": "🛏", "status": "green", "sub": "20NT/床·无空调", "space_type": "dorm", "items": [], "people": [], "cleaning": [] },
+        { "id": "dorm102", "name": "B室·四人大通铺", "icon": "🛏", "status": "green", "sub": "30NT/床·有空调", "space_type": "dorm", "items": [], "people": [], "cleaning": [] },
+        { "id": "dorm103", "name": "C室·上下床+大床", "icon": "🛏", "status": "green", "sub": "30NT/床·有空调", "space_type": "dorm", "items": [], "people": [], "cleaning": [] },
+        { "id": "dorm104", "name": "D室·单间大床房", "icon": "🛏", "status": "green", "sub": "60NT/床·有空调", "space_type": "dorm", "items": [], "people": [], "cleaning": [] },
+        { "id": "dorm105", "name": "E室·两个上下床", "icon": "🛏", "status": "green", "sub": "30NT/床·有空调", "space_type": "dorm", "items": [], "people": [], "cleaning": [] },
+        { "id": "dorm106", "name": "F室·四人间上下床", "icon": "🛏", "status": "green", "sub": "35NT/床·有空调", "space_type": "dorm", "items": [], "people": [], "cleaning": [] }
       ],
       "阁楼": [
-        { "id": "attic", "name": "阁楼储物", "icon": "📦", "status": "green", "sub": "", "items": [], "people": [], "cleaning": [] }
+        { "id": "attic", "name": "阁楼储物", "icon": "📦", "status": "green", "sub": "", "space_type": "storage", "items": [], "people": [], "cleaning": [] }
       ]
     },
     "plots": []
@@ -123,11 +123,11 @@
     "summary": { "totalPlots": 5, "planted": 0 },
     "floors": {},
     "plots": [
-      { "id": "fa", "name": "A区", "icon": "🥬", "crops": [] },
-      { "id": "fb", "name": "B区", "icon": "🌽", "crops": [] },
-      { "id": "fc", "name": "C区", "icon": "🍠", "crops": [] },
-      { "id": "fd", "name": "D区", "icon": "🌳", "crops": [] },
-      { "id": "fe", "name": "E区", "icon": "🍂", "crops": [] }
+      { "id": "fa", "name": "A区", "icon": "🥬", "space_type": "field", "crops": [] },
+      { "id": "fb", "name": "B区", "icon": "🌽", "space_type": "field", "crops": [] },
+      { "id": "fc", "name": "C区", "icon": "🍠", "space_type": "field", "crops": [] },
+      { "id": "fd", "name": "D区", "icon": "🌳", "space_type": "field", "crops": [] },
+      { "id": "fe", "name": "E区", "icon": "🍂", "space_type": "field", "crops": [] }
     ]
   },
   {

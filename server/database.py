@@ -455,6 +455,64 @@ async def init_db():
         except Exception as e:
             logger.warning(f"[EMPIRICAL-🔴2.3] buildings seed skipped: {e}")
             await session.rollback()
+        # ══ W7-ITEM-ROOM: 每个房间独立 MapLocation 行（幂等——按 key 存在即跳过）══
+        # 用途：Item.location_id / SpaceEvent.location_id FK 指向具体房间
+        # 每个房间 data 字段存 minimal JSON：space_type + name
+        # 不改动 key="shared" 行——与其并行存在
+        try:
+            from models import MapLocation as _ML
+            import json as _json, os as _os
+            _seed_path = _os.path.join(_os.path.dirname(__file__), "seed", "buildings.json")
+            if _os.path.exists(_seed_path):
+                with open(_seed_path, "r", encoding="utf-8") as _f:
+                    _buildings = _json.load(_f)
+                _seeded = 0
+                for _b in _buildings:
+                    # 遍历 building.floors 中的每个房间
+                    for _floor_key, _rooms in (_b.get("floors") or {}).items():
+                        for _r in _rooms:
+                            _rid = _r.get("id")
+                            if not _rid:
+                                continue
+                            _exists = (await session.execute(
+                                select(_ML).where(_ML.key == _rid)
+                            )).scalar_one_or_none()
+                            if _exists:
+                                continue
+                            _st = _r.get("space_type", "common")
+                            _data = _json.dumps({
+                                "space_type": _st,
+                                "name": _r.get("name", _rid),
+                            }, ensure_ascii=False)
+                            session.add(_ML(key=_rid, data=_data))
+                            _seeded += 1
+                    # 遍历 building.plots 中的每个地块（田地等）
+                    for _p in _b.get("plots") or []:
+                        _pid = _p.get("id")
+                        if not _pid:
+                            continue
+                        _exists = (await session.execute(
+                            select(_ML).where(_ML.key == _pid)
+                        )).scalar_one_or_none()
+                        if _exists:
+                            continue
+                        _st = _p.get("space_type", "field")
+                        _data = _json.dumps({
+                            "space_type": _st,
+                            "name": _p.get("name", _pid),
+                        }, ensure_ascii=False)
+                        session.add(_ML(key=_pid, data=_data))
+                        _seeded += 1
+                await session.commit()
+                if _seeded:
+                    logger.info("[W7-ITEM-ROOM] seeded %d room MapLocation rows", _seeded)
+                else:
+                    logger.info("[W7-ITEM-ROOM] all room MapLocation rows already exist")
+            else:
+                logger.warning("[W7-ITEM-ROOM] seed file not found: %s", _seed_path)
+        except Exception as e:
+            logger.warning("[W7-ITEM-ROOM] room MapLocation seed skipped: %s", e)
+            await session.rollback()
         # ══ REDTEAM-B-B6: admin bootstrap 种子（幂等——无 admin 角色才播）══
         # ⚠️ 生产环境必须设 ADMIN_BOOTSTRAP_PASSWORD 环境变量
         try:
@@ -605,6 +663,20 @@ async def init_db():
         except Exception as e:
             logger.warning(f"[W7-ID-1a] identity migration skipped: {e}")
             await session.rollback()
+
+        # ══ W7-ITEM-ACCESS: Item 表加 access + fixture 列 ══
+        try:
+            await session.execute(text("ALTER TABLE items ADD COLUMN access TEXT DEFAULT 'private'"))
+            await session.commit()
+        except Exception as _e:
+            _log_migration_skip(_e)
+            await session.rollback()  # PG: 列已存在则跳过
+        try:
+            await session.execute(text("ALTER TABLE items ADD COLUMN fixture BOOLEAN DEFAULT FALSE"))
+            await session.commit()
+        except Exception as _e:
+            _log_migration_skip(_e)
+            await session.rollback()  # PG: 列已存在则跳过
 
     # ══ P0-IDX: 全部迁移/种子完成后，逐条建索引 ══
     # 放在最后是刻意的：轻量迁移的 ALTER 已把新列补齐，此时建索引才不会撞

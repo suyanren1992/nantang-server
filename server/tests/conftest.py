@@ -172,6 +172,43 @@ async def _reseed_baseline():
                     key="shared",
                     data=_json.dumps({"buildings": _buildings}, ensure_ascii=False),
                 ))
+        # 6. W7-ITEM-ROOM: 每个房间独立 MapLocation 行（幂等——按 key 存在即跳过）
+        _seed_path = _seed_dir / "buildings.json"
+        if _seed_path.exists():
+            with open(_seed_path, "r", encoding="utf-8") as _f:
+                _buildings = _json.load(_f)
+            for _b in _buildings:
+                for _floor_key, _rooms in (_b.get("floors") or {}).items():
+                    for _r in _rooms:
+                        _rid = _r.get("id")
+                        if not _rid:
+                            continue
+                        if (await s.execute(
+                            select(MapLocation).where(MapLocation.key == _rid)
+                        )).scalar_one_or_none():
+                            continue
+                        s.add(MapLocation(
+                            key=_rid,
+                            data=_json.dumps({
+                                "space_type": _r.get("space_type", "common"),
+                                "name": _r.get("name", _rid),
+                            }, ensure_ascii=False),
+                        ))
+                for _p in _b.get("plots") or []:
+                    _pid = _p.get("id")
+                    if not _pid:
+                        continue
+                    if (await s.execute(
+                        select(MapLocation).where(MapLocation.key == _pid)
+                    )).scalar_one_or_none():
+                        continue
+                    s.add(MapLocation(
+                        key=_pid,
+                        data=_json.dumps({
+                            "space_type": _p.get("space_type", "field"),
+                            "name": _p.get("name", _pid),
+                        }, ensure_ascii=False),
+                    ))
         await s.commit()
 
 
