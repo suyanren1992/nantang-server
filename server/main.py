@@ -4,14 +4,16 @@ import asyncio
 import logging
 import time
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
-from database import init_db, async_session
+from database import init_db, async_session, get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 from routes import auth, nt, tasks, camps, data, accommodation, admin, covenant, governance, labor, clean_weekly, storage, archive, fields, user_settings, new_user_tasks
+from routes.auth import get_current_user
 from routes.community import (
     potluck_router, proposals_router, camp_proposals_router,
     health_report_router, cleaning_pricing_router,
@@ -191,6 +193,17 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+# ══ W7-ID-1b B-3: 前端能力清单 ══
+@app.get("/api/me/capabilities")
+async def me_capabilities(
+    user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回当前用户的能力清单 + deny_reason，前端不自己编话术。"""
+    from permissions import capabilities as get_capabilities
+    return await get_capabilities(user, db)
 
 
 # 前端静态文件——浏览器正常缓存 JS/CSS，只 HTML 每次拉新
