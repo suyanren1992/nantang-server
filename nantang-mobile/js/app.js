@@ -49,6 +49,17 @@ function getPlots() {
 // Phase 2: 辅助读取 map_locations
 function _ml() { var d=(window.Game&&Game.getData)?Game.getData():null; return (d&&d.map_locations)?d.map_locations:{}; }
 function _mlState() { return _ml().state||{}; }
+function _mlStats() {
+  var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
+  var blds = getBuildings();
+  var clean = 0, warn = 0, dirty = 0;
+  blds.forEach(function(b) {
+    if (b.id === 'info' || b.id === 'gate_a' || b.id === 'parking') return;
+    var d = (cl && cl.spaces && cl.spaces[b.id]) ? cl.spaces[b.id].dirtiness : 0;
+    if (d >= 60) dirty++; else if (d >= 30) warn++; else clean++;
+  });
+  return { cleanCount: clean, warnCount: warn, dirtyCount: dirty };
+}
 function _defaultConfig() { return {
   cleaning_pricing: { dirty:20, warning:15, clean:5 },
   farming_pricing: { harvest:15, plant:5, water:3, weed:5, fertilize:5, view:2 },
@@ -60,7 +71,7 @@ function _defaultConfig() { return {
     dorm103:{ perBed:30, ac:true }, dorm104:{ perRoom:60, ac:true },
     dorm105:{ perBed:30, ac:true }, dorm106:{ perBed:35, ac:true }
   },
-  // E3.4: System B 已删除——新手引导统一走 data.js NEWBIE_QUESTS
+  // E3.4: System B 已删除——新手任务统一走 data.js NEWBIE_QUESTS
   dirtiness_rates: { bathroom:15, kitchen:10, hallway:8, studio:8, bedroom:5, laundry:5, storage:3, outdoor:2, field:0 },
   dirtiness_thresholds: { green:30, yellow:60, red:80 },
   item_expiry_days: 5,
@@ -326,7 +337,7 @@ function _renderStatusPills() {
 
 function _renderNewbieCard() {
   var me = _me(); if (!me) return '';
-  // E3.4: 新手引导统一走 data.js NEWBIE_QUESTS
+  // E3.4: 新手任务统一走 data.js NEWBIE_QUESTS
   var steps = (typeof NEWBIE_QUESTS !== 'undefined') ? NEWBIE_QUESTS : [];
   if (!steps.length) return '';
   var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]);
@@ -342,7 +353,7 @@ function _renderNewbieCard() {
   if (doneCount >= steps.length) return ''; // 全部完成，不显示
   var pct = Math.round(doneCount / steps.length * 100);
   var h = '<div style="background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px 12px;margin:4px 0">'+
-    '<div style="font-weight:700;font-size:.72rem;margin-bottom:4px">🌱 新手引导 ('+doneCount+'/'+steps.length+')</div>'+
+    '<div style="font-weight:700;font-size:.72rem;margin-bottom:4px">🌱 新手任务 ('+doneCount+'/'+steps.length+')</div>'+
     '<div style="height:6px;background:#f0f0f0;border-radius:3px;margin-bottom:8px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:3px"></div></div>';
   steps.forEach(function(s){
     var q = quests.find(function(x){ return x.id === s.id; }) || {};
@@ -439,16 +450,23 @@ function _renderMgmtCards() {
 }
 
 function _renderQuickEntryCards() {
-  // ⑳ 角色仪表盘：visitor 不显示操作卡片
+  // B-6: 全貌页都能看，差别在可操作范围 — visitor 可见卡片但点击给提示
   var me = _me();
-  // P3-一营丁·卡C: 世界终端角色判断——HTTP模式优先API.user.role（服务端权威），离线回退getUsers()
   var myRole = (typeof API !== 'undefined' && API.user && API.user.role) ? API.user.role :
                (me && typeof getUsers === 'function') ? ((getUsers()[me] || {}).role || 'visitor') : 'visitor';
   var isMember = isMemberByRole(myRole);
+  var deny = typeof getDenyReason === 'function' ? getDenyReason('coop_resource') : '';
+  var hintMsg = deny || '入住后才能操作';
+  var cardStyle = isMember
+    ? 'flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer'
+    : 'flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer;opacity:.55';
+  var cardClick = function(act) {
+    return isMember ? act : '_visitorHint(this,\''+hintMsg+'\')';
+  };
   return '<div style="display:flex;gap:6px;padding:4px 0">'+
-    (isMember ? '<div class="quick-card" onclick="_openKitchenQuick()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">📦</div><div style="font-size:var(--g-font-size-xs);font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
-    '<div class="quick-card" onclick="if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🧹</div><div style="font-size:var(--g-font-size-xs);font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
-    '<div class="quick-card" onclick="openFieldPage()" style="flex:1;background:#fff;border:1px solid #d0d9ce;border-radius:10px;padding:10px;text-align:center;cursor:pointer"><div style="font-size:1.4rem">🌿</div><div style="font-size:var(--g-font-size-xs);font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>' : '')+
+    '<div class="quick-card" onclick="'+cardClick('_openKitchenQuick()')+'" style="'+cardStyle+'"><div style="font-size:1.4rem">📦</div><div style="font-size:var(--g-font-size-xs);font-weight:600">放取物品</div><div style="font-size:.55rem;color:#999">冰箱·仓库</div></div>'+
+    '<div class="quick-card" onclick="'+cardClick('if(typeof openSelfReport===\'function\')openSelfReport({cat:\'cleaning\'})')+'" style="'+cardStyle+'"><div style="font-size:1.4rem">🧹</div><div style="font-size:var(--g-font-size-xs);font-weight:600">打扫卫生</div><div style="font-size:.55rem;color:#999">清洁·维护</div></div>'+
+    '<div class="quick-card" onclick="'+cardClick('openFieldPage()')+'" style="'+cardStyle+'"><div style="font-size:1.4rem">🌿</div><div style="font-size:var(--g-font-size-xs);font-weight:600">田间管理</div><div style="font-size:.55rem;color:#999">种植·养护</div></div>'+
   '</div>';
 }
 
@@ -3181,7 +3199,7 @@ function _doCleaning(spaceId) {
   if (discs.length > 200) discs.length = 200;
   // Step 5: 大扫除触发 CV 解冻 + 新手任务
   if (typeof _unfreezeCV === 'function') _unfreezeCV(me);
-  // C5: 大扫除不再属于新手引导任务
+  // C5: 大扫除不再属于新手任务
   // Step 6: 时间线记录
   if (typeof addJournal === 'function') addJournal(me, 'cleaning', '打扫了 '+spaceId, { space: spaceId });
   if (window.Game&&Game.toast) Game.toast('打扫完成，等待校核 (+'+cleanReward+' NT)');
@@ -3415,14 +3433,14 @@ function _showFlipOther(targetName) {
 function _openVerificationPanel() {
   var me = _me();
   var h = '';
-  // ── 新手引导 ──
-  // E3.4: 新手引导统一走 data.js NEWBIE_QUESTS
+  // ── 新手任务 ──
+  // E3.4: 新手任务统一走 data.js NEWBIE_QUESTS
   var steps = (typeof NEWBIE_QUESTS !== 'undefined') ? NEWBIE_QUESTS : [];
   var quests = (window.AppData && AppData._data.newbieQuests && AppData._data.newbieQuests[me]) || [];
   var doneCount = quests.length ? steps.filter(function(s){ var q = quests.find(function(x){ return x.id === s.id; }); return q && q.done; }).length : 0;
   if (steps.length && doneCount < steps.length) {
     var pct = Math.round(doneCount / steps.length * 100);
-    h += '<div style="background:#f0f8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer" onclick="var el=document.querySelector(\'.vfy-popup\');if(el)el.remove();_showAlertCard({message:\'新手引导在首页下方查看\'})"><div style="font-weight:700;font-size:.7rem">🌱 新手引导 ('+doneCount+'/'+steps.length+')</div><div style="height:4px;background:#ddd;border-radius:2px;margin:4px 0"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:2px"></div></div><div style="font-size:.55rem;color:#999">点击查看详情</div></div>';
+    h += '<div style="background:#f0f8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px;cursor:pointer" onclick="var el=document.querySelector(\'.vfy-popup\');if(el)el.remove();_showAlertCard({message:\'新手任务在首页下方查看\'})"><div style="font-weight:700;font-size:.7rem">🌱 新手任务 ('+doneCount+'/'+steps.length+')</div><div style="height:4px;background:#ddd;border-radius:2px;margin:4px 0"><div style="height:100%;width:'+pct+'%;background:var(--green-primary);border-radius:2px"></div></div><div style="font-size:.55rem;color:#999">点击查看详情</div></div>';
   }
   // ── 整洁度 ──
   var cl = (window.AppData && AppData._data.cleaning) ? AppData._data.cleaning : null;
