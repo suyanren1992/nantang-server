@@ -861,7 +861,7 @@ function _renderCampSection() {
   var camps = (window.AppData && AppData._data.camps) ? Object.values(AppData._data.camps).filter(function(c){return c.status==='active';}) : [];
   if (!camps.length) return null;
   return camps.map(function(c){
-    return '<div class="camp-card" style="padding:8px 0;border-bottom:1px dotted #f0f0f0;cursor:pointer;'+_seedStyle(c)+'" onclick="if(window.Game&&Game.openCamp)Game.openCamp(\''+c.id+'\')">'+
+    return '<div class="card camp-card" style="padding:8px 0;border-bottom:1px dotted #f0f0f0;cursor:pointer;'+_seedStyle(c)+'" onclick="if(window.Game&&Game.openCamp)Game.openCamp(\''+c.id+'\')">'+
       '<span style="font-weight:700;font-size:.68rem">'+c.emoji+' '+c.name+'</span> <span style="color:#999;font-size:.6rem">👥'+c.people+'/'+c.max+'人 · '+c.date+'</span> <span style="color:var(--green-primary);font-size:.6rem;float:right">进入 ▸</span></div>';
   }).join('');
 }
@@ -1488,7 +1488,9 @@ function closeMgmt() {
 }
 
 function renderMgmtPanel(type) {
-  var fn = { cleaning:renderCleaningPanel, stay:_showStaySheet, field:renderFieldPanel, fieldPlant:renderFieldPanel, kitchen:renderKitchenPanel, kitchenAdd:renderKitchenPanel }[type];
+  // STYLE-D: 厨房入口已切到新版 openKitchenPage()，旧版 renderKitchenPanel 仅保留为废弃代码
+  if (type === 'kitchen' || type === 'kitchenAdd') { openKitchenPage(); return; }
+  var fn = { cleaning:renderCleaningPanel, stay:_showStaySheet, field:renderFieldPanel, fieldPlant:renderFieldPanel }[type];
   _d('mgmtBody').innerHTML = fn ? fn() : '';
 }
 
@@ -1536,7 +1538,7 @@ function _showCardPopup(title, bodyHTML, actionBtn, fullscreen) {
 
 // 管理卡片点击 → 弹窗
 function _openMgmtSheet(type) {
-  if (type === 'kitchen') { try { var kp = renderKitchenPanel(); _showCardPopup('🍳 厨房 · 冰箱', kp||'', null, true); } catch(e) { console.error(e); _showCardPopup('🍳 厨房 · 冰箱', '<div style="padding:20px;text-align:center;color:#b84c38;font-size:var(--g-font-size-sm)">⚠ 面板加载失败<br><span style="font-size:.6rem;color:#999">请刷新页面后重试</span></div>', null, true); } return; }  // J 修复 + SM-1.5: try-catch 兜底——renderKitchenPanel 异常时至少弹出面板壳而非静默无反应
+  if (type === 'kitchen') { openKitchenPage(); return; }  // STYLE-D: 切到新版厨房页
   if (type === 'field')   { openFieldPage(); return; }
   if (type === 'cleaning') { _showCardPopup('🧹 大扫除管理', renderCleaningPanel()||'', null, true); return; }
   if (type === 'stay')     { _showStaySheet(); return; }
@@ -2830,6 +2832,8 @@ function _submitFieldLog() {
    🍳 厨房管理（我的视角）
    ══════════════════════════════════════ */
 var _kOpen = {};
+// ⚠ DEPRECATED (STYLE-D, 2026-08-02): 旧版厨房面板已废弃，入口全部切到 openKitchenPage()。
+// 保留此函数仅作代码考古，不删不改。日后清理时一并移除。
 function renderKitchenPanel() {
   var me = _me(); var h = '';
   // 收集冰箱物品
@@ -2924,12 +2928,17 @@ function renderKitchenPanel() {
   return h;
 }
 
+// STYLE-D: 共享过期判断 — 传 daysLeft 返回状态
+function expiredStatus(days) {
+  if (days <= 0) return 'expired';
+  if (days <= 2) return 'warn';
+  return 'fresh';
+}
+
 function _itemExpired(it) {
   if (!it.expiryDays || !it.putDate) return 'ok';
   var daysLeft = it.expiryDays - Math.floor((new Date() - new Date(it.putDate+'T00:00:00'))/86400000);
-  if (daysLeft <= 0) return 'expired';
-  if (daysLeft <= 2) return 'warn';
-  return 'fresh';
+  return expiredStatus(daysLeft);
 }
 
 function _renderFridgeItem(it) {
