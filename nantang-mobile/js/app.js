@@ -395,7 +395,7 @@ function _renderMgmtCards() {
   var nextClean = (MGMT_DATA.cleaning.nextDate||'');
   var cleanDays = nextClean ? Math.ceil((new Date(nextClean+'T00:00:00')-new Date())/86400000) : null;
   var stats = _mlStats();
-  h += '<div class="ic-card" onclick="'+(isMember?'openCleanWeekly()':'_visitorHint(this,\'入住后才能报名大扫除\')')+'"><div class="ic-head">🧹 大扫除</div>'+
+  h += '<div class="ic-card" onclick="openCleanWeekly()"><div class="ic-head">🧹 大扫除</div>'+
     '<div class="ic-body"><div class="ic-big">'+(cleanDays!=null ? (cleanDays>0 ? cleanDays+' 天后' : nextClean.slice(5)) : '未设定')+'</div>'+
     '<div>🟢'+stats.cleanCount+' 🟡'+stats.warnCount+' 🔴'+stats.dirtyCount+'</div></div></div>';
 
@@ -426,7 +426,7 @@ function _renderMgmtCards() {
       }
     });
   });
-  h += '<div class="ic-card" onclick="'+(isMember?'_openMgmtSheet(\'field\')':'_visitorHint(this,\'入住后才能操作田地\')')+'"><div class="ic-head">🌾 田地</div>'+
+  h += '<div class="ic-card" onclick="_openMgmtSheet(\'field\')"><div class="ic-head">🌾 田地</div>'+
     '<div class="ic-body"><div class="ic-big">'+activePlots.length+' <span style="font-size:.7rem">块种植中</span></div>'+
     '<div class="ic-muted">'+(nearestHarvest!==null ? '📅 '+harvestName+' '+(nearestHarvest<=0?'可收':nearestHarvest+'天后') : '暂无种植')+'</div></div></div>';
 
@@ -440,7 +440,7 @@ function _renderMgmtCards() {
     var d = it.expiryDays && it.putDate ? it.expiryDays - Math.floor((Date.now()-new Date(it.putDate+'T00:00:00'))/86400000) : null;
     if (d !== null && (nearestExpiry === null || d < nearestExpiry)) { nearestExpiry = d; nearestExpName = it.name; }
   });
-  h += '<div class="ic-card" onclick="'+(isMember?'openKitchenPage()':'_visitorHint(this,\'入住后才能使用厨房\')')+'"><div class="ic-head">🍳 厨房</div>'+
+  h += '<div class="ic-card" onclick="openKitchenPage()"><div class="ic-head">🍳 厨房</div>'+
     '<div class="ic-body"><div class="ic-big">'+inv.length+' <span style="font-size:.7rem">件物品</span></div>'+
     '<div class="ic-muted">'+(nearestExpiry!==null ? (nearestExpiry<=0?'⚠ '+nearestExpName+' 已过期':nearestExpName+' '+nearestExpiry+'天后过期') : '暂无物品')+'</div></div></div>';
 
