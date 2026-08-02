@@ -12,6 +12,7 @@ function openCreateCamp() {
     showConfirm('检测到未完成的创营草稿「' + saved.step1.name + '」，是否恢复？\n\n选择「取消」将重新开始。', function(){
       _campDraft = saved;
       _campWizardStep = saved._step || 1;
+      _pushOverlay('overlayCreateCamp');
       document.getElementById('overlayCreateCamp').classList.add('open');
       renderWizardStep(_campWizardStep);
       showToast('草稿已恢复', 'ok');
@@ -19,6 +20,7 @@ function openCreateCamp() {
       sessionStorage.removeItem('nantang_camp_draft');
       _initNewDraft();
       _campWizardStep = 1;
+      _pushOverlay('overlayCreateCamp');
       document.getElementById('overlayCreateCamp').classList.add('open');
       renderWizardStep(1);
     });
@@ -26,6 +28,7 @@ function openCreateCamp() {
   }
   _initNewDraft();
   _campWizardStep = 1;
+  _pushOverlay('overlayCreateCamp');
   document.getElementById('overlayCreateCamp').classList.add('open');
   renderWizardStep(1);
 }
